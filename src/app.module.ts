@@ -11,6 +11,10 @@ import { CoursesModule } from './courses/courses.module';
 import { ModerationModule } from './moderation/moderation.module';
 import { PointsModule } from './points/points.module';
 import { AiModule } from './ai/ai.module';
+import { StorageModule } from './storage/storage.module';
+import { ReferralsModule } from './referrals/referrals.module';
+import { AnalyticsModule } from './analytics/analytics.module';
+import { SeedModule } from './seed/seed.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -30,6 +34,10 @@ import { AppService } from './app.service';
     ModerationModule,
     PointsModule,
     AiModule,
+    StorageModule,
+    ReferralsModule,
+    AnalyticsModule,
+    SeedModule,
   ],
   controllers: [AppController],
   providers: [AppService],
