@@ -10,6 +10,7 @@ import { InstitutionsModule } from './institutions/institutions.module';
 import { CoursesModule } from './courses/courses.module';
 import { ModerationModule } from './moderation/moderation.module';
 import { PointsModule } from './points/points.module';
+import { AiModule } from './ai/ai.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -28,6 +29,7 @@ import { AppService } from './app.service';
     CoursesModule,
     ModerationModule,
     PointsModule,
+    AiModule,
   ],
   controllers: [AppController],
   providers: [AppService],

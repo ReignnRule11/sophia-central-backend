@@ -5,6 +5,12 @@ import {
   PrimaryGeneratedColumn,
 } from 'typeorm';
 
+export enum PointTransactionType {
+  EARNED = 'earned',
+  SPENT = 'spent',
+  BONUS = 'bonus',
+}
+
 @Entity({ name: 'point_transactions' })
 export class PointTransaction {
   @PrimaryGeneratedColumn('uuid')
@@ -13,8 +19,8 @@ export class PointTransaction {
   @Column()
   userId: string;
 
-  @Column({ type: 'enum', enum: ['earned', 'spent', 'bonus'], default: 'earned' })
-  type: 'earned' | 'spent' | 'bonus';
+  @Column({ type: 'enum', enum: PointTransactionType, default: PointTransactionType.EARNED })
+  type: PointTransactionType;
 
   @Column({ type: 'int' })
   amount: number;
