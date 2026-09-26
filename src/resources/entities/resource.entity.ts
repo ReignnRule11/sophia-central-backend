@@ -4,10 +4,19 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../users/entities/user.entity';
+
+export enum ResourceModerationStatus {
+  DRAFT = 'draft',
+  PENDING = 'pending',
+  APPROVED = 'approved',
+  REJECTED = 'rejected',
+  FLAGGED = 'flagged',
+}
 
 export enum ResourceType {
   LECTURE_NOTES = 'lecture_notes',
@@ -46,6 +55,9 @@ export class Resource {
 
   @Column({ nullable: true })
   fileUrl?: string;
+
+  @Column({ type: 'enum', enum: ResourceModerationStatus, default: ResourceModerationStatus.PENDING })
+  moderationStatus: ResourceModerationStatus;
 
   @Column({ default: false })
   isVerified: boolean;

@@ -6,6 +6,10 @@ import { AuthModule } from './auth/auth.module';
 import { UsersModule } from './users/users.module';
 import { ResourcesModule } from './resources/resources.module';
 import { SearchModule } from './search/search.module';
+import { InstitutionsModule } from './institutions/institutions.module';
+import { CoursesModule } from './courses/courses.module';
+import { ModerationModule } from './moderation/moderation.module';
+import { PointsModule } from './points/points.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -20,6 +24,10 @@ import { AppService } from './app.service';
     UsersModule,
     ResourcesModule,
     SearchModule,
+    InstitutionsModule,
+    CoursesModule,
+    ModerationModule,
+    PointsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
