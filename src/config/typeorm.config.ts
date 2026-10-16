@@ -1,14 +1,15 @@
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
 import { Resource } from '../resources/entities/resource.entity';
-import { Institution } from '../institutions/entities/institution.entity';
-import { Faculty } from '../institutions/entities/faculty.entity';
-import { Department } from '../institutions/entities/department.entity';
+import { Institution, Faculty, Department } from '../institutions/entities/institution.entity';
 import { Course } from '../courses/entities/course.entity';
 import { CourseTopic } from '../courses/entities/course-topic.entity';
 import { ModerationReview } from '../moderation/entities/moderation-review.entity';
 import { PointWallet } from '../points/entities/point-wallet.entity';
 import { PointTransaction } from '../points/entities/point-transaction.entity';
+import { FileUpload } from '../upload/entities/file-upload.entity';
+import { Referral } from '../referral/entities/referral.entity';
+import { Notification } from '../notifications/entities/notification.entity';
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -28,6 +29,9 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     ModerationReview,
     PointWallet,
     PointTransaction,
+    FileUpload,
+    Referral,
+    Notification,
   ],
   synchronize: process.env.NODE_ENV !== 'production',
   logging: process.env.NODE_ENV !== 'production',

@@ -1,15 +1,19 @@
 import { Module } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { HttpModule } from '@nestjs/axios';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { AiController } from './ai.controller';
 import { AiService } from './ai.service';
-import { OpenAiService } from './openai.service';
-import { AnthropicService } from './anthropic.service';
+import { AiSession } from './entities/ai-session.entity';
+import { AiMessage } from './entities/ai-message.entity';
+import { Resource } from '../resources/entities/resource.entity';
+import { PointsModule } from '../points/points.module';
 
 @Module({
-  imports: [HttpModule],
+  imports: [
+    TypeOrmModule.forFeature([AiSession, AiMessage, Resource]),
+    PointsModule,
+  ],
   controllers: [AiController],
-  providers: [AiService, ConfigService, OpenAiService, AnthropicService],
-  exports: [AiService, OpenAiService, AnthropicService],
+  providers: [AiService],
+  exports: [AiService],
 })
 export class AiModule {}
