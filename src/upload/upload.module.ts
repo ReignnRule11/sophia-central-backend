@@ -1,11 +1,11 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { ConfigService } from '@nestjs/config';
 import { UploadController } from './upload.controller';
 import { UploadService } from './upload.service';
 import { FileUpload } from './entities/file-upload.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { PointsModule } from '../points/points.module';
+import { S3Service } from './s3.service';
 
 @Module({
   imports: [
@@ -13,7 +13,7 @@ import { PointsModule } from '../points/points.module';
     PointsModule,
   ],
   controllers: [UploadController],
-  providers: [UploadService, ConfigService],
-  exports: [UploadService],
+  providers: [UploadService, S3Service],
+  exports: [UploadService, S3Service],
 })
 export class UploadModule {}
