@@ -1,0 +1,52 @@
+import {
+  Controller,
+  Post,
+  Get,
+  Param,
+  UseInterceptors,
+  UploadedFile,
+  BadRequestException,
+  UseGuards,
+  Body,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CurrentUser } from '../common/decorators/current-user.decorator';
+import { User } from '../users/entities/user.entity';
+import { UploadService } from './upload.service';
+import { CreateFileUploadDto } from './dto/create-file-upload.dto';
+
+@ApiTags('Upload')
+@Controller('upload')
+export class UploadController {
+  constructor(private readonly uploadService: UploadService) {}
+
+  @Post('presigned-url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get presigned URL for S3 upload' })
+  async getPresignedUrl(
+    @CurrentUser() user: User,
+    @Body() dto: CreateFileUploadDto,
+  ) {
+    return this.uploadService.getPresignedUrl(user.id, dto);
+  }
+
+  @Post('complete')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Complete upload and create file record' })
+  async completeUpload(
+    @CurrentUser() user: User,
+    @Body() dto: { key: string; resourceId: string; mimetype: string; size: number },
+  ) {
+    return this.uploadService.completeUpload(user.id, dto);
+  }
+
+  @Get(':id')
+  @ApiOperation({ summary: 'Get upload details' })
+  async getUploadDetails(@Param('id') id: string) {
+    return this.uploadService.getUploadDetails(id);
+  }
+}
