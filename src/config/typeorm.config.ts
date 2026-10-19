@@ -10,6 +10,8 @@ import { PointTransaction } from '../points/entities/point-transaction.entity';
 import { FileUpload } from '../upload/entities/file-upload.entity';
 import { Referral } from '../referral/entities/referral.entity';
 import { Notification } from '../notifications/entities/notification.entity';
+import { AiSession } from '../ai/entities/ai-session.entity';
+import { AiMessage } from '../ai/entities/ai-message.entity';
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
@@ -32,6 +34,8 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     FileUpload,
     Referral,
     Notification,
+    AiSession,
+    AiMessage,
   ],
   synchronize: process.env.NODE_ENV !== 'production',
   logging: process.env.NODE_ENV !== 'production',
