@@ -1,0 +1,1 @@
+feat(phase3): wire upload controller to persist resource_files record and add TCP ClamAV integration in scanner worker
