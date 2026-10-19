@@ -15,7 +15,7 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "migrate": "node -e \"console.log('Use typeorm migration commands with your preferred migration setup')\""
+    "seed": "ts-node src/database/seed.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.703.0",
@@ -31,6 +31,8 @@
     "bcryptjs": "^2.4.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.1",
+    "express-rate-limit": "^7.4.1",
+    "helmet": "^8.0.0",
     "openai": "^4.77.1",
     "passport": "^0.7.0",
     "passport-jwt": "^4.1.1",
