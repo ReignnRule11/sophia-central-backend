@@ -1,0 +1,16 @@
+{
+  "name": "sophia-ai-scanner",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/scanner/worker.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.scanner.json",
+    "start": "node dist/scanner/worker.js"
+  },
+  "dependencies": {
+    "aws-sdk": "^2.1350.0",
+    "node-fetch": "^2.6.7",
+    "clamdjs": "^1.0.5",
+    "typeorm": "^0.3.17"
+  }
+}

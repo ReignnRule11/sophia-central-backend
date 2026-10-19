@@ -1,0 +1,12 @@
+# TypeScript config for building the scanner worker only
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "module": "CommonJS",
+    "outDir": "dist",
+    "rootDir": "libs/storage/src",
+    "strict": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true
+  },
+  "include": ["libs/storage/src/scanner/**/*", "libs/storage/src/resource-files.repository.ts"]n}
