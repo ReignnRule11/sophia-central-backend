@@ -7,11 +7,12 @@ import { Resource } from '../resources/entities/resource.entity';
 import { AskQuestionDto } from './dto/ask-question.dto';
 import { SummarizeResourceDto } from './dto/summarize-resource.dto';
 import { PointsService } from '../points/points.service';
+import { OpenAiService } from './openai.service';
 
 @Injectable()
 export class AiService {
-  private readonly AI_USAGE_COST = 2; // Points per query
-  private readonly SUMMARY_USAGE_COST = 5; // Points per summary
+  private readonly AI_USAGE_COST = 2;
+  private readonly SUMMARY_USAGE_COST = 5;
 
   constructor(
     @InjectRepository(AiSession)
@@ -21,10 +22,10 @@ export class AiService {
     @InjectRepository(Resource)
     private readonly resourceRepository: Repository<Resource>,
     private readonly pointsService: PointsService,
+    private readonly openAiService: OpenAiService,
   ) {}
 
   async processQuestion(userId: string, dto: AskQuestionDto) {
-    // Check user has enough points
     const balance = await this.pointsService.getBalance(userId);
     if (balance < this.AI_USAGE_COST) {
       return {
@@ -34,10 +35,11 @@ export class AiService {
       };
     }
 
-    // Get or create session
-    let session = await this.sessionRepository.findOne({
-      where: { id: dto.sessionId, userId },
-    });
+    let session = dto.sessionId
+      ? await this.sessionRepository.findOne({
+          where: { id: dto.sessionId, userId },
+        })
+      : null;
 
     if (!session) {
       session = this.sessionRepository.create({
@@ -48,7 +50,6 @@ export class AiService {
       session = await this.sessionRepository.save(session);
     }
 
-    // Verify resource exists
     if (dto.resourceId) {
       const resource = await this.resourceRepository.findOne({
         where: { id: dto.resourceId },
@@ -58,10 +59,12 @@ export class AiService {
       }
     }
 
-    // Mock AI response (replace with actual LLM integration)
-    const aiResponse = await this.generateAiResponse(dto.question, dto.resourceId);
+    const context = dto.resourceId
+      ? `Resource ID: ${dto.resourceId}`
+      : 'No specific resource context provided.';
 
-    // Save user message
+    const aiResponse = await this.openAiService.generateText(dto.question, context);
+
     const userMessage = this.messageRepository.create({
       sessionId: session.id,
       role: 'user',
@@ -69,7 +72,6 @@ export class AiService {
     });
     await this.messageRepository.save(userMessage);
 
-    // Save AI message
     const assistantMessage = this.messageRepository.create({
       sessionId: session.id,
       role: 'assistant',
@@ -77,7 +79,6 @@ export class AiService {
     });
     await this.messageRepository.save(assistantMessage);
 
-    // Deduct points
     await this.pointsService.awardPoints({
       userId,
       amount: -this.AI_USAGE_COST,
@@ -94,7 +95,6 @@ export class AiService {
   }
 
   async summarizeResource(userId: string, dto: SummarizeResourceDto) {
-    // Check balance
     const balance = await this.pointsService.getBalance(userId);
     if (balance < this.SUMMARY_USAGE_COST) {
       return {
@@ -104,7 +104,6 @@ export class AiService {
       };
     }
 
-    // Verify resource exists
     const resource = await this.resourceRepository.findOne({
       where: { id: dto.resourceId, isVerified: true },
     });
@@ -113,10 +112,11 @@ export class AiService {
       throw new NotFoundException('Resource not found or not verified');
     }
 
-    // Mock summary generation
-    const summary = await this.generateSummary(resource);
+    const summary = await this.openAiService.generateText(
+      `Summarize this academic resource for a student. Focus on the main ideas, key concepts, and actionable study takeaways.`,
+      `Title: ${resource.title}\nDescription: ${resource.description || 'No description'}\nCourse: ${resource.course || 'N/A'}\nTopic: ${resource.topic || 'N/A'}`,
+    );
 
-    // Deduct points
     await this.pointsService.awardPoints({
       userId,
       amount: -this.SUMMARY_USAGE_COST,
@@ -146,7 +146,6 @@ export class AiService {
   }
 
   async getUsageStats(targetUserId: string, currentUserId: string) {
-    // Users can only see their own usage
     if (targetUserId !== currentUserId) {
       throw new ForbiddenException('Unauthorized');
     }
@@ -171,22 +170,5 @@ export class AiService {
         createdAt: s.createdAt,
       })),
     };
-  }
-
-  private async generateAiResponse(question: string, resourceId?: string): Promise<string> {
-    // PLACEHOLDER: Replace with actual LLM API call
-    // Example integrations:
-    // - OpenAI GPT API
-    // - Anthropic Claude API
-    // - Open-source models (LLaMA, Mistral) via Ollama or HuggingFace
-    // - Azure OpenAI
-
-    // Mock response for MVP
-    return `Based on the course material, here's what I understand about your question: "${question}"\n\nThis is a mock AI response. In production, this would be powered by an LLM that has context from the uploaded resources and course materials. The AI tutor would provide personalized explanations, worked examples, and study guidance.\n\nTo enable real AI features, integrate with an LLM provider like OpenAI, Anthropic, or self-hosted models.`;
-  }
-
-  private async generateSummary(resource: Resource): Promise<string> {
-    // PLACEHOLDER: Replace with actual LLM summarization
-    return `Summary of "${resource.title}":\n\nThis is a mock summary. In production, this would extract key concepts, main points, and important takeaways from the resource content using an LLM or document processing pipeline.\n\nKey topics would include the core concepts, methodology, and conclusions relevant to the course material.`;
   }
 }
