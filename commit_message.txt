@@ -1,0 +1,8 @@
+feat(phase3): multi-LLM provider wiring, scanner worker, MinIO+ClamAV docker-compose, repos and docs
+
+- Add OpenAI/Anthropic/Azure/Llama provider adapters
+- AiModule, AiService and AiRepository with provider priority/fallback
+- ResourceFiles entity + repository and scanner worker (polling stub)
+- docker-compose.override.yml with MinIO, MinIO console, ClamAV, and scanner service
+- .env.example and PHASE3 README
+- Unit test for provider selection
