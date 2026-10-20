@@ -1,57 +1,58 @@
-import {
-  Injectable,
-  NotFoundException,
-  BadRequestException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import * as bcrypt from 'bcryptjs';
-import { Repository } from 'typeorm';
-import { CreateUserDto } from './dto/create-user.dto';
-import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
+import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 
-@Injectable()
-export class UsersService {
-  constructor(
-    @InjectRepository(User)
-    private readonly userRepository: Repository<User>,
-  ) {}
+@Entity('users')
+export class User {
+  @PrimaryGeneratedColumn('uuid')
+  id: string;
 
-  async create(createUserDto: CreateUserDto): Promise<User> {
-    const hashedPassword = await bcrypt.hash(createUserDto.password, 10);
+  @Column({ unique: true })
+  email: string;
 
-    const user = this.userRepository.create({
-      ...createUserDto,
-      password: hashedPassword,
-    });
+  @Column({ nullable: true })
+  password?: string;
 
-    return this.userRepository.save(user);
-  }
+  @Column({ nullable: true })
+  firstName?: string;
 
-  async findAll(): Promise<User[]> {
-    return this.userRepository.find();
-  }
+  @Column({ nullable: true })
+  lastName?: string;
 
-  async findOne(id: string): Promise<User> {
-    const user = await this.userRepository.findOne({ where: { id } });
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-    return user;
-  }
+  @Column({ nullable: true })
+  socialHandle?: string;
 
-  async findByEmail(email: string): Promise<User | null> {
-    return this.userRepository.findOne({ where: { email } });
-  }
+  @Column({ nullable: true })
+  profileImage?: string;
 
-  async update(id: string, updateUserDto: UpdateUserDto): Promise<User> {
-    const user = await this.findOne(id);
-    Object.assign(user, updateUserDto);
-    return this.userRepository.save(user);
-  }
+  @Column({ default: 'student' })
+  role: 'student' | 'lecturer' | 'moderator' | 'admin';
 
-  async remove(id: string): Promise<void> {
-    const user = await this.findOne(id);
-    await this.userRepository.remove(user);
-  }
+  @Column({ default: 'email' })
+  authProvider: 'email' | 'google' | 'apple' | 'twitter' | 'linkedin' | 'instagram';
+
+  @Column({ nullable: true })
+  institution?: string;
+
+  @Column({ nullable: true })
+  department?: string;
+
+  @Column({ nullable: true })
+  faculty?: string;
+
+  @Column({ nullable: true })
+  studyLevel?: string;
+
+  @Column({ nullable: true })
+  bio?: string;
+
+  @Column({ default: false })
+  isVerified: boolean;
+
+  @Column({ default: false })
+  isProfileComplete: boolean;
+
+  @CreateDateColumn()
+  createdAt: Date;
+
+  @UpdateDateColumn()
+  updatedAt: Date;
 }
