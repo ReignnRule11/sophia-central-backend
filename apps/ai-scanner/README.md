@@ -1,7 +1,36 @@
-I added an ai-scanner package + Dockerfile to support the ClamAV-enabled scanner worker.
+# Sophia Central Mobile (React Native + Expo)
 
-Notes:
-- The Dockerfile assumes your repo build process produces compiled JS into dist/libs/storage/scanner.
-  If you prefer building inside the container, change the Dockerfile to copy TypeScript sources and run `npm run build`.
-- package.json includes clamdjs as a dependency; pin versions as needed.
-- After pushing, run a full repo build to ensure dist/ files are present before starting the ai-scanner container.
+This is an Expo + React Native TypeScript starter for the Sophia Central mobile app.
+
+## Getting started
+
+1. Install Expo CLI: `npm install -g expo-cli`
+2. From this folder: `cd mobile-app`
+3. Install dependencies: `npm install`
+4. Start the dev server: `npm run start`
+
+## Auth and onboarding
+
+The mobile app supports:
+
+- email login and sign-up
+- Google sign-in
+- Apple sign-in
+- social-handle sign-in and onboarding
+
+The backend auth routes are exposed through the API client and should be used for onboarding, social login, and user profile completion.
+
+## Notes
+
+- API client is in `src/api/client.ts` and points to the backend API. Update `API_URL` in `.env` or `app.json`.
+- Auth uses SecureStore for storing JWT tokens.
+
+## Features included in this scaffold:
+
+- Auth flow (login/register)
+- Social onboarding flow
+- Basic navigation (stack + bottom tabs)
+- Home, Search, Resource detail, Upload, Profile screens
+- API client with token handling
+
+Contributions welcome.

@@ -1,22 +1,50 @@
-# Sophia Central Mobile (React Native + Expo)
+# sophia-central-backend
 
-This is an Expo + React Native TypeScript starter for the Sophia Central mobile app.
+Centralized academic resource and research platform backend.
 
-Getting started
+## Authentication and onboarding
 
-1. Install Expo CLI: `npm install -g expo-cli`
-2. From this folder: `cd mobile-app`
-3. Install dependencies: `npm install`
-4. Start the dev server: `npm run start`
+Sophia Central supports multiple sign-up and sign-in entry points for the onboarding flow:
 
-Notes
-- API client is in `src/api/client.ts` and points to the backend API. Update `API_URL` in `.env` or `app.json`.
-- Auth uses SecureStore for storing JWT tokens.
+- email sign-up and sign-in
+- Google OAuth / Google sign-in
+- Apple sign-in
+- social handle sign-in for platforms such as X, LinkedIn, and Instagram
+- onboarding completion after account creation
 
-Features included in this scaffold:
-- Auth flow (login/register)
-- Basic navigation (stack + bottom tabs)
-- Home, Search, Resource detail, Upload, Profile screens
-- API client with token handling
+### Auth endpoints
 
-Contributions welcome.
+- `POST /auth/signup` — create an account with email/password
+- `POST /auth/login` — sign in with email/password
+- `POST /auth/social` — social provider sign-in / account linking
+- `POST /auth/google` — Google-specific sign-in route
+- `POST /auth/apple` — Apple-specific sign-in route
+- `POST /auth/onboarding` — complete profile onboarding after sign-up or social sign-in
+- `GET /auth/me` — fetch the authenticated user profile
+
+### Account flow
+
+1. New users can sign up with email and password or continue with a social provider.
+2. Social sign-in creates or links an account and returns a JWT.
+3. The client completes onboarding to add institution, faculty, department, study level, bio, and social handle.
+4. Once onboarding is complete, the account is marked profile complete and verified.
+
+## Stack
+
+- NestJS
+- TypeScript
+- PostgreSQL
+- Redis
+- MinIO
+- OpenAI-compatible AI provider integration
+
+## Getting started
+
+1. `npm install`
+2. `docker compose up -d postgres redis minio`
+3. create `.env` based on `.env.example`
+4. `npm run start:dev`
+
+## API docs
+
+Swagger is available at `/api/docs`.

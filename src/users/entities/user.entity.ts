@@ -1,58 +1,31 @@
-import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  OneToMany,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
-} from 'typeorm';
-import { Resource } from '../../resources/entities/resource.entity';
+import { IsBoolean, IsOptional, IsString } from 'class-validator';
 
-export enum UserRole {
-  STUDENT = 'student',
-  LECTURER = 'lecturer',
-  MODERATOR = 'moderator',
-  ADMIN = 'admin',
-}
-
-@Entity({ name: 'users' })
-export class User {
-  @PrimaryGeneratedColumn('uuid')
-  id: string;
-
-  @Column({ unique: true })
-  email: string;
-
-  @Column()
-  password: string;
-
-  @Column()
-  firstName: string;
-
-  @Column()
-  lastName: string;
-
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.STUDENT })
-  role: UserRole;
-
-  @Column({ nullable: true })
+export class OnboardingDto {
+  @IsOptional()
+  @IsString()
   institution?: string;
 
-  @Column({ nullable: true })
-  department?: string;
-
-  @Column({ nullable: true })
+  @IsOptional()
+  @IsString()
   faculty?: string;
 
-  @Column({ default: false })
-  isVerified: boolean;
+  @IsOptional()
+  @IsString()
+  department?: string;
 
-  @CreateDateColumn()
-  createdAt: Date;
+  @IsOptional()
+  @IsString()
+  studyLevel?: string;
 
-  @UpdateDateColumn()
-  updatedAt: Date;
+  @IsOptional()
+  @IsString()
+  bio?: string;
 
-  @OneToMany(() => Resource, (resource) => resource.uploader)
-  resources: Resource[];
+  @IsOptional()
+  @IsString()
+  socialHandle?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  newsletterEnabled?: boolean;
 }
