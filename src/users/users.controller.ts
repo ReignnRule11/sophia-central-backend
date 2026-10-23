@@ -2,6 +2,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   Param,
   Patch,
@@ -12,9 +13,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
-import { UserRole } from './entities/user.entity';
+import { UserRole, User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { User } from './entities/user.entity';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -42,8 +42,15 @@ export class UsersController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Update a user profile' })
-  update(@Param('id') id: string, @Body() dto: UpdateUserDto) {
+  @ApiOperation({ summary: 'Update own profile (administrators may update any profile)' })
+  update(
+    @Param('id') id: string,
+    @Body() dto: UpdateUserDto,
+    @CurrentUser() currentUser: User,
+  ) {
+    if (currentUser.id !== id && currentUser.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('You may only update your own profile');
+    }
     return this.usersService.update(id, dto);
   }
 
