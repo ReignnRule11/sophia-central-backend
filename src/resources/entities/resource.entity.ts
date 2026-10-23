@@ -4,7 +4,6 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
-  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
@@ -30,16 +29,16 @@ export enum ResourceType {
 @Entity({ name: 'resources' })
 export class Resource {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  title: string;
+  title!: string;
 
   @Column({ type: 'text', nullable: true })
   description?: string;
 
   @Column({ type: 'enum', enum: ResourceType, default: ResourceType.OTHER })
-  type: ResourceType;
+  type!: ResourceType;
 
   @Column({ nullable: true })
   course?: string;
@@ -57,27 +56,27 @@ export class Resource {
   fileUrl?: string;
 
   @Column({ type: 'enum', enum: ResourceModerationStatus, default: ResourceModerationStatus.PENDING })
-  moderationStatus: ResourceModerationStatus;
+  moderationStatus!: ResourceModerationStatus;
 
   @Column({ default: false })
-  isVerified: boolean;
+  isVerified!: boolean;
 
   @Column({ default: 0 })
-  views: number;
+  views!: number;
 
   @Column({ default: 0 })
-  downloads: number;
+  downloads!: number;
 
   @Column()
-  uploaderId: string;
+  uploaderId!: string;
 
   @ManyToOne(() => User, (user) => user.resources, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'uploaderId' })
-  uploader: User;
+  uploader!: User;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
