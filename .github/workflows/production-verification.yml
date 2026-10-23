@@ -31,7 +31,7 @@ jobs:
       - name: Lint (read-only)
         env:
           ESLINT_USE_FLAT_CONFIG: "false"
-        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+        run: npx eslint "{src,apps,libs,tests}/**/*.ts"
       - name: Dependency security audit
         run: npm audit --audit-level=high
       - name: Docker image build
