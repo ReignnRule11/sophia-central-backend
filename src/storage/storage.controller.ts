@@ -30,7 +30,7 @@ export class StorageController {
     try {
       return this.s3StorageService.confirmUpload(dto.uploadId, dto.resourceId, dto.fileName);
     } catch (error) {
-      throw new BadRequestException(error.message);
+      throw new BadRequestException(error instanceof Error ? error.message : 'Upload confirmation failed');
     }
   }
 }
