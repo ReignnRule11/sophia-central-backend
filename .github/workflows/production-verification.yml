@@ -1,0 +1,47 @@
+name: Production verification
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches:
+      - hardening/p0-production-security
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Build
+        run: npm run build
+      - name: Unit tests
+        run: npm test -- --runInBand
+      - name: Lint (read-only)
+        env:
+          ESLINT_USE_FLAT_CONFIG: "false"
+        run: npx eslint "{src,apps,libs,test}/**/*.ts"
+      - name: Dependency security audit
+        run: npm audit --audit-level=high
+      - name: Docker image build
+        run: docker build --tag sophia-central-backend:verification .
+      - name: Validate production Compose
+        env:
+          DB_USERNAME: ci_sophia
+          DB_PASSWORD: ci-only-not-a-secret
+          DB_DATABASE: sophia_ci
+          JWT_SECRET: ci-only-random-looking-secret-value-123456
+          CORS_ORIGINS: https://example.invalid
+        run: docker compose -f docker-compose.prod.yml config --quiet
