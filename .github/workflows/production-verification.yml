@@ -14,7 +14,28 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: ci_sophia
+          POSTGRES_PASSWORD: ci-only-not-a-secret
+          POSTGRES_DB: sophia_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci_sophia -d sophia_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      DB_HOST: 127.0.0.1
+      DB_PORT: 5432
+      DB_USERNAME: ci_sophia
+      DB_PASSWORD: ci-only-not-a-secret
+      DB_DATABASE: sophia_ci
+      DB_SSL: "false"
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -28,6 +49,12 @@ jobs:
         run: npm run build
       - name: Unit tests
         run: npm test -- --runInBand
+      - name: Run migrations against fresh PostgreSQL
+        env:
+          NODE_ENV: production
+        run: npm run migration:run
+      - name: Verify migrated schema and foreign-key behavior
+        run: npm run migration:smoke
       - name: Lint production authentication and security code
         if: always()
         env:
@@ -37,6 +64,7 @@ jobs:
           "src/auth/**/*.ts"
           "src/common/security.ts"
           "src/config/typeorm.config.ts"
+          "src/database/**/*.ts"
           "src/notifications/**/*.ts"
           "src/resources/entities/resource.entity.ts"
           "src/storage/**/*.ts"
@@ -56,4 +84,4 @@ jobs:
           DB_DATABASE: sophia_ci
           JWT_SECRET: ci-only-random-looking-secret-value-123456
           CORS_ORIGINS: https://example.invalid
-        run: docker compose -f docker-compose.prod.yml config --quiet
+        run: docker compose --env-file /dev/null -f docker-compose.prod.yml config --quiet
