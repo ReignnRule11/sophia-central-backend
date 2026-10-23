@@ -66,8 +66,8 @@ export class AuthController {
   @ApiOperation({ summary: 'Register with email and password' })
   async signup(@Body() dto: RegisterDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.register(dto);
-    this.setSessionCookies(response, result.accessToken);
-    return { user: result.user };
+    const csrfToken = this.setSessionCookies(response, result.accessToken);
+    return { user: result.user, csrfToken };
   }
 
   @Post('login')
@@ -126,9 +126,10 @@ export class AuthController {
     return this.authService.getCurrentUser(req.user.id);
   }
 
-  private setSessionCookies(response: Response, accessToken: string) {
+  private setSessionCookies(response: Response, accessToken: string): string {
     const csrfToken = randomBytes(32).toString('hex');
     response.cookie(ACCESS_COOKIE, accessToken, cookieOptions());
     response.cookie(CSRF_COOKIE, csrfToken, csrfCookieOptions());
+    return csrfToken;
   }
 }
