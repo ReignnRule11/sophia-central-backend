@@ -2,7 +2,9 @@ import { Controller, Get, Patch, Param, Query, UseGuards, Body, Post } from '@ne
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
 import { NotificationsService } from './notifications.service';
 
 @ApiTags('Notifications')
@@ -43,7 +45,8 @@ export class NotificationsController {
   }
 
   @Post('send')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send a notification (admin/test only)' })
   async sendNotification(@Body() dto: { userId: string; type: string; title: string; message: string; link?: string }) {
