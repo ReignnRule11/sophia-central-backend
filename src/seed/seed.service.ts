@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
-import { Resource } from '../resources/entities/resource.entity';
+import { Resource, ResourceType, ResourceModerationStatus } from '../resources/entities/resource.entity';
 
 @Injectable()
 export class SeedService {
@@ -56,14 +56,14 @@ export class SeedService {
         {
           title: 'Introduction to Computer Programming',
           description: 'Lecture notes covering introductory programming concepts.',
-          type: 'lecture_notes',
+          type: ResourceType.LECTURE_NOTES,
           course: 'Computer Science 101',
           topic: 'Programming Fundamentals',
           institution: 'University of Lagos',
           level: '100',
           fileUrl: 'https://example.com/programming-notes.pdf',
           isVerified: true,
-          moderationStatus: 'approved',
+          moderationStatus: ResourceModerationStatus.APPROVED,
           uploaderId: lecturerUser?.id ?? studentUser?.id ?? users[0].id,
           views: 140,
           downloads: 100,
@@ -71,7 +71,7 @@ export class SeedService {
         {
           title: 'Microeconomics Past Questions 2018-2023',
           description: 'A curated set of past microeconomics exam questions.',
-          type: 'past_question',
+          type: ResourceType.PAST_QUESTION,
           course: 'Economics',
           topic: 'Microeconomics',
           institution: 'Ahmadu Bello University',
@@ -86,7 +86,7 @@ export class SeedService {
         {
           title: 'Final Year Project Guide',
           description: 'Step-by-step guide for selecting, writing, and defending a final-year project.',
-          type: 'project',
+          type: ResourceType.PROJECT,
           course: 'Final Year Project',
           topic: 'Project Planning',
           institution: 'University of Ibadan',
