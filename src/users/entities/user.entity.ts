@@ -32,7 +32,7 @@ export class User {
   @Column({ nullable: true })
   profileImage?: string;
 
-  @Column({ type: 'enum', enum: UserRole, default: UserRole.STUDENT })
+  @Column({ type: 'varchar', default: UserRole.STUDENT })
   role: UserRole;
 
   @Column({ type: 'varchar', default: 'email' })
