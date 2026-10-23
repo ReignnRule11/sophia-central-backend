@@ -1,4 +1,26 @@
 services:
+  migrate:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    command: ['node', 'dist/database/run-migrations.js']
+    restart: 'no'
+    environment:
+      NODE_ENV: production
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_USERNAME: ${DB_USERNAME:?Set DB_USERNAME in the deployment environment}
+      DB_PASSWORD: ${DB_PASSWORD:?Set DB_PASSWORD in the deployment environment}
+      DB_DATABASE: ${DB_DATABASE:?Set DB_DATABASE in the deployment environment}
+      DB_SSL: ${DB_SSL:-false}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+
   api:
     build:
       context: .
@@ -19,9 +41,12 @@ services:
       JWT_SECRET: ${JWT_SECRET:?Set a strong JWT_SECRET (32+ characters)}
       JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:-1h}
       CORS_ORIGINS: ${CORS_ORIGINS:?Set CORS_ORIGINS to the exact trusted frontend origins}
+      SWAGGER_ENABLED: ${SWAGGER_ENABLED:-false}
     depends_on:
       postgres:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     read_only: true
     tmpfs:
       - /tmp
@@ -30,7 +55,7 @@ services:
     cap_drop:
       - ALL
     healthcheck:
-      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/').then(r => process.exit(r.status < 500 ? 0 : 1)).catch(() => process.exit(1))"]
+      test: ['CMD', 'node', '-e', "fetch('http://127.0.0.1:3000/health').then(r => process.exit(r.status === 200 ? 0 : 1)).catch(() => process.exit(1))"]
       interval: 30s
       timeout: 5s
       retries: 3
