@@ -4,6 +4,11 @@ import { HttpService } from '@nestjs/axios';
 import { firstValueFrom } from 'rxjs';
 import { AskAiDto } from './dto/ask-ai.dto';
 
+interface AnthropicApiResponse {
+  content: Array<{ text: string }>;
+  usage: { input_tokens: number; output_tokens: number };
+}
+
 export interface AiResponse {
   id: string;
   status: string;
@@ -18,7 +23,7 @@ export interface AiResponse {
 
 @Injectable()
 export class AnthropicService {
-  private apiKey: string;
+  private apiKey?: string;
   private model: string = 'claude-3-sonnet-20240229';
   private maxTokens: number = 1024;
 
@@ -38,7 +43,7 @@ export class AnthropicService {
       const systemPrompt = 'You are Sophia, an AI study assistant for Sophia Central. Help students learn academic material concisely and accurately. Keep responses under 500 words.';
 
       const response = await firstValueFrom(
-        this.httpService.post(
+        this.httpService.post<AnthropicApiResponse>(
           'https://api.anthropic.com/v1/messages',
           {
             model: this.model,
@@ -76,7 +81,8 @@ export class AnthropicService {
         createdAt: new Date().toISOString(),
       };
     } catch (error) {
-      throw new BadRequestException(`AI request failed: ${error.message}`);
+      const message = error instanceof Error ? error.message : 'Unknown provider error';
+      throw new BadRequestException(`AI request failed: ${message}`);
     }
   }
 }
