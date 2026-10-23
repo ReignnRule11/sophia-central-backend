@@ -1,287 +1,116 @@
-# Sophia Central Backend - Production Deployment Guide
+# Sophia Central Backend — Production Deployment
 
-## Pre-Deployment Checklist
+This guide documents the supported **single-host Docker Compose deployment** in `docker-compose.prod.yml`. It is not a substitute for an ECS/Kubernetes deployment specification. The default `docker-compose.yml` is development-only and must not be used in production.
 
-### Security
-- [ ] Generate strong JWT secret: `openssl rand -base64 32`
-- [ ] Enable HTTPS/TLS on all endpoints
-- [ ] Configure database encryption at rest
-- [ ] Set up WAF (AWS WAF, Cloudflare)
-- [ ] Enable DDoS protection
-- [ ] Configure rate limiting
-- [ ] Set up API key rotation policies
-- [ ] Enable audit logging for all moderation actions
-- [ ] Configure secrets management (AWS Secrets Manager, HashiCorp Vault)
+## 1. Requirements
 
-### Database
-- [ ] Configure connection pooling (min: 5, max: 20)
-- [ ] Enable SSL for database connections
-- [ ] Set up automated daily backups
-- [ ] Configure point-in-time recovery (PITR)
-- [ ] Create read replicas for analytics queries
-- [ ] Tune PostgreSQL for production (shared_buffers, work_mem, etc.)
-- [ ] Create indexes on frequently searched columns
-- [ ] Set up database monitoring and alerting
+- Docker Engine and the Docker Compose v2 plugin.
+- A trusted HTTPS reverse proxy (for example, Caddy or Nginx) in front of the API.
+- A DNS name and TLS certificate for the API.
+- A secure place to store and back up database credentials and JWT signing secrets.
+- A verified backup/restore process before applying schema changes.
 
-### Infrastructure
-- [ ] Set up load balancer (AWS ALB, Nginx)
-- [ ] Configure auto-scaling groups
-- [ ] Set up health checks and monitoring
-- [ ] Enable VPC security groups and network ACLs
-- [ ] Configure CloudFront or CDN for static assets
-- [ ] Set up monitoring and logging (CloudWatch, ELK, DataDog)
-- [ ] Configure Sentry for error tracking
-- [ ] Set up uptime monitoring (Pingdom, UptimeRobot)
+The production Compose file binds the API to `127.0.0.1:3000`; PostgreSQL has no published host port. Terminate TLS at the reverse proxy and proxy to the loopback API port. Do not expose port 3000 directly to the internet.
 
-### File Storage
-- [ ] Create S3 bucket with versioning enabled
-- [ ] Enable S3 encryption (SSE-S3 or SSE-KMS)
-- [ ] Configure S3 CORS policy for frontend
-- [ ] Enable S3 access logging
-- [ ] Set up S3 lifecycle policies (archive old files after 90 days)
-- [ ] Configure CloudFront distribution for file serving
-- [ ] Set up virus scanning for uploads (ClamAV via Lambda)
+## 2. Create the deployment environment file
 
-### AI Integration
-- [ ] Verify OpenAI or Anthropic account and API keys
-- [ ] Set up usage monitoring and alerts
-- [ ] Configure rate limiting per user (e.g., 10 requests/day)
-- [ ] Implement token usage tracking and billing
-- [ ] Set up fallback mechanisms
+Create `.env.production` on the deployment host. Do not commit it to Git or paste its contents into logs or support requests.
 
-### Monitoring & Alerting
-- [ ] Set up CloudWatch dashboards
-- [ ] Configure alerts for:
-  - Database CPU > 80%
-  - Database connections > 80%
-  - API error rate > 1%
-  - API latency p99 > 5 seconds
-  - S3 upload failures > 5%
-  - Disk space < 20%
-- [ ] Set up on-call rotation
-- [ ] Configure incident response procedures
-
-## Environment Configuration
-
-### Production Environment Variables
+Generate secrets:
 
 ```bash
-# Generate these securely
-JWT_SECRET=$(openssl rand -base64 32)
-DB_PASSWORD=$(openssl rand -base64 32)
-REDIS_PASSWORD=$(openssl rand -base64 32)
-
-# Store in AWS Secrets Manager or similar
-aws secretsmanager create-secret \
-  --name sophia-central/prod \
-  --secret-string "{
-    \"JWT_SECRET\": \"$JWT_SECRET\",
-    \"DB_PASSWORD\": \"$DB_PASSWORD\",
-    \"REDIS_PASSWORD\": \"$REDIS_PASSWORD\",
-    \"OPENAI_API_KEY\": \"your-key-here\",
-    \"AWS_ACCESS_KEY_ID\": \"your-key-here\",
-    \"AWS_SECRET_ACCESS_KEY\": \"your-key-here\"
-  }"
+openssl rand -base64 48   # use as JWT_SECRET
+openssl rand -base64 32   # use as DB_PASSWORD
 ```
 
-## Deployment Steps
+Create the file with the following values, replacing every example/placeholder:
 
-### Option 1: AWS ECS + RDS + S3
+```dotenv
+PORT=3000
+DB_USERNAME=sophia_prod
+DB_PASSWORD=REPLACE_WITH_GENERATED_DATABASE_PASSWORD
+DB_DATABASE=sophia_central_prod
+DB_SSL=false
+JWT_SECRET=REPLACE_WITH_GENERATED_RANDOM_JWT_SECRET
+JWT_EXPIRES_IN=1h
+CORS_ORIGINS=https://your-real-frontend.example
+SWAGGER_ENABLED=false
+```
 
-1. **Build and push Docker image**:
-   ```bash
-   docker build -t sophia-central-backend:latest .
-   aws ecr get-login-password --region us-east-1 | docker login --username AWS --password-stdin 123456789.dkr.ecr.us-east-1.amazonaws.com
-   docker tag sophia-central-backend:latest 123456789.dkr.ecr.us-east-1.amazonaws.com/sophia-central-backend:latest
-   docker push 123456789.dkr.ecr.us-east-1.amazonaws.com/sophia-central-backend:latest
-   ```
+Then restrict access:
 
-2. **Create RDS PostgreSQL instance**:
-   ```bash
-   aws rds create-db-instance \
-     --db-instance-identifier sophia-central-prod \
-     --db-instance-class db.t3.medium \
-     --engine postgres \
-     --master-username sophia \
-     --master-user-password $DB_PASSWORD \
-     --allocated-storage 100 \
-     --storage-type gp3 \
-     --vpc-security-group-ids sg-xxxxx \
-     --backup-retention-period 30 \
-     --enable-iam-database-authentication \
-     --enable-cloudwatch-logs-exports postgresql
-   ```
+```bash
+chmod 600 .env.production
+```
 
-3. **Create ECS cluster and task definition**:
-   ```bash
-   # See Terraform/CloudFormation templates in infrastructure/ directory
-   ```
+Requirements:
+- `DB_PASSWORD` must be unique to this deployment.
+- `JWT_SECRET` must be a cryptographically random value at least 32 characters long. Never use a checked-in example or development secret.
+- `CORS_ORIGINS` must be a comma-separated list of exact trusted origins, including scheme and port if nonstandard; do not use `*` with credentials.
+- `DB_SSL=false` is only for the bundled PostgreSQL service on the private Compose network. For an external managed database, configure its TLS and certificate verification explicitly in that deployment's environment and networking; do not blindly reuse this bundled-DB Compose configuration.
+- Configure any required object-storage and AI provider credentials through your secret manager and the application's supported environment variables before enabling those features. Do not add secrets to the image or source control.
 
-4. **Run database migrations**:
-   ```bash
-   npm run typeorm:migration:run -- -d src/database/typeorm.config.ts
-   ```
+## 3. First deployment and subsequent releases
 
-5. **Seed essential data**:
-   ```bash
-   curl -X POST https://api.sophia-central.com/seed/run \
-     -H "Authorization: Bearer $ADMIN_TOKEN"
-   ```
+From the repository directory on the deployment host:
 
-### Option 2: Kubernetes (EKS)
+```bash
+# Validate required values and rendered configuration; does not start containers.
+docker compose --env-file .env.production -f docker-compose.prod.yml config --quiet
 
-1. **Create Docker image**:
-   ```bash
-   docker build -t sophia-central-backend:latest .
-   ```
+# Review backups and confirm the target database is the intended production database.
+# On a fresh database, Compose runs the migration service before starting the API.
+docker compose --env-file .env.production -f docker-compose.prod.yml up -d --build
 
-2. **Deploy to EKS**:
-   ```bash
-   kubectl apply -f kubernetes/namespace.yaml
-   kubectl apply -f kubernetes/configmap.yaml
-   kubectl apply -f kubernetes/secret.yaml
-   kubectl apply -f kubernetes/deployment.yaml
-   kubectl apply -f kubernetes/service.yaml
-   kubectl apply -f kubernetes/ingress.yaml
-   ```
+# Confirm the migration job completed successfully and the API is healthy.
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --no-color migrate
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --no-color api
+curl --fail http://127.0.0.1:3000/health
+```
 
-3. **Verify deployment**:
-   ```bash
-   kubectl get pods -n sophia-central
-   kubectl logs -f deployment/sophia-central-backend -n sophia-central
-   ```
+The API depends on the migration service completing successfully. A migration error must block API startup; do not bypass it by enabling TypeORM `synchronize` in production.
 
-## Post-Deployment Verification
+The supported migration command inside the built image is:
 
-1. **Health check**:
-   ```bash
-   curl https://api.sophia-central.com/health
-   ```
+```bash
+node dist/database/run-migrations.js
+```
 
-2. **API documentation**:
-   ```bash
-   curl https://api.sophia-central.com/api/docs
-   ```
+For CI/local verification after building:
 
-3. **Database connectivity**:
-   ```bash
-   curl -X GET https://api.sophia-central.com/analytics/overview \
-     -H "Authorization: Bearer $ADMIN_TOKEN"
-   ```
+```bash
+npm run build
+npm run migration:run
+npm run migration:smoke
+```
 
-4. **S3 connectivity**:
-   ```bash
-   curl -X POST https://api.sophia-central.com/storage/presigned-url \
-     -H "Authorization: Bearer $USER_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "fileName": "test.pdf",
-       "fileSize": 1048576,
-       "fileType": "application/pdf",
-       "resourceId": "test-resource"
-     }'
-   ```
+The migrations are ordered and tracked in TypeORM's `migrations` table. They are intended to build a fresh database from the repository's four legacy migrations and the schema-completion migration. **Do not run this fresh-install path against an existing database that has tables but no matching TypeORM migration history.** Back up and inspect that database, compare its schema/data with the migration history, and create an explicitly reviewed baseline/adoption plan first. Never drop the production volume to make migrations pass.
 
-5. **AI integration**:
-   ```bash
-   curl -X POST https://api.sophia-central.com/ai/ask \
-     -H "Authorization: Bearer $USER_TOKEN" \
-     -H "Content-Type: application/json" \
-     -d '{
-       "question": "What is machine learning?"
-     }'
-   ```
+Before each release, take and verify a restorable database backup, review migration SQL, apply changes in staging, and have a rollback/recovery plan. The down migration may remove tables introduced by the schema-completion migration and columns added to users; do not run it against production without a reviewed data recovery plan.
 
-## Monitoring & Maintenance
+## 4. Production security boundaries
 
-### Daily Tasks
-- Review error logs in Sentry
-- Check database performance metrics
-- Monitor S3 upload success rate
-- Verify backup completion
+- Use the production file `docker-compose.prod.yml`, not `docker-compose.yml` or development overrides.
+- PostgreSQL has no published host port; keep the Docker host and database volume access restricted.
+- API port 3000 is loopback-bound; expose public traffic only through a TLS reverse proxy.
+- API container runs as non-root with a read-only root filesystem, dropped Linux capabilities and `no-new-privileges`.
+- Swagger is disabled by default. Enable it only deliberately and protect access at the reverse proxy.
+- Keep `.env.production` outside source control; rotate any credential that was ever committed, even if the file was later deleted.
+- Configure host firewalling, database encryption at rest, encrypted/off-host backups, monitoring, log retention, and tested disaster recovery before production use.
 
-### Weekly Tasks
-- Review moderation queue statistics
-- Check user growth metrics
-- Monitor API latency trends
-- Review cost optimization opportunities
+## 5. Post-deployment checks
 
-### Monthly Tasks
-- Database optimization (VACUUM, ANALYZE)
-- Review and update security policies
-- Capacity planning review
-- Cost analysis and forecasting
+```bash
+curl --fail https://your-api-domain.example/health
+docker compose --env-file .env.production -f docker-compose.prod.yml ps
+docker compose --env-file .env.production -f docker-compose.prod.yml logs --since=15m api migrate
+```
 
-## Scaling Considerations
+Verify login/registration, authorization boundaries, database read/write behavior, object storage, and any enabled AI integrations using test accounts. Do not use real users' data for smoke tests.
 
-### Horizontal Scaling
-- Use auto-scaling groups (min: 3, max: 10)
-- Implement session affinity or distributed sessions
-- Use load balancer with health checks
-- Cache frequently accessed data (Redis)
+## 6. Development configuration warning
 
-### Vertical Scaling
-- Database: Upgrade from db.t3.medium to db.t3.large
-- Cache: Increase Redis memory from 1GB to 10GB
-- Application servers: Increase CPU/memory allocation
+`docker-compose.yml` is for local development only. It may publish infrastructure ports and contain development service defaults. Production deployments must explicitly pass `-f docker-compose.prod.yml` and `--env-file .env.production` as shown above.
 
-### Database Optimization
-- Add indexes on frequently queried columns
-- Implement query result caching
-- Use read replicas for analytics
-- Partition large tables by date/institution
-
-## Disaster Recovery
-
-### Backup Strategy
-- Daily automated RDS backups (retention: 30 days)
-- Weekly full backups stored in separate region
-- Monthly backups archived to Glacier
-- Test restore procedures monthly
-
-### Failover Plan
-- Multi-AZ RDS deployment (automatic failover)
-- Read replicas in different AZs
-- Database state replication to standby region
-- DNS failover (Route 53 health checks)
-
-### Recovery Time Objectives (RTO)
-- Database failure: < 5 minutes (RDS auto-failover)
-- S3 failure: < 1 hour (use backup bucket)
-- Application server failure: < 2 minutes (load balancer)
-- Complete region failure: < 30 minutes (failover to standby region)
-
-## Security Hardening
-
-### Network Security
-- Enable VPC Flow Logs
-- Restrict inbound traffic to HTTPS only (port 443)
-- Use security groups to limit database access
-- Enable GuardDuty for threat detection
-
-### Application Security
-- Enable HSTS headers
-- Implement rate limiting (100 req/min per IP)
-- Add request signing for admin endpoints
-- Implement CSRF protection
-- Regular security audits
-
-### Data Security
-- Enable RDS encryption at rest
-- Use SSL/TLS for all database connections
-- Enable S3 bucket encryption
-- Enable CloudTrail for API auditing
-- Implement data masking for sensitive fields
-
-## Cost Optimization
-
-- Use Spot instances for non-critical workloads
-- Reserve capacity for predictable workloads
-- Implement S3 lifecycle policies (archive after 90 days)
-- Use CloudFront for media distribution
-- Monitor and optimize database queries
-- Use Lambda for background jobs instead of always-on servers
-
----
-
-**Last Updated**: 2026-09-26
+Last reviewed: 2026-10-23.

@@ -1,12 +1,14 @@
 import {
+  ConflictException,
   Injectable,
   UnauthorizedException,
-  ConflictException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
+import { RegisterDto } from './dto/register.dto';
+import { LoginDto } from './dto/login.dto';
+import { OnboardingDto } from './dto/onboarding.dto';
 import { UsersService } from '../users/users.service';
-import { CreateUserDto } from '../users/dto/create-user.dto';
 import { User } from '../users/entities/user.entity';
 
 @Injectable()
@@ -16,55 +18,60 @@ export class AuthService {
     private readonly jwtService: JwtService,
   ) {}
 
-  async validateUser(email: string, password: string): Promise<any> {
-    const user = await this.usersService.findByEmail(email);
-    if (!user) {
-      return null;
-    }
+  async register(dto: RegisterDto) {
+    const email = dto.email.trim().toLowerCase();
+    const existing = await this.usersService.findByEmail(email);
+    if (existing) throw new ConflictException('User with this email already exists');
 
-    const isPasswordValid = await bcrypt.compare(password, user.password);
-    if (!isPasswordValid) {
-      return null;
-    }
-
-    return user;
+    const user = await this.usersService.create({
+      email,
+      firstName: dto.firstName.trim(),
+      lastName: dto.lastName.trim(),
+      password: await bcrypt.hash(dto.password, 12),
+      authProvider: 'email',
+      isVerified: false,
+    });
+    return this.buildAuthResponse(user);
   }
 
-  async login(user: User) {
-    const payload = {
+  async login(dto: LoginDto) {
+    const user = await this.usersService.findByEmail(dto.email.trim().toLowerCase());
+    const passwordMatches = user?.password
+      ? await bcrypt.compare(dto.password, user.password)
+      : false;
+    if (!user || !passwordMatches) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+    return this.buildAuthResponse(user);
+  }
+
+  async completeOnboarding(userId: string, dto: OnboardingDto) {
+    const user = await this.usersService.update(userId, {
+      institution: dto.institution,
+      faculty: dto.faculty,
+      department: dto.department,
+      studyLevel: dto.studyLevel,
+      bio: dto.bio,
+      socialHandle: dto.socialHandle,
+      isProfileComplete: true,
+    });
+    return this.buildAuthResponse(user);
+  }
+
+  async getCurrentUser(userId: string) {
+    const user = await this.usersService.findOne(userId);
+    if (!user) throw new UnauthorizedException('User not found');
+    const { password: _password, ...safeUser } = user;
+    return { user: safeUser };
+  }
+
+  private async buildAuthResponse(user: User) {
+    const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       email: user.email,
       role: user.role,
-    };
-
-    return {
-      accessToken: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
-        email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        role: user.role,
-      },
-    };
-  }
-
-  async register(dto: CreateUserDto) {
-    const existingUser = await this.usersService.findByEmail(dto.email);
-    if (existingUser) {
-      throw new ConflictException('User with this email already exists');
-    }
-
-    const user = await this.usersService.create(dto);
-    return this.login(user);
-  }
-
-  async me(user: User) {
-    const foundUser = await this.usersService.findOne(user.id);
-    if (!foundUser) {
-      throw new UnauthorizedException('User not found');
-    }
-
-    return foundUser;
+    });
+    const { password: _password, ...safeUser } = user;
+    return { accessToken, user: safeUser };
   }
 }

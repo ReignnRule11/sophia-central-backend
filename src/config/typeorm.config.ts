@@ -13,6 +13,15 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { AiSession } from '../ai/entities/ai-session.entity';
 import { AiMessage } from '../ai/entities/ai-message.entity';
 
+const isProduction = process.env.NODE_ENV === 'production';
+const requiredProductionDbVars = ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_DATABASE'];
+if (isProduction) {
+  const missing = requiredProductionDbVars.filter((name) => !process.env[name]);
+  if (missing.length) {
+    throw new Error(`Missing required production database environment variables: ${missing.join(', ')}`);
+  }
+}
+
 export const typeOrmConfig: TypeOrmModuleOptions = {
   type: 'postgres',
   host: process.env.DB_HOST || 'localhost',
@@ -37,7 +46,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     AiSession,
     AiMessage,
   ],
-  synchronize: process.env.NODE_ENV !== 'production',
-  logging: process.env.NODE_ENV !== 'production',
-  ssl: false,
+  synchronize: !isProduction,
+  logging: !isProduction,
+  ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : false,
 };

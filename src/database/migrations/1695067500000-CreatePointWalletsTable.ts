@@ -10,7 +10,7 @@ export class CreatePointWalletsTable1695067500000 implements MigrationInterface 
             name: 'id',
             type: 'uuid',
             isPrimary: true,
-            default: 'uuid_generate_v4()',
+            default: 'gen_random_uuid()',
           },
           {
             name: 'userId',

@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PointWallet } from './entities/point-wallet.entity';
-import { PointTransaction } from './entities/point-transaction.entity';
+import { PointTransaction, PointTransactionType } from './entities/point-transaction.entity';
 import { AwardPointsDto } from './dto/award-points.dto';
 
 @Injectable()
@@ -45,7 +45,7 @@ export class PointsService {
 
     const transaction = this.transactionRepository.create({
       userId: dto.userId,
-      type: 'earned',
+      type: PointTransactionType.EARNED,
       amount: dto.amount,
       reason: dto.reason,
     });

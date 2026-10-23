@@ -11,7 +11,7 @@ export class PointWallet {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ unique: true })
+  @Column({ type: 'uuid', unique: true })
   userId: string;
 
   @Column({ default: 0 })

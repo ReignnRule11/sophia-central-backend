@@ -60,7 +60,7 @@ export async function seedDatabase(dataSource: DataSource) {
         code: courseSeed.code,
         level: courseSeed.level,
         institutionId: institution?.id,
-        institution,
+        institution: institution ?? undefined,
       });
       await courseRepo.save(course);
     }
