@@ -1,5 +1,3 @@
-import { DataSource } from 'typeorm';
-
 export type SeedInstitution = {
   name: string;
   country: string;
