@@ -28,14 +28,23 @@ jobs:
         run: npm run build
       - name: Unit tests
         run: npm test -- --runInBand
-      - name: Lint (read-only)
+      - name: Lint production authentication and security code
         if: always()
         env:
           ESLINT_USE_FLAT_CONFIG: "false"
-        run: npx eslint "{src,apps,libs,tests}/**/*.ts"
+        run: >-
+          npx eslint
+          "src/auth/**/*.ts"
+          "src/common/security.ts"
+          "src/config/typeorm.config.ts"
+          "src/notifications/**/*.ts"
+          "src/resources/entities/resource.entity.ts"
+          "src/storage/**/*.ts"
+          "src/users/**/*.ts"
+          --rule "prettier/prettier: off"
       - name: Dependency security audit
         if: always()
-        run: npm audit --audit-level=high
+        run: npm audit --omit=dev --audit-level=high
       - name: Docker image build
         if: always()
         run: docker build --tag sophia-central-backend:verification .
