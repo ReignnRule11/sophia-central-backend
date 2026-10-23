@@ -15,7 +15,9 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "test:cov": "jest --coverage",
-    "seed": "ts-node src/database/seed.ts"
+    "seed": "ts-node src/database/seed.ts",
+    "migration:run": "node dist/database/run-migrations.js",
+    "migration:smoke": "node scripts/db-migration-smoke.cjs"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.703.0",
