@@ -17,7 +17,7 @@ export class StorageController {
     try {
       return this.s3StorageService.getPresignedUploadUrl(dto);
     } catch (error) {
-      throw new BadRequestException(error.message);
+      throw new BadRequestException(error instanceof Error ? error.message : 'Storage request failed');
     }
   }
 
