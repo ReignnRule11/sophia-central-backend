@@ -29,14 +29,18 @@ jobs:
       - name: Unit tests
         run: npm test -- --runInBand
       - name: Lint (read-only)
+        if: always()
         env:
           ESLINT_USE_FLAT_CONFIG: "false"
         run: npx eslint "{src,apps,libs,tests}/**/*.ts"
       - name: Dependency security audit
+        if: always()
         run: npm audit --audit-level=high
       - name: Docker image build
+        if: always()
         run: docker build --tag sophia-central-backend:verification .
       - name: Validate production Compose
+        if: always()
         env:
           DB_USERNAME: ci_sophia
           DB_PASSWORD: ci-only-not-a-secret
