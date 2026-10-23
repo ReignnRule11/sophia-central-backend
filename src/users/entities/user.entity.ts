@@ -1,4 +1,5 @@
-import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { Resource } from '../../resources/entities/resource.entity';
 
 export enum UserRole {
   STUDENT = 'student',
@@ -58,6 +59,9 @@ export class User {
 
   @Column({ default: false })
   isProfileComplete: boolean;
+
+  @OneToMany(() => Resource, (resource) => resource.uploader)
+  resources: Resource[];
 
   @CreateDateColumn()
   createdAt: Date;
