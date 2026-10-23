@@ -15,7 +15,7 @@ export class StorageController {
   @ApiOperation({ summary: 'Get presigned URL for file upload' })
   async getPresignedUrl(@Body() dto: PresignedUploadDto) {
     try {
-      return this.s3StorageService.getPresignedUploadUrl(dto);
+      return await this.s3StorageService.getPresignedUploadUrl(dto);
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : 'Storage request failed');
     }
@@ -28,7 +28,7 @@ export class StorageController {
       throw new BadRequestException('uploadId, resourceId, and fileName are required');
     }
     try {
-      return this.s3StorageService.confirmUpload(dto.uploadId, dto.resourceId, dto.fileName);
+      return await this.s3StorageService.confirmUpload(dto.uploadId, dto.resourceId, dto.fileName);
     } catch (error) {
       throw new BadRequestException(error instanceof Error ? error.message : 'Upload confirmation failed');
     }
