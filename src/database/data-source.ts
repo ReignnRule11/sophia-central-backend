@@ -1,6 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
-import { DataSource } from 'typeorm';
+import { DataSource, DataSourceOptions } from 'typeorm';
 import { typeOrmConfig } from '../config/typeorm.config';
 
 const { entities, ...databaseOptions } = typeOrmConfig;
@@ -16,7 +16,7 @@ export const dataSource = new DataSource({
   synchronize: false,
   migrationsRun: false,
   migrations: [__dirname + '/migrations/*{.js,.ts}'],
-});
+} as DataSourceOptions);
 
 export const AppDataSource = dataSource;
 export default dataSource;
