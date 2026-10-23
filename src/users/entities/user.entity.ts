@@ -13,10 +13,10 @@ export type AuthProvider = 'email' | 'google' | 'apple' | 'twitter' | 'linkedin'
 @Entity('users')
 export class User {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true, type: 'varchar', length: 320 })
-  email: string;
+  email!: string;
 
   @Column({ nullable: true, select: false })
   password?: string;
@@ -34,10 +34,10 @@ export class User {
   profileImage?: string;
 
   @Column({ type: 'varchar', default: UserRole.STUDENT })
-  role: UserRole;
+  role!: UserRole;
 
   @Column({ type: 'varchar', default: 'email' })
-  authProvider: AuthProvider;
+  authProvider!: AuthProvider;
 
   @Column({ nullable: true })
   institution?: string;
@@ -55,17 +55,17 @@ export class User {
   bio?: string;
 
   @Column({ default: false })
-  isVerified: boolean;
+  isVerified!: boolean;
 
   @Column({ default: false })
-  isProfileComplete: boolean;
+  isProfileComplete!: boolean;
 
   @OneToMany(() => Resource, (resource) => resource.uploader)
-  resources: Resource[];
+  resources!: Resource[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
