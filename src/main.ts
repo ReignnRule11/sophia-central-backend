@@ -1,12 +1,14 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { securitySetup } from './common/security';
+import { CsrfGuard } from './common/guards/csrf.guard';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   securitySetup(app as any);
+  app.useGlobalGuards(new CsrfGuard());
 
   app.useGlobalPipes(
     new ValidationPipe({
@@ -16,8 +18,6 @@ async function bootstrap() {
     }),
   );
 
-  // API documentation is opt-in. In production, expose it only deliberately
-  // and protect it at the reverse proxy or with an authentication guard.
   if (process.env.SWAGGER_ENABLED === 'true') {
     const config = new DocumentBuilder()
       .setTitle('Sophia Central API')
