@@ -1,7 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import * as AWS from 'aws-sdk';
-import { v4 as uuidv4 } from 'uuid';
+import {
+  DeleteObjectCommand,
+  HeadObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import { randomUUID } from 'crypto';
 
 export interface S3UploadPresignedUrlRequest {
   fileName: string;
@@ -22,11 +28,12 @@ export interface S3UploadResponse {
 
 @Injectable()
 export class S3StorageService {
-  private s3Client: AWS.S3;
-  private bucket: string;
-  private region: string;
-  private maxFileSize: number = 100 * 1024 * 1024; // 100 MB
-  private allowedMimeTypes = [
+  private readonly s3Client: S3Client;
+  private readonly bucket: string;
+  private readonly region: string;
+  private readonly endpoint?: string;
+  private readonly maxFileSize = 100 * 1024 * 1024;
+  private readonly allowedMimeTypes = [
     'application/pdf',
     'application/msword',
     'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
@@ -38,80 +45,69 @@ export class S3StorageService {
   ];
 
   constructor(private readonly config: ConfigService) {
-    this.bucket = this.config.get<string>('AWS_S3_BUCKET') || 'sophia-central';
+    this.bucket = this.config.get<string>('AWS_S3_BUCKET_NAME') || 'sophia-central';
     this.region = this.config.get<string>('AWS_REGION') || 'us-east-1';
+    this.endpoint = this.config.get<string>('AWS_S3_ENDPOINT');
+    const accessKeyId = this.config.get<string>('AWS_ACCESS_KEY_ID');
+    const secretAccessKey = this.config.get<string>('AWS_SECRET_ACCESS_KEY');
 
-    this.s3Client = new AWS.S3({
-      accessKeyId: this.config.get<string>('AWS_ACCESS_KEY_ID'),
-      secretAccessKey: this.config.get<string>('AWS_SECRET_ACCESS_KEY'),
+    this.s3Client = new S3Client({
       region: this.region,
+      ...(this.endpoint ? { endpoint: this.endpoint, forcePathStyle: true } : {}),
+      ...(accessKeyId && secretAccessKey
+        ? { credentials: { accessKeyId, secretAccessKey } }
+        : {}),
     });
   }
 
   async getPresignedUploadUrl(req: S3UploadPresignedUrlRequest): Promise<S3UploadResponse> {
-    // Validate file size
-    if (req.fileSize > this.maxFileSize) {
-      throw new Error(`File size exceeds maximum limit of ${this.maxFileSize / 1024 / 1024}MB`);
+    if (!Number.isInteger(req.fileSize) || req.fileSize < 1 || req.fileSize > this.maxFileSize) {
+      throw new Error('File size must be between 1 byte and 100 MB');
     }
-
-    // Validate file type
     if (!this.allowedMimeTypes.includes(req.fileType)) {
       throw new Error('File type not allowed');
     }
 
-    const uploadId = uuidv4();
+    const uploadId = randomUUID();
     const key = `resources/${req.resourceId}/${uploadId}/${req.fileName}`;
-    const expiresIn = 3600; // 1 hour
+    const expiresIn = 900;
+    const command = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      ContentType: req.fileType,
+      ContentLength: req.fileSize,
+    });
+    const presignedUrl = await getSignedUrl(this.s3Client, command, { expiresIn });
 
-    try {
-      const presignedUrl = this.s3Client.getSignedUrl('putObject', {
-        Bucket: this.bucket,
-        Key: key,
-        ContentType: req.fileType,
-        Expires: expiresIn,
-      });
-
-      return {
-        presignedUrl,
-        uploadId,
-        fileName: req.fileName,
-        resourceId: req.resourceId,
-        expiresIn,
-        bucket: this.bucket,
-        key,
-      };
-    } catch (error) {
-      throw new Error(`Failed to generate presigned URL: ${error.message}`);
-    }
+    return {
+      presignedUrl,
+      uploadId,
+      fileName: req.fileName,
+      resourceId: req.resourceId,
+      expiresIn,
+      bucket: this.bucket,
+      key,
+    };
   }
 
   async confirmUpload(uploadId: string, resourceId: string, fileName: string): Promise<{ success: boolean; fileUrl: string }> {
     const key = `resources/${resourceId}/${uploadId}/${fileName}`;
-
-    try {
-      // Verify the file exists in S3
-      await this.s3Client.headObject({ Bucket: this.bucket, Key: key }).promise();
-
-      // Generate permanent file URL
-      const fileUrl = `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
-
-      return {
-        success: true,
-        fileUrl,
-      };
-    } catch (error) {
-      throw new Error(`Failed to confirm upload: ${error.message}`);
-    }
+    await this.s3Client.send(new HeadObjectCommand({ Bucket: this.bucket, Key: key }));
+    const fileUrl = this.endpoint
+      ? `${this.endpoint.replace(/\/$/, '')}/${this.bucket}/${key}`
+      : `https://${this.bucket}.s3.${this.region}.amazonaws.com/${key}`;
+    return { success: true, fileUrl };
   }
 
   async deleteFile(fileUrl: string): Promise<void> {
-    try {
-      const url = new URL(fileUrl);
-      const key = url.pathname.substring(1 + this.bucket.length + 1); // Remove bucket prefix
-
-      await this.s3Client.deleteObject({ Bucket: this.bucket, Key: key }).promise();
-    } catch (error) {
-      throw new Error(`Failed to delete file: ${error.message}`);
+    const url = new URL(fileUrl);
+    let key = decodeURIComponent(url.pathname.replace(/^\//, ''));
+    if (this.endpoint && key.startsWith(`${this.bucket}/`)) {
+      key = key.slice(this.bucket.length + 1);
     }
+    if (!key || key.includes('..')) {
+      throw new Error('Invalid object URL');
+    }
+    await this.s3Client.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
   }
 }
