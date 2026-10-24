@@ -1,4 +1,6 @@
-sophia-central-backend
+[![Backend CI](https://github.com/ReignnRule11/sophia-central-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/ReignnRule11/sophia-central-backend/actions/workflows/ci.yml)
+
+## sophia-central-backend
 
 Centralized academic resource and research platform backend.
 
