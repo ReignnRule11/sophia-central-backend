@@ -1,3 +1,4 @@
+
 import {
   IsEmail,
   IsNotEmpty,
@@ -13,10 +14,12 @@ import { SocialLinksDto } from './social-links.dto';
 export class RegisterDto {
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100)
   firstName: string;
 
   @IsNotEmpty()
   @IsString()
+  @MaxLength(100)
   lastName: string;
 
   @IsEmail()

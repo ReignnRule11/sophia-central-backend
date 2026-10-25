@@ -41,6 +41,9 @@ export class AuthService {
       socialLinks: dto.socialLinks,
       authProvider: 'email',
       isVerified: false,
+      institution: dto.institution?.trim() || undefined,
+      department: dto.department?.trim() || undefined,
+      faculty: dto.faculty?.trim() || undefined,
     });
 
     return this.buildAuthResponse(user);
