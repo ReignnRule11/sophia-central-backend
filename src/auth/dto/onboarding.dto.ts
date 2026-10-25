@@ -1,4 +1,11 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import {
+  IsOptional,
+  IsString,
+  MaxLength,
+  ValidateNested,
+} from 'class-validator';
+import { Type } from 'class-transformer';
+import { SocialLinksDto } from './social-links.dto';
 
 export class OnboardingDto {
   @IsOptional()
@@ -30,4 +37,9 @@ export class OnboardingDto {
   @IsString()
   @MaxLength(80)
   socialHandle?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SocialLinksDto)
+  socialLinks?: SocialLinksDto;
 }

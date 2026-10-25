@@ -20,28 +20,45 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
+
     const existing = await this.usersService.findByEmail(email);
-    if (existing) throw new ConflictException('User with this email already exists');
+
+    if (existing) {
+      throw new ConflictException(
+        'User with this email already exists',
+      );
+    }
 
     const user = await this.usersService.create({
       email,
       firstName: dto.firstName.trim(),
       lastName: dto.lastName.trim(),
       password: await bcrypt.hash(dto.password, 12),
+      institution: dto.institution,
+      faculty: dto.faculty,
+      department: dto.department,
+      socialHandle: dto.socialHandle,
+      socialLinks: dto.socialLinks,
       authProvider: 'email',
       isVerified: false,
     });
+
     return this.buildAuthResponse(user);
   }
 
   async login(dto: LoginDto) {
-    const user = await this.usersService.findByEmail(dto.email.trim().toLowerCase());
+    const user = await this.usersService.findByEmail(
+      dto.email.trim().toLowerCase(),
+    );
+
     const passwordMatches = user?.password
       ? await bcrypt.compare(dto.password, user.password)
       : false;
+
     if (!user || !passwordMatches) {
       throw new UnauthorizedException('Invalid credentials');
     }
+
     return this.buildAuthResponse(user);
   }
 
@@ -53,15 +70,22 @@ export class AuthService {
       studyLevel: dto.studyLevel,
       bio: dto.bio,
       socialHandle: dto.socialHandle,
+      socialLinks: dto.socialLinks,
       isProfileComplete: true,
     });
+
     return this.buildAuthResponse(user);
   }
 
   async getCurrentUser(userId: string) {
     const user = await this.usersService.findOne(userId);
-    if (!user) throw new UnauthorizedException('User not found');
+
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
     const { password: _password, ...safeUser } = user;
+
     return { user: safeUser };
   }
 
@@ -71,7 +95,9 @@ export class AuthService {
       email: user.email,
       role: user.role,
     });
+
     const { password: _password, ...safeUser } = user;
+
     return { accessToken, user: safeUser };
   }
 }

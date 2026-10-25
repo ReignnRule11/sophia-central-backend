@@ -1,4 +1,11 @@
-import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  OneToMany,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { Resource } from '../../resources/entities/resource.entity';
 
 export enum UserRole {
@@ -8,7 +15,19 @@ export enum UserRole {
   ADMIN = 'admin',
 }
 
-export type AuthProvider = 'email' | 'google' | 'apple' | 'twitter' | 'linkedin' | 'instagram';
+export type AuthProvider =
+  | 'email'
+  | 'google'
+  | 'apple'
+  | 'twitter'
+  | 'linkedin'
+  | 'instagram';
+
+export interface UserSocialLinks {
+  linkedin?: string;
+  instagram?: string;
+  twitter?: string;
+}
 
 @Entity('users')
 export class User {
@@ -29,6 +48,9 @@ export class User {
 
   @Column({ nullable: true })
   socialHandle?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  socialLinks?: UserSocialLinks;
 
   @Column({ nullable: true })
   profileImage?: string;
