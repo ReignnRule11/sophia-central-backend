@@ -6,6 +6,7 @@ import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import type { SignOptions } from 'jsonwebtoken';
 
 @Module({
   imports: [
@@ -20,9 +21,10 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         if (isProduction && (!jwtSecret || jwtSecret.length < 32)) {
           throw new Error('JWT_SECRET must be set to at least 32 characters in production');
         }
+        const expiresIn = config.get<SignOptions['expiresIn']>('JWT_EXPIRES_IN') || '1h';
         return {
           secret: jwtSecret || 'sophia-central-dev-secret',
-          signOptions: { expiresIn: config.get<string>('JWT_EXPIRES_IN') || '1h' },
+          signOptions: { expiresIn },
         };
       },
     }),
