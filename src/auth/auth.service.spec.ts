@@ -53,6 +53,27 @@ describe('AuthService', () => {
     expect(response.user).not.toHaveProperty('password');
   });
 
+  it('accepts and persists optional institution, faculty, and department during registration', async () => {
+    users.findByEmail.mockResolvedValue(null);
+    users.create.mockImplementation(async (data) => ({ ...user, ...data }) as never);
+
+    await service.register({
+      firstName: 'Learner',
+      lastName: 'One',
+      email: 'learner@example.com',
+      password: 'correct-horse-battery',
+      institution: 'Example University',
+      faculty: 'Science',
+      department: 'Computer Science',
+    });
+
+    expect(users.create).toHaveBeenCalledWith(expect.objectContaining({
+      institution: 'Example University',
+      faculty: 'Science',
+      department: 'Computer Science',
+    }));
+  });
+
   it('rejects duplicate email registration', async () => {
     users.findByEmail.mockResolvedValue(user as never);
     await expect(service.register({
