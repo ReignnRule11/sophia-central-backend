@@ -30,6 +30,9 @@ export class AuthService {
       password: await bcrypt.hash(dto.password, 12),
       authProvider: 'email',
       isVerified: false,
+      institution: dto.institution?.trim() || undefined,
+      department: dto.department?.trim() || undefined,
+      faculty: dto.faculty?.trim() || undefined,
     });
     return this.buildAuthResponse(user);
   }
