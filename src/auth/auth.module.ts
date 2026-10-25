@@ -24,7 +24,9 @@ import { JwtStrategy } from './strategies/jwt.strategy';
         const expiresIn = config.get<string>('JWT_EXPIRES_IN') || '1h';
         return {
           secret: jwtSecret || 'sophia-central-dev-secret',
-          signOptions: { expiresIn: expiresIn as JwtModuleOptions['signOptions']['expiresIn'] },
+          signOptions: {
+            expiresIn: expiresIn as NonNullable<JwtModuleOptions['signOptions']>['expiresIn'],
+          },
         };
       },
     }),
