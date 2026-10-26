@@ -20,6 +20,7 @@ async function main() {
       'courses', 'course_topics', 'moderation_reviews', 'point_wallets',
       'point_transactions', 'file_uploads', 'referrals', 'notifications',
       'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations',
+      'password_reset_tokens',
     ];
     for (const table of requiredTables) {
       const result = await client.query('SELECT to_regclass($1) AS name', [`public.${table}`]);
@@ -28,14 +29,9 @@ async function main() {
 
     const applied = await client.query('SELECT name FROM migrations ORDER BY timestamp');
     const migrationNames = applied.rows.map((row) => row.name);
-    assert.ok(
-      migrationNames.length >= 6,
-      `expected all current migrations to run; found ${migrationNames.length}`,
-    );
-    assert.ok(
-      migrationNames.includes('AddUserSocialLinks2026102500001'),
-      'user social-links migration should be applied',
-    );
+    assert.ok(migrationNames.length >= 7, `expected all current migrations to run; found ${migrationNames.length}`);
+    assert.ok(migrationNames.includes('AddUserSocialLinks2026102500001'), 'user social-links migration should be applied');
+    assert.ok(migrationNames.includes('CreatePasswordResetTokens2026102600001'), 'password reset token migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName")
@@ -56,28 +52,30 @@ async function main() {
       [userId, resource.rows[0].id],
     );
     sessionId = session.rows[0].id;
-    await client.query(
-      `INSERT INTO ai_messages ("sessionId", role, content)
-       VALUES ($1, 'user', 'migration smoke test')`,
-      [sessionId],
+    await client.query(`INSERT INTO ai_messages ("sessionId", role, content) VALUES ($1, 'user', 'migration smoke test')`, [sessionId]);
+
+    const reset = await client.query(
+      `INSERT INTO password_reset_tokens ("userId", "tokenHash", "expiresAt") VALUES ($1, $2, NOW() + INTERVAL '30 minutes') RETURNING id`,
+      [userId, 'a'.repeat(64)],
     );
+    assert.ok(reset.rows[0].id, 'password reset token should be insertable');
 
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
     const detachedSession = await client.query('SELECT "resourceId" FROM ai_sessions WHERE id = $1', [sessionId]);
     assert.equal(detachedSession.rows[0].resourceId, null, 'resource deletion should null optional AI session reference');
     const message = await client.query('SELECT id FROM ai_messages WHERE "sessionId" = $1', [sessionId]);
     assert.equal(message.rowCount, 1, 'AI session/message schema should be usable after migration');
+    const resetToken = await client.query('SELECT id FROM password_reset_tokens WHERE id = $1', [reset.rows[0].id]);
+    assert.equal(resetToken.rowCount, 0, 'deleting a user should cascade-delete password reset tokens');
 
-    console.log('PostgreSQL migration smoke test passed: schema, migration history, CRUD, and FK behavior.');
+    console.log('PostgreSQL migration smoke test passed: schema, migration history, CRUD, and reset-token cascade.');
   } finally {
-    if (sessionId) await client.query('DELETE FROM ai_sessions WHERE id = $1', [sessionId]).catch(() => undefined);
     if (userId) await client.query('DELETE FROM users WHERE id = $1', [userId]).catch(() => undefined);
     await client.end();
   }
 }
 
 main().catch((error) => {
-  console.error('PostgreSQL migration smoke test failed.');
-  console.error(error);
+  console.error('PostgreSQL migration smoke test failed:', error.message);
   process.exitCode = 1;
 });
