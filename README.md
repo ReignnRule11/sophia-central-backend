@@ -1,12 +1,12 @@
 [![Backend CI](https://github.com/ReignnRule11/sophia-central-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/ReignnRule11/sophia-central-backend/actions/workflows/ci.yml)
 
-## sophia-central-backend
+## sophis-central-backend
 
 Centralized academic resource and research platform backend.
 
 ## Authentication and onboarding
 
-Sophia Central supports multiple sign-up and sign-in entry points for the onboarding flow:
+Sophis Central supports multiple sign-up and sign-in entry points for the onboarding flow:
 
 - email sign-up and sign-in
 - Google OAuth / Google sign-in
