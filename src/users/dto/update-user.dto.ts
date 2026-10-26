@@ -1,4 +1,4 @@
-import { IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -25,6 +25,17 @@ export class UpdateUserDto {
   @IsString()
   @MaxLength(160)
   department?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  programme?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(160, { each: true })
+  coursesTaught?: string[];
 
   @IsOptional()
   @IsString()
