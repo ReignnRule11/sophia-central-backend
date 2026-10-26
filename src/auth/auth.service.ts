@@ -78,9 +78,10 @@ export class AuthService {
 
     try {
       await this.resetEmail.sendResetLink(user.email, token);
-    } catch (error) {
+    } catch {
+      // Keep the response identical for existing and unknown accounts; delivery failures are logged by the mail service.
       await this.resetTokens.delete({ tokenHash });
-      throw error;
+      return generic;
     }
     return generic;
   }
