@@ -1,12 +1,5 @@
 import {
-  Body,
-  Controller,
-  Get,
-  NotImplementedException,
-  Post,
-  Req,
-  Res,
-  UseGuards,
+  Body, Controller, Get, NotImplementedException, Post, Req, Res, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { randomBytes } from 'node:crypto';
@@ -16,37 +9,25 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { SocialSignInDto } from './dto/social-signin.dto';
 import { OnboardingDto } from './dto/onboarding.dto';
+import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
 import { User } from '../users/entities/user.entity';
 
 type AuthenticatedRequest = Request & { user: User };
-
 const ACCESS_COOKIE = 'sophia_access_token';
 const CSRF_COOKIE = 'sophia_csrf_token';
 
 function cookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
   const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')) as 'lax' | 'strict' | 'none';
-  return {
-    httpOnly: true,
-    secure: isProduction,
-    sameSite,
-    path: '/',
-    maxAge: 15 * 60 * 1000,
-  } as const;
+  return { httpOnly: true, secure: isProduction, sameSite, path: '/', maxAge: 15 * 60 * 1000 } as const;
 }
-
 function csrfCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
   const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')) as 'lax' | 'strict' | 'none';
-  return {
-    httpOnly: false,
-    secure: isProduction,
-    sameSite,
-    path: '/',
-    maxAge: 15 * 60 * 1000,
-  } as const;
+  return { httpOnly: false, secure: isProduction, sameSite, path: '/', maxAge: 15 * 60 * 1000 } as const;
 }
 
 @ApiTags('Authentication')
@@ -78,6 +59,18 @@ export class AuthController {
     return { user: result.user };
   }
 
+  @Post('password-reset/request')
+  @ApiOperation({ summary: 'Request password reset instructions without revealing account existence' })
+  requestPasswordReset(@Body() dto: RequestPasswordResetDto) {
+    return this.authService.requestPasswordReset(dto);
+  }
+
+  @Post('password-reset/confirm')
+  @ApiOperation({ summary: 'Set a new password using a single-use reset token' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto);
+  }
+
   @Post('onboarding')
   @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
@@ -98,24 +91,16 @@ export class AuthController {
   @Post('social')
   @ApiOperation({ summary: 'Social sign-in is disabled until provider-token verification is configured' })
   socialSignIn(@Body() _dto: SocialSignInDto): never {
-    throw new NotImplementedException(
-      'Social sign-in is unavailable until provider-issued identity tokens can be verified',
-    );
+    throw new NotImplementedException('Social sign-in is unavailable until provider-issued identity tokens can be verified');
   }
-
   @Post('google')
   googleSignIn(@Body() dto: SocialSignInDto): never {
-    if (dto.provider !== 'google') {
-      throw new NotImplementedException('Google sign-in requires verified Google identity-token support');
-    }
+    if (dto.provider !== 'google') throw new NotImplementedException('Google sign-in requires verified Google identity-token support');
     throw new NotImplementedException('Google sign-in is disabled until provider-token verification is configured');
   }
-
   @Post('apple')
   appleSignIn(@Body() dto: SocialSignInDto): never {
-    if (dto.provider !== 'apple') {
-      throw new NotImplementedException('Apple sign-in requires verified Apple identity-token support');
-    }
+    if (dto.provider !== 'apple') throw new NotImplementedException('Apple sign-in requires verified Apple identity-token support');
     throw new NotImplementedException('Apple sign-in is disabled until provider-token verification is configured');
   }
 
