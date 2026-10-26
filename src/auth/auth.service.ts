@@ -34,16 +34,13 @@ export class AuthService {
       firstName: dto.firstName.trim(),
       lastName: dto.lastName.trim(),
       password: await bcrypt.hash(dto.password, 12),
-      institution: dto.institution,
-      faculty: dto.faculty,
-      department: dto.department,
+      institution: dto.institution?.trim() || undefined,
+      faculty: dto.faculty?.trim() || undefined,
+      department: dto.department?.trim() || undefined,
       socialHandle: dto.socialHandle,
       socialLinks: dto.socialLinks,
       authProvider: 'email',
       isVerified: false,
-      institution: dto.institution?.trim() || undefined,
-      department: dto.department?.trim() || undefined,
-      faculty: dto.faculty?.trim() || undefined,
     });
 
     return this.buildAuthResponse(user);
