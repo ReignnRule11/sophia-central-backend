@@ -4,7 +4,6 @@ import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordResetEmailService } from './password-reset-email.service';
-import { PasswordResetToken } from './entities/password-reset-token.entity';
 
 describe('AuthService', () => {
   let service: AuthService;
