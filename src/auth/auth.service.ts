@@ -67,6 +67,8 @@ export class AuthService {
       institution: dto.institution,
       faculty: dto.faculty,
       department: dto.department,
+      programme: dto.programme,
+      coursesTaught: dto.coursesTaught,
       studyLevel: dto.studyLevel,
       bio: dto.bio,
       socialHandle: dto.socialHandle,
