@@ -55,6 +55,9 @@ export class Resource {
   @Column({ nullable: true })
   fileUrl?: string;
 
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
+  tags!: string[];
+
   @Column({ type: 'enum', enum: ResourceModerationStatus, default: ResourceModerationStatus.PENDING })
   moderationStatus!: ResourceModerationStatus;
 

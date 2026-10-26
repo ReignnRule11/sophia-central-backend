@@ -21,6 +21,10 @@ export class CoursesService {
   }
 
   async findAll(institutionId?: string): Promise<Course[]> {
+    // The frontend uses this sentinel when a lecturer enters an institution manually.
+    // It is not a UUID and must never be interpolated into the PostgreSQL UUID filter.
+    if (institutionId === '__manual__') return [];
+
     const query = this.courseRepository.createQueryBuilder('course').leftJoinAndSelect('course.topics', 'topics');
 
     if (institutionId) {
