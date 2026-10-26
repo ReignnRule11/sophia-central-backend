@@ -1,8 +1,8 @@
-# Sophia Central Backend
+# Sophis Central Backend
 
 [![Backend CI](https://github.com/ReignnRule11/sophia-central-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/ReignnRule11/sophia-central-backend/actions/workflows/ci.yml)
 
-Sophia Central is an academic resource and research platform for students, lecturers, moderators, and administrators. This repository contains the NestJS API, PostgreSQL persistence, authentication/onboarding services, and backend integrations for the web client.
+Sophis Central is an academic resource and research platform for students, lecturers, moderators, and administrators. This repository contains the NestJS API, PostgreSQL persistence, authentication/onboarding services, and backend integrations for the web client.
 
 ## Implemented product workflows
 
