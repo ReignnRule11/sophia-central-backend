@@ -1,6 +1,6 @@
-
 import {
   IsEmail,
+  IsEnum,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -10,6 +10,7 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SocialLinksDto } from './social-links.dto';
+import { UserRole } from '../../users/entities/user.entity';
 
 export class RegisterDto {
   @IsNotEmpty()
@@ -28,6 +29,10 @@ export class RegisterDto {
   @IsNotEmpty()
   @MinLength(8)
   password: string;
+
+  @IsOptional()
+  @IsEnum(UserRole, { message: 'Role must be student or lecturer' })
+  role?: UserRole;
 
   @IsOptional()
   @IsString()
