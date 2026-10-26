@@ -2,11 +2,11 @@ import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from 'class-validator';
 
 export class AwardPointsDto {
   @IsNotEmpty()
-  userId: string;
+  userId!: string;
 
   @IsInt()
   @Min(1)
-  amount: number;
+  amount!: number;
 
   @IsOptional()
   @IsString()

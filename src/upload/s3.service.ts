@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
-import { PutObjectCommand, S3Client, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+
+export interface StoredObjectMetadata {
+  contentLength: number | undefined;
+  contentType: string | undefined;
+}
 
 @Injectable()
 export class S3Service {
@@ -43,21 +48,32 @@ export class S3Service {
       url,
       key,
       bucket: this.bucketName,
-      publicUrl: `${this.publicBaseUrl}/${key}`,
+      publicUrl: this.getPublicUrl(key),
     };
   }
 
-  async checkObjectExists(key: string) {
+  getPublicUrl(key: string): string {
+    return `${this.publicBaseUrl.replace(/\/$/, '')}/${key.split('/').map(encodeURIComponent).join('/')}`;
+  }
+
+  async getObjectMetadata(key: string): Promise<StoredObjectMetadata | null> {
     try {
-      await this.client.send(
+      const response = await this.client.send(
         new HeadObjectCommand({
           Bucket: this.bucketName,
           Key: key,
         }),
       );
-      return true;
+      return {
+        contentLength: response.ContentLength,
+        contentType: response.ContentType,
+      };
     } catch {
-      return false;
+      return null;
     }
+  }
+
+  async checkObjectExists(key: string): Promise<boolean> {
+    return (await this.getObjectMetadata(key)) !== null;
   }
 }

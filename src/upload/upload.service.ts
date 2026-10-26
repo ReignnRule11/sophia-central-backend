@@ -5,6 +5,7 @@ import * as crypto from 'crypto';
 import { FileUpload } from './entities/file-upload.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
+import { CompleteFileUploadDto } from './dto/complete-file-upload.dto';
 import { PointsService } from '../points/points.service';
 import { S3Service } from './s3.service';
 
@@ -81,37 +82,58 @@ export class UploadService {
     };
   }
 
-  async completeUpload(
-    userId: string,
-    dto: { key: string; resourceId: string; mimetype: string; size: number },
-  ) {
+  async completeUpload(userId: string, dto: CompleteFileUploadDto) {
+    if (!this.ALLOWED_MIME_TYPES.includes(dto.mimetype)) {
+      throw new BadRequestException('File type is not allowed');
+    }
+    if (!Number.isInteger(dto.size) || dto.size < 1 || dto.size > this.MAX_FILE_SIZE) {
+      throw new BadRequestException('File size is invalid or exceeds the 50 MB limit');
+    }
+    if (!dto.key.startsWith(`resources/${userId}/`)) {
+      throw new BadRequestException('Upload key is invalid for this user');
+    }
+
     const resource = await this.resourceRepository.findOne({
       where: { id: dto.resourceId, uploaderId: userId },
-      relations: ['uploader'],
     });
-
     if (!resource) {
       throw new NotFoundException('Resource not found');
     }
 
-    const exists = await this.s3Service.checkObjectExists(dto.key);
-    if (!exists) {
-      throw new BadRequestException('Upload not found in object storage. Please upload the file before completing.');
+    // A completion request must match an upload initiated for this exact user/resource.
+    const fileUpload = await this.fileUploadRepository.findOne({
+      where: {
+        s3Key: dto.key,
+        resourceId: dto.resourceId,
+        userId,
+        status: 'pending',
+      },
+    });
+    if (!fileUpload) {
+      throw new BadRequestException('No pending upload matches this resource and storage key');
+    }
+    if (fileUpload.mimetype !== dto.mimetype || Number(fileUpload.size) !== dto.size) {
+      throw new BadRequestException('Upload metadata does not match the initiated upload');
     }
 
-    const publicUrl = `${process.env.AWS_S3_BUCKET_URL || 'http://localhost:9000/sophia-central'}/${dto.key}`;
+    const storedObject = await this.s3Service.getObjectMetadata(dto.key);
+    if (!storedObject) {
+      throw new BadRequestException('Upload not found in object storage. Please upload the file before completing.');
+    }
+    if (storedObject.contentLength !== dto.size) {
+      throw new BadRequestException('Stored file size does not match the initiated upload');
+    }
+    if (storedObject.contentType !== dto.mimetype) {
+      throw new BadRequestException('Stored file content type does not match the initiated upload');
+    }
+
+    const publicUrl = this.s3Service.getPublicUrl(dto.key);
     resource.fileUrl = publicUrl;
     await this.resourceRepository.save(resource);
 
-    const fileUpload = await this.fileUploadRepository.findOne({
-      where: { s3Key: dto.key, userId },
-    });
-
-    if (fileUpload) {
-      fileUpload.status = 'completed';
-      fileUpload.completedAt = new Date();
-      await this.fileUploadRepository.save(fileUpload);
-    }
+    fileUpload.status = 'completed';
+    fileUpload.completedAt = new Date();
+    await this.fileUploadRepository.save(fileUpload);
 
     return {
       success: true,

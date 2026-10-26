@@ -9,17 +9,17 @@ import {
 @Entity({ name: 'point_wallets' })
 export class PointWallet {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ type: 'uuid', unique: true })
-  userId: string;
+  userId!: string;
 
   @Column({ default: 0 })
-  balance: number;
+  balance!: number;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

@@ -12,45 +12,45 @@ import { Resource } from '../../resources/entities/resource.entity';
 @Entity({ name: 'file_uploads' })
 export class FileUpload {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column({ unique: true })
-  uploadId: string;
+  uploadId!: string;
 
   @Column()
-  resourceId: string;
+  resourceId!: string;
 
   @ManyToOne(() => Resource, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'resourceId' })
-  resource: Resource;
+  resource!: Resource;
 
   @Column()
-  userId: string;
+  userId!: string;
 
   @Column()
-  filename: string;
+  filename!: string;
 
   @Column()
-  mimetype: string;
+  mimetype!: string;
 
   @Column({ type: 'bigint' })
-  size: number;
+  size!: number;
 
   @Column()
-  s3Key: string;
+  s3Key!: string;
 
   @Column({ type: 'enum', enum: ['pending', 'completed', 'failed', 'scanned'], default: 'pending' })
-  status: 'pending' | 'completed' | 'failed' | 'scanned';
+  status!: 'pending' | 'completed' | 'failed' | 'scanned';
 
   @Column({ type: 'text', nullable: true })
   scanResult?: string;
 
   @CreateDateColumn()
-  uploadedAt: Date;
+  uploadedAt!: Date;
 
   @Column({ type: 'timestamp', nullable: true })
   completedAt?: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

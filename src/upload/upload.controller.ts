@@ -16,6 +16,7 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { UploadService } from './upload.service';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
+import { CompleteFileUploadDto } from './dto/complete-file-upload.dto';
 
 @ApiTags('Upload')
 @Controller('upload')
@@ -39,7 +40,7 @@ export class UploadController {
   @ApiOperation({ summary: 'Complete upload and create file record' })
   async completeUpload(
     @CurrentUser() user: User,
-    @Body() dto: { key: string; resourceId: string; mimetype: string; size: number },
+    @Body() dto: CompleteFileUploadDto,
   ) {
     return this.uploadService.completeUpload(user.id, dto);
   }
