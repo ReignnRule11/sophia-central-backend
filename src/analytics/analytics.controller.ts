@@ -13,7 +13,7 @@ export class AnalyticsController {
 
   @Get('dashboard')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get platform analytics dashboard' })
   async getDashboard() {
