@@ -14,20 +14,20 @@ export enum PointTransactionType {
 @Entity({ name: 'point_transactions' })
 export class PointTransaction {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  userId: string;
+  userId!: string;
 
   @Column({ type: 'enum', enum: PointTransactionType, default: PointTransactionType.EARNED })
-  type: PointTransactionType;
+  type!: PointTransactionType;
 
   @Column({ type: 'int' })
-  amount: number;
+  amount!: number;
 
   @Column({ type: 'text', nullable: true })
   reason?: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }
