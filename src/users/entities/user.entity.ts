@@ -71,6 +71,12 @@ export class User {
   faculty?: string;
 
   @Column({ nullable: true })
+  programme?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  coursesTaught?: string[];
+
+  @Column({ nullable: true })
   studyLevel?: string;
 
   @Column({ nullable: true, type: 'text' })

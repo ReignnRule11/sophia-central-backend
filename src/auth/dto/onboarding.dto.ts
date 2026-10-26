@@ -1,4 +1,5 @@
 import {
+  IsArray,
   IsOptional,
   IsString,
   MaxLength,
@@ -22,6 +23,17 @@ export class OnboardingDto {
   @IsString()
   @MaxLength(160)
   department?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  programme?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @MaxLength(160, { each: true })
+  coursesTaught?: string[];
 
   @IsOptional()
   @IsString()
