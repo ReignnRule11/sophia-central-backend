@@ -9,7 +9,7 @@ import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
 import { OnboardingDto } from './dto/onboarding.dto';
 import { UsersService } from '../users/users.service';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class AuthService {
@@ -29,11 +29,13 @@ export class AuthService {
       );
     }
 
+    const role = dto.role ?? UserRole.STUDENT;
     const user = await this.usersService.create({
       email,
       firstName: dto.firstName.trim(),
       lastName: dto.lastName.trim(),
       password: await bcrypt.hash(dto.password, 12),
+      role,
       institution: dto.institution?.trim() || undefined,
       faculty: dto.faculty?.trim() || undefined,
       department: dto.department?.trim() || undefined,
