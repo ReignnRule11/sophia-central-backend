@@ -46,7 +46,7 @@ export class NotificationsController {
 
   @Post('send')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send a notification (admin/test only)' })
   async sendNotification(@Body() dto: { userId: string; type: string; title: string; message: string; link?: string }) {
