@@ -27,7 +27,7 @@ const CSRF_COOKIE = 'sophia_csrf_token';
 
 function cookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
-  const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'lax' : 'lax')) as 'lax' | 'strict' | 'none';
+  const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')) as 'lax' | 'strict' | 'none';
   return {
     httpOnly: true,
     secure: isProduction,
@@ -39,7 +39,7 @@ function cookieOptions() {
 
 function csrfCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
-  const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'lax' : 'lax')) as 'lax' | 'strict' | 'none';
+  const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')) as 'lax' | 'strict' | 'none';
   return {
     httpOnly: false,
     secure: isProduction,
