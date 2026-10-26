@@ -26,8 +26,16 @@ async function main() {
       assert.ok(result.rows[0].name, `expected migrated table: ${table}`);
     }
 
-    const applied = await client.query('SELECT COUNT(*)::int AS count FROM migrations');
-    assert.equal(applied.rows[0].count, 5, 'all four legacy migrations and the schema-completion migration should run');
+    const applied = await client.query('SELECT name FROM migrations ORDER BY timestamp');
+    const migrationNames = applied.rows.map((row) => row.name);
+    assert.ok(
+      migrationNames.length >= 6,
+      `expected all current migrations to run; found ${migrationNames.length}`,
+    );
+    assert.ok(
+      migrationNames.includes('AddUserSocialLinks2026102500001'),
+      'user social-links migration should be applied',
+    );
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName")

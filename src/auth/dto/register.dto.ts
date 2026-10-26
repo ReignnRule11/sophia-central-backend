@@ -1,3 +1,4 @@
+
 import {
   IsEmail,
   IsNotEmpty,
@@ -5,7 +6,10 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
+import { Type } from 'class-transformer';
+import { SocialLinksDto } from './social-links.dto';
 
 export class RegisterDto {
   @IsNotEmpty()
@@ -39,4 +43,14 @@ export class RegisterDto {
   @IsString()
   @MaxLength(160)
   faculty?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  socialHandle?: string;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => SocialLinksDto)
+  socialLinks?: SocialLinksDto;
 }

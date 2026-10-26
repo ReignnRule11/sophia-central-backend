@@ -6,7 +6,9 @@ import { JwtService } from '@nestjs/jwt';
 
 describe('AuthService', () => {
   let service: AuthService;
-  let users: jest.Mocked<Pick<UsersService, 'findByEmail' | 'create' | 'update' | 'findOne'>>;
+  let users: jest.Mocked<
+    Pick<UsersService, 'findByEmail' | 'create' | 'update' | 'findOne'>
+  >;
   let jwt: jest.Mocked<Pick<JwtService, 'signAsync'>>;
 
   const user = {
@@ -28,15 +30,24 @@ describe('AuthService', () => {
       update: jest.fn(),
       findOne: jest.fn(),
     };
-    jwt = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
-    service = new AuthService(users as unknown as UsersService, jwt as unknown as JwtService);
+
+    jwt = {
+      signAsync: jest.fn().mockResolvedValue('signed-access-token'),
+    };
+
+    service = new AuthService(
+      users as unknown as UsersService,
+      jwt as unknown as JwtService,
+    );
   });
 
   afterEach(() => jest.restoreAllMocks());
 
   it('registers with a password hash and does not return the password', async () => {
     users.findByEmail.mockResolvedValue(null);
-    users.create.mockImplementation(async (data) => ({ ...user, ...data }) as never);
+    users.create.mockImplementation(
+      async (data) => ({ ...user, ...data }) as never,
+    );
 
     const response = await service.register({
       firstName: ' Learner ',
@@ -46,18 +57,29 @@ describe('AuthService', () => {
     });
 
     const saved = users.create.mock.calls[0][0];
+
     expect(saved.email).toBe('learner@example.com');
     expect(saved.password).not.toBe('correct-horse-battery');
-    expect(await bcrypt.compare('correct-horse-battery', saved.password!)).toBe(true);
+    expect(
+      await bcrypt.compare('correct-horse-battery', saved.password!),
+    ).toBe(true);
     expect(response.accessToken).toBe('signed-access-token');
     expect(response.user).not.toHaveProperty('password');
   });
 
-  it('accepts and persists optional institution, faculty, and department during registration', async () => {
+  it('saves and returns academic and social profile fields during registration', async () => {
     users.findByEmail.mockResolvedValue(null);
-    users.create.mockImplementation(async (data) => ({ ...user, ...data }) as never);
+    users.create.mockImplementation(
+      async (data) => ({ ...user, ...data }) as never,
+    );
 
-    await service.register({
+    const socialLinks = {
+      linkedin: 'https://www.linkedin.com/in/learner-one',
+      instagram: 'https://www.instagram.com/learner.one',
+      twitter: 'https://x.com/learner_one',
+    };
+
+    const response = await service.register({
       firstName: 'Learner',
       lastName: 'One',
       email: 'learner@example.com',
@@ -65,44 +87,77 @@ describe('AuthService', () => {
       institution: 'Example University',
       faculty: 'Science',
       department: 'Computer Science',
+      socialHandle: 'learner.one',
+      socialLinks,
     });
 
-    expect(users.create).toHaveBeenCalledWith(expect.objectContaining({
-      institution: 'Example University',
-      faculty: 'Science',
-      department: 'Computer Science',
-    }));
+    expect(users.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        institution: 'Example University',
+        faculty: 'Science',
+        department: 'Computer Science',
+        socialHandle: 'learner.one',
+        socialLinks,
+      }),
+    );
+
+    expect(response.user).toEqual(
+      expect.objectContaining({
+        institution: 'Example University',
+        faculty: 'Science',
+        department: 'Computer Science',
+        socialHandle: 'learner.one',
+        socialLinks,
+      }),
+    );
+
+    expect(response.user).not.toHaveProperty('password');
   });
 
   it('rejects duplicate email registration', async () => {
     users.findByEmail.mockResolvedValue(user as never);
-    await expect(service.register({
-      firstName: 'Learner',
-      lastName: 'One',
-      email: 'learner@example.com',
-      password: 'correct-horse-battery',
-    })).rejects.toBeInstanceOf(ConflictException);
+
+    await expect(
+      service.register({
+        firstName: 'Learner',
+        lastName: 'One',
+        email: 'learner@example.com',
+        password: 'correct-horse-battery',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
     expect(users.create).not.toHaveBeenCalled();
   });
 
   it('returns the same authentication error for unknown email or wrong password', async () => {
     users.findByEmail.mockResolvedValue(null);
-    await expect(service.login({
-      email: 'missing@example.com',
-      password: 'not-the-password',
-    })).rejects.toBeInstanceOf(UnauthorizedException);
+
+    await expect(
+      service.login({
+        email: 'missing@example.com',
+        password: 'not-the-password',
+      }),
+    ).rejects.toBeInstanceOf(UnauthorizedException);
   });
 
   it('does not mark a user as email-verified during onboarding', async () => {
-    users.update.mockResolvedValue({ ...user, isProfileComplete: true } as never);
+    users.update.mockResolvedValue(
+      { ...user, isProfileComplete: true } as never,
+    );
+
     const response = await service.completeOnboarding('user-123', {
       institution: 'Example University',
       bio: 'Learner',
     });
-    expect(users.update).toHaveBeenCalledWith('user-123', expect.objectContaining({
-      institution: 'Example University',
-      isProfileComplete: true,
-    }));
+
+    expect(users.update).toHaveBeenCalledWith(
+      'user-123',
+      expect.objectContaining({
+        institution: 'Example University',
+        isProfileComplete: true,
+      }),
+    );
+
     expect(users.update.mock.calls[0][1]).not.toHaveProperty('isVerified');
     expect(response.user).not.toHaveProperty('password');
   });
