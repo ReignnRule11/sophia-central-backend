@@ -54,7 +54,7 @@ export class ResourcesController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuth, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a resource' })
