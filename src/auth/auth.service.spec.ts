@@ -68,7 +68,11 @@ describe('AuthService', () => {
     }));
     const tokenRecord = resetTokens.save.mock.calls[0][0];
     expect(tokenRecord.tokenHash).not.toContain('token');
-    expect(resetEmail.sendResetLink).toHaveBeenCalledWith(user.email, expect.stringMatching(/^[A-Za-z0-9_-]{43}$/));
+    expect(resetEmail.sendResetLink).toHaveBeenCalledWith(
+  user.email,
+  expect.stringMatching(/^[A-Za-z0-9_-]{43}$/),
+  user.firstName,
+);
   });
 
   it('registers with a password hash and does not return the password', async () => {
