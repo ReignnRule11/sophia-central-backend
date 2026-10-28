@@ -53,11 +53,20 @@ export class PointsService {
   }
 
   async getTransactions(userId: string, limit: number = 20) {
-    return this.transactionRepository.find({
+    const transactions = await this.transactionRepository.find({
       where: { userId },
       order: { createdAt: 'DESC' },
       take: limit,
     });
+
+    // Keep the persisted reason stable for idempotency while returning the current brand label.
+    return transactions.map((transaction) => ({
+      ...transaction,
+      reason:
+        transaction.reason === STARTER_CREDIT_REASON
+          ? 'Sophis AI starter credits'
+          : transaction.reason,
+    }));
   }
 
   async awardPoints(dto: AwardPointsDto) {
