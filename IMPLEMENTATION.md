@@ -1,12 +1,12 @@
-# Sophia Central Backend - MVP Implementation
+# Sophis Central Backend - MVP Implementation
 
 ## Project Overview
 
-Sophia Central is a **centralized academic resource and research platform** designed to solve the student pain point of scattered educational materials across multiple platforms. This backend powers the MVP with authentication, content moderation, rewards systems, and AI-assisted learning.
+Sophis Central is a **centralized academic resource and research platform** designed to solve the student pain point of scattered educational materials across multiple platforms. This backend powers the MVP with authentication, content moderation, rewards systems, and AI-assisted learning.
 
 ## Problem Statement
 
-**81%** of students spend over 21 minutes searching for academic resources, and **58%** report that materials are scattered across too many platforms. Sophia Central consolidates trusted academic resources into one place where students can:
+**81%** of students spend over 21 minutes searching for academic resources, and **58%** report that materials are scattered across too many platforms. Sophis Central consolidates trusted academic resources into one place where students can:
 
 - Search resources by course, topic, institution, and level
 - Upload and share verified materials
@@ -16,7 +16,7 @@ Sophia Central is a **centralized academic resource and research platform** desi
 
 ## Solution Architecture
 
-The Sophia Central backend is built as a **modular, production-ready NestJS application** with clear separation of concerns:
+The Sophis Central backend is built as a **modular, production-ready NestJS application** with clear separation of concerns:
 
 ### Core Modules
 
@@ -592,4 +592,4 @@ For issues, questions, or contributions, please open a GitHub issue or contact t
 
 ---
 
-**Build with ❤️ for African students by the Sophia Central team**
+**Build with ❤️ for African students by the Sophis Central team**
