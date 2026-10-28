@@ -8,7 +8,7 @@ export class SeedController {
   constructor(private readonly seedService: SeedService) {}
 
   @Post('run')
-  @ApiOperation({ summary: 'Populate demo data for Sophia Central' })
+  @ApiOperation({ summary: 'Populate demo data for Sophis Central' })
   async run() {
     await this.seedService.seed();
     return { success: true, message: 'Seed data loaded successfully' };

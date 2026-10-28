@@ -1,7 +1,7 @@
 {
   "name": "sophia-central-backend",
   "version": "0.1.0",
-  "description": "Sophia Central backend API",
+  "description": "Sophis Central backend API",
   "author": "ReignnRule11",
   "private": true,
   "scripts": {
