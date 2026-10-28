@@ -1,6 +1,6 @@
-# Sophia Central Mobile (React Native + Expo)
+# Sophis Central Mobile (React Native + Expo)
 
-This is an Expo + React Native TypeScript starter for the Sophia Central mobile app.
+This is an Expo + React Native TypeScript starter for the Sophis Central mobile app.
 
 ## Getting started
 

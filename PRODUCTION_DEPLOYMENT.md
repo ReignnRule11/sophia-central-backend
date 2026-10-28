@@ -1,4 +1,4 @@
-# Sophia Central Backend — Production Deployment
+# Sophis Central Backend — Production Deployment
 
 This guide documents the supported **single-host Docker Compose deployment** in `docker-compose.prod.yml`. It is not a substitute for an ECS/Kubernetes deployment specification. The default `docker-compose.yml` is development-only and must not be used in production.
 

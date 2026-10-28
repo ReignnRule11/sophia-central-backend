@@ -1,4 +1,4 @@
-# Sophia Central - API Endpoints & CORS Configuration
+# Sophis Central - API Endpoints & CORS Configuration
 
 Complete reference guide for all API endpoints, CORS setup, and integration requirements for frontend (web) and mobile (iOS/Android) applications.
 
@@ -387,4 +387,4 @@ Error format:
 
 ---
 
-This document is intended as a practical reference for integrating the Sophia Central backend with frontend and mobile clients.
+This document is intended as a practical reference for integrating the Sophis Central backend with frontend and mobile clients.

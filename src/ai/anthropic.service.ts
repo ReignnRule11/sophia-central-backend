@@ -40,7 +40,7 @@ export class AnthropicService {
     }
 
     try {
-      const systemPrompt = 'You are Sophia, an AI study assistant for Sophia Central. Help students learn academic material concisely and accurately. Keep responses under 500 words.';
+      const systemPrompt = 'You are Sophis, an AI study assistant for Sophis Central. Help students learn academic material concisely and accurately. Keep responses under 500 words.';
 
       const response = await firstValueFrom(
         this.httpService.post<AnthropicApiResponse>(

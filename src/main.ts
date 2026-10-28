@@ -23,7 +23,7 @@ async function bootstrap() {
 
   if (process.env.SWAGGER_ENABLED === 'true') {
     const config = new DocumentBuilder()
-      .setTitle('Sophia Central API')
+      .setTitle('Sophis Central API')
       .setDescription('Academic resource and research platform backend')
       .setVersion('1.0')
       .addBearerAuth()
@@ -35,7 +35,7 @@ async function bootstrap() {
 
   const logger = new Logger('Bootstrap');
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
-  logger.log(`Sophia Central API is running on port ${process.env.PORT ?? 3000}`);
+  logger.log(`Sophis Central API is running on port ${process.env.PORT ?? 3000}`);
 }
 
 bootstrap();

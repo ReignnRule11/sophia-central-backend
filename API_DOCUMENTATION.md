@@ -1,4 +1,4 @@
-# Sophia Central Backend API - Complete Guide
+# Sophis Central Backend API - Complete Guide
 
 ## Table of Contents
 1. [Authentication](#authentication)
