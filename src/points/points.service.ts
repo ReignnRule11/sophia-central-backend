@@ -1,9 +1,12 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PointWallet } from './entities/point-wallet.entity';
 import { PointTransaction, PointTransactionType } from './entities/point-transaction.entity';
 import { AwardPointsDto } from './dto/award-points.dto';
+
+const STARTER_WISDOM_POINTS = 10;
+const STARTER_CREDIT_REASON = 'Sophia AI starter credits';
 
 @Injectable()
 export class PointsService {
@@ -20,6 +23,25 @@ export class PointsService {
     if (!wallet) {
       wallet = this.walletRepository.create({ userId, balance: 0 });
       wallet = await this.walletRepository.save(wallet);
+    }
+
+    // One-time starter grant: this also repairs existing accounts whose wallets
+    // were created with zero balance before starter credits were introduced.
+    const starterGrant = await this.transactionRepository.findOne({
+      where: { userId, reason: STARTER_CREDIT_REASON },
+    });
+
+    if (!starterGrant) {
+      wallet.balance += STARTER_WISDOM_POINTS;
+      wallet = await this.walletRepository.save(wallet);
+      await this.transactionRepository.save(
+        this.transactionRepository.create({
+          userId,
+          type: PointTransactionType.BONUS,
+          amount: STARTER_WISDOM_POINTS,
+          reason: STARTER_CREDIT_REASON,
+        }),
+      );
     }
 
     return wallet;
@@ -45,7 +67,7 @@ export class PointsService {
 
     const transaction = this.transactionRepository.create({
       userId: dto.userId,
-      type: PointTransactionType.EARNED,
+      type: dto.amount < 0 ? PointTransactionType.SPENT : PointTransactionType.EARNED,
       amount: dto.amount,
       reason: dto.reason,
     });
