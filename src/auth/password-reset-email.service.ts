@@ -47,7 +47,7 @@ export class PasswordResetEmailService {
           variables: {
             USER_FIRST_NAME: firstName?.trim() || 'there',
             RESET_URL: resetUrl.toString(),
-            EXPIRY_MINUTES: 30,
+            EXPIRY_MINUTES: '30',
           },
         },
       }),
