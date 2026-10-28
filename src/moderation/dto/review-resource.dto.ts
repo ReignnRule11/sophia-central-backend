@@ -1,4 +1,4 @@
-import { IsEnum, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ResourceModerationStatus } from '../../resources/entities/resource.entity';
 
 export class ReviewResourceDto {
@@ -7,8 +7,6 @@ export class ReviewResourceDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(1000)
   note?: string;
-
-  @IsNotEmpty()
-  reviewerId: string;
 }
