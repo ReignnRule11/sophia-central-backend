@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
@@ -27,7 +27,7 @@ export class ModerationService {
     });
   }
 
-  async reviewResource(id: string, dto: ReviewResourceDto) {
+  async reviewResource(id: string, dto: ReviewResourceDto, reviewerId: string) {
     const resource = await this.resourceRepository.findOne({
       where: { id },
       relations: ['uploader'],
@@ -37,14 +37,19 @@ export class ModerationService {
       throw new NotFoundException('Resource not found');
     }
 
-    const reviewer = await this.userRepository.findOne({ where: { id: dto.reviewerId } });
-    if (!reviewer) {
-      throw new NotFoundException('Reviewer not found');
+    if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
+      throw new ConflictException('This resource has already been reviewed');
     }
 
+    const reviewer = await this.userRepository.findOne({ where: { id: reviewerId } });
+    if (!reviewer) {
+      throw new NotFoundException('Authenticated reviewer not found');
+    }
+
+    // Persist the decision on the resource itself so lecturer/resource views,
+    // the public library and subsequent queue reads see the same authoritative state.
     resource.moderationStatus = dto.status;
     resource.isVerified = dto.status === ResourceModerationStatus.APPROVED;
-
     await this.resourceRepository.save(resource);
 
     const review = this.moderationReviewRepository.create({
