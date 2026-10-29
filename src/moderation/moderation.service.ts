@@ -27,6 +27,13 @@ export class ModerationService {
     });
   }
 
+  async getHistory() {
+    return this.moderationReviewRepository.find({
+      relations: ['resource', 'resource.uploader', 'reviewer'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
   async reviewResource(id: string, dto: ReviewResourceDto, reviewerId: string) {
     const resource = await this.resourceRepository.findOne({
       where: { id },
