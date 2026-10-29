@@ -23,6 +23,14 @@ export class ModerationController {
     return this.moderationService.getQueue();
   }
 
+  @Get('history')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @ApiBearerAuth()
+  getHistory() {
+    return this.moderationService.getHistory();
+  }
+
   @Patch('resources/:id/review')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
