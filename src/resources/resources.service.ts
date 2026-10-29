@@ -42,19 +42,17 @@ export class ResourcesService {
    * and moderators/admins can inspect all resources.
    */
   async findVisibleTo(viewer: User): Promise<Resource[]> {
-    const query = this.resourceRepository
-      .createQueryBuilder('resource')
-      .leftJoinAndSelect('resource.uploader', 'uploader');
-
-    if (viewer.role === UserRole.STUDENT || viewer.role === UserRole.LECTURER) {
-      query.where('resource.moderationStatus = :status', {
-        status: ResourceModerationStatus.APPROVED,
-      });
-    } else if (![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
+    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to resources.');
     }
 
-    return query.orderBy('resource.createdAt', 'DESC').getMany();
+    // The shared library is always approved-only. Moderator pending/rejected work
+    // belongs in /moderation, and lecturer-owned submissions belong in /resources/mine.
+    return this.resourceRepository.find({
+      where: { moderationStatus: ResourceModerationStatus.APPROVED },
+      relations: ['uploader'],
+      order: { createdAt: 'DESC' },
+    });
   }
 
   async findMine(uploaderId: string): Promise<Resource[]> {
