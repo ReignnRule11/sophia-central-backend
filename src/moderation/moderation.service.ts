@@ -1,13 +1,16 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
 import { User } from '../users/entities/user.entity';
 import { ModerationReview } from './entities/moderation-review.entity';
 import { ReviewResourceDto } from './dto/review-resource.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ModerationService {
+  private readonly logger = new Logger(ModerationService.name);
+
   constructor(
     @InjectRepository(Resource)
     private readonly resourceRepository: Repository<Resource>,
@@ -15,6 +18,7 @@ export class ModerationService {
     private readonly moderationReviewRepository: Repository<ModerationReview>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async getQueue() {
@@ -55,6 +59,24 @@ export class ModerationService {
       status: dto.status,
       note: dto.note,
     });
-    return this.moderationReviewRepository.save(review);
+    const savedReview = await this.moderationReviewRepository.save(review);
+
+    // A notification failure must not roll back an already-recorded moderation decision.
+    try {
+      const approved = dto.status === ResourceModerationStatus.APPROVED;
+      await this.notificationsService.createNotification(
+        resource.uploaderId,
+        approved ? 'resource_approved' : 'resource_rejected',
+        approved ? 'Your resource was approved' : 'Your resource was rejected',
+        approved
+          ? `“${resource.title}” has been approved and is now available in the shared library.`
+          : `“${resource.title}” was rejected during moderation.${dto.note ? ` Reviewer note: ${dto.note}` : ''}`,
+        approved ? '/library' : '/lecturer',
+      );
+    } catch (error) {
+      this.logger.warn(`Could not create moderation notification for resource ${resource.id}: ${String(error)}`);
+    }
+
+    return savedReview;
   }
 }
