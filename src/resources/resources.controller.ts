@@ -27,21 +27,33 @@ export class ResourcesController {
   @Post()
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new resource' })
+  @ApiOperation({ summary: 'Create a resource submission (pending moderator review)' })
   create(@Body() dto: CreateResourceDto, @CurrentUser() user: User) {
     return this.resourcesService.create(dto, user.id);
   }
 
+  @Get('mine')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the authenticated lecturer’s own submissions and moderation history' })
+  findMine(@CurrentUser() user: User) {
+    return this.resourcesService.findMine(user.id);
+  }
+
   @Get()
-  @ApiOperation({ summary: 'Get all resources' })
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get approved and verified resources only' })
   findAll() {
     return this.resourcesService.findAll();
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a single resource by id' })
-  findOne(@Param('id') id: string) {
-    return this.resourcesService.findOne(id);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get an approved resource, or a private submission owned by the requester/moderator' })
+  findOne(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.resourcesService.findVisibleOne(id, user);
   }
 
   @Patch(':id')
