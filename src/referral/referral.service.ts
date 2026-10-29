@@ -28,7 +28,14 @@ export class ReferralService {
 
     if (!referral) {
       // Generate unique code
-      const code = this.generateCode();
+      // Generate a collision-checked code and persist it against the authenticated referrer's account.
+      let code = this.generateCode();
+      for (let attempt = 0; await this.referralRepository.findOne({ where: { code } }); attempt += 1) {
+        if (attempt >= 5) {
+          throw new BadRequestException('Unable to generate a unique referral code. Please try again.');
+        }
+        code = this.generateCode();
+      }
       referral = this.referralRepository.create({
         referrerId: userId,
         code,
@@ -102,7 +109,7 @@ export class ReferralService {
     const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
     let code = '';
     for (let i = 0; i < 8; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
+      code += chars.charAt(crypto.randomInt(0, chars.length));
     }
     return code;
   }
