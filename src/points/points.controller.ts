@@ -14,14 +14,14 @@ import { AwardPointsDto } from './dto/award-points.dto';
 export class PointsController {
   constructor(private readonly pointsService: PointsService) {}
 
-  @Get('me/balance')
+  @Get('my-wallet/balance')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   getMyBalance(@CurrentUser() user: User) {
     return this.pointsService.getBalance(user.id);
   }
 
-  @Get('me/transactions')
+  @Get('my-wallet/transactions')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   getMyTransactions(@CurrentUser() user: User, @Query('limit') limit?: string) {
