@@ -46,12 +46,10 @@ export class ResourcesService {
       .createQueryBuilder('resource')
       .leftJoinAndSelect('resource.uploader', 'uploader');
 
-    if (viewer.role === UserRole.STUDENT) {
+    if (viewer.role === UserRole.STUDENT || viewer.role === UserRole.LECTURER) {
       query.where('resource.moderationStatus = :status', {
         status: ResourceModerationStatus.APPROVED,
       });
-    } else if (viewer.role === UserRole.LECTURER) {
-      query.where('resource.uploaderId = :uploaderId', { uploaderId: viewer.id });
     } else if (![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to resources.');
     }
