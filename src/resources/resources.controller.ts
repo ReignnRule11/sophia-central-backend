@@ -6,7 +6,6 @@ import {
   Param,
   Patch,
   Post,
-  Query,
   UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -25,23 +24,37 @@ export class ResourcesController {
   constructor(private readonly resourcesService: ResourcesService) {}
 
   @Post()
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.LECTURER)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Create a new resource' })
+  @ApiOperation({ summary: 'Submit a resource for moderation' })
   create(@Body() dto: CreateResourceDto, @CurrentUser() user: User) {
     return this.resourcesService.create(dto, user.id);
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all resources' })
-  findAll() {
-    return this.resourcesService.findAll();
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get resources visible to the authenticated user' })
+  findAll(@CurrentUser() user: User) {
+    return this.resourcesService.findVisibleTo(user);
+  }
+
+  @Get('mine')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.LECTURER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the authenticated lecturer’s own resource submissions and review statuses' })
+  findMine(@CurrentUser() user: User) {
+    return this.resourcesService.findMine(user.id);
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get a single resource by id' })
-  findOne(@Param('id') id: string) {
-    return this.resourcesService.findOne(id);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a resource the authenticated user is allowed to view' })
+  findOne(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.resourcesService.findOneForViewer(id, user);
   }
 
   @Patch(':id')
