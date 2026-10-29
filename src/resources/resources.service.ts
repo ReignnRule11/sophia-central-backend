@@ -37,9 +37,8 @@ export class ResourcesService {
   }
 
   /**
-   * Scope resource visibility by the authenticated viewer:
-   * students see approved resources only, lecturers see their own submissions,
-   * and moderators/admins can inspect all resources.
+   * The shared library is approved-only for every role.
+   * Lecturer-owned submissions and moderator decisions use their separate history endpoints.
    */
   async findVisibleTo(viewer: User): Promise<Resource[]> {
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
