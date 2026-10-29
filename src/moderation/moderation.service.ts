@@ -19,11 +19,16 @@ export class ModerationService {
 
   async getQueue() {
     return this.resourceRepository.find({
-      where: {
-        moderationStatus: ResourceModerationStatus.PENDING,
-      },
+      where: { moderationStatus: ResourceModerationStatus.PENDING },
       relations: ['uploader'],
       order: { createdAt: 'ASC' },
+    });
+  }
+
+  async getHistory() {
+    return this.moderationReviewRepository.find({
+      relations: ['resource', 'resource.uploader', 'reviewer'],
+      order: { createdAt: 'DESC' },
     });
   }
 
@@ -32,22 +37,14 @@ export class ModerationService {
       where: { id },
       relations: ['uploader'],
     });
-
-    if (!resource) {
-      throw new NotFoundException('Resource not found');
-    }
-
+    if (!resource) throw new NotFoundException('Resource not found');
     if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
       throw new ConflictException('This resource has already been reviewed');
     }
 
     const reviewer = await this.userRepository.findOne({ where: { id: reviewerId } });
-    if (!reviewer) {
-      throw new NotFoundException('Authenticated reviewer not found');
-    }
+    if (!reviewer) throw new NotFoundException('Authenticated reviewer not found');
 
-    // Persist the decision on the resource itself so lecturer/resource views,
-    // the public library and subsequent queue reads see the same authoritative state.
     resource.moderationStatus = dto.status;
     resource.isVerified = dto.status === ResourceModerationStatus.APPROVED;
     await this.resourceRepository.save(resource);
@@ -58,7 +55,6 @@ export class ModerationService {
       status: dto.status,
       note: dto.note,
     });
-
     return this.moderationReviewRepository.save(review);
   }
 }

@@ -12,27 +12,28 @@ type AuthenticatedRequest = Request & { user: User };
 
 @ApiTags('Moderation')
 @Controller('moderation')
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserRole.MODERATOR, UserRole.ADMIN)
+@ApiBearerAuth()
 export class ModerationController {
   constructor(private readonly moderationService: ModerationService) {}
 
   @Get('queue')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiBearerAuth()
   getQueue() {
     return this.moderationService.getQueue();
   }
 
+  @Get('history')
+  getHistory() {
+    return this.moderationService.getHistory();
+  }
+
   @Patch('resources/:id/review')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  @ApiBearerAuth()
   reviewResource(
     @Param('id') id: string,
     @Body() dto: ReviewResourceDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    // Reviewer identity must come from the authenticated session, never the request body.
     return this.moderationService.reviewResource(id, dto, request.user.id);
   }
 }
