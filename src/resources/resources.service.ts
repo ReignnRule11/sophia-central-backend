@@ -77,7 +77,9 @@ export class ResourcesService {
       throw new NotFoundException('Resource not found');
     }
 
-    if (viewer.role === UserRole.LECTURER && resource.uploaderId !== viewer.id) {
+    if (viewer.role === UserRole.LECTURER &&
+        resource.uploaderId !== viewer.id &&
+        resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
       throw new NotFoundException('Resource not found');
     }
 
