@@ -11,7 +11,7 @@ interface GeminiInteractionResponse {
 
 @Injectable()
 export class GeminiService {
-  private readonly endpoint = 'https://generativelanguage.googleapis.com/v1beta/interactions';
+  private readonly endpoint = 'https://generativelanguage.googleapis.com/v1/interactions';
 
   async generateText(prompt: string, context?: string): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
