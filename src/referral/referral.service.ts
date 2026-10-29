@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
@@ -7,10 +7,17 @@ import { User } from '../users/entities/user.entity';
 import { PointsService } from '../points/points.service';
 import { CreateReferralDto } from './dto/create-referral.dto';
 
+const DEFAULT_REFERRER_BONUS_POINTS = 2;
+const REFERRER_BONUS_ENV = 'REFERRER_BONUS_POINTS';
+
 @Injectable()
 export class ReferralService {
-  private readonly REFERRER_BONUS = 50; // Points for successful referral
-  private readonly REFEREE_BONUS = 30; // Points for new user who was referred
+  /**
+   * Referral rewards are configured server-side so the amount can be changed
+   * without allowing a caller to award themselves an arbitrary number of points.
+   * Set REFERRER_BONUS_POINTS in the backend environment; defaults to 2.
+   */
+  private readonly REFERRER_BONUS = this.getReferrerBonusPoints();
 
   constructor(
     @InjectRepository(Referral)
@@ -27,8 +34,7 @@ export class ReferralService {
     });
 
     if (!referral) {
-      // Generate unique code
-      // Generate a collision-checked code and persist it against the authenticated referrer's account.
+      // Generate a unique code and persist it against the authenticated referrer's account.
       let code = this.generateCode();
       for (let attempt = 0; await this.referralRepository.findOne({ where: { code } }); attempt += 1) {
         if (attempt >= 5) {
@@ -51,7 +57,6 @@ export class ReferralService {
   }
 
   async redeemReferral(referralCode: string): Promise<{ success: boolean; message: string }> {
-    // Find referral
     const referral = await this.referralRepository.findOne({
       where: { code: referralCode, isActive: true },
       relations: ['referrer'],
@@ -61,26 +66,27 @@ export class ReferralService {
       throw new BadRequestException('Invalid or expired referral code');
     }
 
-    // Mark as redeemed (in real flow, this happens after new user signup)
+    // The existing redeem endpoint grants the referrer bonus and can only redeem
+    // an active code once. Signup attribution still needs to call this endpoint
+    // only after a new account is successfully created.
     referral.isActive = false;
     referral.redeemedAt = new Date();
     await this.referralRepository.save(referral);
 
-    // Award points to referrer
     await this.pointsService.awardPoints({
       userId: referral.referrerId,
       amount: this.REFERRER_BONUS,
-      reason: `Referral bonus - user sign up via your code`,
+      reason: 'Referral bonus - user sign up via your code',
     });
 
     return {
       success: true,
+      awardedPoints: this.REFERRER_BONUS,
       message: `Welcome! Your friend ${referral.referrer.firstName} earned ${this.REFERRER_BONUS} Wisdom Points for referring you.`,
     };
   }
 
   async getUserReferrals(userId: string, currentUserId: string) {
-    // Users can only view their own referrals
     if (userId !== currentUserId) {
       throw new ForbiddenException('Unauthorized');
     }
@@ -96,6 +102,7 @@ export class ReferralService {
       totalGenerated: referrals.length,
       successfulReferrals: successfulReferrals.length,
       totalBonusEarned: successfulReferrals.length * this.REFERRER_BONUS,
+      referralBonusPerSignup: this.REFERRER_BONUS,
       referrals: referrals.map((r) => ({
         code: r.code,
         createdAt: r.createdAt,
@@ -103,6 +110,20 @@ export class ReferralService {
         status: r.redeemedAt ? 'completed' : 'pending',
       })),
     };
+  }
+
+  private getReferrerBonusPoints(): number {
+    const configured = process.env[REFERRER_BONUS_ENV];
+    if (configured === undefined || configured.trim() === '') {
+      return DEFAULT_REFERRER_BONUS_POINTS;
+    }
+
+    const amount = Number(configured);
+    if (!Number.isSafeInteger(amount) || amount < 0) {
+      throw new Error(`${REFERRER_BONUS_ENV} must be a non-negative integer.`);
+    }
+
+    return amount;
   }
 
   private generateCode(): string {
