@@ -2,6 +2,9 @@ import { Injectable, BadRequestException, NotFoundException } from '@nestjs/comm
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
+import { UsersService } from '../users/users.service';
+import { CreateProfileImageUploadDto } from './dto/create-profile-image-upload.dto';
+import { CompleteProfileImageUploadDto } from './dto/complete-file-upload.dto';
 import { FileUpload } from './entities/file-upload.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
@@ -28,7 +31,31 @@ export class UploadService {
     private readonly resourceRepository: Repository<Resource>,
     private readonly pointsService: PointsService,
     private readonly s3Service: S3Service,
+    private readonly usersService: UsersService,
   ) {}
+
+  async getProfileImagePresignedUrl(userId: string, dto: CreateProfileImageUploadDto) {
+    const types = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!types.includes(dto.mimetype)) throw new BadRequestException('Profile images must be JPG, PNG, or WebP');
+    if (!Number.isInteger(dto.size) || dto.size < 1 || dto.size > 5 * 1024 * 1024) throw new BadRequestException('Profile image must be smaller than 5 MB');
+    const ext = dto.mimetype === 'image/jpeg' ? 'jpg' : dto.mimetype === 'image/png' ? 'png' : 'webp';
+    const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
+    const signed = await this.s3Service.createPresignedUploadUrl(key, dto.mimetype, 600);
+    return { presignedUrl: signed.url, key, publicUrl: signed.publicUrl };
+  }
+
+  async completeProfileImageUpload(userId: string, dto: CompleteProfileImageUploadDto) {
+    const types = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!types.includes(dto.mimetype)) throw new BadRequestException('Profile images must be JPG, PNG, or WebP');
+    if (!Number.isInteger(dto.size) || dto.size < 1 || dto.size > 5 * 1024 * 1024) throw new BadRequestException('Profile image must be smaller than 5 MB');
+    if (!dto.key.startsWith('profile-images/' + userId + '/')) throw new BadRequestException('Invalid profile image key');
+    const stored = await this.s3Service.getObjectMetadata(dto.key);
+    if (!stored || stored.contentLength !== dto.size || stored.contentType !== dto.mimetype) throw new BadRequestException('Uploaded profile image could not be verified');
+    const profileImage = this.s3Service.getPublicUrl(dto.key);
+    const user = await this.usersService.update(userId, { profileImage });
+    const { password: _password, ...safeUser } = user;
+    return { success: true, profileImage, user: safeUser };
+  }
 
   async getPresignedUrl(
     userId: string,
