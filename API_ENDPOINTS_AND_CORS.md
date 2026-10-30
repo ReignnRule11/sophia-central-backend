@@ -27,104 +27,61 @@ Complete reference guide for all API endpoints, CORS setup, and integration requ
 
 ## CORS Configuration
 
-### Backend CORS Setup (NestJS)
+The active NestJS application configures CORS in `src/common/security.ts`. It reads a comma-separated `CORS_ORIGINS` environment variable, trims each entry, and compares the browser's Origin against the exact allowlist. Credentialed requests are enabled; wildcard origins are not supported. In production the API refuses to start if `CORS_ORIGINS` is empty.
 
-```typescript
-// main.ts - Application Bootstrap
-import { NestFactory } from '@nestjs/core';
-import { AppModule } from './app.module';
+### Production web frontend
 
-async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+The canonical production frontend origin is:
 
-  app.enableCors({
-    origin: process.env.CORS_ORIGINS?.split(',') || [
-      'http://localhost:3000',
-      'http://localhost:3001',
-      'https://sophia-central.com',
-      'https://app.sophia-central.com',
-    ],
-    credentials: true,
-    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: [
-      'Content-Type',
-      'Authorization',
-      'X-Requested-With',
-      'X-Client-Version',
-      'X-Device-ID',
-      'Accept-Language',
-    ],
-    exposedHeaders: [
-      'X-Total-Count',
-      'X-Page-Number',
-      'X-Page-Size',
-      'X-RateLimit-Limit',
-      'X-RateLimit-Remaining',
-      'X-RateLimit-Reset',
-    ],
-    maxAge: 86400,
-    optionsSuccessStatus: 200,
-    preflightContinue: false,
-  });
-
-  await app.listen(3000);
-}
-
-bootstrap();
+```text
+https://sophiscentral.vercel.app
 ```
 
-### Environment Variables (.env)
+Set the following on the existing Render backend service:
 
 ```env
-CORS_ORIGINS=http://localhost:3000,http://localhost:3001,https://sophia-central.com,https://app.sophia-central.com,capacitor://localhost,ionic://localhost
-API_URL=http://localhost:3000
-API_TIMEOUT=30000
-API_RATE_LIMIT=100
-ALLOWED_CLIENT_VERSIONS=1.0.0,1.0.1,1.1.0
-MIN_REQUIRED_CLIENT_VERSION=1.0.0
+CORS_ORIGINS=https://sophiscentral.vercel.app
+FRONTEND_URL=https://sophiscentral.vercel.app
 ```
 
-### Frontend Integration (React/Vue/Angular)
+During the domain cutover, retain the currently configured previous frontend origin in `CORS_ORIGINS` alongside the new origin until the old hostname redirects correctly and the new domain passes login, authenticated API, and password-reset checks. Then remove the previous origin. Do not use `*` because the API allows credentials.
+
+### Local development
+
+Keep local Vite origins in local environment configuration, not in the production allowlist unless there is a deliberate operational reason:
+
+```env
+CORS_ORIGINS=http://localhost:5173
+FRONTEND_URL=http://localhost:5173
+API_URL=http://localhost:4000
+```
+
+The current frontend defaults to `http://localhost:4000` for its local API and to `https://sophia-central-backend.onrender.com` in production unless `VITE_API_BASE_URL` is explicitly supplied. Changing the frontend hostname does not change that API base URL.
+
+### Active CORS implementation
+
+The following is a simplified illustration of the production allowlist behavior. The source of truth is `src/common/security.ts`:
 
 ```typescript
-const API_CLIENT = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:3000',
-  timeout: 30000,
-  withCredentials: true,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept-Language': navigator.language,
-    'X-Client-Version': APP_VERSION,
-    'X-Device-ID': getDeviceId(),
-  },
-});
+const allowedOrigins = (process.env.CORS_ORIGINS || '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
 
-API_CLIENT.interceptors.request.use((config) => {
-  const token = localStorage.getItem('auth_token');
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
-  }
-  return config;
+app.enableCors({
+  origin: (origin, callback) => {
+    if (!origin || allowedOrigins.includes(origin)) {
+      return callback(null, true);
+    }
+    return callback(new Error('Origin not allowed by CORS'));
+  },
+  credentials: true,
 });
 ```
 
-### Mobile Integration (React Native/Flutter)
+### Mobile applications
 
-```javascript
-export const API_CONFIG = {
-  baseURL: Platform.select({
-    ios: 'https://api.sophia-central.com',
-    android: 'https://api.sophia-central.com',
-  }),
-  timeout: 30000,
-  headers: {
-    'Content-Type': 'application/json',
-    'X-Client-Version': '1.0.0',
-    'X-Device-ID': getDeviceUniqueId(),
-    'X-Platform': Platform.OS,
-  },
-};
-```
+Native mobile HTTP clients generally do not enforce browser CORS. For hybrid apps such as Capacitor/Ionic, add their actual runtime origins (for example `capacitor://localhost` or `ionic://localhost`) only if those clients need browser-style CORS access. Keep the production web origin and any required mobile origins as explicit entries.
 
 ---
 
@@ -307,36 +264,13 @@ POST /seed/clear
 
 ---
 
-## Recommended CORS Policy for Frontend + Mobile
+## CORS operational notes
 
-For production, use a strict allowlist instead of `*`.
-
-```typescript
-app.enableCors({
-  origin: [
-    'https://sophia-central.com',
-    'https://app.sophia-central.com',
-    'https://admin.sophia-central.com',
-    'capacitor://localhost',
-    'ionic://localhost',
-    'http://localhost:3000',
-    'http://localhost:3001',
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Authorization', 'Content-Type', 'X-Client-Version', 'X-Device-ID'],
-});
-```
-
-### Frontend notes
-- Web apps use browser CORS normally.
-- Keep credentials enabled if using cookies or secure session flows.
-- Do not allow wildcard origins in production.
-
-### Mobile notes
-- Mobile apps usually call the API directly via native HTTP clients.
-- For hybrid apps (Capacitor/Ionic), include the app origin in the allowlist.
-- Use `Authorization: Bearer <token>` for JWT auth.
+- The deployed backend's `CORS_ORIGINS` value is authoritative; documentation examples do not override Render environment variables.
+- Add each trusted origin as an exact scheme-and-host pair, with no trailing path.
+- Keep credentials enabled only with explicit trusted origins; never use a wildcard.
+- After changing Render environment variables, allow the backend to redeploy before testing from the browser.
+- Keep local Vite origins in local development configuration, not in the production allowlist by default.
 
 ---
 

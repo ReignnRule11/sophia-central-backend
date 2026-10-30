@@ -109,7 +109,26 @@ docker compose --env-file .env.production -f docker-compose.prod.yml logs --sinc
 
 Verify login/registration, authorization boundaries, database read/write behavior, object storage, and any enabled AI integrations using test accounts. Do not use real users' data for smoke tests.
 
-## 6. Development configuration warning
+## 6. Sophis Central frontend domain (Render API deployment)
+
+The production frontend origin is **https://sophiscentral.vercel.app**. The current API is hosted separately at `https://sophia-central-backend.onrender.com`; changing the Vercel hostname does not change the API URL or require a database migration.
+
+For the existing Render web service, update these environment variables:
+
+```dotenv
+CORS_ORIGINS=https://sophiscentral.vercel.app
+FRONTEND_URL=https://sophiscentral.vercel.app
+```
+
+During the hostname cutover, keep the currently configured previous frontend origin in `CORS_ORIGINS` alongside the new origin until the old hostname has been redirected and the new site has passed browser-based checks. Then remove the old origin, leaving only the new production origin (plus any separately required trusted mobile origins). Do not add wildcard origins; the API uses credentialed CORS and an exact-origin allowlist.
+
+Keep local development separate: `CORS_ORIGINS` should include the local Vite origin (normally `http://localhost:5173`) in the developer's local environment, and `FRONTEND_URL` should remain `http://localhost:5173` locally. Do not point local password-reset emails to production.
+
+After saving the Render variables, wait for the service to redeploy and verify the health endpoint. Password-reset emails use `FRONTEND_URL` to construct the `/reset-password?token=...` link, so verify a test email opens the new production frontend and completes the reset flow. The Vercel frontend must also be assigned to the new domain before switching this setting.
+
+The Docker Compose deployment instructions above are a separate deployment option; do not copy Render-specific settings into a different production environment without checking that environment's actual frontend URL and CORS policy.
+
+## 7. Development configuration warning
 
 `docker-compose.yml` is for local development only. It may publish infrastructure ports and contain development service defaults. Production deployments must explicitly pass `-f docker-compose.prod.yml` and `--env-file .env.production` as shown above.
 
