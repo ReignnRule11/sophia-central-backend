@@ -108,7 +108,8 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   getMe(@Req() req: AuthenticatedRequest) {
-    return this.authService.getCurrentUser(req.user.id);
+    const { password: _password, ...safeUser } = req.user;
+    return { user: safeUser };
   }
 
   private setSessionCookies(response: Response, accessToken: string): string {
