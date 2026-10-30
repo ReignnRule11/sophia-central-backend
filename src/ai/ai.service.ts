@@ -7,7 +7,7 @@ import { Resource } from '../resources/entities/resource.entity';
 import { AskQuestionDto } from './dto/ask-question.dto';
 import { SummarizeResourceDto } from './dto/summarize-resource.dto';
 import { PointsService } from '../points/points.service';
-import { OpenAiService } from './openai.service';
+import { GeminiService } from './gemini.service';
 
 @Injectable()
 export class AiService {
@@ -22,7 +22,7 @@ export class AiService {
     @InjectRepository(Resource)
     private readonly resourceRepository: Repository<Resource>,
     private readonly pointsService: PointsService,
-    private readonly openAiService: OpenAiService,
+    private readonly geminiService: GeminiService,
   ) {}
 
   async processQuestion(userId: string, dto: AskQuestionDto) {
@@ -34,6 +34,32 @@ export class AiService {
         balance,
       };
     }
+
+    const resource = dto.resourceId
+      ? await this.resourceRepository.findOne({ where: { id: dto.resourceId } })
+      : null;
+
+    if (dto.resourceId && !resource) {
+      throw new NotFoundException('Resource not found');
+    }
+
+    const context = resource
+      ? [
+          'The student is asking about this Sophia Central resource.',
+          `Title: ${resource.title}`,
+          `Description: ${resource.description || 'No description provided'}`,
+          `Type: ${resource.type}`,
+          `Course: ${resource.course || 'N/A'}`,
+          `Topic: ${resource.topic || 'N/A'}`,
+          `Institution: ${resource.institution || 'N/A'}`,
+          `Level: ${resource.level || 'N/A'}`,
+          `Tags: ${resource.tags?.join(', ') || 'None'}`,
+          'Only metadata is available here; the actual uploaded file contents have not been extracted.',
+        ].join('\n')
+      : 'No specific resource metadata was provided.';
+
+    // Generate first. If Gemini fails, no session/messages are created and no points are charged.
+    const aiResponse = await this.geminiService.generateText(dto.question, context);
 
     let session = dto.sessionId
       ? await this.sessionRepository.findOne({
@@ -49,21 +75,6 @@ export class AiService {
       });
       session = await this.sessionRepository.save(session);
     }
-
-    if (dto.resourceId) {
-      const resource = await this.resourceRepository.findOne({
-        where: { id: dto.resourceId },
-      });
-      if (!resource) {
-        throw new NotFoundException('Resource not found');
-      }
-    }
-
-    const context = dto.resourceId
-      ? `Resource ID: ${dto.resourceId}`
-      : 'No specific resource context provided.';
-
-    const aiResponse = await this.openAiService.generateText(dto.question, context);
 
     const userMessage = this.messageRepository.create({
       sessionId: session.id,
@@ -112,9 +123,17 @@ export class AiService {
       throw new NotFoundException('Resource not found or not verified');
     }
 
-    const summary = await this.openAiService.generateText(
-      `Summarize this academic resource for a student. Focus on the main ideas, key concepts, and actionable study takeaways.`,
-      `Title: ${resource.title}\nDescription: ${resource.description || 'No description'}\nCourse: ${resource.course || 'N/A'}\nTopic: ${resource.topic || 'N/A'}`,
+    const summary = await this.geminiService.generateText(
+      'Create a useful study summary of the academic resource described in the supplied metadata. Organize it into overview, key points, important concepts, and suggested study takeaways. Clearly state when the supplied metadata is insufficient to summarize the actual document.',
+      [
+        `Title: ${resource.title}`,
+        `Description: ${resource.description || 'No description'}`,
+        `Type: ${resource.type}`,
+        `Course: ${resource.course || 'N/A'}`,
+        `Topic: ${resource.topic || 'N/A'}`,
+        `Level: ${resource.level || 'N/A'}`,
+        'Important: The actual uploaded file contents are not currently extracted or supplied. Do not imply that you have read the full file.',
+      ].join('\n'),
     );
 
     await this.pointsService.awardPoints({
