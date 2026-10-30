@@ -16,9 +16,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { UploadService } from './upload.service';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
-import { CompleteFileUploadDto } from './dto/complete-file-upload.dto';
+import { CompleteFileUploadDto, CompleteProfileImageUploadDto } from './dto/complete-file-upload.dto';
 import { CreateProfileImageUploadDto } from './dto/create-profile-image-upload.dto';
-import { CompleteProfileImageUploadDto } from './dto/complete-profile-image-upload.dto';
 
 @ApiTags('Upload')
 @Controller('upload')
