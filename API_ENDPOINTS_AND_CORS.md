@@ -264,36 +264,13 @@ POST /seed/clear
 
 ---
 
-## Recommended CORS Policy for Frontend + Mobile
+## CORS operational notes
 
-For production, use a strict allowlist instead of `*`.
-
-```typescript
-app.enableCors({
-  origin: [
-    'https://sophia-central.com',
-    'https://app.sophia-central.com',
-    'https://admin.sophia-central.com',
-    'capacitor://localhost',
-    'ionic://localhost',
-    'http://localhost:3000',
-    'http://localhost:3001',
-  ],
-  credentials: true,
-  methods: ['GET', 'POST', 'PATCH', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Authorization', 'Content-Type', 'X-Client-Version', 'X-Device-ID'],
-});
-```
-
-### Frontend notes
-- Web apps use browser CORS normally.
-- Keep credentials enabled if using cookies or secure session flows.
-- Do not allow wildcard origins in production.
-
-### Mobile notes
-- Mobile apps usually call the API directly via native HTTP clients.
-- For hybrid apps (Capacitor/Ionic), include the app origin in the allowlist.
-- Use `Authorization: Bearer <token>` for JWT auth.
+- The deployed backend's `CORS_ORIGINS` value is authoritative; documentation examples do not override Render environment variables.
+- Add each trusted origin as an exact scheme-and-host pair, with no trailing path.
+- Keep credentials enabled only with explicit trusted origins; never use a wildcard.
+- After changing Render environment variables, allow the backend to redeploy before testing from the browser.
+- Keep local Vite origins in local development configuration, not in the production allowlist by default.
 
 ---
 
