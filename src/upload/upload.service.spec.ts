@@ -52,6 +52,7 @@ describe('UploadService.completeUpload', () => {
       resourceRepository as any,
       {} as any,
       s3Service as any,
+      { update: jest.fn() } as any,
     );
   });
 

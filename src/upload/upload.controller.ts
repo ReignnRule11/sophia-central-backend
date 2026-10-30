@@ -16,7 +16,8 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { UploadService } from './upload.service';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
-import { CompleteFileUploadDto } from './dto/complete-file-upload.dto';
+import { CompleteFileUploadDto, CompleteProfileImageUploadDto } from './dto/complete-file-upload.dto';
+import { CreateProfileImageUploadDto } from './dto/create-profile-image-upload.dto';
 
 @ApiTags('Upload')
 @Controller('upload')
@@ -43,6 +44,28 @@ export class UploadController {
     @Body() dto: CompleteFileUploadDto,
   ) {
     return this.uploadService.completeUpload(user.id, dto);
+  }
+
+  @Post('profile-image/presigned-url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a presigned URL for the current user profile image' })
+  async getProfileImagePresignedUrl(
+    @CurrentUser() user: User,
+    @Body() dto: CreateProfileImageUploadDto,
+  ) {
+    return this.uploadService.getProfileImagePresignedUrl(user.id, dto);
+  }
+
+  @Post('profile-image/complete')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Complete and save the current user profile image upload' })
+  async completeProfileImageUpload(
+    @CurrentUser() user: User,
+    @Body() dto: CompleteProfileImageUploadDto,
+  ) {
+    return this.uploadService.completeProfileImageUpload(user.id, dto);
   }
 
   @Get(':id')
