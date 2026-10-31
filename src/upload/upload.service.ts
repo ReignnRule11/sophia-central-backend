@@ -12,6 +12,8 @@ import { CompleteFileUploadDto } from './dto/complete-file-upload.dto';
 import { PointsService } from '../points/points.service';
 import { S3Service } from './s3.service';
 
+type SupportAttachmentFile = { mimetype: string; size: number; buffer: Buffer };
+
 @Injectable()
 export class UploadService {
   private readonly ALLOWED_MIME_TYPES = [
@@ -33,6 +35,16 @@ export class UploadService {
     private readonly s3Service: S3Service,
     private readonly usersService: UsersService,
   ) {}
+
+  async uploadSupportAttachment(userId: string, file: SupportAttachmentFile) {
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!file || !allowed.includes(file.mimetype)) throw new BadRequestException('Support attachments must be JPG, PNG, or WebP images');
+    if (file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Support images must be smaller than 5 MB');
+    const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
+    const key = `support-attachments/${userId}/${crypto.randomUUID()}.${ext}`;
+    const url = await this.s3Service.uploadPublicObject(key, file.buffer, file.mimetype);
+    return { url, key };
+  }
 
   async getProfileImagePresignedUrl(userId: string, dto: CreateProfileImageUploadDto) {
     const types = ['image/jpeg', 'image/png', 'image/webp'];

@@ -13,16 +13,34 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
-import { User } from '../users/entities/user.entity';
+import { Roles } from '../common/decorators/roles.decorator';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { User, UserRole } from '../users/entities/user.entity';
 import { UploadService } from './upload.service';
 import { CreateFileUploadDto } from './dto/create-file-upload.dto';
 import { CompleteFileUploadDto, CompleteProfileImageUploadDto } from './dto/complete-file-upload.dto';
 import { CreateProfileImageUploadDto } from './dto/create-profile-image-upload.dto';
 
+type SupportAttachmentFile = { mimetype: string; size: number; buffer: Buffer };
+
 @ApiTags('Upload')
 @Controller('upload')
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
+
+  @Post('support-attachment')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.LECTURER)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload an image attachment for a support request' })
+  async uploadSupportAttachment(
+    @CurrentUser() user: User,
+    @UploadedFile() file: SupportAttachmentFile,
+  ) {
+    return this.uploadService.uploadSupportAttachment(user.id, file);
+  }
 
   @Post('presigned-url')
   @UseGuards(JwtAuthGuard)

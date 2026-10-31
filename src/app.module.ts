@@ -15,6 +15,7 @@ import { AiModule } from './ai/ai.module';
 import { ReferralModule } from './referral/referral.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { AnalyticsModule } from './analytics/analytics.module';
+import { SupportModule } from './support/support.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 
@@ -38,6 +39,7 @@ import { AppService } from './app.service';
     ReferralModule,
     NotificationsModule,
     AnalyticsModule,
+    SupportModule,
   ],
   controllers: [AppController],
   providers: [AppService],
