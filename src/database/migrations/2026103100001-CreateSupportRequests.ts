@@ -6,7 +6,7 @@ export class CreateSupportRequests2026103100001 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
       CREATE TABLE "support_requests" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "userId" uuid NOT NULL,
         "subject" character varying(180) NOT NULL,
         "category" character varying(60) NOT NULL,
