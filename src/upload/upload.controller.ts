@@ -21,6 +21,8 @@ import { CreateFileUploadDto } from './dto/create-file-upload.dto';
 import { CompleteFileUploadDto, CompleteProfileImageUploadDto } from './dto/complete-file-upload.dto';
 import { CreateProfileImageUploadDto } from './dto/create-profile-image-upload.dto';
 
+type SupportAttachmentFile = { mimetype: string; size: number; buffer: Buffer };
+
 @ApiTags('Upload')
 @Controller('upload')
 export class UploadController {
@@ -35,7 +37,7 @@ export class UploadController {
   @ApiOperation({ summary: 'Upload an image attachment for a support request' })
   async uploadSupportAttachment(
     @CurrentUser() user: User,
-    @UploadedFile() file: Express.Multer.File,
+    @UploadedFile() file: SupportAttachmentFile,
   ) {
     return this.uploadService.uploadSupportAttachment(user.id, file);
   }
