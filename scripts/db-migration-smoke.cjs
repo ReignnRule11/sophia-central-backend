@@ -14,12 +14,13 @@ async function main() {
   await client.connect();
   let userId;
   let sessionId;
+  let supportRequestId;
   try {
     const requiredTables = [
       'users', 'resources', 'institutions', 'faculties', 'departments',
       'courses', 'course_topics', 'moderation_reviews', 'point_wallets',
       'point_transactions', 'file_uploads', 'referrals', 'notifications',
-      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens',
+      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests',
     ];
     for (const table of requiredTables) {
       const result = await client.query('SELECT to_regclass($1) AS name', [`public.${table}`]);
@@ -38,6 +39,7 @@ async function main() {
     );
 
     assert.ok(migrationNames.includes('CreatePasswordResetTokens2026102600001'), 'password reset token migration should be applied');
+    assert.ok(migrationNames.includes('CreateSupportRequests2026103100001'), 'support request migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName")
@@ -58,6 +60,11 @@ async function main() {
       [userId, resource.rows[0].id],
     );
     sessionId = session.rows[0].id;
+    const supportRequest = await client.query(
+      `INSERT INTO support_requests (\"userId\", subject, category, description) VALUES ($1, 'CI support request', 'account', 'Migration smoke support request') RETURNING id`,
+      [userId],
+    );
+    supportRequestId = supportRequest.rows[0].id;
     await client.query(
       `INSERT INTO ai_messages ("sessionId", role, content)
        VALUES ($1, 'user', 'migration smoke test')`,
@@ -71,6 +78,8 @@ async function main() {
     assert.ok(reset.rows[0].id, 'password reset token should be insertable');
 
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    const supportRow = await client.query('SELECT id FROM support_requests WHERE id = $1', [supportRequestId]);
+    assert.equal(supportRow.rowCount, 0, 'deleting a user should cascade-delete support requests');
     const resetToken = await client.query('SELECT id FROM password_reset_tokens WHERE id = $1', [reset.rows[0].id]);
     assert.equal(resetToken.rowCount, 0, 'deleting a user should cascade-delete password reset tokens');
     const detachedSession = await client.query('SELECT "resourceId" FROM ai_sessions WHERE id = $1', [sessionId]);
