@@ -24,6 +24,19 @@ import { CreateProfileImageUploadDto } from './dto/create-profile-image-upload.d
 export class UploadController {
   constructor(private readonly uploadService: UploadService) {}
 
+  @Post('support-attachment')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload an image attachment for a support request' })
+  async uploadSupportAttachment(
+    @CurrentUser() user: User,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.uploadService.uploadSupportAttachment(user.id, file);
+  }
+
   @Post('presigned-url')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
