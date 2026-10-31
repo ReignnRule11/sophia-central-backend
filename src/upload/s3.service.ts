@@ -56,6 +56,16 @@ export class S3Service {
     return `${this.publicBaseUrl.replace(/\/$/, '')}/${key.split('/').map(encodeURIComponent).join('/')}`;
   }
 
+  async uploadPublicObject(key: string, body: Buffer, contentType: string): Promise<string> {
+    await this.client.send(new PutObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      Body: body,
+      ContentType: contentType,
+    }));
+    return this.getPublicUrl(key);
+  }
+
   async getObjectMetadata(key: string): Promise<StoredObjectMetadata | null> {
     try {
       const response = await this.client.send(
