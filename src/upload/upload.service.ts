@@ -56,6 +56,13 @@ export class UploadService {
     return { presignedUrl: signed.url, key, publicUrl: signed.publicUrl };
   }
 
+  async getProfileImageUrl(userId: string): Promise<{ url: string | null }> {
+    const user = await this.usersService.findOne(userId);
+    if (!user?.profileImage) return { url: null };
+    const key = this.s3Service.getKeyFromPublicUrl(user.profileImage);
+    return { url: key ? await this.s3Service.createPresignedDownloadUrl(key) : user.profileImage };
+  }
+
   async completeProfileImageUpload(userId: string, dto: CompleteProfileImageUploadDto) {
     const types = ['image/jpeg', 'image/png', 'image/webp'];
     if (!types.includes(dto.mimetype)) throw new BadRequestException('Profile images must be JPG, PNG, or WebP');
