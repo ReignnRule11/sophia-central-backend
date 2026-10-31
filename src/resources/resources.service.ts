@@ -96,7 +96,9 @@ export class ResourcesService {
     if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) return { url: resource.fileUrl };
-    const url = await this.s3Service.createPresignedDownloadUrl(key, `${resource.title}.pdf`, download ? 'attachment' : 'inline');
+    const extension = key.split('.').pop();
+    const filename = extension ? `${resource.title}.${extension}` : resource.title;
+    const url = await this.s3Service.createPresignedDownloadUrl(key, filename, download ? 'attachment' : 'inline');
     return { url };
   }
 
