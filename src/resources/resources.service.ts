@@ -10,6 +10,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { Resource, ResourceModerationStatus } from './entities/resource.entity';
+import { S3Service } from '../upload/s3.service';
 
 @Injectable()
 export class ResourcesService {
@@ -18,6 +19,7 @@ export class ResourcesService {
     private readonly resourceRepository: Repository<Resource>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    private readonly s3Service: S3Service,
   ) {}
 
   async create(dto: CreateResourceDto, uploaderId: string): Promise<Resource> {
@@ -87,6 +89,15 @@ export class ResourcesService {
     }
 
     return resource;
+  }
+
+  async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string }> {
+    const resource = await this.findOneForViewer(id, viewer);
+    if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
+    const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
+    if (!key) return { url: resource.fileUrl };
+    const url = await this.s3Service.createPresignedDownloadUrl(key, `${resource.title}.pdf`, download ? 'attachment' : 'inline');
+    return { url };
   }
 
   async update(id: string, dto: UpdateResourceDto): Promise<Resource> {
