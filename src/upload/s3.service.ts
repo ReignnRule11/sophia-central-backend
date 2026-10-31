@@ -70,7 +70,7 @@ export class S3Service {
       const parsed = new URL(value);
       const base = new URL(this.publicBaseUrl);
       if (parsed.host !== base.host) return null;
-      const basePath = base.pathname.replace(/\\/$/, '');
+      const basePath = base.pathname.replace(/\/$/, '');
       const pathname = decodeURIComponent(parsed.pathname);
       if (!pathname.startsWith(`${basePath}/`)) return null;
       const key = pathname.slice(basePath.length + 1);
