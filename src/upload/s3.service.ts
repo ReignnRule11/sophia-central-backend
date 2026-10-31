@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface StoredObjectMetadata {
@@ -54,6 +54,28 @@ export class S3Service {
 
   getPublicUrl(key: string): string {
     return `${this.publicBaseUrl.replace(/\/$/, '')}/${key.split('/').map(encodeURIComponent).join('/')}`;
+  }
+
+  async createPresignedDownloadUrl(key: string, filename?: string, disposition: 'inline' | 'attachment' = 'inline', expiresIn = 300): Promise<string> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      ...(filename ? { ResponseContentDisposition: `${disposition}; filename*=UTF-8''${encodeURIComponent(filename)}` } : {}),
+    });
+    return getSignedUrl(this.client, command, { expiresIn });
+  }
+
+  getKeyFromPublicUrl(value: string): string | null {
+    try {
+      const parsed = new URL(value);
+      const base = new URL(this.publicBaseUrl);
+      if (parsed.host !== base.host) return null;
+      const basePath = base.pathname.replace(/\\/$/, '');
+      const pathname = decodeURIComponent(parsed.pathname);
+      if (!pathname.startsWith(`${basePath}/`)) return null;
+      const key = pathname.slice(basePath.length + 1);
+      return key && !key.split('/').includes('..') ? key : null;
+    } catch { return null; }
   }
 
   async uploadPublicObject(key: string, body: Buffer, contentType: string): Promise<string> {
