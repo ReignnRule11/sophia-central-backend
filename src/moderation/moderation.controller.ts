@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -7,6 +7,8 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { User, UserRole } from '../users/entities/user.entity';
 import { ModerationService } from './moderation.service';
 import { ReviewResourceDto } from './dto/review-resource.dto';
+import { SupportService } from '../support/support.service';
+import { ConcludeSupportRequestDto } from '../support/dto/conclude-support-request.dto';
 
 type AuthenticatedRequest = Request & { user: User };
 
@@ -16,7 +18,7 @@ type AuthenticatedRequest = Request & { user: User };
 @Roles(UserRole.MODERATOR, UserRole.ADMIN)
 @ApiBearerAuth()
 export class ModerationController {
-  constructor(private readonly moderationService: ModerationService) {}
+  constructor(private readonly moderationService: ModerationService, private readonly supportService: SupportService) {}
 
   @Get('queue')
   getQueue() {
@@ -26,6 +28,20 @@ export class ModerationController {
   @Get('history')
   getHistory() {
     return this.moderationService.getHistory();
+  }
+
+  @Get('support-requests')
+  getSupportRequests(@Query('status') status?: string) {
+    return this.supportService.listForModeration(status === 'concluded' ? 'concluded' : 'pending');
+  }
+
+  @Patch('support-requests/:id/conclude')
+  concludeSupportRequest(
+    @Param('id') id: string,
+    @Body() dto: ConcludeSupportRequestDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.supportService.conclude(id, request.user.id, dto);
   }
 
   @Patch('resources/:id/review')
