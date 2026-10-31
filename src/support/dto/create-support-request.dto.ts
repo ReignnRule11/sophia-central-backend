@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsIn, IsOptional, IsString, IsUrl, MaxLength, MinLength } from 'class-validator';
 
 export class CreateSupportRequestDto {
   @IsString()
@@ -19,11 +19,13 @@ export class CreateSupportRequestDto {
   @IsArray()
   @ArrayMaxSize(5)
   @IsString({ each: true })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true }, { each: true })
   links?: string[];
 
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(5)
   @IsString({ each: true })
+  @IsUrl({ protocols: ['http', 'https'], require_protocol: true }, { each: true })
   attachments?: string[];
 }
