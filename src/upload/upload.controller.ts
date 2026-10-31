@@ -64,6 +64,14 @@ export class UploadController {
     return this.uploadService.completeUpload(user.id, dto);
   }
 
+  @Get('profile-image/url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a temporary read URL for the current user profile image' })
+  getProfileImageUrl(@CurrentUser() user: User) {
+    return this.uploadService.getProfileImageUrl(user.id);
+  }
+
   @Post('profile-image/presigned-url')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
