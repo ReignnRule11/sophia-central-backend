@@ -49,6 +49,22 @@ export class ResourcesController {
     return this.resourcesService.findMine(user.id);
   }
 
+  @Get(':id/file-url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a short-lived URL for an authorized resource file' })
+  getFileUrl(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.resourcesService.getFileUrl(id, user, false);
+  }
+
+  @Get(':id/download-url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a short-lived download URL for an authorized resource file' })
+  getDownloadUrl(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.resourcesService.getFileUrl(id, user, true);
+  }
+
   @Get(':id')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
