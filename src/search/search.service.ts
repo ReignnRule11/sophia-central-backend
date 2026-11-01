@@ -28,6 +28,8 @@ export class SearchService {
     if (level) query.andWhere('LOWER(resource.level) LIKE LOWER(:level)', { level: `%${level}%` });
     if (type) query.andWhere('resource.type = :type', { type });
 
-    return query.orderBy('resource.createdAt', 'DESC').getMany();
+    const resources = await query.orderBy('resource.createdAt', 'DESC').getMany();
+    // Search responses expose metadata only; clients must request authorized temporary file access separately.
+    return resources.map((resource) => ({ ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }));
   }
 }
