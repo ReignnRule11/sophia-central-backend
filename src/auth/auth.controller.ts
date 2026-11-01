@@ -22,12 +22,14 @@ const CSRF_COOKIE = 'sophia_csrf_token';
 function cookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
   const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')) as 'lax' | 'strict' | 'none';
-  return { httpOnly: true, secure: isProduction, sameSite, path: '/', maxAge: 15 * 60 * 1000 } as const;
+  // No maxAge/expires: authentication is intentionally limited to the browser session.
+  return { httpOnly: true, secure: isProduction, sameSite, path: '/' } as const;
 }
 function csrfCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
   const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')) as 'lax' | 'strict' | 'none';
-  return { httpOnly: false, secure: isProduction, sameSite, path: '/', maxAge: 15 * 60 * 1000 } as const;
+  // Keep the CSRF cookie session-scoped as well so auth state is never restored after the browser session ends.
+  return { httpOnly: false, secure: isProduction, sameSite, path: '/' } as const;
 }
 
 @ApiTags('Authentication')
