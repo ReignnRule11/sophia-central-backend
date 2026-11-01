@@ -2,7 +2,7 @@ import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query
 import { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ChatService } from './chat.service';
-import { CreateChatMessageDto, EditChatMessageDto } from './dto/create-chat-message.dto';
+import { CreateChatMessageDto, CreateVoiceUploadDto, EditChatMessageDto } from './dto/create-chat-message.dto';
 
 type AuthRequest = Request & { user: { id: string } };
 
@@ -12,8 +12,11 @@ export class ChatController {
   constructor(private readonly chat: ChatService) {}
 
   @Get('contacts')
-  contacts(@Req() request: AuthRequest) {
-    return this.chat.contacts(request.user.id);
+  contacts(@Req() request: AuthRequest) { return this.chat.contacts(request.user.id); }
+
+  @Post('voice-upload')
+  voiceUpload(@Req() request: AuthRequest, @Body() dto: CreateVoiceUploadDto) {
+    return this.chat.createVoiceUpload(request.user.id, dto);
   }
 
   @Get('group/messages')
@@ -27,9 +30,7 @@ export class ChatController {
   }
 
   @Post('messages')
-  create(@Req() request: AuthRequest, @Body() dto: CreateChatMessageDto) {
-    return this.chat.create(request.user.id, dto);
-  }
+  create(@Req() request: AuthRequest, @Body() dto: CreateChatMessageDto) { return this.chat.create(request.user.id, dto); }
 
   @Patch('messages/:id')
   edit(@Req() request: AuthRequest, @Param('id', ParseUUIDPipe) id: string, @Body() dto: EditChatMessageDto) {
@@ -37,7 +38,5 @@ export class ChatController {
   }
 
   @Delete('messages/:id')
-  remove(@Req() request: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
-    return this.chat.remove(request.user.id, id);
-  }
+  remove(@Req() request: AuthRequest, @Param('id', ParseUUIDPipe) id: string) { return this.chat.remove(request.user.id, id); }
 }
