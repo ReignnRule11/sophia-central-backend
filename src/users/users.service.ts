@@ -65,6 +65,7 @@ export class UsersService {
       await manager.query('DELETE FROM point_wallets WHERE "userId" = $1', [id]);
       await manager.query('DELETE FROM password_reset_tokens WHERE "userId" = $1', [id]);
       await manager.query('DELETE FROM referrals WHERE "referrerId" = $1', [id]);
+      await manager.query('DELETE FROM ai_sessions WHERE "userId" = $1', [id]);
       await manager.query('DELETE FROM support_requests WHERE "userId" = $1', [id]);
       await manager.query('DELETE FROM resources WHERE "uploaderId" = $1', [id]);
       await manager.query('DELETE FROM users WHERE id = $1', [id]);
