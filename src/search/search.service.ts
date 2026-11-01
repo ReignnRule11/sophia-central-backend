@@ -19,7 +19,7 @@ export class SearchService {
 
     if (q) {
       query.andWhere(
-        '(LOWER(resource.title) LIKE LOWER(:q) OR LOWER(resource.description) LIKE LOWER(:q) OR LOWER(resource.topic) LIKE LOWER(:q) OR LOWER(resource.course) LIKE LOWER(:q))',
+        '(LOWER(resource.title) LIKE LOWER(:q) OR LOWER(resource.description) LIKE LOWER(:q) OR LOWER(resource.topic) LIKE LOWER(:q) OR LOWER(resource.course) LIKE LOWER(:q) OR LOWER(uploader.firstName) LIKE LOWER(:q) OR LOWER(uploader.lastName) LIKE LOWER(:q) OR LOWER(uploader.department) LIKE LOWER(:q) OR LOWER(uploader.faculty) LIKE LOWER(:q))',
         { q: `%${q}%` },
       );
     }
