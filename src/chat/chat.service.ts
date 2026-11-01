@@ -5,16 +5,137 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { ChatContentType, ChatKind, ChatMessage } from './entities/chat-message.entity';
 import { CreateChatMessageDto } from './dto/create-chat-message.dto';
+
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
+
 @Injectable()
 export class ChatService {
- constructor(@InjectRepository(ChatMessage) private readonly repo: Repository<ChatMessage>, private readonly users: UsersService) {}
- private async eligible(id: string, roles: UserRole[]): Promise<User> { const u = await this.users.findOne(id); if (!u || u.isSuspended || !roles.includes(u.role)) throw new ForbiddenException('This account cannot use chat.'); if (!u.academicHandle) throw new ForbiddenException('Set an academic handle before using chat.'); return u; }
- private groupKey(u: User): string { if (!u.institution || !u.faculty || !u.department) throw new ForbiddenException('Complete institution, faculty, and department before joining Group Chat.'); return 'group:' + [u.institution,u.faculty,u.department].map(x=>x.trim().toLowerCase()).join(':'); }
- private directKey(a:string,b:string):string { return 'direct:' + [a,b].sort().join(':'); }
- async history(id:string, kind:'group'|'direct', otherId?:string, limitValue?:string, before?:string) { let room:string; if(kind==='group') room=this.groupKey(await this.eligible(id,[UserRole.STUDENT])); else { const a=await this.eligible(id,[UserRole.STUDENT,UserRole.LECTURER]); if(!otherId||otherId===id) throw new BadRequestException('Choose another user.'); const b=await this.eligible(otherId,[UserRole.STUDENT,UserRole.LECTURER]); room=this.directKey(a.id,b.id); } const n=Number(limitValue||30), limit=Number.isInteger(n)?Math.max(1,Math.min(100,n)):30; const q=this.repo.createQueryBuilder('m').where('m.roomKey=:room',{room}); if(before){const c=await this.repo.findOne({where:{id:before,roomKey:room}});if(!c)throw new BadRequestException('Invalid pagination cursor.');q.andWhere('m.createdAt<:date',{date:c.createdAt});} const rows=await q.orderBy('m.createdAt','DESC').take(limit+1).getMany();const more=rows.length>limit;return {items:rows.slice(0,limit).reverse().map(m=>this.present(m,id)),hasMore:more,nextBefore:more?rows[limit-1]?.id:null}; }
- async create(id:string,d:CreateChatMessageDto) { const sender=d.kind==='group'?await this.eligible(id,[UserRole.STUDENT]):await this.eligible(id,[UserRole.STUDENT,UserRole.LECTURER]); if(!!d.text===!!d.voiceKey)throw new BadRequestException('Send either text or a voice recording.'); if(d.kind==='group'&&d.recipientId)throw new BadRequestException('Group messages cannot specify a recipient.'); let room:string; if(d.kind==='group')room=this.groupKey(sender);else{if(!d.recipientId||d.recipientId===id)throw new BadRequestException('Choose a recipient.');const recipient=await this.eligible(d.recipientId,[UserRole.STUDENT,UserRole.LECTURER]);room=this.directKey(sender.id,recipient.id);} if(d.text&&!d.text.trim())throw new BadRequestException('Message cannot be empty.'); const m=await this.repo.save(this.repo.create({kind:d.kind==='group'?ChatKind.GROUP:ChatKind.DIRECT,roomKey:room,senderId:sender.id,senderHandle:sender.academicHandle!,contentType:ChatContentType.TEXT,text:d.text!.trim(),voiceKey:null}));return this.present(m,id); }
- async edit(id:string,mid:string,text:string){await this.eligible(id,[UserRole.STUDENT,UserRole.LECTURER]);const m=await this.repo.findOne({where:{id:mid}});if(!m)throw new NotFoundException('Message not found.');if(m.senderId!==id)throw new ForbiddenException('You can only edit your own messages.');if(m.isDeleted||m.contentType!==ChatContentType.TEXT)throw new BadRequestException('This message cannot be edited.');if(Date.now()-m.createdAt.getTime()>EDIT_WINDOW_MS)throw new ForbiddenException('Messages can only be edited within 15 minutes.');if(!text?.trim())throw new BadRequestException('Message cannot be empty.');m.text=text.trim();m.editedAt=new Date();return this.present(await this.repo.save(m),id);}
- async remove(id:string,mid:string){await this.eligible(id,[UserRole.STUDENT,UserRole.LECTURER]);const m=await this.repo.findOne({where:{id:mid}});if(!m)throw new NotFoundException('Message not found.');if(m.senderId!==id)throw new ForbiddenException('You can only delete your own messages.');m.isDeleted=true;m.text=null;m.voiceKey=null;return {success:true,message:await this.repo.save(m)};}
- private present(m:ChatMessage,viewer:string){return {id:m.id,kind:m.kind,senderId:m.senderId,senderHandle:m.senderHandle,contentType:m.contentType,text:m.isDeleted?null:m.text,voiceKey:m.isDeleted?null:m.voiceKey,isDeleted:m.isDeleted,editedAt:m.editedAt,createdAt:m.createdAt,updatedAt:m.updatedAt,isOwn:m.senderId===viewer};}
+  constructor(
+    @InjectRepository(ChatMessage) private readonly repo: Repository<ChatMessage>,
+    private readonly users: UsersService,
+  ) {}
+
+  private async eligible(id: string, roles: UserRole[]): Promise<User> {
+    const user = await this.users.findOne(id);
+    if (!user || user.isSuspended || !roles.includes(user.role)) {
+      throw new ForbiddenException('This account cannot use chat.');
+    }
+    if (!user.academicHandle) throw new ForbiddenException('Set an academic handle before using chat.');
+    return user;
+  }
+
+  private groupKey(user: User): string {
+    if (!user.institution || !user.faculty || !user.department) {
+      throw new ForbiddenException('Complete institution, faculty, and department before joining Group Chat.');
+    }
+    return 'group:' + [user.institution, user.faculty, user.department].map(value => value.trim().toLowerCase()).join(':');
+  }
+
+  private directKey(a: string, b: string): string {
+    return 'direct:' + [a, b].sort().join(':');
+  }
+
+  async contacts(id: string) {
+    await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+    return this.users.findChatContacts(id);
+  }
+
+  async history(id: string, kind: 'group' | 'direct', otherId?: string, limitValue?: string, before?: string) {
+    let room: string;
+    if (kind === 'group') {
+      room = this.groupKey(await this.eligible(id, [UserRole.STUDENT]));
+    } else {
+      const sender = await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+      if (!otherId || otherId === id) throw new BadRequestException('Choose another user.');
+      const recipient = await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
+      room = this.directKey(sender.id, recipient.id);
+    }
+
+    const parsed = Number(limitValue || 30);
+    const limit = Number.isInteger(parsed) ? Math.max(1, Math.min(100, parsed)) : 30;
+    const query = this.repo.createQueryBuilder('message').where('message.roomKey = :room', { room });
+    if (before) {
+      const cursor = await this.repo.findOne({ where: { id: before, roomKey: room } });
+      if (!cursor) throw new BadRequestException('Invalid pagination cursor.');
+      query.andWhere('message.createdAt < :date', { date: cursor.createdAt });
+    }
+    const rows = await query.orderBy('message.createdAt', 'DESC').take(limit + 1).getMany();
+    const hasMore = rows.length > limit;
+    return {
+      items: rows.slice(0, limit).reverse().map(message => this.present(message, id)),
+      hasMore,
+      nextBefore: hasMore ? rows[limit - 1]?.id : null,
+    };
+  }
+
+  async create(id: string, dto: CreateChatMessageDto) {
+    const sender = dto.kind === 'group'
+      ? await this.eligible(id, [UserRole.STUDENT])
+      : await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+
+    if (dto.voiceKey) throw new BadRequestException('Voice messages are not enabled until the audio upload flow is completed.');
+    if (!dto.text?.trim()) throw new BadRequestException('Message cannot be empty.');
+    if (dto.kind === 'group' && dto.recipientId) throw new BadRequestException('Group messages cannot specify a recipient.');
+
+    let roomKey: string;
+    if (dto.kind === 'group') {
+      roomKey = this.groupKey(sender);
+    } else {
+      if (!dto.recipientId || dto.recipientId === id) throw new BadRequestException('Choose a recipient.');
+      const recipient = await this.eligible(dto.recipientId, [UserRole.STUDENT, UserRole.LECTURER]);
+      roomKey = this.directKey(sender.id, recipient.id);
+    }
+
+    const message = await this.repo.save(this.repo.create({
+      kind: dto.kind === 'group' ? ChatKind.GROUP : ChatKind.DIRECT,
+      roomKey,
+      senderId: sender.id,
+      senderHandle: sender.academicHandle!,
+      contentType: ChatContentType.TEXT,
+      text: dto.text.trim(),
+      voiceKey: null,
+    }));
+    return this.present(message, id);
+  }
+
+  async edit(id: string, messageId: string, text: string) {
+    await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+    const message = await this.repo.findOne({ where: { id: messageId } });
+    if (!message) throw new NotFoundException('Message not found.');
+    if (message.senderId !== id) throw new ForbiddenException('You can only edit your own messages.');
+    if (message.isDeleted || message.contentType !== ChatContentType.TEXT) throw new BadRequestException('This message cannot be edited.');
+    if (Date.now() - message.createdAt.getTime() > EDIT_WINDOW_MS) throw new ForbiddenException('Messages can only be edited within 15 minutes.');
+    if (!text?.trim()) throw new BadRequestException('Message cannot be empty.');
+    message.text = text.trim();
+    message.editedAt = new Date();
+    return this.present(await this.repo.save(message), id);
+  }
+
+  async remove(id: string, messageId: string) {
+    await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+    const message = await this.repo.findOne({ where: { id: messageId } });
+    if (!message) throw new NotFoundException('Message not found.');
+    if (message.senderId !== id) throw new ForbiddenException('You can only delete your own messages.');
+    message.isDeleted = true;
+    message.text = null;
+    message.voiceKey = null;
+    await this.repo.save(message);
+    return { success: true, id: message.id };
+  }
+
+  private present(message: ChatMessage, viewerId: string) {
+    return {
+      id: message.id,
+      kind: message.kind,
+      senderId: message.senderId,
+      senderHandle: message.senderHandle,
+      contentType: message.contentType,
+      text: message.isDeleted ? null : message.text,
+      isDeleted: message.isDeleted,
+      editedAt: message.editedAt,
+      createdAt: message.createdAt,
+      updatedAt: message.updatedAt,
+      isOwn: message.senderId === viewerId,
+    };
+  }
 }
