@@ -8,7 +8,7 @@ import { PasswordResetEmailService } from './password-reset-email.service';
 describe('AuthService', () => {
   let service: AuthService;
   let users: jest.Mocked<
-    Pick<UsersService, 'findByEmail' | 'create' | 'update' | 'findOne'>
+    Pick<UsersService, 'findByEmail' | 'findByAcademicHandle' | 'create' | 'update' | 'findOne'>
   >;
   let jwt: jest.Mocked<Pick<JwtService, 'signAsync'>>;
   let resetTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock; createQueryBuilder: jest.Mock };
@@ -29,6 +29,7 @@ describe('AuthService', () => {
   beforeEach(() => {
     users = {
       findByEmail: jest.fn(),
+      findByAcademicHandle: jest.fn(),
       create: jest.fn(),
       update: jest.fn(),
       findOne: jest.fn(),
@@ -77,6 +78,7 @@ describe('AuthService', () => {
 
   it('registers with a password hash and does not return the password', async () => {
     users.findByEmail.mockResolvedValue(null);
+    users.findByAcademicHandle.mockResolvedValue(null);
     users.create.mockImplementation(
       async (data) => ({ ...user, ...data }) as never,
     );
@@ -86,6 +88,7 @@ describe('AuthService', () => {
       lastName: ' One ',
       email: 'LEARNER@example.com',
       password: 'correct-horse-battery',
+      academicHandle: 'learner.one',
     });
 
     const saved = users.create.mock.calls[0][0];
@@ -119,6 +122,7 @@ describe('AuthService', () => {
       institution: 'Example University',
       faculty: 'Science',
       department: 'Computer Science',
+      academicHandle: 'learner.one',
       socialHandle: 'learner.one',
       socialLinks,
     });
@@ -128,6 +132,7 @@ describe('AuthService', () => {
         institution: 'Example University',
         faculty: 'Science',
         department: 'Computer Science',
+        academicHandle: 'learner.one',
         socialHandle: 'learner.one',
         socialLinks,
       }),
@@ -155,6 +160,7 @@ describe('AuthService', () => {
         lastName: 'One',
         email: 'learner@example.com',
         password: 'correct-horse-battery',
+        academicHandle: 'learner.one',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
 
@@ -166,7 +172,7 @@ describe('AuthService', () => {
 
     await expect(
       service.login({
-        email: 'missing@example.com',
+        identifier: 'missing@example.com',
         password: 'not-the-password',
       }),
     ).rejects.toBeInstanceOf(UnauthorizedException);
