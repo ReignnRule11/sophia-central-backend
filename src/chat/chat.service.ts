@@ -44,13 +44,15 @@ export class ChatService {
 
   private directKey(a: string, b: string): string { return 'direct:' + [a, b].sort().join(':'); }
 
-  async eventStream(id: string): Promise<Observable<MessageEvent>> {
-    const user = await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+  eventStream(user: User): Observable<MessageEvent> {
+    if (user.isSuspended || ![UserRole.STUDENT, UserRole.LECTURER].includes(user.role) || !user.academicHandle) {
+      throw new ForbiddenException('This account cannot use chat.');
+    }
     const groupRoomKey = user.role === UserRole.STUDENT ? this.groupKey(user) : undefined;
     return this.roomEvents.pipe(
       filter(({ roomKey }) => {
         if (groupRoomKey && roomKey === groupRoomKey) return true;
-        return roomKey.startsWith('direct:') && roomKey.slice('direct:'.length).split(':').includes(id);
+        return roomKey.startsWith('direct:') && roomKey.slice('direct:'.length).split(':').includes(user.id);
       }),
       map(() => ({ data: { type: 'refresh' } })),
     );
