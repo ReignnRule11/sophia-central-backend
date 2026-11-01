@@ -80,6 +80,27 @@ export class AnalyticsService {
     };
   }
 
+  async getLecturerResourceAnalytics(lecturerId: string) {
+    const resources = await this.resourceRepository.find({ where: { uploaderId: lecturerId }, order: { views: 'DESC' } });
+    const ids = resources.map((resource) => resource.id);
+    const events = ids.length ? await this.activityRepository.find({ where: { resourceId: In(ids) }, order: { createdAt: 'DESC' } }) : [];
+    const byUser = new Map<string, number>();
+    for (const event of events) byUser.set(event.userId, (byUser.get(event.userId) || 0) + 1);
+    const uniqueUsers = byUser.size;
+    const returningUsers = Array.from(byUser.values()).filter((count) => count > 1).length;
+    return {
+      totalResources: resources.length,
+      totalViews: resources.reduce((sum, resource) => sum + Number(resource.views || 0), 0),
+      totalDownloads: resources.reduce((sum, resource) => sum + Number(resource.downloads || 0), 0),
+      uniqueUsers,
+      returningUsers,
+      retentionRate: uniqueUsers ? Math.round((returningUsers / uniqueUsers) * 100) : 0,
+      searches: 0,
+      contributors: new Set(resources.map((resource) => resource.uploaderId)).size,
+      popularResources: resources.slice(0, 10).map((resource) => ({ id: resource.id, title: resource.title, course: resource.course, views: resource.views, downloads: resource.downloads })),
+    };
+  }
+
   async getDashboard() {
     const totalUsers = await this.userRepository.count();
     const totalResources = await this.resourceRepository.count();
