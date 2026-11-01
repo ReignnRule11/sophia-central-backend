@@ -104,15 +104,13 @@ export class ResourcesService {
     if (download && authorizedResource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
-    if (download) {
-      if (resource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
-      resource.downloads = Number(resource.downloads || 0) + 1;
-    } else {
-      resource.views = Number(resource.views || 0) + 1;
-    }
-    await this.resourceRepository.save(resource);
+    if (download && resource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
+    if (download) {
+      resource.downloads = Number(resource.downloads || 0) + 1;
+      await this.resourceRepository.save(resource);
+    }
     const extension = key.split('.').pop();
     const filename = extension ? `${resource.title}.${extension}` : resource.title;
     const url = await this.s3Service.createPresignedDownloadUrl(key, filename, download ? 'attachment' : 'inline');
