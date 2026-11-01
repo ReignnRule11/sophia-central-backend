@@ -50,7 +50,7 @@ export class UsersController {
     if (typeof body.isSuspended !== 'boolean' || !body.reason?.trim()) {
       throw new BadRequestException('isSuspended and a reason are required');
     }
-    return this.usersService.update(id, { isSuspended: body.isSuspended });
+    return this.usersService.update(id, { isSuspended: body.isSuspended, suspensionReason: body.isSuspended ? body.reason.trim() : undefined });
   }
 
   @Get('me')
