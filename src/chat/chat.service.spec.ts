@@ -40,7 +40,7 @@ describe('ChatService access and message rules', () => {
   });
 
   it('notifies subscribers in the authenticated student group when a message is created', async () => {
-    const events = await service.eventStream(student.id);
+    const events = service.eventStream(student as unknown as import('../users/entities/user.entity').User);
     const nextEvent = firstValueFrom(events);
 
     await service.create(student.id, { kind: 'group', text: 'Hello group' } as any);
