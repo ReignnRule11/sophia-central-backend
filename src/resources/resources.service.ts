@@ -59,14 +59,15 @@ export class ResourcesService {
   }
 
   async findMine(uploaderId: string): Promise<Resource[]> {
-    return this.resourceRepository.find({
+    const resources = await this.resourceRepository.find({
       where: { uploaderId },
       relations: ['uploader'],
       order: { createdAt: 'DESC' },
     });
+    return resources.map((resource) => ({ ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }) as Resource);
   }
 
-  async findOneForViewer(id: string, viewer: User): Promise<Resource> {
+  async findOneForViewer(id: string, viewer: User, trackView = true): Promise<Resource> {
     const resource = await this.resourceRepository.findOne({
       where: { id },
       relations: ['uploader'],
@@ -90,15 +91,26 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to this resource.');
     }
 
+    if (trackView) {
+      resource.views = Number(resource.views || 0) + 1;
+      await this.resourceRepository.save(resource);
+    }
     // Keep storage URLs private; the reader asks the authenticated file endpoint for temporary access.
     return { ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined } as Resource;
   }
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string }> {
-    const authorizedResource = await this.findOneForViewer(id, viewer);
+    const authorizedResource = await this.findOneForViewer(id, viewer, false);
     if (download && authorizedResource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
+    if (download) {
+      if (resource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
+      resource.downloads = Number(resource.downloads || 0) + 1;
+    } else {
+      resource.views = Number(resource.views || 0) + 1;
+    }
+    await this.resourceRepository.save(resource);
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
     const extension = key.split('.').pop();
