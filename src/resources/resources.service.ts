@@ -49,11 +49,13 @@ export class ResourcesService {
 
     // The shared library is always approved-only. Moderator pending/rejected work
     // belongs in /moderation, and lecturer-owned submissions belong in /resources/mine.
-    return this.resourceRepository.find({
+    const resources = await this.resourceRepository.find({
       where: { moderationStatus: ResourceModerationStatus.APPROVED },
       relations: ['uploader'],
       order: { createdAt: 'DESC' },
     });
+    // Do not expose storage URLs in list responses; file access must go through the authorized file endpoints.
+    return resources.map((resource) => ({ ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }) as Resource);
   }
 
   async findMine(uploaderId: string): Promise<Resource[]> {
@@ -88,14 +90,16 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to this resource.');
     }
 
-    return resource;
+    // Keep storage URLs private; the reader asks the authenticated file endpoint for temporary access.
+    return { ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined } as Resource;
   }
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string }> {
     const resource = await this.findOneForViewer(id, viewer);
+    if (download && resource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
     if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
-    if (!key) return { url: resource.fileUrl };
+    if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
     const extension = key.split('.').pop();
     const filename = extension ? `${resource.title}.${extension}` : resource.title;
     const url = await this.s3Service.createPresignedDownloadUrl(key, filename, download ? 'attachment' : 'inline');
