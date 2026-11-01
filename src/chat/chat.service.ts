@@ -71,9 +71,12 @@ export class ChatService {
     if (before) {
       const cursor = await this.repo.findOne({ where: { id: before, roomKey: room } });
       if (!cursor) throw new BadRequestException('Invalid pagination cursor.');
-      query.andWhere('message.createdAt < :date', { date: cursor.createdAt });
+      query.andWhere(
+        '(message.createdAt < :date OR (message.createdAt = :date AND message.id < :cursorId))',
+        { date: cursor.createdAt, cursorId: cursor.id },
+      );
     }
-    const rows = await query.orderBy('message.createdAt', 'DESC').take(limit + 1).getMany();
+    const rows = await query.orderBy('message.createdAt', 'DESC').addOrderBy('message.id', 'DESC').take(limit + 1).getMany();
     const hasMore = rows.length > limit;
     const items = await Promise.all(rows.slice(0, limit).reverse().map(message => this.present(message, id)));
     return { items, hasMore, nextBefore: hasMore ? rows[limit - 1]?.id : null };
