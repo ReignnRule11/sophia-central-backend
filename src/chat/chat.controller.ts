@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, Sse, UseGuards } from '@nestjs/common';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ChatService } from './chat.service';
@@ -10,6 +10,9 @@ type AuthRequest = Request & { user: { id: string } };
 @UseGuards(JwtAuthGuard)
 export class ChatController {
   constructor(private readonly chat: ChatService) {}
+
+  @Sse('events')
+  events(@Req() request: AuthRequest) { return this.chat.eventStream(request.user.id); }
 
   @Get('contacts')
   contacts(@Req() request: AuthRequest) { return this.chat.contacts(request.user.id); }
