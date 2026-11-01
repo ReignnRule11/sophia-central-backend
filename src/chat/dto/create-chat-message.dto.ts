@@ -21,6 +21,13 @@ export class CreateChatMessageDto {
   voiceKey?: string;
 }
 
+export class EditChatMessageDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(4000)
+  text!: string;
+}
+
 export class CreateVoiceUploadDto {
   @IsString()
   @IsIn(['audio/webm', 'audio/ogg', 'audio/mp4', 'audio/mpeg', 'audio/wav', 'audio/x-wav'])
