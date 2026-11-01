@@ -6,6 +6,7 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -48,6 +49,13 @@ export class RegisterDto {
   @IsString()
   @MaxLength(160)
   faculty?: string;
+
+  @IsNotEmpty()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(30)
+  @Matches(/^[a-zA-Z0-9._]+$/, { message: 'Academic handle may contain only letters, numbers, periods, and underscores' })
+  academicHandle: string;
 
   @IsOptional()
   @IsString()
