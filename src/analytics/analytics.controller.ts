@@ -40,9 +40,9 @@ export class AnalyticsController {
 
   @Get('users')
   @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get user growth analytics' })
+  @ApiOperation({ summary: 'Get aggregate user growth analytics for authorized administrators and moderators' })
   async getUserAnalytics() {
     return this.analyticsService.getUserAnalytics();
   }
