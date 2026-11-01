@@ -13,6 +13,22 @@ import { AnalyticsService } from './analytics.service';
 export class AnalyticsController {
   constructor(private readonly analyticsService: AnalyticsService) {}
 
+  @Post('study-event')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Record the authenticated account\'s study activity for today' })
+  recordStudyActivity(@CurrentUser() user: User) {
+    return this.analyticsService.recordStudyActivity(user.id);
+  }
+
+  @Get('streak/me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the authenticated account\'s study streak' })
+  getMyStudyStreak(@CurrentUser() user: User) {
+    return this.analyticsService.getStudyStreak(user.id);
+  }
+
   @Post('search-event')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
