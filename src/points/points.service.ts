@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { PointWallet } from './entities/point-wallet.entity';
@@ -66,6 +66,19 @@ export class PointsService {
         transaction.reason === STARTER_CREDIT_REASON
           ? 'Sophis AI starter credits'
           : transaction.reason,
+    }));
+  }
+
+  async adjustPoints(userId: string, amount: number, reason: string) {
+    const wallet = await this.getOrCreateWallet(userId);
+    if (wallet.balance + amount < 0) throw new BadRequestException('Adjustment would make the wallet balance negative.');
+    wallet.balance += amount;
+    await this.walletRepository.save(wallet);
+    return this.transactionRepository.save(this.transactionRepository.create({
+      userId,
+      type: amount < 0 ? PointTransactionType.SPENT : PointTransactionType.EARNED,
+      amount,
+      reason: `Moderator adjustment: ${reason}`,
     }));
   }
 
