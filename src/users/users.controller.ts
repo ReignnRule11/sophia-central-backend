@@ -76,6 +76,18 @@ export class UsersController {
     return this.usersService.update(id, dto);
   }
 
+  @Delete('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Permanently delete the authenticated student or lecturer account and its records' })
+  async removeOwnAccount(@CurrentUser() user: User) {
+    if (![UserRole.STUDENT, UserRole.LECTURER].includes(user.role)) {
+      throw new ForbiddenException('Only student and lecturer accounts can be deleted from the profile page.');
+    }
+    await this.usersService.removeOwnAccount(user.id);
+    return { success: true };
+  }
+
   @Delete(':id')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
