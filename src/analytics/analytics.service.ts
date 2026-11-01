@@ -30,6 +30,28 @@ export class AnalyticsService {
     await this.activityRepository.save(this.activityRepository.create({ userId, eventType, resourceId }));
   }
 
+  async recordStudyActivity(userId: string) {
+    const today = new Date().toISOString().slice(0, 10);
+    const events = await this.activityRepository.find({ where: { userId, eventType: 'study' }, order: { createdAt: 'DESC' }, take: 400 });
+    if (!events.some((event) => event.createdAt.toISOString().slice(0, 10) === today)) {
+      await this.activityRepository.save(this.activityRepository.create({ userId, eventType: 'study' }));
+    }
+    return this.getStudyStreak(userId);
+  }
+
+  async getStudyStreak(userId: string) {
+    const events = await this.activityRepository.find({ where: { userId, eventType: 'study' }, order: { createdAt: 'DESC' }, take: 400 });
+    const days = new Set(events.map((event) => event.createdAt.toISOString().slice(0, 10)));
+    let currentStreak = 0;
+    const cursor = new Date();
+    cursor.setUTCHours(0, 0, 0, 0);
+    while (days.has(cursor.toISOString().slice(0, 10))) {
+      currentStreak += 1;
+      cursor.setUTCDate(cursor.getUTCDate() - 1);
+    }
+    return { currentStreak, lastStudyDate: events[0]?.createdAt ?? null, recordedToday: days.has(new Date().toISOString().slice(0, 10)) };
+  }
+
   async getActivityAnalytics(role: UserRole) {
     if (![UserRole.STUDENT, UserRole.LECTURER].includes(role)) throw new BadRequestException('Analytics role must be student or lecturer.');
     const events = await this.activityRepository.createQueryBuilder('event')
