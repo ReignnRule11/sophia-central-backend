@@ -84,6 +84,9 @@ export class AnalyticsService {
     const resources = await this.resourceRepository.find({ where: { uploaderId: lecturerId }, order: { views: 'DESC' } });
     const ids = resources.map((resource) => resource.id);
     const events = ids.length ? await this.activityRepository.find({ where: { resourceId: In(ids) }, order: { createdAt: 'DESC' } }) : [];
+    const ownSearches = await this.activityRepository.find({ where: { userId: lecturerId, eventType: 'search' }, order: { createdAt: 'DESC' } });
+    const searchCounts = new Map<string, number>();
+    for (const event of ownSearches) if (event.query) searchCounts.set(event.query, (searchCounts.get(event.query) || 0) + 1);
     const byUser = new Map<string, number>();
     for (const event of events) byUser.set(event.userId, (byUser.get(event.userId) || 0) + 1);
     const uniqueUsers = byUser.size;
@@ -95,7 +98,8 @@ export class AnalyticsService {
       uniqueUsers,
       returningUsers,
       retentionRate: uniqueUsers ? Math.round((returningUsers / uniqueUsers) * 100) : 0,
-      searches: 0,
+      searches: ownSearches.length,
+      topSearches: Array.from(searchCounts.entries()).map(([query, count]) => ({ query, count })).sort((a, b) => b.count - a.count).slice(0, 10),
       contributors: new Set(resources.map((resource) => resource.uploaderId)).size,
       popularResources: resources.slice(0, 10).map((resource) => ({ id: resource.id, title: resource.title, course: resource.course, views: resource.views, downloads: resource.downloads })),
     };
