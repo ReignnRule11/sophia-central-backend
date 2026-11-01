@@ -48,6 +48,7 @@ describe('ChatService access and message rules', () => {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
       orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
       take: jest.fn().mockReturnThis(),
       getMany: jest.fn(async () => []),
     };
@@ -98,6 +99,37 @@ describe('ChatService access and message rules', () => {
       expiresIn: 300,
       maxBytes: 12 * 1024 * 1024,
     });
+  });
+
+  it('rejects direct history when the other account is not eligible', async () => {
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : null);
+    await expect(service.history(student.id, 'direct', 'unknown-user')).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('derives a direct room key from both authenticated participant IDs', async () => {
+    const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === recipient.id ? recipient : null);
+    const qb = {
+      where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(), addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(), getMany: jest.fn(async () => []),
+    };
+    repo.createQueryBuilder.mockReturnValue(qb);
+    await service.history(student.id, 'direct', recipient.id);
+    expect(qb.where).toHaveBeenCalledWith('message.roomKey = :room', { room: 'direct:student-1:student-2' });
+  });
+
+  it('only allows the sender to delete a message', async () => {
+    repo.findOne.mockResolvedValue({ id: 'message-3', senderId: 'someone-else' });
+    await expect(service.remove(student.id, 'message-3')).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('soft-deletes the sender\'s own message and clears its content', async () => {
+    const message = { id: 'message-4', senderId: student.id, text: 'hello', voiceKey: null, isDeleted: false };
+    repo.findOne.mockResolvedValue(message);
+    await expect(service.remove(student.id, 'message-4')).resolves.toEqual({ success: true, id: 'message-4' });
+    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ isDeleted: true, text: null, voiceKey: null }));
   });
 
   it('rejects an edit after the 15-minute window', async () => {
