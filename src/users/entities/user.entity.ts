@@ -88,6 +88,9 @@ export class User {
   @Column({ default: false })
   isSuspended!: boolean;
 
+  @Column({ type: 'text', nullable: true })
+  suspensionReason?: string;
+
   @Column({ default: false })
   isProfileComplete!: boolean;
 
