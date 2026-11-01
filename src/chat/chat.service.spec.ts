@@ -143,4 +143,54 @@ describe('ChatService access and message rules', () => {
 
     await expect(service.edit(student.id, 'message-2', 'Too late')).rejects.toBeInstanceOf(ForbiddenException);
   });
+
+  it('rejects a voice key belonging to another account before checking storage', async () => {
+    await expect(service.create(student.id, {
+      kind: 'group' as any,
+      voiceKey: 'voice-messages/another-user/123e4567-e89b-12d3-a456-426614174000.webm',
+    } as any)).rejects.toBeInstanceOf(BadRequestException);
+    expect(s3.getObjectMetadata).not.toHaveBeenCalled();
+  });
+
+  it('rejects voice objects that exceed the size limit', async () => {
+    s3.getObjectMetadata.mockResolvedValue({ contentLength: 12 * 1024 * 1024 + 1, contentType: 'audio/webm' });
+    await expect(service.create(student.id, {
+      kind: 'group' as any,
+      voiceKey: 'voice-messages/student-1/123e4567-e89b-12d3-a456-426614174000.webm',
+    } as any)).rejects.toBeInstanceOf(BadRequestException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects voice objects whose MIME type does not match the key extension', async () => {
+    s3.getObjectMetadata.mockResolvedValue({ contentLength: 1024, contentType: 'audio/ogg' });
+    await expect(service.create(student.id, {
+      kind: 'group' as any,
+      voiceKey: 'voice-messages/student-1/123e4567-e89b-12d3-a456-426614174000.webm',
+    } as any)).rejects.toBeInstanceOf(BadRequestException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('uses both timestamp and message ID for stable pagination cursors', async () => {
+    const cursorDate = new Date('2026-11-01T10:00:00.000Z');
+    repo.findOne.mockResolvedValue({ id: 'cursor-id', roomKey: 'group:example university:science:biology', createdAt: cursorDate });
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn(async () => []),
+    };
+    repo.createQueryBuilder.mockReturnValue(qb);
+
+    await service.history(student.id, 'group', undefined, '20', 'cursor-id');
+
+    expect(qb.andWhere).toHaveBeenCalledWith(
+      '(message.createdAt < :date OR (message.createdAt = :date AND message.id < :cursorId))',
+      { date: cursorDate, cursorId: 'cursor-id' },
+    );
+    expect(qb.orderBy).toHaveBeenCalledWith('message.createdAt', 'DESC');
+    expect(qb.addOrderBy).toHaveBeenCalledWith('message.id', 'DESC');
+  });
+
 });
