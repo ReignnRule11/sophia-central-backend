@@ -69,7 +69,7 @@ export class PointsService {
     }));
   }
 
-  async adjustPoints(userId: string, amount: number, reason: string) {
+  async adjustPoints(userId: string, amount: number, reason: string, moderatorId: string) {
     const wallet = await this.getOrCreateWallet(userId);
     if (wallet.balance + amount < 0) throw new BadRequestException('Adjustment would make the wallet balance negative.');
     wallet.balance += amount;
@@ -78,7 +78,7 @@ export class PointsService {
       userId,
       type: amount < 0 ? PointTransactionType.SPENT : PointTransactionType.EARNED,
       amount,
-      reason: `Moderator adjustment: ${reason}`,
+      reason: `Moderator adjustment by ${moderatorId}: ${reason}`,
     }));
   }
 
