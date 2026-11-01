@@ -151,6 +151,21 @@ describe('AuthService', () => {
     expect(response.user).not.toHaveProperty('password');
   });
 
+  it('rejects duplicate academic handle registration', async () => {
+    users.findByEmail.mockResolvedValue(null);
+    users.findByAcademicHandle.mockResolvedValue(user as never);
+
+    await expect(service.register({
+      firstName: 'Another',
+      lastName: 'Learner',
+      email: 'another@example.com',
+      password: 'correct-horse-battery',
+      academicHandle: '@learner.one',
+    })).rejects.toBeInstanceOf(ConflictException);
+
+    expect(users.create).not.toHaveBeenCalled();
+  });
+
   it('rejects duplicate email registration', async () => {
     users.findByEmail.mockResolvedValue(user as never);
 
@@ -165,6 +180,17 @@ describe('AuthService', () => {
     ).rejects.toBeInstanceOf(ConflictException);
 
     expect(users.create).not.toHaveBeenCalled();
+  });
+
+  it('allows sign-in with an academic handle', async () => {
+    const password = await bcrypt.hash('correct-horse-battery', 4);
+    users.findByAcademicHandle.mockResolvedValue({ ...user, academicHandle: 'learner.one', password } as never);
+
+    const response = await service.login({ identifier: '@Learner.One', password: 'correct-horse-battery' });
+
+    expect(users.findByAcademicHandle).toHaveBeenCalledWith('@Learner.One');
+    expect(response.user).toHaveProperty('academicHandle', 'learner.one');
+    expect(response.user).not.toHaveProperty('password');
   });
 
   it('returns the same authentication error for unknown email or wrong password', async () => {
