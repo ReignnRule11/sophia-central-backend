@@ -46,6 +46,9 @@ export class User {
   @Column({ nullable: true })
   lastName?: string;
 
+  @Column({ type: 'varchar', length: 30, nullable: true })
+  academicHandle?: string;
+
   @Column({ nullable: true })
   socialHandle?: string;
 

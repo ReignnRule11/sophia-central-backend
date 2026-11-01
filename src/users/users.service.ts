@@ -24,6 +24,15 @@ export class UsersService {
       .getOne();
   }
 
+  async findByAcademicHandle(handle: string): Promise<User | null> {
+    const normalized = handle.trim().replace(/^@/, '').toLowerCase();
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .addSelect('user.password')
+      .where('LOWER(user.academicHandle) = :handle', { handle: normalized })
+      .getOne();
+  }
+
   async findOne(id: string): Promise<User | null> {
     if (!id) return null;
     return this.usersRepository.findOne({ where: { id } });

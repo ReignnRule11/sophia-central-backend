@@ -35,11 +35,16 @@ export class AuthService {
     const existing = await this.usersService.findByEmail(email);
     if (existing) throw new ConflictException('User with this email already exists');
 
+    const academicHandle = dto.academicHandle.trim().replace(/^@/, '').toLowerCase();
+    const existingHandle = await this.usersService.findByAcademicHandle(academicHandle);
+    if (existingHandle) throw new ConflictException('Academic handle already exists');
+
     const role = dto.role ?? UserRole.STUDENT;
     const user = await this.usersService.create({
       email,
       firstName: dto.firstName.trim(),
       lastName: dto.lastName.trim(),
+      academicHandle,
       password: await bcrypt.hash(dto.password, 12),
       role,
       institution: dto.institution?.trim() || undefined,
@@ -54,7 +59,11 @@ export class AuthService {
   }
 
   async login(dto: LoginDto) {
-    const user = await this.usersService.findByEmail(dto.email.trim().toLowerCase());
+    const identifier = dto.identifier.trim();
+    const looksLikeEmail = identifier.indexOf('@') > 0 && identifier.slice(identifier.lastIndexOf('@') + 1).includes('.');
+    const user = looksLikeEmail
+      ? await this.usersService.findByEmail(identifier.toLowerCase())
+      : await this.usersService.findByAcademicHandle(identifier);
     const passwordMatches = user?.password ? await bcrypt.compare(dto.password, user.password) : false;
     if (!user || !passwordMatches) throw new UnauthorizedException('Invalid credentials');
     if (user.isSuspended) throw new UnauthorizedException('This account is suspended. Contact Sophis Central support for assistance.');
