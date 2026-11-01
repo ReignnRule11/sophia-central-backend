@@ -60,7 +60,7 @@ export class AuthService {
 
   async login(dto: LoginDto) {
     const identifier = dto.identifier.trim();
-    const looksLikeEmail = identifier.includes('@') && identifier.slice(identifier.lastIndexOf('@') + 1).includes('.');
+    const looksLikeEmail = identifier.indexOf('@') > 0 && identifier.slice(identifier.lastIndexOf('@') + 1).includes('.');
     const user = looksLikeEmail
       ? await this.usersService.findByEmail(identifier.toLowerCase())
       : await this.usersService.findByAcademicHandle(identifier);
