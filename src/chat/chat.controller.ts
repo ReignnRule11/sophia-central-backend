@@ -4,7 +4,7 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ChatService } from './chat.service';
 import { CreateChatMessageDto, CreateVoiceUploadDto, EditChatMessageDto } from './dto/create-chat-message.dto';
 
-type AuthRequest = Request & { user: { id: string } };
+type AuthRequest = Request & { user: import('../users/entities/user.entity').User };
 
 @Controller('chat')
 @UseGuards(JwtAuthGuard)
@@ -12,7 +12,7 @@ export class ChatController {
   constructor(private readonly chat: ChatService) {}
 
   @Sse('events')
-  events(@Req() request: AuthRequest) { return this.chat.eventStream(request.user.id); }
+  events(@Req() request: AuthRequest) { return this.chat.eventStream(request.user); }
 
   @Get('contacts')
   contacts(@Req() request: AuthRequest) { return this.chat.contacts(request.user.id); }
