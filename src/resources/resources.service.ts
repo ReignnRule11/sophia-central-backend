@@ -11,6 +11,7 @@ import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { Resource, ResourceModerationStatus } from './entities/resource.entity';
 import { S3Service } from '../upload/s3.service';
+import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 
 @Injectable()
 export class ResourcesService {
@@ -20,6 +21,8 @@ export class ResourcesService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly s3Service: S3Service,
+    @InjectRepository(UserActivityEvent)
+    private readonly activityRepository: Repository<UserActivityEvent>,
   ) {}
 
   async create(dto: CreateResourceDto, uploaderId: string): Promise<Resource> {
@@ -94,6 +97,7 @@ export class ResourcesService {
     if (trackView) {
       resource.views = Number(resource.views || 0) + 1;
       await this.resourceRepository.save(resource);
+      await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, eventType: 'view', resourceId: resource.id }));
     }
     // Keep storage URLs private; the reader asks the authenticated file endpoint for temporary access.
     return { ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined } as Resource;
@@ -110,6 +114,7 @@ export class ResourcesService {
     if (download) {
       resource.downloads = Number(resource.downloads || 0) + 1;
       await this.resourceRepository.save(resource);
+      await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, eventType: 'download', resourceId: resource.id }));
     }
     const extension = key.split('.').pop();
     const filename = extension ? `${resource.title}.${extension}` : resource.title;
