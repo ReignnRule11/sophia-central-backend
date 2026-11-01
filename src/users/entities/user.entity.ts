@@ -86,6 +86,12 @@ export class User {
   isVerified!: boolean;
 
   @Column({ default: false })
+  isSuspended!: boolean;
+
+  @Column({ type: 'text', nullable: true })
+  suspensionReason?: string;
+
+  @Column({ default: false })
   isProfileComplete!: boolean;
 
   @OneToMany(() => Resource, (resource) => resource.uploader)

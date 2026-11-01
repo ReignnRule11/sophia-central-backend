@@ -57,6 +57,7 @@ export class AuthService {
     const user = await this.usersService.findByEmail(dto.email.trim().toLowerCase());
     const passwordMatches = user?.password ? await bcrypt.compare(dto.password, user.password) : false;
     if (!user || !passwordMatches) throw new UnauthorizedException('Invalid credentials');
+    if (user.isSuspended) throw new UnauthorizedException('This account is suspended. Contact Sophis Central support for assistance.');
     return this.buildAuthResponse(user);
   }
 

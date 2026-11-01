@@ -11,6 +11,7 @@ import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { Resource, ResourceModerationStatus } from './entities/resource.entity';
 import { S3Service } from '../upload/s3.service';
+import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 
 @Injectable()
 export class ResourcesService {
@@ -20,6 +21,8 @@ export class ResourcesService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly s3Service: S3Service,
+    @InjectRepository(UserActivityEvent)
+    private readonly activityRepository: Repository<UserActivityEvent>,
   ) {}
 
   async create(dto: CreateResourceDto, uploaderId: string): Promise<Resource> {
@@ -49,22 +52,25 @@ export class ResourcesService {
 
     // The shared library is always approved-only. Moderator pending/rejected work
     // belongs in /moderation, and lecturer-owned submissions belong in /resources/mine.
-    return this.resourceRepository.find({
+    const resources = await this.resourceRepository.find({
       where: { moderationStatus: ResourceModerationStatus.APPROVED },
       relations: ['uploader'],
       order: { createdAt: 'DESC' },
     });
+    // Do not expose storage URLs in list responses; file access must go through the authorized file endpoints.
+    return resources.map((resource) => ({ ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }) as Resource);
   }
 
   async findMine(uploaderId: string): Promise<Resource[]> {
-    return this.resourceRepository.find({
+    const resources = await this.resourceRepository.find({
       where: { uploaderId },
       relations: ['uploader'],
       order: { createdAt: 'DESC' },
     });
+    return resources.map((resource) => ({ ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }) as Resource);
   }
 
-  async findOneForViewer(id: string, viewer: User): Promise<Resource> {
+  async findOneForViewer(id: string, viewer: User, trackView = true): Promise<Resource> {
     const resource = await this.resourceRepository.findOne({
       where: { id },
       relations: ['uploader'],
@@ -88,14 +94,28 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to this resource.');
     }
 
-    return resource;
+    if (trackView) {
+      resource.views = Number(resource.views || 0) + 1;
+      await this.resourceRepository.save(resource);
+      await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, eventType: 'view', resourceId: resource.id }));
+    }
+    // Keep storage URLs private; the reader asks the authenticated file endpoint for temporary access.
+    return { ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined } as Resource;
   }
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string }> {
-    const resource = await this.findOneForViewer(id, viewer);
-    if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
+    const authorizedResource = await this.findOneForViewer(id, viewer, false);
+    if (download && authorizedResource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
+    const resource = await this.resourceRepository.findOne({ where: { id } });
+    if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
+    if (download && resource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
-    if (!key) return { url: resource.fileUrl };
+    if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
+    if (download) {
+      resource.downloads = Number(resource.downloads || 0) + 1;
+      await this.resourceRepository.save(resource);
+      await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, eventType: 'download', resourceId: resource.id }));
+    }
     const extension = key.split('.').pop();
     const filename = extension ? `${resource.title}.${extension}` : resource.title;
     const url = await this.s3Service.createPresignedDownloadUrl(key, filename, download ? 'attachment' : 'inline');

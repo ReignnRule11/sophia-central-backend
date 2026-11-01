@@ -19,7 +19,7 @@ export class SearchService {
 
     if (q) {
       query.andWhere(
-        '(LOWER(resource.title) LIKE LOWER(:q) OR LOWER(resource.description) LIKE LOWER(:q) OR LOWER(resource.topic) LIKE LOWER(:q) OR LOWER(resource.course) LIKE LOWER(:q))',
+        '(LOWER(resource.title) LIKE LOWER(:q) OR LOWER(resource.description) LIKE LOWER(:q) OR LOWER(resource.topic) LIKE LOWER(:q) OR LOWER(resource.course) LIKE LOWER(:q) OR LOWER(uploader.firstName) LIKE LOWER(:q) OR LOWER(uploader.lastName) LIKE LOWER(:q) OR LOWER(uploader.department) LIKE LOWER(:q) OR LOWER(uploader.faculty) LIKE LOWER(:q))',
         { q: `%${q}%` },
       );
     }
@@ -28,6 +28,8 @@ export class SearchService {
     if (level) query.andWhere('LOWER(resource.level) LIKE LOWER(:level)', { level: `%${level}%` });
     if (type) query.andWhere('resource.type = :type', { type });
 
-    return query.orderBy('resource.createdAt', 'DESC').getMany();
+    const resources = await query.orderBy('resource.createdAt', 'DESC').getMany();
+    // Search responses expose metadata only; clients must request authorized temporary file access separately.
+    return resources.map((resource) => ({ ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }));
   }
 }

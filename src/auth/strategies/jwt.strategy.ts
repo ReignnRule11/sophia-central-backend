@@ -39,6 +39,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
 
   async validate(payload: { sub?: string }) {
     if (!payload?.sub) return null;
-    return (await this.usersService.findOne(payload.sub)) || null;
+    const user = await this.usersService.findOne(payload.sub);
+    if (!user || user.isSuspended) return null;
+    return user;
   }
 }

@@ -52,7 +52,7 @@ export class ResourcesController {
   @Get(':id/file-url')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get a short-lived URL for an authorized resource file' })
+  @ApiOperation({ summary: 'Get a short-lived URL for an authorized resource file; storage URLs are not returned by resource metadata' })
   getFileUrl(@Param('id') id: string, @CurrentUser() user: User) {
     return this.resourcesService.getFileUrl(id, user, false);
   }
@@ -60,7 +60,7 @@ export class ResourcesController {
   @Get(':id/download-url')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get a short-lived download URL for an authorized resource file' })
+  @ApiOperation({ summary: 'Get a short-lived download URL when the resource permits downloads' })
   getDownloadUrl(@Param('id') id: string, @CurrentUser() user: User) {
     return this.resourcesService.getFileUrl(id, user, true);
   }

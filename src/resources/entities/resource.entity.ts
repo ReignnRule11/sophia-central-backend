@@ -55,6 +55,9 @@ export class Resource {
   @Column({ nullable: true })
   fileUrl?: string;
 
+  @Column({ default: false })
+  downloadRestricted!: boolean;
+
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   tags!: string[];
 

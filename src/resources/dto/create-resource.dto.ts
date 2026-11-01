@@ -1,4 +1,4 @@
-import { ArrayMaxSize, IsArray, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayMaxSize, IsArray, IsBoolean, IsEnum, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ResourceType } from '../entities/resource.entity';
 
 export class CreateResourceDto {
@@ -31,6 +31,10 @@ export class CreateResourceDto {
   @IsOptional()
   @IsString()
   fileUrl?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  downloadRestricted?: boolean;
 
   @IsOptional()
   @IsArray()

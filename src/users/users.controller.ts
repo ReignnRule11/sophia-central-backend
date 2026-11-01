@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   ForbiddenException,
+  BadRequestException,
   Get,
   Param,
   Patch,
@@ -29,6 +30,27 @@ export class UsersController {
   @ApiOperation({ summary: 'Get all users' })
   findAll() {
     return this.usersService.findAll();
+  }
+
+  @Get('management')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List account details for authorized moderation management' })
+  managementList() {
+    return this.usersService.findAll();
+  }
+
+  @Patch(':id/status')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Suspend or restore an account with a recorded reason' })
+  async setStatus(@Param('id') id: string, @Body() body: { isSuspended?: boolean; reason?: string }) {
+    if (typeof body.isSuspended !== 'boolean' || !body.reason?.trim()) {
+      throw new BadRequestException('isSuspended and a reason are required');
+    }
+    return this.usersService.update(id, { isSuspended: body.isSuspended, suspensionReason: body.isSuspended ? body.reason.trim() : undefined });
   }
 
   @Get('me')
