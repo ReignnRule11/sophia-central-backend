@@ -2,6 +2,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ChatContentType, ChatKind } from './entities/chat-message.entity';
 import { UserRole } from '../users/entities/user.entity';
+import { firstValueFrom } from 'rxjs';
 
 describe('ChatService access and message rules', () => {
   let service: ChatService;
@@ -36,6 +37,15 @@ describe('ChatService access and message rules', () => {
       createPresignedDownloadUrl: jest.fn(),
     };
     service = new ChatService(repo, users, s3);
+  });
+
+  it('notifies subscribers in the authenticated student group when a message is created', async () => {
+    const events = await service.eventStream(student.id);
+    const nextEvent = firstValueFrom(events);
+
+    await service.create(student.id, { kind: 'group', text: 'Hello group' } as any);
+
+    await expect(nextEvent).resolves.toEqual({ data: { type: 'refresh' } });
   });
 
   it('rejects group history for lecturers and other non-student roles', async () => {
