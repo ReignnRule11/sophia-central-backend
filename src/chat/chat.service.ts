@@ -2,6 +2,8 @@ import { BadRequestException, ForbiddenException, Injectable, NotFoundException 
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
+import { MessageEvent } from '@nestjs/common';
+import { Observable, Subject, filter, map } from 'rxjs';
 import { User, UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { S3Service } from '../upload/s3.service';
@@ -21,6 +23,7 @@ const VOICE_TYPES: Record<string, string> = {
 
 @Injectable()
 export class ChatService {
+  private readonly roomEvents = new Subject<{ roomKey: string }>();
   constructor(
     @InjectRepository(ChatMessage) private readonly repo: Repository<ChatMessage>,
     private readonly users: UsersService,
@@ -40,6 +43,22 @@ export class ChatService {
   }
 
   private directKey(a: string, b: string): string { return 'direct:' + [a, b].sort().join(':'); }
+
+  async eventStream(id: string): Promise<Observable<MessageEvent>> {
+    const user = await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+    const groupRoomKey = user.role === UserRole.STUDENT ? this.groupKey(user) : undefined;
+    return this.roomEvents.pipe(
+      filter(({ roomKey }) => {
+        if (groupRoomKey && roomKey === groupRoomKey) return true;
+        return roomKey.startsWith('direct:') && roomKey.slice('direct:'.length).split(':').includes(id);
+      }),
+      map(() => ({ data: { type: 'refresh' } })),
+    );
+  }
+
+  private publishRoom(roomKey: string): void {
+    this.roomEvents.next({ roomKey });
+  }
 
   async contacts(id: string) {
     await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
@@ -118,6 +137,7 @@ export class ChatService {
       roomKey, senderId: sender.id, senderHandle: sender.academicHandle!,
       contentType, text: hasText ? dto.text!.trim() : null, voiceKey,
     }));
+    this.publishRoom(roomKey);
     return this.present(message, id);
   }
 
@@ -130,7 +150,9 @@ export class ChatService {
     if (Date.now() - message.createdAt.getTime() > EDIT_WINDOW_MS) throw new ForbiddenException('Messages can only be edited within 15 minutes.');
     if (!text?.trim()) throw new BadRequestException('Message cannot be empty.');
     message.text = text.trim(); message.editedAt = new Date();
-    return this.present(await this.repo.save(message), id);
+    const saved = await this.repo.save(message);
+    this.publishRoom(saved.roomKey);
+    return this.present(saved, id);
   }
 
   async remove(id: string, messageId: string) {
@@ -140,6 +162,7 @@ export class ChatService {
     if (message.senderId !== id) throw new ForbiddenException('You can only delete your own messages.');
     message.isDeleted = true; message.text = null; message.voiceKey = null;
     await this.repo.save(message);
+    this.publishRoom(message.roomKey);
     return { success: true, id: message.id };
   }
 
