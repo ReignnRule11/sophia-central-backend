@@ -95,9 +95,10 @@ export class ResourcesService {
   }
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string }> {
-    const resource = await this.findOneForViewer(id, viewer);
-    if (download && resource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
-    if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
+    const authorizedResource = await this.findOneForViewer(id, viewer);
+    if (download && authorizedResource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
+    const resource = await this.resourceRepository.findOne({ where: { id } });
+    if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
     const extension = key.split('.').pop();
