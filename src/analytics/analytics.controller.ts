@@ -22,6 +22,15 @@ export class AnalyticsController {
     return this.analyticsService.recordSearch(user.id, body.query);
   }
 
+  @Get('lecturer/resources')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.LECTURER)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get resource engagement analytics for the authenticated lecturer only' })
+  getLecturerResourceAnalytics(@CurrentUser() user: User) {
+    return this.analyticsService.getLecturerResourceAnalytics(user.id);
+  }
+
   @Get('activity')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
