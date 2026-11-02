@@ -21,7 +21,7 @@ export class ChatController {
   presence(@Req() request: AuthRequest) { return this.chat.presence(request.user.id); }
 
   @Get('contacts')
-  contacts(@Req() request: AuthRequest) { return this.chat.contacts(request.user.id); }
+  contacts(@Req() request: AuthRequest, @Query('search') search?: string) { return this.chat.contacts(request.user.id, search); }
 
   @Get('blocks')
   blocks(@Req() request: AuthRequest) { return this.chat.listBlocks(request.user.id); }
