@@ -3,6 +3,8 @@ import {
   IsOptional,
   IsString,
   MaxLength,
+  MinLength,
+  Matches,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -44,6 +46,13 @@ export class OnboardingDto {
   @IsString()
   @MaxLength(2000)
   bio?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(30)
+  @Matches(/^[a-zA-Z0-9](?:[a-zA-Z0-9._]*[a-zA-Z0-9])$/, { message: 'Academic handle must start and end with a letter or number and contain only letters, numbers, periods, or underscores' })
+  academicHandle?: string;
 
   @IsOptional()
   @IsString()
