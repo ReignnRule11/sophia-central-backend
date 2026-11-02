@@ -27,4 +27,7 @@ export class SavedResource {
 
   @Column({ type: 'timestamp', nullable: true })
   downloadedAt!: Date | null;
+
+  @Column({ type: 'boolean', default: true })
+  isSaved!: boolean;
 }
