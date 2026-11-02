@@ -1,4 +1,4 @@
-import { IsArray, IsOptional, IsString, MaxLength } from 'class-validator';
+import { IsArray, IsOptional, IsString, MaxLength, MinLength, Matches } from 'class-validator';
 
 export class UpdateUserDto {
   @IsOptional()
@@ -46,6 +46,13 @@ export class UpdateUserDto {
   @IsString()
   @MaxLength(2000)
   bio?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(30)
+  @Matches(/^[a-zA-Z0-9](?:[a-zA-Z0-9._]*[a-zA-Z0-9])$/, { message: 'Academic handle must start and end with a letter or number and contain only letters, numbers, periods, or underscores' })
+  academicHandle?: string;
 
   @IsOptional()
   @IsString()
