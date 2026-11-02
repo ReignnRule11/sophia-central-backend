@@ -65,8 +65,8 @@ export class ResourcesService {
   }
 
   private assertCanSave(viewer: User): void {
-    if (![UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role)) {
-      throw new ForbiddenException('Only student and lecturer accounts can save resources.');
+    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
+      throw new ForbiddenException('You do not have access to personal resources.');
     }
   }
 
@@ -75,7 +75,7 @@ export class ResourcesService {
     const savedEntries = await this.savedResourceRepository.find({
       where: { userId: viewer.id, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
       relations: ['resource', 'resource.uploader'],
-      where: { userId: viewer.id, resource: { moderationStatus: ResourceModerationStatus.APPROVED }, downloadedAt: IsNull() },
+      where: { userId: viewer.id, isSaved: true, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
       relations: ['resource', 'resource.uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -106,13 +106,10 @@ export class ResourcesService {
 
     const existing = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
     if (!existing) {
-      await this.savedResourceRepository.save(this.savedResourceRepository.create({
-        userId: viewer.id,
-        resourceId: id,
-        user: viewer,
-        resource,
-        downloadedAt: null,
-      }));
+      await this.savedResourceRepository.save(this.savedResourceRepository.create({ userId: viewer.id, resourceId: id, user: viewer, resource, downloadedAt: null, isSaved: true }));
+    } else if (!existing.isSaved) {
+      existing.isSaved = true;
+      await this.savedResourceRepository.save(existing);
     }
     return { saved: true, resourceId: id };
   }
@@ -125,7 +122,7 @@ export class ResourcesService {
     if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
     let entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
     const now = new Date();
-    if (!entry) entry = this.savedResourceRepository.create({ userId: viewer.id, resourceId: id, user: viewer, resource, downloadedAt: now });
+    if (!entry) entry = this.savedResourceRepository.create({ userId: viewer.id, resourceId: id, user: viewer, resource, downloadedAt: now, isSaved: false });
     else if (!entry.downloadedAt) entry.downloadedAt = now;
     await this.savedResourceRepository.save(entry);
     const stored = await this.resourceRepository.findOne({ where: { id } });
@@ -136,7 +133,12 @@ export class ResourcesService {
 
   async removeSavedForUser(id: string, viewer: User): Promise<{ saved: false; resourceId: string }> {
     this.assertCanSave(viewer);
-    await this.savedResourceRepository.delete({ userId: viewer.id, resourceId: id, downloadedAt: null });
+    const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
+    if (entry) {
+      entry.isSaved = false;
+      if (!entry.downloadedAt) await this.savedResourceRepository.remove(entry);
+      else await this.savedResourceRepository.save(entry);
+    }
     return { saved: false, resourceId: id };
   }
 
@@ -173,11 +175,6 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to this resource.');
     }
 
-    if ([UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && resource.uploaderId !== viewer.id) {
-      const downloadRecord = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
-      if (!downloadRecord?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
-    }
-
     if (trackView) {
       resource.views = Number(resource.views || 0) + 1;
       await this.resourceRepository.save(resource);
@@ -193,10 +190,10 @@ export class ResourcesService {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
       if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
     }
-    if (download && authorizedResource.downloadRestricted && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (download && authorizedResource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
-    if (download && resource.downloadRestricted && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (download && resource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
     if (download) {
