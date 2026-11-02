@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
@@ -51,6 +51,15 @@ export class UsersService {
   async update(id: string, data: Partial<User>): Promise<User> {
     const user = await this.findOne(id);
     if (!user) throw new NotFoundException('User not found');
+    if (data.academicHandle !== undefined) {
+      const normalized = data.academicHandle.trim().replace(/^@+/, '').toLowerCase();
+      const existing = await this.usersRepository.createQueryBuilder('user')
+        .where('LOWER(user.academicHandle) = :handle', { handle: normalized })
+        .andWhere('user.id != :id', { id })
+        .getOne();
+      if (existing) throw new ConflictException('Academic handle already exists');
+      data.academicHandle = normalized;
+    }
     Object.assign(user, data);
     return this.usersRepository.save(user);
   }
