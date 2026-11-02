@@ -12,6 +12,7 @@ import { CreateChatMessageDto, CreateVoiceUploadDto } from './dto/create-chat-me
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_VOICE_BYTES = 12 * 1024 * 1024;
+const STICKER_CATALOG = ['celebrate','thank-you','well-done','studying','thinking','laughing','encouragement','hello'] as const;
 const VOICE_TYPES: Record<string, string> = {
   'audio/webm': 'webm',
   'audio/ogg': 'ogg',
@@ -128,7 +129,9 @@ export class ChatService {
     const sender = dto.kind === 'group' ? await this.eligible(id, [UserRole.STUDENT]) : await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
     const hasText = typeof dto.text === 'string' && dto.text.trim().length > 0;
     const hasVoice = typeof dto.voiceKey === 'string' && dto.voiceKey.length > 0;
-    if (hasText === hasVoice) throw new BadRequestException('Send either a text message or one voice recording.');
+    const hasSticker = typeof dto.stickerId === 'string' && dto.stickerId.length > 0;
+    if ([hasText, hasVoice, hasSticker].filter(Boolean).length !== 1) throw new BadRequestException('Send exactly one text message, voice recording, or approved sticker.');
+    if (hasSticker && !STICKER_CATALOG.includes(dto.stickerId as typeof STICKER_CATALOG[number])) throw new BadRequestException('This sticker is not available.');
     if (dto.kind === 'group' && dto.recipientId) throw new BadRequestException('Group messages cannot specify a recipient.');
 
     let roomKey: string;
@@ -141,6 +144,8 @@ export class ChatService {
 
     let contentType = ChatContentType.TEXT;
     let voiceKey: string | null = null;
+    let stickerId: string | null = null;
+    if (hasSticker) { contentType = ChatContentType.STICKER; stickerId = dto.stickerId!; }
     if (hasVoice) {
       const key = dto.voiceKey!;
       const allowedKey = new RegExp(`^voice-messages/${id}/[0-9a-f-]{36}\\.(webm|ogg|m4a|mp3|wav)$`, 'i');
@@ -158,7 +163,7 @@ export class ChatService {
     const message = await this.repo.save(this.repo.create({
       kind: dto.kind === 'group' ? ChatKind.GROUP : ChatKind.DIRECT,
       roomKey, senderId: sender.id, senderHandle: sender.academicHandle!,
-      contentType, text: hasText ? dto.text!.trim() : null, voiceKey,
+      contentType, text: hasText ? dto.text!.trim() : null, voiceKey, stickerId,
     }));
     this.publishRoom(roomKey);
     return this.present(message, id);
@@ -183,7 +188,7 @@ export class ChatService {
     const message = await this.repo.findOne({ where: { id: messageId } });
     if (!message) throw new NotFoundException('Message not found.');
     if (message.senderId !== id) throw new ForbiddenException('You can only delete your own messages.');
-    message.isDeleted = true; message.text = null; message.voiceKey = null;
+    message.isDeleted = true; message.text = null; message.voiceKey = null; message.stickerId = null;
     await this.repo.save(message);
     this.publishRoom(message.roomKey);
     return { success: true, id: message.id };
@@ -196,7 +201,7 @@ export class ChatService {
     return {
       id: message.id, kind: message.kind, senderId: message.senderId, senderHandle: message.senderHandle,
       contentType: message.contentType, text: message.isDeleted ? null : message.text,
-      voiceUrl, isDeleted: message.isDeleted, editedAt: message.editedAt,
+      voiceUrl, stickerId: message.isDeleted ? null : message.stickerId ?? null, isDeleted: message.isDeleted, editedAt: message.editedAt,
       createdAt: message.createdAt, updatedAt: message.updatedAt, isOwn: message.senderId === viewerId,
     };
   }
