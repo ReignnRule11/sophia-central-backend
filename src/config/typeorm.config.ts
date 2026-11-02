@@ -15,6 +15,7 @@ import { AiSession } from '../ai/entities/ai-session.entity';
 import { AiMessage } from '../ai/entities/ai-message.entity';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
 import { SupportRequest } from '../support/entities/support-request.entity';
+import { ChatMessage } from '../chat/entities/chat-message.entity';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const requiredProductionDbVars = ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_DATABASE'];
@@ -35,7 +36,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   entities: [
     User, Resource, Institution, Faculty, Department, Course, CourseTopic,
     ModerationReview, PointWallet, PointTransaction, FileUpload, Referral,
-    Notification, AiSession, AiMessage, PasswordResetToken, SupportRequest,
+    Notification, AiSession, AiMessage, PasswordResetToken, SupportRequest, ChatMessage,
   ],
   synchronize: !isProduction,
   logging: !isProduction,

@@ -16,6 +16,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
       postgres:
         image: postgres:16-alpine
         env:
@@ -36,6 +45,7 @@ jobs:
       DB_PASSWORD: ci-only-not-a-secret
       DB_DATABASE: sophia_ci
       DB_SSL: "false"
+      REDIS_URL: redis://127.0.0.1:6379
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -84,4 +94,5 @@ jobs:
           DB_DATABASE: sophia_ci
           JWT_SECRET: ci-only-random-looking-secret-value-123456
           CORS_ORIGINS: https://example.invalid
+          REDIS_URL: redis://redis:6379
         run: docker compose --env-file /dev/null -f docker-compose.prod.yml config --quiet
