@@ -24,6 +24,8 @@ const VOICE_TYPES: Record<string, string> = {
 @Injectable()
 export class ChatService {
   private readonly roomEvents = new Subject<{ roomKey: string }>();
+  private readonly presenceHeartbeats = new Map<string, number>();
+  private readonly presenceTtlMs = 60_000;
   constructor(
     @InjectRepository(ChatMessage) private readonly repo: Repository<ChatMessage>,
     private readonly users: UsersService,
@@ -60,6 +62,25 @@ export class ChatService {
 
   private publishRoom(roomKey: string): void {
     this.roomEvents.next({ roomKey });
+  }
+
+  async heartbeat(id: string) {
+    await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+    this.presenceHeartbeats.set(id, Date.now());
+    return { success: true };
+  }
+
+  async presence(id: string) {
+    await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+    const contacts = await this.users.findChatContacts(id);
+    const now = Date.now();
+    for (const [userId, lastSeen] of this.presenceHeartbeats.entries()) {
+      if (now - lastSeen > this.presenceTtlMs) this.presenceHeartbeats.delete(userId);
+    }
+    return contacts.map(contact => ({
+      id: contact.id,
+      online: this.presenceHeartbeats.has(contact.id),
+    }));
   }
 
   async contacts(id: string) {
