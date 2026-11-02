@@ -133,6 +133,7 @@ export class AuthService {
       coursesTaught: dto.coursesTaught,
       studyLevel: dto.studyLevel,
       bio: dto.bio,
+      academicHandle: dto.academicHandle === undefined ? undefined : dto.academicHandle.trim().replace(/^@+/, '').toLowerCase(),
       socialHandle: dto.socialHandle,
       socialLinks: dto.socialLinks,
       isProfileComplete: true,
