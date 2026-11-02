@@ -5,7 +5,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
@@ -75,7 +75,7 @@ export class ResourcesService {
     const savedEntries = await this.savedResourceRepository.find({
       where: { userId: viewer.id, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
       relations: ['resource', 'resource.uploader'],
-      where: { userId: viewer.id, resource: { moderationStatus: ResourceModerationStatus.APPROVED }, downloadedAt: null },
+      where: { userId: viewer.id, resource: { moderationStatus: ResourceModerationStatus.APPROVED }, downloadedAt: IsNull() },
       relations: ['resource', 'resource.uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -90,7 +90,7 @@ export class ResourcesService {
   async findDownloadedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const entries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, downloadedAt: { $not: null } as never, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
+      where: { userId: viewer.id, downloadedAt: Not(IsNull()), resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
       relations: ['resource', 'resource.uploader'],
       order: { downloadedAt: 'DESC' },
     });
