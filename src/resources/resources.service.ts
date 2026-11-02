@@ -73,9 +73,7 @@ export class ResourcesService {
   async findSavedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const savedEntries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
-      relations: ['resource', 'resource.uploader'],
-      where: { userId: viewer.id, isSaved: true, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
+      where: { userId: viewer.id, isSaved: true, ...( [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
       relations: ['resource', 'resource.uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -90,7 +88,7 @@ export class ResourcesService {
   async findDownloadedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const entries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, downloadedAt: Not(IsNull()), resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
+      where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
       relations: ['resource', 'resource.uploader'],
       order: { downloadedAt: 'DESC' },
     });
@@ -100,7 +98,7 @@ export class ResourcesService {
   async saveForUser(id: string, viewer: User): Promise<{ saved: true; resourceId: string }> {
     this.assertCanSave(viewer);
     const resource = await this.findOneForViewer(id, viewer, false);
-    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
+    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && !(viewer.role === UserRole.LECTURER && resource.uploaderId === viewer.id)) {
       throw new NotFoundException('Approved resource not found');
     }
 
@@ -119,7 +117,7 @@ export class ResourcesService {
     const resource = await this.findOneForViewer(id, viewer, false);
     const ownLecturerUpload = viewer.role === UserRole.LECTURER && resource.uploaderId === viewer.id;
     if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownLecturerUpload) throw new NotFoundException('Approved resource not found');
-    if (resource.downloadRestricted && !ownLecturerUpload && resource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (resource.downloadRestricted && !ownLecturerUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
     let entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
     const now = new Date();
