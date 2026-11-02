@@ -21,7 +21,7 @@ import { CreateFileUploadDto } from './dto/create-file-upload.dto';
 import { CompleteFileUploadDto, CompleteProfileImageUploadDto } from './dto/complete-file-upload.dto';
 import { CreateProfileImageUploadDto } from './dto/create-profile-image-upload.dto';
 
-type SupportAttachmentFile = { mimetype: string; size: number; buffer: Buffer };
+type SupportAttachmentFile = { mimetype: string; size: number; buffer: Buffer; originalname?: string };
 
 @ApiTags('Upload')
 @Controller('upload')
@@ -62,6 +62,16 @@ export class UploadController {
     @Body() dto: CompleteFileUploadDto,
   ) {
     return this.uploadService.completeUpload(user.id, dto);
+  }
+
+  @Post('profile-image')
+  @UseGuards(JwtAuthGuard)
+  @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 5 * 1024 * 1024 } }))
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiOperation({ summary: 'Upload and save the authenticated user profile image directly through the API' })
+  async uploadProfileImage(@CurrentUser() user: User, @UploadedFile() file: SupportAttachmentFile) {
+    return this.uploadService.uploadProfileImage(user.id, file);
   }
 
   @Get('profile-image/url')
