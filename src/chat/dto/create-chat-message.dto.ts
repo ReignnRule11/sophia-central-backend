@@ -19,6 +19,11 @@ export class CreateChatMessageDto {
   @IsString()
   @MaxLength(512)
   voiceKey?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  stickerId?: string;
 }
 
 export class EditChatMessageDto {
