@@ -14,6 +14,12 @@ export class ChatController {
   @Sse('events')
   events(@Req() request: AuthRequest) { return this.chat.eventStream(request.user); }
 
+  @Post('presence/heartbeat')
+  heartbeat(@Req() request: AuthRequest) { return this.chat.heartbeat(request.user.id); }
+
+  @Get('presence')
+  presence(@Req() request: AuthRequest) { return this.chat.presence(request.user.id); }
+
   @Get('contacts')
   contacts(@Req() request: AuthRequest) { return this.chat.contacts(request.user.id); }
 
