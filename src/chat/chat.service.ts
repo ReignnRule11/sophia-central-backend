@@ -3,12 +3,13 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { MessageEvent } from '@nestjs/common';
-import { Observable, Subject, filter, map } from 'rxjs';
+import { Observable, filter, map } from 'rxjs';
 import { User, UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { S3Service } from '../upload/s3.service';
 import { ChatContentType, ChatKind, ChatMessage } from './entities/chat-message.entity';
 import { CreateChatMessageDto, CreateVoiceUploadDto } from './dto/create-chat-message.dto';
+import { RedisChatService } from './redis-chat.service';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_VOICE_BYTES = 12 * 1024 * 1024;
@@ -24,13 +25,11 @@ const VOICE_TYPES: Record<string, string> = {
 
 @Injectable()
 export class ChatService {
-  private readonly roomEvents = new Subject<{ roomKey: string }>();
-  private readonly presenceHeartbeats = new Map<string, number>();
-  private readonly presenceTtlMs = 60_000;
   constructor(
     @InjectRepository(ChatMessage) private readonly repo: Repository<ChatMessage>,
     private readonly users: UsersService,
     private readonly s3: S3Service,
+    private readonly redis: RedisChatService,
   ) {}
 
   private async eligible(id: string, roles: UserRole[]): Promise<User> {
@@ -52,7 +51,7 @@ export class ChatService {
       throw new ForbiddenException('This account cannot use chat.');
     }
     const groupRoomKey = user.role === UserRole.STUDENT ? this.groupKey(user) : undefined;
-    return this.roomEvents.pipe(
+    return this.redis.events$.pipe(
       filter(({ roomKey }) => {
         if (groupRoomKey && roomKey === groupRoomKey) return true;
         return roomKey.startsWith('direct:') && roomKey.slice('direct:'.length).split(':').includes(user.id);
@@ -62,26 +61,24 @@ export class ChatService {
   }
 
   private publishRoom(roomKey: string): void {
-    this.roomEvents.next({ roomKey });
+    void this.redis.publishRoom(roomKey).catch(() => {
+      // The PostgreSQL write remains authoritative; the frontend recovery refresh repairs missed notifications.
+    });
   }
 
   async heartbeat(id: string) {
     await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
-    this.presenceHeartbeats.set(id, Date.now());
+    await this.redis.setPresence(id);
     return { success: true };
   }
 
   async presence(id: string) {
     await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
     const contacts = await this.users.findChatContacts(id);
-    const now = Date.now();
-    for (const [userId, lastSeen] of this.presenceHeartbeats.entries()) {
-      if (now - lastSeen > this.presenceTtlMs) this.presenceHeartbeats.delete(userId);
-    }
-    return contacts.map(contact => ({
+    return Promise.all(contacts.map(async contact => ({
       id: contact.id,
-      online: this.presenceHeartbeats.has(contact.id),
-    }));
+      online: await this.redis.isOnline(contact.id),
+    })));
   }
 
   async contacts(id: string) {
