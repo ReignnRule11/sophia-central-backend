@@ -68,17 +68,18 @@ export class UsersService {
   private async removeAccountData(id: string): Promise<void> {
     await this.dataSource.transaction(async manager => {
       // Preserve shared chat content while anonymizing the deleted account's identity.
-      await manager.query('UPDATE chat_messages SET "senderId" = NULL, "senderHandle" = \'Deleted user\' WHERE "senderId" = $1', [id]);
-      await manager.query('DELETE FROM user_activity_events WHERE "userId" = $1 OR "resourceId" IN (SELECT id FROM resources WHERE "uploaderId" = $1)', [id]);
-      await manager.query('DELETE FROM notifications WHERE "userId" = $1', [id]);
-      await manager.query('DELETE FROM point_transactions WHERE "userId" = $1', [id]);
-      await manager.query('DELETE FROM point_wallets WHERE "userId" = $1', [id]);
-      await manager.query('DELETE FROM password_reset_tokens WHERE "userId" = $1', [id]);
-      await manager.query('DELETE FROM referrals WHERE "referrerId" = $1', [id]);
-      await manager.query('DELETE FROM ai_sessions WHERE "userId" = $1', [id]);
-      await manager.query('DELETE FROM support_requests WHERE "userId" = $1', [id]);
-      await manager.query('DELETE FROM resources WHERE "uploaderId" = $1', [id]);
-      await manager.query('DELETE FROM users WHERE id = $1', [id]);
+      await manager.query('UPDATE chat_messages SET "senderId" = NULL, "senderHandle" = \'Deleted user\' WHERE "senderId" = $1::uuid', [id]);
+      await manager.query('DELETE FROM user_activity_events WHERE "userId" = $1::text OR "resourceId" IN (SELECT id FROM resources WHERE "uploaderId"::text = $1::text)', [id]);
+      await manager.query('DELETE FROM notifications WHERE "userId" = $1::text', [id]);
+      await manager.query('DELETE FROM point_transactions WHERE "userId" = $1::text', [id]);
+      await manager.query('DELETE FROM point_wallets WHERE "userId" = $1::uuid', [id]);
+      await manager.query('DELETE FROM password_reset_tokens WHERE "userId" = $1::uuid', [id]);
+      await manager.query('DELETE FROM referrals WHERE "referrerId" = $1::uuid', [id]);
+      await manager.query('DELETE FROM ai_sessions WHERE "userId" = $1::text', [id]);
+      await manager.query('DELETE FROM support_requests WHERE "userId" = $1::uuid', [id]);
+      await manager.query('DELETE FROM resources WHERE "uploaderId" = $1::uuid', [id]);
+      await manager.query('DELETE FROM ai_usage_logs WHERE user_id = $1::uuid', [id]);
+      await manager.query('DELETE FROM users WHERE id = $1::uuid', [id]);
     });
   }
 }
