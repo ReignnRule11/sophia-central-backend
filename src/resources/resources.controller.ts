@@ -48,6 +48,22 @@ export class ResourcesController {
     return this.resourcesService.findSavedForUser(user);
   }
 
+  @Get('downloaded')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List resources downloaded in-app for the authenticated account' })
+  findDownloaded(@CurrentUser() user: User) {
+    return this.resourcesService.findDownloadedForUser(user);
+  }
+
+  @Post(':id/download')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Record an in-app download in the authenticated account without downloading to the device' })
+  downloadInApp(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.resourcesService.downloadForUser(id, user);
+  }
+
   @Post(':id/save')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
