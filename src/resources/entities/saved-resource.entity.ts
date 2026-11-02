@@ -1,4 +1,4 @@
-import { CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
+import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 import { Resource } from './resource.entity';
 
@@ -7,6 +7,12 @@ import { Resource } from './resource.entity';
 export class SavedResource {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
+
+  @Column('uuid')
+  userId!: string;
+
+  @Column('uuid')
+  resourceId!: string;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
@@ -18,8 +24,4 @@ export class SavedResource {
 
   @CreateDateColumn()
   createdAt!: Date;
-
-  // Explicit scalar FK columns make account-scoped queries straightforward.
-  userId!: string;
-  resourceId!: string;
 }
