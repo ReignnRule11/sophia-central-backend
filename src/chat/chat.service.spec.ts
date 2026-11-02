@@ -7,6 +7,7 @@ import { firstValueFrom, Subject } from 'rxjs';
 describe('ChatService access and message rules', () => {
   let service: ChatService;
   let repo: any;
+  let blocks: any;
   let users: any;
   let s3: any;
   let redis: any;
@@ -30,6 +31,13 @@ describe('ChatService access and message rules', () => {
       create: jest.fn(value => value),
       createQueryBuilder: jest.fn(),
     };
+    blocks = {
+      findOne: jest.fn(async () => null),
+      find: jest.fn(async () => []),
+      save: jest.fn(async value => value),
+      create: jest.fn(value => value),
+      delete: jest.fn(async () => ({ affected: 1 })),
+    };
     users = {
       findOne: jest.fn(async id => id === student.id ? { ...student } : null),
       findChatContacts: jest.fn(async () => []),
@@ -47,7 +55,7 @@ describe('ChatService access and message rules', () => {
       setPresence: jest.fn(async (id: string) => { onlineUsers.add(id); }),
       isOnline: jest.fn(async (id: string) => onlineUsers.has(id)),
     };
-    service = new ChatService(repo, users, s3, redis);
+    service = new ChatService(repo, blocks, users, s3, redis);
   });
 
   it('notifies subscribers in the authenticated student group when a message is created', async () => {
