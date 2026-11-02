@@ -48,6 +48,29 @@ describe('ChatService access and message rules', () => {
     await expect(nextEvent).resolves.toEqual({ data: { type: 'refresh' } });
   });
 
+  it('records an authenticated heartbeat and reports the contact as online', async () => {
+    users.findChatContacts.mockResolvedValue([
+      { id: 'student-2', academicHandle: 'reader2', role: UserRole.STUDENT },
+    ]);
+    await service.heartbeat(student.id);
+    await expect(service.presence(student.id)).resolves.toEqual([
+      { id: 'student-2', online: false },
+    ]);
+    await service.heartbeat('student-2').catch(() => undefined);
+    users.findOne.mockImplementation(async id => id === student.id
+      ? { ...student }
+      : id === 'student-2' ? { ...student, id: 'student-2' } : null);
+    await service.heartbeat('student-2');
+    await expect(service.presence(student.id)).resolves.toEqual([
+      { id: 'student-2', online: true },
+    ]);
+  });
+
+  it('rejects presence heartbeats for ineligible accounts', async () => {
+    users.findOne.mockResolvedValue({ ...student, role: UserRole.MODERATOR });
+    await expect(service.heartbeat(student.id)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('rejects group history for lecturers and other non-student roles', async () => {
     users.findOne.mockResolvedValueOnce({ ...student, role: UserRole.LECTURER });
     await expect(service.history('student-1', 'group')).rejects.toBeInstanceOf(ForbiddenException);
