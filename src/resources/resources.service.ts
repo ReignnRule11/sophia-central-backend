@@ -117,8 +117,9 @@ export class ResourcesService {
   async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
     this.assertCanSave(viewer);
     const resource = await this.findOneForViewer(id, viewer, false);
-    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED) throw new NotFoundException('Approved resource not found');
-    if (resource.downloadRestricted && resource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
+    const ownLecturerUpload = viewer.role === UserRole.LECTURER && resource.uploaderId === viewer.id;
+    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownLecturerUpload) throw new NotFoundException('Approved resource not found');
+    if (resource.downloadRestricted && !ownLecturerUpload && resource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
     if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
     let entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
     const now = new Date();
