@@ -77,6 +77,32 @@ export class UsersService {
 
   private async removeAccountData(id: string): Promise<void> {
     await this.dataSource.transaction(async manager => {
+      // Reverse only the unspent portion of the referral reward tied to this referred student.
+      const incomingReferrals = await manager.query(
+        'SELECT id, "referrerId", "rewardRemaining" FROM referrals WHERE "referredUserId" = $1::uuid FOR UPDATE',
+        [id],
+      );
+      for (const referral of incomingReferrals) {
+        const remaining = Math.max(0, Number(referral.rewardRemaining) || 0);
+        if (remaining > 0) {
+          const walletRows = await manager.query(
+            'UPDATE point_wallets SET balance = balance - LEAST(balance, $2) WHERE "userId" = $1::uuid RETURNING LEAST(balance + LEAST(balance, $2), $2) AS reversed',
+            [referral.referrerId, remaining],
+          );
+          const reversed = Math.max(0, Number(walletRows[0]?.reversed) || 0);
+          if (reversed > 0) {
+            await manager.query(
+              'INSERT INTO point_transactions ("userId", type, amount, reason) VALUES ($1::text, $2, $3, $4)',
+              [referral.referrerId, 'spent', -reversed, 'Referral reward reversal - referred student account deleted'],
+            );
+          }
+        }
+        await manager.query(
+          'UPDATE referrals SET "rewardRemaining" = 0, "referredUserId" = NULL WHERE id = $1::uuid',
+          [referral.id],
+        );
+      }
+
       // Preserve shared chat content while anonymizing the deleted account's identity.
       await manager.query('UPDATE chat_messages SET "senderId" = NULL, "senderHandle" = \'Deleted user\' WHERE "senderId" = $1::uuid', [id]);
       await manager.query('DELETE FROM user_activity_events WHERE "userId" = $1::text OR "resourceId" IN (SELECT id FROM resources WHERE "uploaderId"::text = $1::text)', [id]);
