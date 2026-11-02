@@ -19,6 +19,7 @@ import { SupportModule } from './support/support.module';
 import { ChatModule } from './chat/chat.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { SentryService } from './common/services/sentry.service';
 
 @Module({
   imports: [
@@ -44,6 +45,6 @@ import { AppService } from './app.service';
     ChatModule,
   ],
   controllers: [AppController],
-  providers: [AppService],
+  providers: [AppService, SentryService],
 })
 export class AppModule {}
