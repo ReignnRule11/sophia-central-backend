@@ -24,4 +24,7 @@ export class SavedResource {
 
   @CreateDateColumn()
   createdAt!: Date;
+
+  @Column({ type: 'timestamp', nullable: true })
+  downloadedAt!: Date | null;
 }
