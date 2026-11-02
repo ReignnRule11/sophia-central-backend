@@ -86,7 +86,7 @@ export class UsersService {
         const remaining = Math.max(0, Number(referral.rewardRemaining) || 0);
         if (remaining > 0) {
           const walletRows = await manager.query(
-            'UPDATE point_wallets SET balance = balance - LEAST(balance, $2) WHERE "userId" = $1::uuid RETURNING LEAST(balance + LEAST(balance, $2), $2) AS reversed',
+            'WITH current_wallet AS (SELECT id, balance FROM point_wallets WHERE "userId" = $1::uuid FOR UPDATE), updated_wallet AS (UPDATE point_wallets wallet SET balance = wallet.balance - LEAST(current_wallet.balance, $2) FROM current_wallet WHERE wallet.id = current_wallet.id RETURNING LEAST(current_wallet.balance, $2) AS reversed) SELECT reversed FROM updated_wallet',
             [referral.referrerId, remaining],
           );
           const reversed = Math.max(0, Number(walletRows[0]?.reversed) || 0);
