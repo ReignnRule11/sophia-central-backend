@@ -44,7 +44,8 @@ jobs:
       DB_USERNAME: ci_sophia
       DB_PASSWORD: ci-only-not-a-secret
       DB_DATABASE: sophia_ci
-      DB_SSL: "false"\n      REDIS_URL: redis://127.0.0.1:6379
+      DB_SSL: "false"
+      REDIS_URL: redis://127.0.0.1:6379
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -92,5 +93,6 @@ jobs:
           DB_PASSWORD: ci-only-not-a-secret
           DB_DATABASE: sophia_ci
           JWT_SECRET: ci-only-random-looking-secret-value-123456
-          CORS_ORIGINS: https://example.invalid\n          REDIS_URL: redis://redis:6379
+          CORS_ORIGINS: https://example.invalid
+          REDIS_URL: redis://redis:6379
         run: docker compose --env-file /dev/null -f docker-compose.prod.yml config --quiet
