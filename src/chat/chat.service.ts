@@ -110,9 +110,10 @@ export class ChatService {
     })));
   }
 
-  async contacts(id: string) {
+  async contacts(id: string, search?: string) {
     await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
-    const activeContacts = await this.users.findChatContacts(id);
+    const activeContacts = await this.users.findChatContacts(id, search);
+    if (search?.trim()) return activeContacts.map(contact => ({ ...contact, isDeleted: false }));
     // Keep deleted DM participants visible as read-only conversations.
     const rooms = await this.repo.createQueryBuilder('message')
       .select('DISTINCT message.roomKey', 'roomKey')
