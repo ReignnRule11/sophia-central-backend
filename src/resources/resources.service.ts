@@ -75,6 +75,8 @@ export class ResourcesService {
     const savedEntries = await this.savedResourceRepository.find({
       where: { userId: viewer.id, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
       relations: ['resource', 'resource.uploader'],
+      where: { userId: viewer.id, resource: { moderationStatus: ResourceModerationStatus.APPROVED }, downloadedAt: null },
+      relations: ['resource', 'resource.uploader'],
       order: { createdAt: 'DESC' },
     });
     return savedEntries.map(({ resource, createdAt }) => ({
@@ -85,14 +87,21 @@ export class ResourcesService {
     }) as Resource);
   }
 
+  async findDownloadedForUser(viewer: User): Promise<Resource[]> {
+    this.assertCanSave(viewer);
+    const entries = await this.savedResourceRepository.find({
+      where: { userId: viewer.id, downloadedAt: { $not: null } as never, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
+      relations: ['resource', 'resource.uploader'],
+      order: { downloadedAt: 'DESC' },
+    });
+    return entries.map(({ resource, downloadedAt }) => ({ ...resource, downloadedAt, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }) as Resource);
+  }
+
   async saveForUser(id: string, viewer: User): Promise<{ saved: true; resourceId: string }> {
     this.assertCanSave(viewer);
     const resource = await this.findOneForViewer(id, viewer, false);
     if (resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
       throw new NotFoundException('Approved resource not found');
-    }
-    if (resource.downloadRestricted) {
-      throw new ForbiddenException('Downloads are disabled for this resource.');
     }
 
     const existing = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
@@ -102,24 +111,32 @@ export class ResourcesService {
         resourceId: id,
         user: viewer,
         resource,
-      }));
-      const stored = await this.resourceRepository.findOne({ where: { id } });
-      if (stored) {
-        stored.downloads = Number(stored.downloads || 0) + 1;
-        await this.resourceRepository.save(stored);
-      }
-      await this.activityRepository.save(this.activityRepository.create({
-        userId: viewer.id,
-        eventType: 'download',
-        resourceId: id,
+        downloadedAt: null,
       }));
     }
     return { saved: true, resourceId: id };
   }
 
+  async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
+    this.assertCanSave(viewer);
+    const resource = await this.findOneForViewer(id, viewer, false);
+    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED) throw new NotFoundException('Approved resource not found');
+    if (resource.downloadRestricted && resource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
+    let entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
+    const now = new Date();
+    if (!entry) entry = this.savedResourceRepository.create({ userId: viewer.id, resourceId: id, user: viewer, resource, downloadedAt: now });
+    else if (!entry.downloadedAt) entry.downloadedAt = now;
+    await this.savedResourceRepository.save(entry);
+    const stored = await this.resourceRepository.findOne({ where: { id } });
+    if (stored) { stored.downloads = Number(stored.downloads || 0) + 1; await this.resourceRepository.save(stored); }
+    await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, eventType: 'download', resourceId: id }));
+    return { downloaded: true, resourceId: id };
+  }
+
   async removeSavedForUser(id: string, viewer: User): Promise<{ saved: false; resourceId: string }> {
     this.assertCanSave(viewer);
-    await this.savedResourceRepository.delete({ userId: viewer.id, resourceId: id });
+    await this.savedResourceRepository.delete({ userId: viewer.id, resourceId: id, downloadedAt: null });
     return { saved: false, resourceId: id };
   }
 
@@ -156,6 +173,11 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to this resource.');
     }
 
+    if ([UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && resource.uploaderId !== viewer.id) {
+      const downloadRecord = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
+      if (!downloadRecord?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
+    }
+
     if (trackView) {
       resource.views = Number(resource.views || 0) + 1;
       await this.resourceRepository.save(resource);
@@ -167,6 +189,10 @@ export class ResourcesService {
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string; filename: string; contentType?: string }> {
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
+    if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
+      const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
+      if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
+    }
     if (download && authorizedResource.downloadRestricted && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
