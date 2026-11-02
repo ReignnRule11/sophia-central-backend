@@ -1,6 +1,6 @@
 import { Column, CreateDateColumn, Entity, Index, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 export enum ChatKind { GROUP = 'group', DIRECT = 'direct' }
-export enum ChatContentType { TEXT = 'text', VOICE = 'voice' }
+export enum ChatContentType { TEXT = 'text', VOICE = 'voice', STICKER = 'sticker' }
 @Entity({ name: 'chat_messages' })
 @Index('idx_chat_messages_room_created', ['roomKey', 'createdAt'])
 export class ChatMessage {
@@ -12,6 +12,7 @@ export class ChatMessage {
  @Column({ type: 'varchar', length: 12, default: ChatContentType.TEXT }) contentType!: ChatContentType;
  @Column({ type: 'text', nullable: true }) text?: string | null;
  @Column({ type: 'text', nullable: true }) voiceKey?: string | null;
+ @Column({ type: 'varchar', length: 40, nullable: true }) stickerId?: string | null;
  @Column({ type: 'boolean', default: false }) isDeleted!: boolean;
  @Column({ type: 'timestamp', nullable: true }) editedAt?: Date | null;
  @CreateDateColumn() createdAt!: Date;
