@@ -259,4 +259,51 @@ describe('ChatService access and message rules', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
+
+  it('rejects private DM history when either participant has blocked the other', async () => {
+    const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === recipient.id ? recipient : null);
+    blocks.findOne.mockResolvedValue({ userId: recipient.id, blockedUserId: student.id });
+
+    await expect(service.history(student.id, 'direct', recipient.id))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects sending a private DM when either participant has blocked the other', async () => {
+    const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === recipient.id ? recipient : null);
+    blocks.findOne.mockResolvedValue({ userId: student.id, blockedUserId: recipient.id });
+
+    await expect(service.create(student.id, {
+      kind: 'direct',
+      recipientId: recipient.id,
+      text: 'Hello',
+    } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('does not apply private DM blocks to Group Chat', async () => {
+    blocks.findOne.mockResolvedValue({ userId: student.id, blockedUserId: 'student-2' });
+    const saved = {
+      id: 'group-message',
+      kind: ChatKind.GROUP,
+      roomKey: 'group:example university:science:biology',
+      senderId: student.id,
+      senderHandle: student.academicHandle,
+      contentType: ChatContentType.TEXT,
+      text: 'Hello group',
+      voiceKey: null,
+      stickerId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDeleted: false,
+    };
+    repo.create.mockReturnValue(saved);
+    repo.save.mockResolvedValue(saved);
+
+    await expect(service.create(student.id, { kind: 'group', text: 'Hello group' } as any))
+      .resolves.toMatchObject({ text: 'Hello group' });
+    expect(blocks.findOne).not.toHaveBeenCalled();
+  });
+
 });
