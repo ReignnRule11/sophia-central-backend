@@ -53,6 +53,7 @@ export class ReferralService {
     referral.isActive = false;
     referral.redeemedAt = new Date();
     referral.referredUserId = referredUser.id;
+    referral.rewardAmount = this.REFERRER_BONUS;
     referral.rewardRemaining = 0;
     await this.referralRepository.save(referral);
     await this.pointsService.awardReferralReward(referral.referrerId, referral.id, this.REFERRER_BONUS);
@@ -68,7 +69,7 @@ export class ReferralService {
     return {
       totalGenerated: referrals.length,
       successfulReferrals: successfulReferrals.length,
-      totalBonusEarned: successfulReferrals.length * this.REFERRER_BONUS,
+      totalBonusEarned: successfulReferrals.reduce((total, referral) => total + (referral.rewardAmount || 0), 0),
       referrals: referrals.map(r => ({
         code: r.code, createdAt: r.createdAt, redeemedAt: r.redeemedAt,
         status: r.redeemedAt ? 'completed' : 'pending',
