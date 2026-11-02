@@ -23,6 +23,9 @@ export class UploadService {
     'application/vnd.ms-powerpoint',
     'application/vnd.openxmlformats-officedocument.presentationml.presentation',
     'text/plain',
+    'image/jpeg',
+    'image/png',
+    'image/webp',
   ];
   private readonly MAX_FILE_SIZE = 50 * 1024 * 1024;
 
