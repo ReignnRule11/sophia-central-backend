@@ -7,17 +7,12 @@ import { User } from '../users/entities/user.entity';
 import { PointsService } from '../points/points.service';
 import { CreateReferralDto } from './dto/create-referral.dto';
 
-const DEFAULT_REFERRER_BONUS_POINTS = 2;
-const REFERRER_BONUS_ENV = 'REFERRER_BONUS_POINTS';
+const REFERRER_BONUS_POINTS = 10;
 
 @Injectable()
 export class ReferralService {
-  /**
-   * Referral rewards are configured server-side so the amount can be changed
-   * without allowing a caller to award themselves an arbitrary number of points.
-   * Set REFERRER_BONUS_POINTS in the backend environment; defaults to 2.
-   */
-  private readonly REFERRER_BONUS = this.getReferrerBonusPoints();
+  /** A successful signup using this account's referral code awards exactly 10 points to the referrer. */
+  private readonly REFERRER_BONUS = REFERRER_BONUS_POINTS;
 
   constructor(
     @InjectRepository(Referral)
@@ -66,13 +61,12 @@ export class ReferralService {
       throw new BadRequestException('Invalid or expired referral code');
     }
 
-    // The existing redeem endpoint grants the referrer bonus and can only redeem
-    // an active code once. Signup attribution still needs to call this endpoint
-    // only after a new account is successfully created.
+    // The referral is redeemed only after the new account has been successfully created.
     referral.isActive = false;
     referral.redeemedAt = new Date();
     await this.referralRepository.save(referral);
 
+    // The reward belongs to the account that owns the referral code, never the new account.
     await this.pointsService.awardPoints({
       userId: referral.referrerId,
       amount: this.REFERRER_BONUS,
@@ -110,20 +104,6 @@ export class ReferralService {
         status: r.redeemedAt ? 'completed' : 'pending',
       })),
     };
-  }
-
-  private getReferrerBonusPoints(): number {
-    const configured = process.env[REFERRER_BONUS_ENV];
-    if (configured === undefined || configured.trim() === '') {
-      return DEFAULT_REFERRER_BONUS_POINTS;
-    }
-
-    const amount = Number(configured);
-    if (!Number.isSafeInteger(amount) || amount < 0) {
-      throw new Error(`${REFERRER_BONUS_ENV} must be a non-negative integer.`);
-    }
-
-    return amount;
   }
 
   private generateCode(): string {
