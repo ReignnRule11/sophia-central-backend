@@ -84,6 +84,8 @@ export class ReferralService {
   }
 
   async getUserReferrals(userId: string, currentUserId: string) {
+    const owner = await this.userRepository.findOne({ where: { id: userId } });
+    if (!owner || owner.role !== UserRole.STUDENT) throw new ForbiddenException('Referral statistics are available only to student accounts.');
     // Users can only view their own referrals
     if (userId !== currentUserId) {
       throw new ForbiddenException('Unauthorized');
