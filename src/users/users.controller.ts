@@ -8,7 +8,9 @@ import {
   Param,
   Patch,
   UseGuards,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -80,12 +82,18 @@ export class UsersController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Permanently delete the authenticated student or lecturer account and its records' })
-  async removeOwnAccount(@CurrentUser() user: User) {
+  async removeOwnAccount(@CurrentUser() user: User, @Res({ passthrough: true }) response: Response) {
     if (![UserRole.STUDENT, UserRole.LECTURER].includes(user.role)) {
       throw new ForbiddenException('Only student and lecturer accounts can be deleted from the profile page.');
     }
     await this.usersService.removeOwnAccount(user.id);
-    return { success: true };
+    // Clear browser cookies here because the authenticated account no longer exists.
+    const isProduction = process.env.NODE_ENV === 'production';
+    const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')) as 'lax' | 'strict' | 'none';
+    const cookieOptions = { httpOnly: true, secure: isProduction, sameSite, path: '/' } as const;
+    response.clearCookie('sophia_access_token', cookieOptions);
+    response.clearCookie('sophia_csrf_token', { ...cookieOptions, httpOnly: false });
+    return { success: true, message: 'Your account and associated personal data have been permanently deleted.' };
   }
 
   @Delete(':id')
