@@ -7,7 +7,7 @@ export class ChatMessage {
  @PrimaryGeneratedColumn('uuid') id!: string;
  @Column({ type: 'varchar', length: 12 }) kind!: ChatKind;
  @Column({ type: 'varchar', length: 255 }) roomKey!: string;
- @Column({ type: 'uuid' }) senderId!: string;
+ @Column({ type: 'uuid', nullable: true }) senderId!: string | null;
  @Column({ type: 'varchar', length: 30 }) senderHandle!: string;
  @Column({ type: 'varchar', length: 12, default: ChatContentType.TEXT }) contentType!: ChatContentType;
  @Column({ type: 'text', nullable: true }) text?: string | null;
