@@ -46,6 +46,7 @@ describe('AuthService', () => {
       jwt as unknown as JwtService,
       resetTokens as never,
       resetEmail as unknown as PasswordResetEmailService,
+      { validateReferralCode: jest.fn().mockResolvedValue(undefined), redeemReferral: jest.fn().mockResolvedValue({ success: true, message: 'Student referral applied successfully.' }) } as never,
     );
   });
 

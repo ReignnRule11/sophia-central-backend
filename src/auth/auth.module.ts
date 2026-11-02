@@ -10,11 +10,13 @@ import { JwtModule } from '@nestjs/jwt';
 import type { JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
+import { ReferralModule } from '../referral/referral.module';
 
 @Module({
   imports: [
     PassportModule,
     UsersModule,
+    ReferralModule,
     TypeOrmModule.forFeature([PasswordResetToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],

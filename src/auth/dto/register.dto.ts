@@ -32,6 +32,11 @@ export class RegisterDto {
   password: string;
 
   @IsOptional()
+  @IsString()
+  @MaxLength(32)
+  referralCode?: string;
+
+  @IsOptional()
   @IsEnum(UserRole, { message: 'Role must be student or lecturer' })
   role?: UserRole;
 

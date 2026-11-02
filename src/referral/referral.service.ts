@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as crypto from 'crypto';
 import { Referral } from './entities/referral.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { PointsService } from '../points/points.service';
 import { CreateReferralDto } from './dto/create-referral.dto';
 
@@ -21,6 +21,8 @@ export class ReferralService {
   ) {}
 
   async generateReferralCode(userId: string): Promise<{ code: string; link: string }> {
+    const owner = await this.userRepository.findOne({ where: { id: userId } });
+    if (!owner || owner.role !== UserRole.STUDENT || owner.isSuspended) throw new ForbiddenException('Only active student accounts can generate referral links.');
     // Check if user already has active code
     let referral = await this.referralRepository.findOne({
       where: { referrerId: userId, isActive: true },
@@ -39,40 +41,51 @@ export class ReferralService {
 
     return {
       code: referral.code,
-      link: `${process.env.APP_URL}/signup?ref=${referral.code}`,
+      link: `${process.env.APP_URL}/onboarding?ref=${referral.code}`,
     };
   }
 
-  async redeemReferral(referralCode: string): Promise<{ success: boolean; message: string }> {
-    // Find referral
+  async validateReferralCode(referralCode: string, referredEmail: string): Promise<void> {
+    const referral = await this.referralRepository.findOne({ where: { code: referralCode.trim().toUpperCase(), isActive: true }, relations: ['referrer'] });
+    if (!referral || !referral.referrer || referral.referrer.role !== UserRole.STUDENT || referral.referrer.isSuspended) {
+      throw new BadRequestException('This student referral link is invalid or has already been used.');
+    }
+    if (referral.referrer.email.toLowerCase() === referredEmail.toLowerCase()) {
+      throw new BadRequestException('You cannot use your own referral link.');
+    }
+  }
+
+  async redeemReferral(referralCode: string, referredUser: User): Promise<{ success: boolean; message: string }> {
+    if (referredUser.role !== UserRole.STUDENT) return { success: false, message: 'Referrals are only available for new student accounts.' };
     const referral = await this.referralRepository.findOne({
-      where: { code: referralCode, isActive: true },
+      where: { code: referralCode.trim().toUpperCase(), isActive: true },
       relations: ['referrer'],
     });
-
-    if (!referral) {
-      throw new BadRequestException('Invalid or expired referral code');
+    if (!referral || !referral.referrer || referral.referrer.role !== UserRole.STUDENT || referral.referrer.isSuspended) {
+      throw new BadRequestException('This student referral link is invalid or has already been used.');
     }
-
-    // Mark as redeemed (in real flow, this happens after new user signup)
+    if (referral.referrerId === referredUser.id || referral.referrer.email.toLowerCase() === referredUser.email.toLowerCase()) {
+      throw new BadRequestException('You cannot use your own referral link.');
+    }
     referral.isActive = false;
     referral.redeemedAt = new Date();
     await this.referralRepository.save(referral);
-
-    // Award points to referrer
     await this.pointsService.awardPoints({
       userId: referral.referrerId,
       amount: this.REFERRER_BONUS,
-      reason: `Referral bonus - user sign up via your code`,
+      reason: 'Student referral bonus - new student account created',
     });
-
-    return {
-      success: true,
-      message: `Welcome! Your friend ${referral.referrer.firstName} earned ${this.REFERRER_BONUS} Wisdom Points for referring you.`,
-    };
+    await this.pointsService.awardPoints({
+      userId: referredUser.id,
+      amount: this.REFEREE_BONUS,
+      reason: 'Welcome bonus - joined through a student referral',
+    });
+    return { success: true, message: 'Student referral applied successfully.' };
   }
 
   async getUserReferrals(userId: string, currentUserId: string) {
+    const owner = await this.userRepository.findOne({ where: { id: userId } });
+    if (!owner || owner.role !== UserRole.STUDENT) throw new ForbiddenException('Referral statistics are available only to student accounts.');
     // Users can only view their own referrals
     if (userId !== currentUserId) {
       throw new ForbiddenException('Unauthorized');
