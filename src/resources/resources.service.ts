@@ -91,6 +91,9 @@ export class ResourcesService {
     if (resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
       throw new NotFoundException('Approved resource not found');
     }
+    if (resource.downloadRestricted) {
+      throw new ForbiddenException('Downloads are disabled for this resource.');
+    }
 
     const existing = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
     if (!existing) {
