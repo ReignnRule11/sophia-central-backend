@@ -23,6 +23,9 @@ export class Referral {
   referredUser?: User | null;
 
   @Column({ type: 'int', default: 0 })
+  rewardAmount!: number;
+
+  @Column({ type: 'int', default: 0 })
   rewardRemaining!: number;
 
   @Column({ unique: true })
