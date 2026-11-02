@@ -30,15 +30,16 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
-  async findChatContacts(currentUserId: string) {
-    return this.usersRepository.createQueryBuilder('user')
+  async findChatContacts(currentUserId: string, search?: string) {
+    const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.academicHandle', 'user.role', 'user.institution', 'user.faculty', 'user.department'])
       .where('user.id != :currentUserId', { currentUserId })
       .andWhere('user.role IN (:...roles)', { roles: [UserRole.STUDENT, UserRole.LECTURER] })
       .andWhere('user.isSuspended = false')
-      .andWhere('user.academicHandle IS NOT NULL')
-      .orderBy('user.academicHandle', 'ASC')
-      .getMany();
+      .andWhere('user.academicHandle IS NOT NULL');
+    const normalizedSearch = search?.trim().replace(/^@+/, '').toLowerCase();
+    if (normalizedSearch) query.andWhere('LOWER(user.academicHandle) LIKE :search', { search: `%${normalizedSearch}%` });
+    return query.orderBy('user.academicHandle', 'ASC').take(50).getMany();
   }
 
   async findAll(): Promise<User[]> {
