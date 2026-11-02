@@ -4,7 +4,6 @@ import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { ReferralService } from './referral.service';
-import { CreateReferralDto } from './dto/create-referral.dto';
 
 @ApiTags('Referrals')
 @Controller('referrals')
@@ -17,12 +16,6 @@ export class ReferralController {
   @ApiOperation({ summary: 'Generate referral code for user' })
   async generateCode(@CurrentUser() user: User) {
     return this.referralService.generateReferralCode(user.id);
-  }
-
-  @Post('redeem')
-  @ApiOperation({ summary: 'Redeem referral code' })
-  async redeemCode(@Body() dto: CreateReferralDto) {
-    return this.referralService.redeemReferral(dto.referralCode);
   }
 
   @Get(':userId/referrals')
