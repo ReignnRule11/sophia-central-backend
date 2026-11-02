@@ -49,6 +49,18 @@ export class UploadService {
     return { url, key };
   }
 
+  async uploadProfileImage(userId: string, file: SupportAttachmentFile) {
+    const types = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!file || !types.includes(file.mimetype)) throw new BadRequestException('Profile images must be JPG, PNG, or WebP');
+    if (!Number.isInteger(file.size) || file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Profile image must be smaller than 5 MB');
+    const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
+    const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
+    const profileImage = await this.s3Service.uploadPublicObject(key, file.buffer, file.mimetype);
+    const user = await this.usersService.update(userId, { profileImage });
+    const { password: _password, ...safeUser } = user;
+    return { success: true, profileImage, user: safeUser };
+  }
+
   async getProfileImagePresignedUrl(userId: string, dto: CreateProfileImageUploadDto) {
     const types = ['image/jpeg', 'image/png', 'image/webp'];
     if (!types.includes(dto.mimetype)) throw new BadRequestException('Profile images must be JPG, PNG, or WebP');
