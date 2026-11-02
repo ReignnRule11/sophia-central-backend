@@ -40,6 +40,30 @@ export class ResourcesController {
     return this.resourcesService.findVisibleTo(user);
   }
 
+  @Get('saved')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List resources saved to the authenticated student or lecturer account' })
+  findSaved(@CurrentUser() user: User) {
+    return this.resourcesService.findSavedForUser(user);
+  }
+
+  @Post(':id/save')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Save an approved resource to the authenticated account without downloading it to the device' })
+  save(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.resourcesService.saveForUser(id, user);
+  }
+
+  @Delete(':id/save')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Remove a resource from the authenticated account saved resources' })
+  unsave(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.resourcesService.removeSavedForUser(id, user);
+  }
+
   @Get('mine')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.LECTURER)
