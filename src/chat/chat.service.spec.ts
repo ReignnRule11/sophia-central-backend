@@ -2,13 +2,16 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { ChatService } from './chat.service';
 import { ChatContentType, ChatKind } from './entities/chat-message.entity';
 import { UserRole } from '../users/entities/user.entity';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, Subject } from 'rxjs';
 
 describe('ChatService access and message rules', () => {
   let service: ChatService;
   let repo: any;
   let users: any;
   let s3: any;
+  let redis: any;
+  let redisEvents: Subject<{ roomKey: string }>;
+  let onlineUsers: Set<string>;
 
   const student = {
     id: 'student-1',
@@ -36,7 +39,15 @@ describe('ChatService access and message rules', () => {
       getObjectMetadata: jest.fn(),
       createPresignedDownloadUrl: jest.fn(),
     };
-    service = new ChatService(repo, users, s3);
+    redisEvents = new Subject<{ roomKey: string }>();
+    onlineUsers = new Set<string>();
+    redis = {
+      events$: redisEvents.asObservable(),
+      publishRoom: jest.fn(async (roomKey: string) => { redisEvents.next({ roomKey }); }),
+      setPresence: jest.fn(async (id: string) => { onlineUsers.add(id); }),
+      isOnline: jest.fn(async (id: string) => onlineUsers.has(id)),
+    };
+    service = new ChatService(repo, users, s3, redis);
   });
 
   it('notifies subscribers in the authenticated student group when a message is created', async () => {
@@ -56,7 +67,6 @@ describe('ChatService access and message rules', () => {
     await expect(service.presence(student.id)).resolves.toEqual([
       { id: 'student-2', online: false },
     ]);
-    await service.heartbeat('student-2').catch(() => undefined);
     users.findOne.mockImplementation(async id => id === student.id
       ? { ...student }
       : id === 'student-2' ? { ...student, id: 'student-2' } : null);
@@ -162,7 +172,7 @@ describe('ChatService access and message rules', () => {
     const message = { id: 'message-4', senderId: student.id, text: 'hello', voiceKey: null, isDeleted: false };
     repo.findOne.mockResolvedValue(message);
     await expect(service.remove(student.id, 'message-4')).resolves.toEqual({ success: true, id: 'message-4' });
-    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ isDeleted: true, text: null, voiceKey: null }));
+    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ isDeleted: true, text: null, voiceKey: null, stickerId: null }));
   });
 
   it('rejects an edit after the 15-minute window', async () => {
