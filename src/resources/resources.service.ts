@@ -10,6 +10,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { Resource, ResourceModerationStatus } from './entities/resource.entity';
+import { SavedResource } from './entities/saved-resource.entity';
 import { S3Service } from '../upload/s3.service';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 
@@ -23,6 +24,8 @@ export class ResourcesService {
     private readonly s3Service: S3Service,
     @InjectRepository(UserActivityEvent)
     private readonly activityRepository: Repository<UserActivityEvent>,
+    @InjectRepository(SavedResource)
+    private readonly savedResourceRepository: Repository<SavedResource>,
   ) {}
 
   async create(dto: CreateResourceDto, uploaderId: string): Promise<Resource> {
@@ -59,6 +62,62 @@ export class ResourcesService {
     });
     // Do not expose storage URLs in list responses; file access must go through the authorized file endpoints.
     return resources.map((resource) => ({ ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }) as Resource);
+  }
+
+  private assertCanSave(viewer: User): void {
+    if (![UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role)) {
+      throw new ForbiddenException('Only student and lecturer accounts can save resources.');
+    }
+  }
+
+  async findSavedForUser(viewer: User): Promise<Resource[]> {
+    this.assertCanSave(viewer);
+    const savedEntries = await this.savedResourceRepository.find({
+      where: { userId: viewer.id, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
+      relations: ['resource', 'resource.uploader'],
+      order: { createdAt: 'DESC' },
+    });
+    return savedEntries.map(({ resource, createdAt }) => ({
+      ...resource,
+      savedAt: createdAt,
+      hasFile: Boolean(resource.fileUrl),
+      fileUrl: undefined,
+    }) as Resource);
+  }
+
+  async saveForUser(id: string, viewer: User): Promise<{ saved: true; resourceId: string }> {
+    this.assertCanSave(viewer);
+    const resource = await this.findOneForViewer(id, viewer, false);
+    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
+      throw new NotFoundException('Approved resource not found');
+    }
+
+    const existing = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
+    if (!existing) {
+      await this.savedResourceRepository.save(this.savedResourceRepository.create({
+        userId: viewer.id,
+        resourceId: id,
+        user: viewer,
+        resource,
+      }));
+      const stored = await this.resourceRepository.findOne({ where: { id } });
+      if (stored) {
+        stored.downloads = Number(stored.downloads || 0) + 1;
+        await this.resourceRepository.save(stored);
+      }
+      await this.activityRepository.save(this.activityRepository.create({
+        userId: viewer.id,
+        eventType: 'download',
+        resourceId: id,
+      }));
+    }
+    return { saved: true, resourceId: id };
+  }
+
+  async removeSavedForUser(id: string, viewer: User): Promise<{ saved: false; resourceId: string }> {
+    this.assertCanSave(viewer);
+    await this.savedResourceRepository.delete({ userId: viewer.id, resourceId: id });
+    return { saved: false, resourceId: id };
   }
 
   async findMine(uploaderId: string): Promise<Resource[]> {
