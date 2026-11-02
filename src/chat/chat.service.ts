@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { MessageEvent } from '@nestjs/common';
 import { Observable, filter, map } from 'rxjs';
@@ -112,7 +112,20 @@ export class ChatService {
 
   async contacts(id: string) {
     await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
-    return this.users.findChatContacts(id);
+    const activeContacts = await this.users.findChatContacts(id);
+    // Keep deleted DM participants visible as read-only conversations.
+    const rooms = await this.repo.createQueryBuilder('message')
+      .select('DISTINCT message.roomKey', 'roomKey')
+      .where('message.kind = :kind', { kind: ChatKind.DIRECT })
+      .andWhere('message.roomKey LIKE :roomKey', { roomKey: '%' + id + '%' })
+      .andWhere('message.senderId IS NULL')
+      .getRawMany<{ roomKey: string }>();
+    const activeIds = new Set(activeContacts.map(contact => contact.id));
+    const deletedIds = [...new Set(rooms.flatMap(row => row.roomKey.split(':').slice(1).filter(part => part !== id)))];
+    const deletedContacts = deletedIds.filter(otherId => !activeIds.has(otherId)).map(otherId => ({
+      id: otherId, academicHandle: 'Deleted user', role: UserRole.STUDENT, isDeleted: true,
+    }));
+    return [...activeContacts.map(contact => ({ ...contact, isDeleted: false })), ...deletedContacts];
   }
 
   async createVoiceUpload(id: string, dto: CreateVoiceUploadDto) {
@@ -131,9 +144,15 @@ export class ChatService {
     else {
       const sender = await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
       if (!otherId || otherId === id) throw new BadRequestException('Choose another user.');
-      const recipient = await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
-      await this.assertNotBlocked(sender.id, recipient.id);
-      room = this.directKey(sender.id, recipient.id);
+      const recipient = await this.users.findOne(otherId);
+      room = this.directKey(sender.id, otherId);
+      if (recipient) {
+        await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
+        await this.assertNotBlocked(sender.id, recipient.id);
+      } else {
+        const preservedHistory = await this.repo.findOne({ where: { roomKey: room, kind: ChatKind.DIRECT, senderId: IsNull() } });
+        if (!preservedHistory) throw new ForbiddenException('This conversation is unavailable.');
+      }
     }
     const parsed = Number(limitValue || 30);
     const limit = Number.isInteger(parsed) ? Math.max(1, Math.min(100, parsed)) : 30;
