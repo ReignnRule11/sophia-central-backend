@@ -191,6 +191,10 @@ export class ResourcesService {
       if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
     }
     if (download && authorizedResource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
+      const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
+      if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
+    }
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
     if (download && resource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
