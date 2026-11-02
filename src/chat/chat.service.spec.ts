@@ -236,4 +236,19 @@ describe('ChatService access and message rules', () => {
     expect(qb.addOrderBy).toHaveBeenCalledWith('message.id', 'DESC');
   });
 
+
+  it('accepts only an approved sticker ID and persists a sticker message', async () => {
+    const saved = { id: 'sticker-message', kind: ChatKind.GROUP, roomKey: 'group:example university:science:biology', senderId: student.id, senderHandle: student.academicHandle, contentType: ChatContentType.STICKER, text: null, voiceKey: null, stickerId: 'celebrate', createdAt: new Date(), updatedAt: new Date(), isDeleted: false };
+    repo.create.mockReturnValue(saved);
+    repo.save.mockResolvedValue(saved);
+    await expect(service.create(student.id, { kind: 'group', stickerId: 'celebrate' } as any))
+      .resolves.toMatchObject({ contentType: ChatContentType.STICKER, stickerId: 'celebrate' });
+  });
+
+  it('rejects unapproved sticker IDs', async () => {
+    await expect(service.create(student.id, { kind: 'group', stickerId: 'https://example.invalid/sticker.gif' } as any))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
 });
