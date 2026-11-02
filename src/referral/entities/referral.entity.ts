@@ -1,11 +1,5 @@
 import {
-  Column,
-  CreateDateColumn,
-  Entity,
-  JoinColumn,
-  ManyToOne,
-  PrimaryGeneratedColumn,
-  UpdateDateColumn,
+  Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn,
 } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
 
@@ -20,6 +14,19 @@ export class Referral {
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'referrerId' })
   referrer!: User;
+
+  @Column({ type: 'uuid', nullable: true })
+  referredUserId?: string | null;
+
+  @ManyToOne(() => User, { onDelete: 'SET NULL', nullable: true })
+  @JoinColumn({ name: 'referredUserId' })
+  referredUser?: User | null;
+
+  @Column({ type: 'int', default: 0 })
+  rewardAmount!: number;
+
+  @Column({ type: 'int', default: 0 })
+  rewardRemaining!: number;
 
   @Column({ unique: true })
   code!: string;
