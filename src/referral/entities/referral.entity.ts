@@ -12,27 +12,27 @@ import { User } from '../../users/entities/user.entity';
 @Entity({ name: 'referrals' })
 export class Referral {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  referrerId: string;
+  referrerId!: string;
 
   @ManyToOne(() => User, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'referrerId' })
-  referrer: User;
+  referrer!: User;
 
   @Column({ unique: true })
-  code: string;
+  code!: string;
 
   @Column({ default: true })
-  isActive: boolean;
+  isActive!: boolean;
 
   @Column({ type: 'timestamp', nullable: true })
   redeemedAt?: Date;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
