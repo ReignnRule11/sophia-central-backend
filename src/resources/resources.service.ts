@@ -162,7 +162,7 @@ export class ResourcesService {
     return { ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined } as Resource;
   }
 
-  async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string }> {
+  async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string; filename: string; contentType?: string }> {
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
     if (download && authorizedResource.downloadRestricted && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     const resource = await this.resourceRepository.findOne({ where: { id } });
@@ -177,8 +177,11 @@ export class ResourcesService {
     }
     const extension = key.split('.').pop();
     const filename = extension ? `${resource.title}.${extension}` : resource.title;
-    const url = await this.s3Service.createPresignedDownloadUrl(key, filename, download ? 'attachment' : 'inline');
-    return { url };
+    const [url, metadata] = await Promise.all([
+      this.s3Service.createPresignedDownloadUrl(key, filename, download ? 'attachment' : 'inline'),
+      this.s3Service.getObjectMetadata(key),
+    ]);
+    return { url, filename, contentType: metadata?.contentType };
   }
 
   async update(id: string, dto: UpdateResourceDto): Promise<Resource> {
