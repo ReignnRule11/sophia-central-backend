@@ -33,7 +33,10 @@ export class PointsService {
       wallet = this.walletRepository.create({ userId, balance: 0 });
       wallet = await this.walletRepository.save(wallet);
     }
-    const starterGrant = await this.transactionRepository.findOne({ where: { userId, reason: STARTER_CREDIT_REASON } });
+    const starterGrant = await this.transactionRepository.createQueryBuilder('transaction')
+      .where('transaction."userId" = :userId', { userId })
+      .andWhere('transaction.reason IN (:...reasons)', { reasons: [STARTER_CREDIT_REASON, 'Sophia AI starter credits'] })
+      .getOne();
     if (!starterGrant) {
       wallet.balance += STARTER_WISDOM_POINTS;
       wallet = await this.walletRepository.save(wallet);
