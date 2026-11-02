@@ -10,6 +10,7 @@ import { S3Service } from '../upload/s3.service';
 import { ChatContentType, ChatKind, ChatMessage } from './entities/chat-message.entity';
 import { CreateChatMessageDto, CreateVoiceUploadDto } from './dto/create-chat-message.dto';
 import { RedisChatService } from './redis-chat.service';
+import { ChatUserBlock } from './entities/chat-user-block.entity';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_VOICE_BYTES = 12 * 1024 * 1024;
@@ -27,6 +28,7 @@ const VOICE_TYPES: Record<string, string> = {
 export class ChatService {
   constructor(
     @InjectRepository(ChatMessage) private readonly repo: Repository<ChatMessage>,
+    @InjectRepository(ChatUserBlock) private readonly blocks: Repository<ChatUserBlock>,
     private readonly users: UsersService,
     private readonly s3: S3Service,
     private readonly redis: RedisChatService,
@@ -45,6 +47,33 @@ export class ChatService {
   }
 
   private directKey(a: string, b: string): string { return 'direct:' + [a, b].sort().join(':'); }
+
+  private async assertNotBlocked(a: string, b: string): Promise<void> {
+    const block = await this.blocks.findOne({ where: [ { userId: a, blockedUserId: b }, { userId: b, blockedUserId: a } ] });
+    if (block) throw new ForbiddenException('Private messaging is unavailable because one account has blocked the other.');
+  }
+
+  async listBlocks(userId: string) {
+    await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
+    const rows = await this.blocks.find({ where: { userId }, order: { createdAt: 'DESC' } });
+    const contacts = await this.users.findChatContacts(userId);
+    return rows.map(row => ({ userId: row.blockedUserId, academicHandle: contacts.find(contact => contact.id === row.blockedUserId)?.academicHandle ?? null, createdAt: row.createdAt }));
+  }
+
+  async blockUser(userId: string, blockedUserId: string) {
+    await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
+    if (!blockedUserId || userId === blockedUserId) throw new BadRequestException('Choose another account to block.');
+    await this.eligible(blockedUserId, [UserRole.STUDENT, UserRole.LECTURER]);
+    const existing = await this.blocks.findOne({ where: { userId, blockedUserId } });
+    if (!existing) await this.blocks.save(this.blocks.create({ userId, blockedUserId }));
+    return { success: true, blockedUserId };
+  }
+
+  async unblockUser(userId: string, blockedUserId: string) {
+    await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
+    await this.blocks.delete({ userId, blockedUserId });
+    return { success: true, unblockedUserId: blockedUserId };
+  }
 
   eventStream(user: User): Observable<MessageEvent> {
     if (user.isSuspended || ![UserRole.STUDENT, UserRole.LECTURER].includes(user.role) || !user.academicHandle) {
@@ -103,6 +132,7 @@ export class ChatService {
       const sender = await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
       if (!otherId || otherId === id) throw new BadRequestException('Choose another user.');
       const recipient = await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
+      await this.assertNotBlocked(sender.id, recipient.id);
       room = this.directKey(sender.id, recipient.id);
     }
     const parsed = Number(limitValue || 30);
@@ -136,6 +166,7 @@ export class ChatService {
     else {
       if (!dto.recipientId || dto.recipientId === id) throw new BadRequestException('Choose a recipient.');
       const recipient = await this.eligible(dto.recipientId, [UserRole.STUDENT, UserRole.LECTURER]);
+      await this.assertNotBlocked(sender.id, recipient.id);
       roomKey = this.directKey(sender.id, recipient.id);
     }
 

@@ -7,6 +7,7 @@ import { firstValueFrom, Subject } from 'rxjs';
 describe('ChatService access and message rules', () => {
   let service: ChatService;
   let repo: any;
+  let blocks: any;
   let users: any;
   let s3: any;
   let redis: any;
@@ -30,6 +31,13 @@ describe('ChatService access and message rules', () => {
       create: jest.fn(value => value),
       createQueryBuilder: jest.fn(),
     };
+    blocks = {
+      findOne: jest.fn(async () => null),
+      find: jest.fn(async () => []),
+      save: jest.fn(async value => value),
+      create: jest.fn(value => value),
+      delete: jest.fn(async () => ({ affected: 1 })),
+    };
     users = {
       findOne: jest.fn(async id => id === student.id ? { ...student } : null),
       findChatContacts: jest.fn(async () => []),
@@ -47,7 +55,7 @@ describe('ChatService access and message rules', () => {
       setPresence: jest.fn(async (id: string) => { onlineUsers.add(id); }),
       isOnline: jest.fn(async (id: string) => onlineUsers.has(id)),
     };
-    service = new ChatService(repo, users, s3, redis);
+    service = new ChatService(repo, blocks, users, s3, redis);
   });
 
   it('notifies subscribers in the authenticated student group when a message is created', async () => {
@@ -249,6 +257,53 @@ describe('ChatService access and message rules', () => {
     await expect(service.create(student.id, { kind: 'group', stickerId: 'https://example.invalid/sticker.gif' } as any))
       .rejects.toBeInstanceOf(BadRequestException);
     expect(repo.save).not.toHaveBeenCalled();
+  });
+
+
+  it('rejects private DM history when either participant has blocked the other', async () => {
+    const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === recipient.id ? recipient : null);
+    blocks.findOne.mockResolvedValue({ userId: recipient.id, blockedUserId: student.id });
+
+    await expect(service.history(student.id, 'direct', recipient.id))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+  it('rejects sending a private DM when either participant has blocked the other', async () => {
+    const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === recipient.id ? recipient : null);
+    blocks.findOne.mockResolvedValue({ userId: student.id, blockedUserId: recipient.id });
+
+    await expect(service.create(student.id, {
+      kind: 'direct',
+      recipientId: recipient.id,
+      text: 'Hello',
+    } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('does not apply private DM blocks to Group Chat', async () => {
+    blocks.findOne.mockResolvedValue({ userId: student.id, blockedUserId: 'student-2' });
+    const saved = {
+      id: 'group-message',
+      kind: ChatKind.GROUP,
+      roomKey: 'group:example university:science:biology',
+      senderId: student.id,
+      senderHandle: student.academicHandle,
+      contentType: ChatContentType.TEXT,
+      text: 'Hello group',
+      voiceKey: null,
+      stickerId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDeleted: false,
+    };
+    repo.create.mockReturnValue(saved);
+    repo.save.mockResolvedValue(saved);
+
+    await expect(service.create(student.id, { kind: 'group', text: 'Hello group' } as any))
+      .resolves.toMatchObject({ text: 'Hello group' });
+    expect(blocks.findOne).not.toHaveBeenCalled();
   });
 
 });

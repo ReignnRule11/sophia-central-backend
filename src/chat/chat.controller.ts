@@ -23,6 +23,15 @@ export class ChatController {
   @Get('contacts')
   contacts(@Req() request: AuthRequest) { return this.chat.contacts(request.user.id); }
 
+  @Get('blocks')
+  blocks(@Req() request: AuthRequest) { return this.chat.listBlocks(request.user.id); }
+
+  @Post('blocks/:userId')
+  block(@Req() request: AuthRequest, @Param('userId', ParseUUIDPipe) userId: string) { return this.chat.blockUser(request.user.id, userId); }
+
+  @Delete('blocks/:userId')
+  unblock(@Req() request: AuthRequest, @Param('userId', ParseUUIDPipe) userId: string) { return this.chat.unblockUser(request.user.id, userId); }
+
   @Post('voice-upload')
   voiceUpload(@Req() request: AuthRequest, @Body() dto: CreateVoiceUploadDto) {
     return this.chat.createVoiceUpload(request.user.id, dto);

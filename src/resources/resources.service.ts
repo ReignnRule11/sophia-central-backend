@@ -50,10 +50,10 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to resources.');
     }
 
-    // The shared library is always approved-only. Moderator pending/rejected work
-    // belongs in /moderation, and lecturer-owned submissions belong in /resources/mine.
+    // Moderators and admins need platform-wide visibility for moderation and support.
+    // Students and lecturers see only approved resources in the shared library.
     const resources = await this.resourceRepository.find({
-      where: { moderationStatus: ResourceModerationStatus.APPROVED },
+      ...(viewer.role === UserRole.MODERATOR || viewer.role === UserRole.ADMIN ? {} : { where: { moderationStatus: ResourceModerationStatus.APPROVED } }),
       relations: ['uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -78,13 +78,13 @@ export class ResourcesService {
 
     if (!resource) throw new NotFoundException('Resource not found');
 
-    if (viewer.role === UserRole.STUDENT &&
+    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && viewer.role === UserRole.STUDENT &&
         resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
       // Do not disclose whether a private/pending resource exists.
       throw new NotFoundException('Resource not found');
     }
 
-    if (viewer.role === UserRole.LECTURER &&
+    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && viewer.role === UserRole.LECTURER &&
         resource.uploaderId !== viewer.id &&
         resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
       throw new NotFoundException('Resource not found');
@@ -105,10 +105,10 @@ export class ResourcesService {
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string }> {
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
-    if (download && authorizedResource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (download && authorizedResource.downloadRestricted && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
-    if (download && resource.downloadRestricted) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (download && resource.downloadRestricted && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
     if (download) {
