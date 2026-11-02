@@ -17,6 +17,7 @@ import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { PasswordResetEmailService } from './password-reset-email.service';
 import { UsersService } from '../users/users.service';
 import { User, UserRole } from '../users/entities/user.entity';
+import { ReferralService } from '../referral/referral.service';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 
@@ -28,6 +29,7 @@ export class AuthService {
     @InjectRepository(PasswordResetToken)
     private readonly resetTokens: Repository<PasswordResetToken>,
     private readonly resetEmail: PasswordResetEmailService,
+    private readonly referralService: ReferralService,
   ) {}
 
   async register(dto: RegisterDto) {
@@ -40,6 +42,7 @@ export class AuthService {
     if (existingHandle) throw new ConflictException('Academic handle already exists');
 
     const role = dto.role ?? UserRole.STUDENT;
+    if (dto.referralCode && role === UserRole.STUDENT) await this.referralService.validateReferralCode(dto.referralCode, email);
     const user = await this.usersService.create({
       email,
       firstName: dto.firstName.trim(),
@@ -55,6 +58,7 @@ export class AuthService {
       authProvider: 'email',
       isVerified: false,
     });
+    if (dto.referralCode && role === UserRole.STUDENT) await this.referralService.redeemReferral(dto.referralCode, user);
     return this.buildAuthResponse(user);
   }
 
