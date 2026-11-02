@@ -67,6 +67,8 @@ export class UsersService {
 
   private async removeAccountData(id: string): Promise<void> {
     await this.dataSource.transaction(async manager => {
+      // Preserve shared chat content while anonymizing the deleted account's identity.
+      await manager.query('UPDATE chat_messages SET "senderId" = NULL, "senderHandle" = \'Deleted user\' WHERE "senderId" = $1', [id]);
       await manager.query('DELETE FROM user_activity_events WHERE "userId" = $1 OR "resourceId" IN (SELECT id FROM resources WHERE "uploaderId" = $1)', [id]);
       await manager.query('DELETE FROM notifications WHERE "userId" = $1', [id]);
       await manager.query('DELETE FROM point_transactions WHERE "userId" = $1', [id]);
