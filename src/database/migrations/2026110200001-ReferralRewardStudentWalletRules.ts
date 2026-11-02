@@ -5,6 +5,7 @@ export class ReferralRewardStudentWalletRules2026110200001 implements MigrationI
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE referrals ADD COLUMN "referredUserId" uuid`);
+    await queryRunner.query(`ALTER TABLE referrals ADD COLUMN "rewardAmount" integer NOT NULL DEFAULT 0`);
     await queryRunner.query(`ALTER TABLE referrals ADD COLUMN "rewardRemaining" integer NOT NULL DEFAULT 0`);
     await queryRunner.query(`
       ALTER TABLE referrals
@@ -18,6 +19,7 @@ export class ReferralRewardStudentWalletRules2026110200001 implements MigrationI
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE referrals DROP CONSTRAINT "FK_referrals_referred_user"`);
     await queryRunner.query(`ALTER TABLE referrals DROP COLUMN "rewardRemaining"`);
+    await queryRunner.query(`ALTER TABLE referrals DROP COLUMN "rewardAmount"`);
     await queryRunner.query(`ALTER TABLE referrals DROP COLUMN "referredUserId"`);
   }
 }
