@@ -45,7 +45,7 @@ describe('ReferralService permanent codes', () => {
       .mockResolvedValueOnce(ownerRecord)
       .mockResolvedValueOnce(null);
     const referred = { id: 'student-2', email: 'new@example.com', role: UserRole.STUDENT };
-    await expect(service.redeemReferral('qzpsnunk', referred)).resolves.toEqual({
+    await expect(service.redeemReferral('qzpsnunk', referred as any)).resolves.toEqual({
       success: true, message: 'Student referral applied successfully.',
     });
 
