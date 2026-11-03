@@ -17,61 +17,106 @@ export class ReferralService {
 
   async generateReferralCode(userId: string): Promise<{ code: string; link: string }> {
     const owner = await this.userRepository.findOne({ where: { id: userId } });
-    if (!owner || owner.role !== UserRole.STUDENT || owner.isSuspended) throw new ForbiddenException('Only active student accounts can generate referral links.');
-    let referral = await this.referralRepository.findOne({ where: { referrerId: userId, isActive: true } });
+    if (!owner || owner.role !== UserRole.STUDENT || owner.isSuspended) {
+      throw new ForbiddenException('Only active student accounts can generate referral links.');
+    }
+
+    // Keep one permanent code-owner row; every redemption is a separate event.
+    let referral = await this.referralRepository.findOne({
+      where: { referrerId: userId, isCodeOwnerRecord: true },
+    });
     if (!referral) {
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
       let code = '';
       for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
-      referral = this.referralRepository.create({ referrerId: userId, code, isActive: true, rewardRemaining: 0 });
-      await this.referralRepository.save(referral);
+      referral = this.referralRepository.create({
+        referrerId: userId, code, isActive: true, isCodeOwnerRecord: true,
+        rewardAmount: 0, rewardRemaining: 0,
+      });
+      try {
+        referral = await this.referralRepository.save(referral);
+      } catch (error) {
+        // Concurrent first requests may race; return the permanent row that won.
+        const existing = await this.referralRepository.findOne({
+          where: { referrerId: userId, isCodeOwnerRecord: true },
+        });
+        if (!existing) throw error;
+        referral = existing;
+      }
     }
+
     return { code: referral.code, link: `${process.env.APP_URL}/onboarding?ref=${referral.code}` };
   }
 
   async validateReferralCode(referralCode: string, referredEmail: string): Promise<void> {
     const referral = await this.referralRepository.findOne({
-      where: { code: referralCode.trim().toUpperCase(), isActive: true }, relations: ['referrer'],
+      where: { code: referralCode.trim().toUpperCase(), isActive: true, isCodeOwnerRecord: true },
+      relations: ['referrer'],
     });
     if (!referral || !referral.referrer || referral.referrer.role !== UserRole.STUDENT || referral.referrer.isSuspended) {
-      throw new BadRequestException('This student referral link is invalid or has already been used.');
+      throw new BadRequestException('This student referral link is invalid.');
     }
-    if (referral.referrer.email.toLowerCase() === referredEmail.toLowerCase()) throw new BadRequestException('You cannot use your own referral link.');
+    if (referral.referrer.email.toLowerCase() === referredEmail.toLowerCase()) {
+      throw new BadRequestException('You cannot use your own referral link.');
+    }
   }
 
   async redeemReferral(referralCode: string, referredUser: User): Promise<{ success: boolean; message: string }> {
-    if (referredUser.role !== UserRole.STUDENT) return { success: false, message: 'Referrals are only available for new student accounts.' };
-    const referral = await this.referralRepository.findOne({
-      where: { code: referralCode.trim().toUpperCase(), isActive: true }, relations: ['referrer'],
-    });
-    if (!referral || !referral.referrer || referral.referrer.role !== UserRole.STUDENT || referral.referrer.isSuspended) {
-      throw new BadRequestException('This student referral link is invalid or has already been used.');
+    if (referredUser.role !== UserRole.STUDENT) {
+      return { success: false, message: 'Referrals are only available for new student accounts.' };
     }
-    if (referral.referrerId === referredUser.id || referral.referrer.email.toLowerCase() === referredUser.email.toLowerCase()) {
+
+    const code = referralCode.trim().toUpperCase();
+    const ownerReferral = await this.referralRepository.findOne({
+      where: { code, isActive: true, isCodeOwnerRecord: true },
+      relations: ['referrer'],
+    });
+    if (!ownerReferral || !ownerReferral.referrer || ownerReferral.referrer.role !== UserRole.STUDENT || ownerReferral.referrer.isSuspended) {
+      throw new BadRequestException('This student referral link is invalid.');
+    }
+    if (ownerReferral.referrerId === referredUser.id || ownerReferral.referrer.email.toLowerCase() === referredUser.email.toLowerCase()) {
       throw new BadRequestException('You cannot use your own referral link.');
     }
-    referral.isActive = false;
-    referral.redeemedAt = new Date();
-    referral.referredUserId = referredUser.id;
-    referral.rewardAmount = this.REFERRER_BONUS;
-    referral.rewardRemaining = 0;
-    await this.referralRepository.save(referral);
-    await this.pointsService.awardReferralReward(referral.referrerId, referral.id, this.REFERRER_BONUS);
+
+    const existingAttribution = await this.referralRepository.findOne({ where: { referredUserId: referredUser.id } });
+    if (existingAttribution) throw new BadRequestException('This student account already has a referral attribution.');
+
+    const savedEvent = await this.referralRepository.save(this.referralRepository.create({
+      referrerId: ownerReferral.referrerId,
+      code: ownerReferral.code,
+      isActive: false,
+      isCodeOwnerRecord: false,
+      redeemedAt: new Date(),
+      referredUserId: referredUser.id,
+      rewardAmount: this.REFERRER_BONUS,
+      rewardRemaining: 0,
+    }));
+    await this.pointsService.awardReferralReward(ownerReferral.referrerId, savedEvent.id, this.REFERRER_BONUS);
     return { success: true, message: 'Student referral applied successfully.' };
   }
 
   async getUserReferrals(userId: string, currentUserId: string) {
     const owner = await this.userRepository.findOne({ where: { id: userId } });
-    if (!owner || owner.role !== UserRole.STUDENT) throw new ForbiddenException('Referral statistics are available only to student accounts.');
+    if (!owner || owner.role !== UserRole.STUDENT) {
+      throw new ForbiddenException('Referral statistics are available only to student accounts.');
+    }
     if (userId !== currentUserId) throw new ForbiddenException('Unauthorized');
-    const referrals = await this.referralRepository.find({ where: { referrerId: userId }, order: { createdAt: 'DESC' } });
-    const successfulReferrals = referrals.filter(r => r.redeemedAt !== null);
+
+    const [codeRecord, referralEvents] = await Promise.all([
+      this.referralRepository.findOne({ where: { referrerId: userId, isCodeOwnerRecord: true } }),
+      this.referralRepository.find({
+        where: { referrerId: userId, isCodeOwnerRecord: false },
+        order: { createdAt: 'DESC' },
+      }),
+    ]);
+    const successfulReferrals = referralEvents.filter(r => r.redeemedAt != null);
     return {
-      totalGenerated: referrals.length,
+      totalGenerated: codeRecord ? 1 : 0,
       successfulReferrals: successfulReferrals.length,
       totalBonusEarned: successfulReferrals.reduce((total, referral) => total + (referral.rewardAmount || 0), 0),
-      referrals: referrals.map(r => ({
-        code: r.code, createdAt: r.createdAt, redeemedAt: r.redeemedAt,
+      referrals: referralEvents.map(r => ({
+        code: r.code, referredUserId: r.referredUserId ?? null,
+        createdAt: r.createdAt, redeemedAt: r.redeemedAt,
         status: r.redeemedAt ? 'completed' : 'pending',
       })),
     };
