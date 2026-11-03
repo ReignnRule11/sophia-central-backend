@@ -5,6 +5,8 @@ import { CsrfGuard } from './common/guards/csrf.guard';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { rateLimit } from 'express-rate-limit';
+import { HttpExceptionFilter } from './common/filters/http-exception.filter';
+import { SentryService } from './common/services/sentry.service';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -12,6 +14,10 @@ async function bootstrap() {
   app.use('/auth/password-reset/request', rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false }));
   app.use('/auth/password-reset/confirm', rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false }));
   app.useGlobalGuards(new CsrfGuard());
+
+  // Resolve the configured service from Nest's container and register the
+  // exception filter globally so uncaught HTTP 5xx errors reach Sentry.
+  app.useGlobalFilters(new HttpExceptionFilter(app.get(SentryService)));
 
   app.useGlobalPipes(
     new ValidationPipe({
