@@ -1,0 +1,48 @@
+name: Sync Reign backend to Maddie backend
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check destination token
+        env:
+          MADDIE_BACKEND_SYNC_TOKEN: ${{ secrets.MADDIE_BACKEND_SYNC_TOKEN }}
+        run: |
+          if [ -z "$MADDIE_BACKEND_SYNC_TOKEN" ]; then
+            echo "::error::Add MADDIE_BACKEND_SYNC_TOKEN to ReignnRule11/sophia-central-backend Actions secrets before running this workflow."
+            exit 1
+          fi
+
+      - name: Checkout Reign source
+        uses: actions/checkout@v6
+        with:
+          path: reign-source
+
+      - name: Checkout Maddie destination
+        uses: actions/checkout@v6
+        with:
+          repository: maddiiedev/sophia-central-backend
+          ref: main
+          token: ${{ secrets.MADDIE_BACKEND_SYNC_TOKEN }}
+          path: maddie-target
+
+      - name: Mirror complete working tree
+        run: |
+          rsync -a --delete --exclude='.git' reign-source/ maddie-target/
+          git -C maddie-target config user.name "github-actions[bot]"
+          git -C maddie-target config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git -C maddie-target add --all
+          if git -C maddie-target diff --cached --quiet; then
+            echo "Maddie backend is already synchronized with Reign."
+            exit 0
+          fi
+          git -C maddie-target commit -m "Sync backend codebase from Reign main"
+          git -C maddie-target push origin main
