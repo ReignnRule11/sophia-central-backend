@@ -28,11 +28,15 @@ export class Referral {
   @Column({ type: 'int', default: 0 })
   rewardRemaining!: number;
 
-  @Column({ unique: true })
+  // The same code is reused by redemption-event rows; only owner records are unique.
+  @Column()
   code!: string;
 
   @Column({ default: true })
   isActive!: boolean;
+
+  @Column({ default: false })
+  isCodeOwnerRecord!: boolean;
 
   @Column({ type: 'timestamp', nullable: true })
   redeemedAt?: Date;
