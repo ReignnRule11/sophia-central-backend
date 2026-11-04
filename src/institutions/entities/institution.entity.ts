@@ -24,6 +24,12 @@ export class Institution {
   @Column({ nullable: true })
   city?: string;
 
+  @Column({ nullable: true })
+  state?: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  ownership?: string;
+
   @OneToMany(() => Faculty, (faculty) => faculty.institution)
   faculties: Faculty[];
 
