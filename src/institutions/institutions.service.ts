@@ -46,7 +46,7 @@ export class InstitutionsService {
     if (status === AcademicEntryStatus.APPROVED) {
       if (submission.entryType === AcademicEntryType.INSTITUTION) {
         const exists = await this.institutionRepository.createQueryBuilder('i').where('LOWER(i.name) = LOWER(:name)', { name: submission.name }).getOne();
-        if (!exists) await this.institutionRepository.save(this.institutionRepository.create({ name: submission.name, country: 'Nigeria', city: submission.city }));
+        if (!exists) await this.institutionRepository.save(this.institutionRepository.create({ name: submission.name, country: 'Nigeria', city: submission.city, state: submission.state, ownership: submission.ownership }));
       } else if (submission.entryType === AcademicEntryType.FACULTY) {
         const parent = await this.findOne(submission.parentInstitutionId!);
         const exists = await this.facultyRepository.createQueryBuilder('f').where('LOWER(f.name) = LOWER(:name)', { name: submission.name }).andWhere('f.institutionId = :id', { id: parent.id }).getOne();
