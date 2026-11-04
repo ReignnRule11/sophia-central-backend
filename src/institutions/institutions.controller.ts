@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -24,20 +24,12 @@ export class InstitutionsController {
     return this.institutionsService.submit(dto, user.id);
   }
 
-  @Get('submissions')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
-  @ApiBearerAuth()
-  listSubmissions(@Param('status') _unused?: string) {
-    return this.institutionsService.listSubmissions();
-  }
-
   @Patch('submissions/:id/review')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   reviewSubmission(@Param('id') id: string, @Body() body: { status: AcademicEntryStatus.APPROVED | AcademicEntryStatus.REJECTED; reviewNote?: string }, @CurrentUser() user: User) {
-    if (![AcademicEntryStatus.APPROVED, AcademicEntryStatus.REJECTED].includes(body.status)) throw new Error('Invalid review status');
+    if (![AcademicEntryStatus.APPROVED, AcademicEntryStatus.REJECTED].includes(body.status)) throw new BadRequestException('Invalid review status');
     return this.institutionsService.reviewSubmission(id, user.id, body.status, body.reviewNote);
   }
 
@@ -51,6 +43,14 @@ export class InstitutionsController {
   @Get()
   findAll() {
     return this.institutionsService.findAll();
+  }
+
+  @Get('submissions')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @ApiBearerAuth()
+  listSubmissions() {
+    return this.institutionsService.listSubmissions();
   }
 
   @Get(':id')
