@@ -40,7 +40,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
     ModerationReview, PointWallet, PointTransaction, FileUpload, Referral,
     Notification, AiSession, AiMessage, PasswordResetToken, SupportRequest, ChatMessage, UserActivityEvent,
   ],
-  synchronize: !isProduction,
+  synchronize: false,
   logging: !isProduction,
   ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : false,
 };
