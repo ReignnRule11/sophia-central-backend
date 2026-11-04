@@ -12,6 +12,14 @@ export class CreateInstitutionDto {
   @IsOptional()
   @IsString()
   city?: string;
+
+  @IsOptional()
+  @IsString()
+  state?: string;
+
+  @IsOptional()
+  @IsString()
+  ownership?: string;
 }
 
 export class UpdateInstitutionDto {
