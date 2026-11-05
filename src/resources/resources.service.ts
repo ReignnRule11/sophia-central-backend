@@ -118,14 +118,17 @@ export class ResourcesService {
     const ownUpload = resource.uploaderId === viewer.id;
     if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownUpload) throw new NotFoundException('Approved resource not found');
     if (resource.downloadRestricted && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
-    if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
+    // findOneForViewer deliberately strips private storage URLs from its response.
+    // Re-read the entity server-side before checking attachment presence/updating counters.
+    const stored = await this.resourceRepository.findOne({ where: { id } });
+    if (!stored?.fileUrl) throw new NotFoundException('Resource file not found');
     let entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
     const now = new Date();
     if (!entry) entry = this.savedResourceRepository.create({ userId: viewer.id, resourceId: id, user: viewer, resource, downloadedAt: now, isSaved: false });
     else if (!entry.downloadedAt) entry.downloadedAt = now;
     await this.savedResourceRepository.save(entry);
-    const stored = await this.resourceRepository.findOne({ where: { id } });
-    if (stored) { stored.downloads = Number(stored.downloads || 0) + 1; await this.resourceRepository.save(stored); }
+    stored.downloads = Number(stored.downloads || 0) + 1;
+    await this.resourceRepository.save(stored);
     await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, eventType: 'download', resourceId: id }));
     return { downloaded: true, resourceId: id };
   }
