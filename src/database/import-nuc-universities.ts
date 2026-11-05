@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { DataSource } from 'typeorm';
+import { DataSource, DataSourceOptions } from 'typeorm';
 import { typeOrmConfig } from '../config/typeorm.config';
 import { Institution } from '../institutions/entities/institution.entity';
 
@@ -24,7 +24,7 @@ async function main() {
     .map((cells) => ({ name: cells[1], year: cells[2], ownership: cells[3], state: cells[4] }))
     .filter((item, index, all) => all.findIndex((candidate) => candidate.name.toLowerCase() === item.name.toLowerCase()) === index);
   if (records.length < 300) throw new Error('Expected at least 300 NUC university records but parsed ' + records.length + '. No database changes were made. Inspect the NUC page structure before retrying.');
-  const dataSource = new DataSource(typeOrmConfig);
+  const dataSource = new DataSource(typeOrmConfig as DataSourceOptions);
   await dataSource.initialize();
   try {
     const repository = dataSource.getRepository(Institution);
