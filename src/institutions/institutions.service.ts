@@ -1,11 +1,10 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Institution, Faculty, Department } from './entities';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { AcademicCatalogueSubmission, AcademicEntryStatus, AcademicEntryType } from './entities/academic-catalogue-submission.entity';
 import { CreateAcademicCatalogueSubmissionDto } from './dto/create-academic-catalogue-submission.dto';
-import { ConflictException, BadRequestException } from '@nestjs/common';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
 
 @Injectable()
@@ -22,16 +21,55 @@ export class InstitutionsService {
   ) {}
 
   async submit(dto: CreateAcademicCatalogueSubmissionDto, submittedBy: string) {
-    if (dto.entryType === AcademicEntryType.FACULTY && !dto.parentInstitutionId) throw new BadRequestException('Select the institution for this faculty.');
-    if (dto.entryType === AcademicEntryType.DEPARTMENT && !dto.parentFacultyId) throw new BadRequestException('Select the faculty for this department.');
-    if (dto.parentInstitutionId && !await this.institutionRepository.findOne({ where: { id: dto.parentInstitutionId } })) throw new NotFoundException('Selected institution not found.');
-    if (dto.parentFacultyId && !await this.facultyRepository.findOne({ where: { id: dto.parentFacultyId } })) throw new NotFoundException('Selected faculty not found.');
-    const duplicate = await this.submissionRepository.createQueryBuilder('submission')
+    if (dto.entryType === AcademicEntryType.FACULTY && !dto.parentInstitutionId) {
+      throw new BadRequestException('Select the institution for this faculty.');
+    }
+    if (dto.entryType === AcademicEntryType.DEPARTMENT && !dto.parentFacultyId && !dto.parentFacultySubmissionId) {
+      throw new BadRequestException('Select the faculty for this department.');
+    }
+
+    if (dto.parentInstitutionId) {
+      const institution = await this.institutionRepository.findOne({ where: { id: dto.parentInstitutionId } });
+      if (!institution) throw new NotFoundException('Selected institution not found.');
+    }
+
+    if (dto.parentFacultyId) {
+      const faculty = await this.facultyRepository.findOne({ where: { id: dto.parentFacultyId } });
+      if (!faculty) throw new NotFoundException('Selected faculty not found.');
+      if (dto.parentInstitutionId && faculty.institutionId !== dto.parentInstitutionId) {
+        throw new BadRequestException('The selected faculty does not belong to the selected institution.');
+      }
+    }
+
+    if (dto.parentFacultySubmissionId) {
+      const parentSubmission = await this.submissionRepository.findOne({ where: { id: dto.parentFacultySubmissionId } });
+      if (!parentSubmission || parentSubmission.entryType !== AcademicEntryType.FACULTY) {
+        throw new NotFoundException('Parent faculty submission not found.');
+      }
+      if (parentSubmission.parentInstitutionId !== dto.parentInstitutionId) {
+        throw new BadRequestException('The pending faculty belongs to a different institution.');
+      }
+      if (parentSubmission.status === AcademicEntryStatus.REJECTED) {
+        throw new ConflictException('The parent faculty submission was rejected.');
+      }
+    }
+
+    const duplicateQuery = this.submissionRepository.createQueryBuilder('submission')
       .where('LOWER(submission.name) = LOWER(:name)', { name: dto.name.trim() })
       .andWhere('submission.entryType = :entryType', { entryType: dto.entryType })
-      .andWhere('submission.status = :status', { status: AcademicEntryStatus.PENDING }).getOne();
-    if (duplicate) throw new ConflictException('A matching entry is already awaiting review.');
-    const submission = this.submissionRepository.create({ ...dto, name: dto.name.trim(), country: 'Nigeria', status: AcademicEntryStatus.PENDING, submittedBy });
+      .andWhere('submission.status = :status', { status: AcademicEntryStatus.PENDING });
+    if (dto.parentInstitutionId) duplicateQuery.andWhere('submission.parentInstitutionId = :institutionId', { institutionId: dto.parentInstitutionId });
+    if (dto.parentFacultyId) duplicateQuery.andWhere('submission.parentFacultyId = :facultyId', { facultyId: dto.parentFacultyId });
+    if (dto.parentFacultySubmissionId) duplicateQuery.andWhere('submission.parentFacultySubmissionId = :facultySubmissionId', { facultySubmissionId: dto.parentFacultySubmissionId });
+    if (await duplicateQuery.getOne()) throw new ConflictException('A matching entry is already awaiting review.');
+
+    const submission = this.submissionRepository.create({
+      ...dto,
+      name: dto.name.trim(),
+      country: 'Nigeria',
+      status: AcademicEntryStatus.PENDING,
+      submittedBy,
+    });
     return this.submissionRepository.save(submission);
   }
 
@@ -43,21 +81,52 @@ export class InstitutionsService {
     const submission = await this.submissionRepository.findOne({ where: { id } });
     if (!submission) throw new NotFoundException('Catalogue submission not found.');
     if (submission.status !== AcademicEntryStatus.PENDING) throw new ConflictException('This submission has already been reviewed.');
+
     if (status === AcademicEntryStatus.APPROVED) {
       if (submission.entryType === AcademicEntryType.INSTITUTION) {
-        const exists = await this.institutionRepository.createQueryBuilder('i').where('LOWER(i.name) = LOWER(:name)', { name: submission.name }).getOne();
-        if (!exists) await this.institutionRepository.save(this.institutionRepository.create({ name: submission.name, country: 'Nigeria', city: submission.city, state: submission.state, ownership: submission.ownership }));
+        const exists = await this.institutionRepository.createQueryBuilder('i')
+          .where('LOWER(i.name) = LOWER(:name)', { name: submission.name }).getOne();
+        if (!exists) {
+          await this.institutionRepository.save(this.institutionRepository.create({
+            name: submission.name,
+            country: 'Nigeria',
+            city: submission.city,
+            state: submission.state,
+            ownership: submission.ownership,
+          }));
+        }
       } else if (submission.entryType === AcademicEntryType.FACULTY) {
-        const parent = await this.findOne(submission.parentInstitutionId!);
-        const exists = await this.facultyRepository.createQueryBuilder('f').where('LOWER(f.name) = LOWER(:name)', { name: submission.name }).andWhere('f.institutionId = :id', { id: parent.id }).getOne();
+        if (!submission.parentInstitutionId) throw new BadRequestException('Faculty submission has no parent institution.');
+        const parent = await this.findOne(submission.parentInstitutionId);
+        const exists = await this.facultyRepository.createQueryBuilder('f')
+          .where('LOWER(f.name) = LOWER(:name)', { name: submission.name })
+          .andWhere('f.institutionId = :id', { id: parent.id }).getOne();
         if (!exists) await this.createFaculty(parent.id, submission.name);
       } else {
-        const parent = await this.facultyRepository.findOne({ where: { id: submission.parentFacultyId } });
-        if (!parent) throw new NotFoundException('Parent faculty no longer exists.');
-        const exists = await this.departmentRepository.createQueryBuilder('d').where('LOWER(d.name) = LOWER(:name)', { name: submission.name }).andWhere('d.facultyId = :id', { id: parent.id }).getOne();
+        let parent: Faculty | null = null;
+        if (submission.parentFacultyId) {
+          parent = await this.facultyRepository.findOne({ where: { id: submission.parentFacultyId } });
+        } else if (submission.parentFacultySubmissionId) {
+          const parentSubmission = await this.submissionRepository.findOne({ where: { id: submission.parentFacultySubmissionId } });
+          if (!parentSubmission || parentSubmission.entryType !== AcademicEntryType.FACULTY) {
+            throw new NotFoundException('Parent faculty submission not found.');
+          }
+          if (parentSubmission.status !== AcademicEntryStatus.APPROVED) {
+            throw new ConflictException('Approve the parent faculty before approving this department.');
+          }
+          parent = await this.facultyRepository.createQueryBuilder('f')
+            .where('LOWER(f.name) = LOWER(:name)', { name: parentSubmission.name })
+            .andWhere('f.institutionId = :institutionId', { institutionId: parentSubmission.parentInstitutionId })
+            .getOne();
+        }
+        if (!parent) throw new NotFoundException('Parent faculty not found. Approve its faculty submission first.');
+        const exists = await this.departmentRepository.createQueryBuilder('d')
+          .where('LOWER(d.name) = LOWER(:name)', { name: submission.name })
+          .andWhere('d.facultyId = :id', { id: parent.id }).getOne();
         if (!exists) await this.createDepartment(parent.id, submission.name);
       }
     }
+
     submission.status = status;
     submission.reviewedBy = reviewerId;
     submission.reviewNote = reviewNote?.trim() || undefined;
@@ -70,9 +139,7 @@ export class InstitutionsService {
   }
 
   async findAll(): Promise<Institution[]> {
-    return this.institutionRepository.find({
-      relations: ['faculties', 'faculties.departments'],
-    });
+    return this.institutionRepository.find({ relations: ['faculties', 'faculties.departments'] });
   }
 
   async findOne(id: string): Promise<Institution> {
@@ -80,11 +147,7 @@ export class InstitutionsService {
       where: { id },
       relations: ['faculties', 'faculties.departments'],
     });
-
-    if (!institution) {
-      throw new NotFoundException('Institution not found');
-    }
-
+    if (!institution) throw new NotFoundException('Institution not found');
     return institution;
   }
 
@@ -110,11 +173,7 @@ export class InstitutionsService {
       where: { id: facultyId },
       relations: ['institution'],
     });
-
-    if (!faculty) {
-      throw new NotFoundException('Faculty not found');
-    }
-
+    if (!faculty) throw new NotFoundException('Faculty not found');
     const department = this.departmentRepository.create({ name, faculty });
     return this.departmentRepository.save(department);
   }
