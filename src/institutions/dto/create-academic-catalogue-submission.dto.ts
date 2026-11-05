@@ -6,6 +6,7 @@ export class CreateAcademicCatalogueSubmissionDto {
   @IsString() @IsNotEmpty() @MaxLength(180) name: string;
   @IsOptional() @IsUUID() parentInstitutionId?: string;
   @IsOptional() @IsUUID() parentFacultyId?: string;
+  @IsOptional() @IsUUID() parentFacultySubmissionId?: string;
   @IsOptional() @IsString() @MaxLength(100) state?: string;
   @IsOptional() @IsString() @MaxLength(100) city?: string;
   @IsOptional() @IsIn(['Federal', 'State', 'Private']) ownership?: string;
