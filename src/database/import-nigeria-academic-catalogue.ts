@@ -146,10 +146,10 @@ async function main() {
         throw error;
       });
       process.stdout.write('Dry run successful; no records were written. Records validated: ' + records.length +
-        '; faculties that would be inserted: ' + counts.facultiesInserted +
-        '; departments that would be inserted: ' + counts.departmentsInserted +
-        '; existing faculties preserved: ' + counts.facultiesExisting +
-        '; existing departments preserved: ' + counts.departmentsExisting + '.\n');
+        '; faculties that would be inserted: ' + result.facultiesInserted +
+        '; departments that would be inserted: ' + result.departmentsInserted +
+        '; existing faculties preserved: ' + result.facultiesExisting +
+        '; existing departments preserved: ' + result.departmentsExisting + '.\n');
     }
   } finally {
     await dataSource.destroy();
