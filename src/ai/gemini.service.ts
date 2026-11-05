@@ -9,6 +9,14 @@ interface GeminiInteractionResponse {
   output_text?: string;
 }
 
+interface GeminiProviderError {
+  error?: {
+    message?: string;
+    status?: string;
+    code?: number;
+  };
+}
+
 export interface AiConversationTurn {
   role: 'user' | 'assistant';
   content: string;
@@ -16,6 +24,8 @@ export interface AiConversationTurn {
 
 @Injectable()
 export class GeminiService {
+  // The stable Gemini Developer API Interactions endpoint. Google also exposes
+  // a v1beta endpoint; /v1 is supported and must not be downgraded blindly.
   private readonly endpoint = 'https://generativelanguage.googleapis.com/v1/interactions';
 
   async generateText(
@@ -23,23 +33,27 @@ export class GeminiService {
     context?: string,
     history: AiConversationTurn[] = [],
   ): Promise<string> {
-    const apiKey = process.env.GEMINI_API_KEY;
+    const apiKey = process.env.GEMINI_API_KEY?.trim();
     if (!apiKey) {
+      console.error('Gemini is not configured: GEMINI_API_KEY is missing.');
       throw new ServiceUnavailableException(
         'Sophis AI is not configured yet. Please contact the administrator. No Wisdom Points were deducted.',
       );
     }
 
-    // gemini-3.7-flash is listed for the Gemini Developer API Interactions endpoint.
-    const model = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
+    const model = process.env.GEMINI_MODEL?.trim() || 'gemini-3.7-flash';
     const conversation = history.length
-      ? history.map((turn) => `${turn.role === 'user' ? 'Student' : 'Sophis'}: ${turn.content}`).join('\\n')
+      ? history
+          .map((turn) => `${turn.role === 'user' ? 'Student' : 'Sophis'}: ${turn.content}`)
+          .join('\n')
       : '';
     const input = [
       context || '',
-      conversation ? `Previous conversation:\\n${conversation}` : '',
+      conversation ? `Previous conversation:\n${conversation}` : '',
       `Student's latest question/request: ${prompt}`,
-    ].filter(Boolean).join('\\n\\n');
+    ]
+      .filter(Boolean)
+      .join('\n\n');
 
     try {
       const response = await fetch(this.endpoint, {
@@ -63,30 +77,53 @@ export class GeminiService {
         signal: AbortSignal.timeout(30_000),
       });
 
-      if (!response.ok) {
-        throw new Error(`Gemini API returned HTTP ${response.status}`);
+      const responseBody = await response.text();
+      let result: GeminiInteractionResponse | undefined;
+
+      try {
+        result = responseBody ? (JSON.parse(responseBody) as GeminiInteractionResponse) : undefined;
+      } catch {
+        throw new Error(
+          `Gemini returned non-JSON data (HTTP ${response.status}): ${responseBody.slice(0, 500)}`,
+        );
       }
 
-      const result = (await response.json()) as GeminiInteractionResponse;
-      const text = result.output_text?.trim() ||
+      if (!response.ok) {
+        const providerError = result as GeminiProviderError | undefined;
+        const detail =
+          providerError?.error?.message ||
+          providerError?.error?.status ||
+          responseBody.slice(0, 500) ||
+          response.statusText;
+        throw new Error(
+          `Gemini API HTTP ${response.status} for model "${model}": ${detail}`,
+        );
+      }
+
+      if (!result) {
+        throw new Error('Gemini returned an empty response body');
+      }
+
+      const text =
+        result.output_text?.trim() ||
         result.steps
           ?.filter((step) => step.type === 'model_output')
           .flatMap((step) => step.content || [])
           .filter((part) => part.type === 'text' && typeof part.text === 'string')
           .map((part) => part.text)
-          .join('\\n')
+          .join('\n')
           .trim();
 
       if (result.status !== 'completed' || !text) {
-        throw new Error('Gemini returned no completed text response');
+        throw new Error(
+          `Gemini interaction did not complete successfully (status: ${result.status || 'missing'}; model: ${model}; text: ${Boolean(text)}).`,
+        );
       }
 
       return text;
     } catch (error) {
-      console.error(
-        'Gemini generation failed:',
-        error instanceof Error ? error.message : 'Unknown provider error',
-      );
+      const message = error instanceof Error ? error.message : 'Unknown provider error';
+      console.error('Gemini generation failed:', message);
       throw new ServiceUnavailableException(
         'Sophis AI could not generate a response right now. Please try again shortly. No Wisdom Points were deducted.',
       );
