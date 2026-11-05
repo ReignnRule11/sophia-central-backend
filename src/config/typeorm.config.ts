@@ -4,6 +4,7 @@ import { User } from '../users/entities/user.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { SavedResource } from '../resources/entities/saved-resource.entity';
 import { Institution, Faculty, Department } from '../institutions/entities/institution.entity';
+import { AcademicCatalogueSubmission } from '../institutions/entities/academic-catalogue-submission.entity';
 import { Course } from '../courses/entities/course.entity';
 import { CourseTopic } from '../courses/entities/course-topic.entity';
 import { ModerationReview } from '../moderation/entities/moderation-review.entity';
@@ -36,7 +37,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   password: process.env.DB_PASSWORD || 'sophia123',
   database: process.env.DB_DATABASE || 'sophia_central',
   entities: [
-    User, Resource, SavedResource, Institution, Faculty, Department, Course, CourseTopic,
+    User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
     ModerationReview, PointWallet, PointTransaction, FileUpload, Referral,
     Notification, AiSession, AiMessage, PasswordResetToken, SupportRequest, ChatMessage, UserActivityEvent,
   ],

@@ -17,7 +17,8 @@
     "test:cov": "jest --coverage",
     "seed": "ts-node src/database/seed.ts",
     "migration:run": "node dist/database/run-migrations.js",
-    "migration:smoke": "node scripts/db-migration-smoke.cjs"
+    "migration:smoke": "node scripts/db-migration-smoke.cjs",
+    "import:nuc": "ts-node src/database/import-nuc-universities.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.703.0",
