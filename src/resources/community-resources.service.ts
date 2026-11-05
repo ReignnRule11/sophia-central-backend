@@ -39,8 +39,7 @@ export class CommunityResourcesService {
       .where('resource.moderationStatus = :status', { status: ResourceModerationStatus.APPROVED })
       .andWhere('resource.rightsConfirmed = true');
     const filters: Array<[string, string]> = [
-      ['course', 'course'], ['topic', 'topic'], ['institution', 'institution'],
-      ['level', 'level'], ['type', 'type'],
+      ['course', 'course'], ['topic', 'topic'], ['institution', 'institution'], ['level', 'level'],
     ];
     for (const [parameter, column] of filters) {
       const value = query[parameter]?.trim();
@@ -49,6 +48,7 @@ export class CommunityResourcesService {
     if (query.q?.trim()) {
       qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.course ILIKE :q OR resource.topic ILIKE :q)', { q: `%${query.q.trim()}%` });
     }
+    if (query.type) qb.andWhere('resource.type = :type', { type: query.type });
     if (query.license) qb.andWhere('resource.license = :license', { license: query.license });
     const page = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
     const limit = Math.min(50, Math.max(1, Number.parseInt(query.limit || '20', 10) || 20));
