@@ -101,10 +101,8 @@ export class UploadService {
       );
     }
 
-    if (dto.size > this.MAX_FILE_SIZE) {
-      throw new BadRequestException(
-        `File size exceeds maximum of ${this.MAX_FILE_SIZE / 1024 / 1024}MB`,
-      );
+    if (!Number.isInteger(dto.size) || dto.size < 1 || dto.size > this.MAX_FILE_SIZE) {
+      throw new BadRequestException('File size is invalid or exceeds the 50 MB limit');
     }
 
     const resource = await this.resourceRepository.findOne({
@@ -115,29 +113,45 @@ export class UploadService {
       throw new BadRequestException('Resource not found or unauthorized');
     }
 
-    const timestamp = Date.now();
-    const random = crypto.randomBytes(8).toString('hex');
-    const ext = dto.filename.split('.').pop() || 'bin';
-    const key = `resources/${userId}/${timestamp}-${random}.${ext}`;
-
-    const fileUpload = this.fileUploadRepository.create({
-      uploadId: crypto.randomUUID(),
-      resourceId: dto.resourceId,
-      userId,
-      filename: dto.filename,
-      mimetype: dto.mimetype,
-      size: dto.size,
-      s3Key: key,
-      status: 'pending',
+    // Reuse the user's matching pending upload so a retry after reload does not
+    // create another storage key or an orphaned FileUpload row.
+    let fileUpload = await this.fileUploadRepository.findOne({
+      where: {
+        resourceId: dto.resourceId,
+        userId,
+        filename: dto.filename,
+        mimetype: dto.mimetype,
+        size: dto.size,
+        status: 'pending',
+      },
+      order: { uploadedAt: 'DESC' },
     });
 
-    await this.fileUploadRepository.save(fileUpload);
+    if (!fileUpload) {
+      const timestamp = Date.now();
+      const random = crypto.randomBytes(8).toString('hex');
+      const ext = dto.filename.split('.').pop() || 'bin';
+      const key = `resources/${userId}/${timestamp}-${random}.${ext}`;
 
-    const { url, publicUrl } = await this.s3Service.createPresignedUploadUrl(key, dto.mimetype, 600);
+      fileUpload = this.fileUploadRepository.create({
+        uploadId: crypto.randomUUID(),
+        resourceId: dto.resourceId,
+        userId,
+        filename: dto.filename,
+        mimetype: dto.mimetype,
+        size: dto.size,
+        s3Key: key,
+        status: 'pending',
+      });
+      await this.fileUploadRepository.save(fileUpload);
+    }
+
+    // A fresh URL is issued on every attempt; signed URLs expire after 10 minutes.
+    const { url, publicUrl } = await this.s3Service.createPresignedUploadUrl(fileUpload.s3Key, dto.mimetype, 600);
 
     return {
       presignedUrl: url,
-      key,
+      key: fileUpload.s3Key,
       uploadId: fileUpload.uploadId,
       publicUrl,
     };
@@ -161,7 +175,6 @@ export class UploadService {
       throw new NotFoundException('Resource not found');
     }
 
-    // A completion request must match an upload initiated for this exact user/resource.
     const fileUpload = await this.fileUploadRepository.findOne({
       where: {
         s3Key: dto.key,
