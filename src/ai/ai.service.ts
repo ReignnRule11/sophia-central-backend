@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiSession } from './entities/ai-session.entity';
 import { AiMessage } from './entities/ai-message.entity';
-import { Resource } from '../resources/entities/resource.entity';
+import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
 import { AskQuestionDto } from './dto/ask-question.dto';
 import { SummarizeResourceDto } from './dto/summarize-resource.dto';
 import { PointsService } from '../points/points.service';
@@ -13,6 +13,7 @@ import { GeminiService } from './gemini.service';
 export class AiService {
   private readonly AI_USAGE_COST = 2;
   private readonly SUMMARY_USAGE_COST = 5;
+  private readonly MAX_HISTORY_MESSAGES = 12;
 
   constructor(
     @InjectRepository(AiSession)
@@ -26,6 +27,7 @@ export class AiService {
   ) {}
 
   async processQuestion(userId: string, dto: AskQuestionDto) {
+    const question = dto.question.trim();
     const balance = await this.pointsService.getBalance(userId);
     if (balance < this.AI_USAGE_COST) {
       return {
@@ -35,17 +37,32 @@ export class AiService {
       };
     }
 
+    let session: AiSession | null = null;
+    if (dto.sessionId) {
+      session = await this.sessionRepository.findOne({
+        where: { id: dto.sessionId, userId },
+      });
+      if (!session) {
+        throw new ForbiddenException('AI conversation not found or unauthorized');
+      }
+    }
+
     const resource = dto.resourceId
-      ? await this.resourceRepository.findOne({ where: { id: dto.resourceId } })
+      ? await this.resourceRepository.findOne({
+          where: [
+            { id: dto.resourceId, isVerified: true },
+            { id: dto.resourceId, moderationStatus: ResourceModerationStatus.APPROVED },
+          ],
+        })
       : null;
 
     if (dto.resourceId && !resource) {
-      throw new NotFoundException('Resource not found');
+      throw new NotFoundException('Approved academic resource not found');
     }
 
     const context = resource
       ? [
-          'The student is asking about this Sophia Central resource.',
+          'The student is asking about this approved Sophia Central academic resource.',
           `Title: ${resource.title}`,
           `Description: ${resource.description || 'No description provided'}`,
           `Type: ${resource.type}`,
@@ -54,41 +71,47 @@ export class AiService {
           `Institution: ${resource.institution || 'N/A'}`,
           `Level: ${resource.level || 'N/A'}`,
           `Tags: ${resource.tags?.join(', ') || 'None'}`,
-          'Only metadata is available here; the actual uploaded file contents have not been extracted.',
-        ].join('\n')
-      : 'No specific resource metadata was provided.';
+          'Only resource metadata is available; the actual uploaded file contents have not been extracted. Do not claim to have read the file.',
+        ].join('\\n')
+      : 'No specific resource metadata was provided. Answer the student question directly using your academic knowledge.';
 
-    // Generate first. If Gemini fails, no session/messages are created and no points are charged.
-    const aiResponse = await this.geminiService.generateText(dto.question, context);
+    const history = session
+      ? (await this.messageRepository.find({
+          where: { sessionId: session.id },
+          order: { createdAt: 'DESC' },
+          take: this.MAX_HISTORY_MESSAGES,
+        }))
+          .reverse()
+          .filter((message) => message.role === 'user' || message.role === 'assistant')
+          .map((message) => ({
+            role: message.role as 'user' | 'assistant',
+            content: message.content,
+          }))
+      : [];
 
-    let session = dto.sessionId
-      ? await this.sessionRepository.findOne({
-          where: { id: dto.sessionId, userId },
-        })
-      : null;
+    // Generate before persisting messages or charging points. Provider failures are not billable.
+    const aiResponse = await this.geminiService.generateText(question, context, history);
 
     if (!session) {
       session = this.sessionRepository.create({
         userId,
         resourceId: dto.resourceId,
-        title: `Chat about ${dto.question.substring(0, 50)}...`,
+        title: `Chat about ${question.substring(0, 50)}...`,
       });
       session = await this.sessionRepository.save(session);
     }
 
-    const userMessage = this.messageRepository.create({
+    await this.messageRepository.save(this.messageRepository.create({
       sessionId: session.id,
       role: 'user',
-      content: dto.question,
-    });
-    await this.messageRepository.save(userMessage);
+      content: question,
+    }));
 
-    const assistantMessage = this.messageRepository.create({
+    await this.messageRepository.save(this.messageRepository.create({
       sessionId: session.id,
       role: 'assistant',
       content: aiResponse,
-    });
-    await this.messageRepository.save(assistantMessage);
+    }));
 
     await this.pointsService.awardPoints({
       userId,
@@ -98,7 +121,7 @@ export class AiService {
 
     return {
       sessionId: session.id,
-      userMessage: dto.question,
+      userMessage: question,
       assistantMessage: aiResponse,
       pointsUsed: this.AI_USAGE_COST,
       balanceRemaining: balance - this.AI_USAGE_COST,
@@ -133,7 +156,7 @@ export class AiService {
         `Topic: ${resource.topic || 'N/A'}`,
         `Level: ${resource.level || 'N/A'}`,
         'Important: The actual uploaded file contents are not currently extracted or supplied. Do not imply that you have read the full file.',
-      ].join('\n'),
+      ].join('\\n'),
     );
 
     await this.pointsService.awardPoints({

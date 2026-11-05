@@ -9,22 +9,37 @@ interface GeminiInteractionResponse {
   output_text?: string;
 }
 
+export interface AiConversationTurn {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
 @Injectable()
 export class GeminiService {
   private readonly endpoint = 'https://generativelanguage.googleapis.com/v1/interactions';
 
-  async generateText(prompt: string, context?: string): Promise<string> {
+  async generateText(
+    prompt: string,
+    context?: string,
+    history: AiConversationTurn[] = [],
+  ): Promise<string> {
     const apiKey = process.env.GEMINI_API_KEY;
     if (!apiKey) {
       throw new ServiceUnavailableException(
-        'The AI service is not configured. Please contact the administrator. No Wisdom Points were deducted.',
+        'Sophis AI is not configured yet. Please contact the administrator. No Wisdom Points were deducted.',
       );
     }
 
-    const model = process.env.GEMINI_MODEL || 'gemini-3.8-flash';
-    const input = context
-      ? `${context}\n\nStudent question/request: ${prompt}`
-      : prompt;
+    // gemini-3.7-flash is listed for the Gemini Developer API Interactions endpoint.
+    const model = process.env.GEMINI_MODEL || 'gemini-3.7-flash';
+    const conversation = history.length
+      ? history.map((turn) => `${turn.role === 'user' ? 'Student' : 'Sophis'}: ${turn.content}`).join('\\n')
+      : '';
+    const input = [
+      context || '',
+      conversation ? `Previous conversation:\\n${conversation}` : '',
+      `Student's latest question/request: ${prompt}`,
+    ].filter(Boolean).join('\\n\\n');
 
     try {
       const response = await fetch(this.endpoint, {
@@ -37,19 +52,18 @@ export class GeminiService {
           model,
           input,
           system_instruction:
-            'You are the academic study assistant for Sophis Central, a higher-education learning platform. Give accurate, clear, structured explanations appropriate for university students. Explain difficult concepts step by step, distinguish established facts from uncertainty, and never invent citations, sources, or facts. Use the supplied student and resource context when relevant. If the context does not contain the actual contents of a document, do not claim to have read that document.',
+            'You are Sophis, the academic study assistant for Sophis Central, a higher-education learning platform. Answer the student\'s actual question directly. Be accurate, clear, supportive, and appropriately detailed. Explain difficult concepts step by step, give examples and practice questions when useful, and ask a focused clarification only when necessary. Use the conversation history to understand follow-up questions and avoid repeating generic advice. Distinguish established facts from uncertainty. Never invent citations, sources, or facts. Use supplied academic resource context when relevant. If only resource metadata is supplied and not the document contents, explicitly say you cannot see the full document.',
           generation_config: {
             temperature: 0.2,
             max_output_tokens: 2048,
           },
-          // Student prompts and profile/resource context should not be retained by Gemini.
+          // Keep student prompts and context out of Gemini's stored interaction history.
           store: false,
         }),
         signal: AbortSignal.timeout(30_000),
       });
 
       if (!response.ok) {
-        // Do not expose provider response bodies or credentials to API clients.
         throw new Error(`Gemini API returned HTTP ${response.status}`);
       }
 
@@ -60,7 +74,7 @@ export class GeminiService {
           .flatMap((step) => step.content || [])
           .filter((part) => part.type === 'text' && typeof part.text === 'string')
           .map((part) => part.text)
-          .join('\n')
+          .join('\\n')
           .trim();
 
       if (result.status !== 'completed' || !text) {
@@ -69,13 +83,12 @@ export class GeminiService {
 
       return text;
     } catch (error) {
-      // Keep provider details in server logs only; never fall back to a fabricated answer.
       console.error(
         'Gemini generation failed:',
         error instanceof Error ? error.message : 'Unknown provider error',
       );
       throw new ServiceUnavailableException(
-        'The AI service is temporarily unavailable. Please try again shortly. No Wisdom Points were deducted.',
+        'Sophis AI could not generate a response right now. Please try again shortly. No Wisdom Points were deducted.',
       );
     }
   }
