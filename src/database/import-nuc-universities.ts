@@ -14,6 +14,12 @@ function cleanCell(value: string): string {
 }
 
 async function main() {
+  // This one-off importer is permitted to write only to the intended Neon production database.
+  if (process.env.NODE_ENV !== 'production') throw new Error('Refusing to import: set NODE_ENV=production.');
+  if (process.env.DB_SSL !== 'true') throw new Error('Refusing to import: DB_SSL must be true.');
+  if (!/\.neon\.tech$/i.test(process.env.DB_HOST ?? '')) throw new Error('Refusing to import: DB_HOST must identify the configured Neon host.');
+  if (process.env.DB_DATABASE !== 'neondb') throw new Error('Refusing to import: DB_DATABASE must be neondb.');
+
   const response = await fetch('https://enuc.nuc.edu.ng/nus', { headers: { 'user-agent': 'SophisCentralAcademicCatalogueImporter/1.0' } });
   if (!response.ok) throw new Error('NUC directory request failed: HTTP ' + response.status);
   const html = await response.text();
@@ -24,7 +30,7 @@ async function main() {
     .map((cells) => ({ name: cells[1], year: cells[2], ownership: cells[3], state: cells[4] }))
     .filter((item, index, all) => all.findIndex((candidate) => candidate.name.toLowerCase() === item.name.toLowerCase()) === index);
   if (records.length < 300) throw new Error('Expected at least 300 NUC university records but parsed ' + records.length + '. No database changes were made. Inspect the NUC page structure before retrying.');
-  const dataSource = new DataSource(typeOrmConfig as DataSourceOptions);
+  const dataSource = new DataSource({ ...typeOrmConfig, synchronize: false, migrationsRun: false } as DataSourceOptions);
   await dataSource.initialize();
   try {
     const repository = dataSource.getRepository(Institution);
