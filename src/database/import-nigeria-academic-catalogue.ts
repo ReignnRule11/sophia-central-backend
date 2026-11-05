@@ -38,8 +38,9 @@ function parseRecords(filePath: string): CatalogueRecord[] {
     if (source.hostname !== website.hostname && !source.hostname.endsWith('.' + website.hostname)) {
       throw new Error('Record ' + (index + 1) + ': officialSourceUrl must use the institution website domain or a subdomain.');
     }
-    const verifiedAt = new Date(row.verifiedAt!);
-    if (!Number.isFinite(verifiedAt.getTime()) || verifiedAt.getTime() > now || now - verifiedAt.getTime() > 365 * 24 * 60 * 60 * 1000) {
+    if (!/^\\d{4}-\\d{2}-\\d{2}$/.test(row.verifiedAt!)) throw new Error('Record ' + (index + 1) + ': verifiedAt must use YYYY-MM-DD format.');
+    const verifiedAt = new Date(row.verifiedAt! + 'T00:00:00.000Z');
+    if (!Number.isFinite(verifiedAt.getTime()) || verifiedAt.toISOString().slice(0, 10) !== row.verifiedAt || verifiedAt.getTime() > now || now - verifiedAt.getTime() > 365 * 24 * 60 * 60 * 1000) {
       throw new Error('Record ' + (index + 1) + ': verifiedAt must be a valid date within the last 365 days.');
     }
     const key = [row.institutionName, row.facultyName, row.departmentName].map((v) => v!.trim().toLocaleLowerCase()).join('|');
