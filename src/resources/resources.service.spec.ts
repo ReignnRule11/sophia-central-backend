@@ -52,7 +52,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     } as any, false);
 
     expect(result.moderationStatus).toBe(ResourceModerationStatus.REJECTED);
-    expect(result.hasFile).toBe(true);
+    expect((result as typeof result & { hasFile?: boolean }).hasFile).toBe(true);
   });
 
   it('does not expose another contributor\'s pending resource to a student', async () => {
@@ -60,6 +60,54 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     await expect(service.findOneForViewer('resource-1', {
       id: 'other-student', role: UserRole.STUDENT,
     } as any, false)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('allows a student to download their own pending contribution', async () => {
+    const pending = resource();
+    resourceRepository.findOne
+      .mockResolvedValueOnce(pending)
+      .mockResolvedValueOnce(pending);
+    const savedRepository: any = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => value),
+    };
+    const downloadService = new ResourcesService(
+      resourceRepository,
+      {} as any,
+      {} as any,
+      activityRepository,
+      savedRepository,
+    );
+
+    await expect(downloadService.downloadForUser('resource-1', {
+      id: 'student-owner', role: UserRole.STUDENT,
+    } as any)).resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
+
+    expect(savedRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'student-owner', resourceId: 'resource-1', downloadedAt: expect.any(Date),
+    }));
+  });
+
+  it('does not allow a student to download another contributor pending contribution', async () => {
+    resourceRepository.findOne.mockResolvedValue(resource());
+    const savedRepository: any = {
+      findOne: jest.fn(),
+      create: jest.fn(),
+      save: jest.fn(),
+    };
+    const downloadService = new ResourcesService(
+      resourceRepository,
+      {} as any,
+      {} as any,
+      activityRepository,
+      savedRepository,
+    );
+
+    await expect(downloadService.downloadForUser('resource-1', {
+      id: 'other-student', role: UserRole.STUDENT,
+    } as any)).rejects.toBeInstanceOf(NotFoundException);
+    expect(savedRepository.save).not.toHaveBeenCalled();
   });
 
   it('allows a student to view another contributor\'s approved resource', async () => {
