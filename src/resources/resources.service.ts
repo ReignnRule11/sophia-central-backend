@@ -158,20 +158,20 @@ export class ResourcesService {
 
     if (!resource) throw new NotFoundException('Resource not found');
 
-    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && viewer.role === UserRole.STUDENT &&
-        resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
-      // Do not disclose whether a private/pending resource exists.
-      throw new NotFoundException('Resource not found');
-    }
-
-    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && viewer.role === UserRole.LECTURER &&
-        resource.uploaderId !== viewer.id &&
-        resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
-      throw new NotFoundException('Resource not found');
-    }
-
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to this resource.');
+    }
+
+    const isReviewer = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
+    const isUploader = resource.uploaderId === viewer.id;
+
+    // Contributors may inspect their own submissions (including pending/rejected
+    // moderation states). Other students/lecturers must only see approved items.
+    // Reviewers retain platform-wide access for moderation and support.
+    if (!isReviewer && !isUploader &&
+        resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
+      // Do not disclose whether another contributor's private resource exists.
+      throw new NotFoundException('Resource not found');
     }
 
     if (trackView) {
