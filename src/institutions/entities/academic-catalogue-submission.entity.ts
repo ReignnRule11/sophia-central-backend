@@ -10,6 +10,7 @@ export class AcademicCatalogueSubmission {
   @Column({ type: 'varchar' }) name: string;
   @Column({ type: 'varchar', nullable: true }) parentInstitutionId?: string;
   @Column({ type: 'varchar', nullable: true }) parentFacultyId?: string;
+  @Column({ type: 'varchar', nullable: true }) parentFacultySubmissionId?: string;
   @Column({ type: 'varchar', nullable: true }) country?: string;
   @Column({ type: 'varchar', nullable: true }) state?: string;
   @Column({ type: 'varchar', nullable: true }) city?: string;
