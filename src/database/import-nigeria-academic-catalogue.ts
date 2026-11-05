@@ -136,7 +136,7 @@ async function main() {
         '; faculties inserted: ' + result.facultiesInserted +
         '; departments inserted: ' + result.departmentsInserted +
         '; existing faculties preserved: ' + result.facultiesExisting +
-        '; existing departments preserved: ' + result.departmentsExisting + '.\\n');
+        '; existing departments preserved: ' + result.departmentsExisting + '.\n');
     } else {
       const result = await dataSource.transaction(async (manager) => {
         const counts = await applyRecords(manager, records);
@@ -149,7 +149,7 @@ async function main() {
         '; faculties that would be inserted: ' + counts.facultiesInserted +
         '; departments that would be inserted: ' + counts.departmentsInserted +
         '; existing faculties preserved: ' + counts.facultiesExisting +
-        '; existing departments preserved: ' + counts.departmentsExisting + '.\\n');
+        '; existing departments preserved: ' + counts.departmentsExisting + '.\n');
     }
   } finally {
     await dataSource.destroy();
