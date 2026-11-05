@@ -115,17 +115,20 @@ export class ResourcesService {
   async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
     this.assertCanSave(viewer);
     const resource = await this.findOneForViewer(id, viewer, false);
-    const ownLecturerUpload = viewer.role === UserRole.LECTURER && resource.uploaderId === viewer.id;
-    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownLecturerUpload) throw new NotFoundException('Approved resource not found');
-    if (resource.downloadRestricted && !ownLecturerUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
-    if (!resource.fileUrl) throw new NotFoundException('Resource file not found');
+    const ownUpload = resource.uploaderId === viewer.id;
+    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownUpload) throw new NotFoundException('Approved resource not found');
+    if (resource.downloadRestricted && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
+    // findOneForViewer deliberately strips private storage URLs from its response.
+    // Re-read the entity server-side before checking attachment presence/updating counters.
+    const stored = await this.resourceRepository.findOne({ where: { id } });
+    if (!stored?.fileUrl) throw new NotFoundException('Resource file not found');
     let entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
     const now = new Date();
     if (!entry) entry = this.savedResourceRepository.create({ userId: viewer.id, resourceId: id, user: viewer, resource, downloadedAt: now, isSaved: false });
     else if (!entry.downloadedAt) entry.downloadedAt = now;
     await this.savedResourceRepository.save(entry);
-    const stored = await this.resourceRepository.findOne({ where: { id } });
-    if (stored) { stored.downloads = Number(stored.downloads || 0) + 1; await this.resourceRepository.save(stored); }
+    stored.downloads = Number(stored.downloads || 0) + 1;
+    await this.resourceRepository.save(stored);
     await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, eventType: 'download', resourceId: id }));
     return { downloaded: true, resourceId: id };
   }
@@ -158,20 +161,20 @@ export class ResourcesService {
 
     if (!resource) throw new NotFoundException('Resource not found');
 
-    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && viewer.role === UserRole.STUDENT &&
-        resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
-      // Do not disclose whether a private/pending resource exists.
-      throw new NotFoundException('Resource not found');
-    }
-
-    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && viewer.role === UserRole.LECTURER &&
-        resource.uploaderId !== viewer.id &&
-        resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
-      throw new NotFoundException('Resource not found');
-    }
-
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to this resource.');
+    }
+
+    const isReviewer = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
+    const isUploader = resource.uploaderId === viewer.id;
+
+    // Contributors may inspect their own submissions (including pending/rejected
+    // moderation states). Other students/lecturers must only see approved items.
+    // Reviewers retain platform-wide access for moderation and support.
+    if (!isReviewer && !isUploader &&
+        resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
+      // Do not disclose whether another contributor's private resource exists.
+      throw new NotFoundException('Resource not found');
     }
 
     if (trackView) {
