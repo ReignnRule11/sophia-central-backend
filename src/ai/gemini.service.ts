@@ -41,7 +41,7 @@ export class GeminiService {
       );
     }
 
-    const model = process.env.GEMINI_MODEL?.trim() || 'gemini-3.8-flash';
+    const model = process.env.GEMINI_MODEL?.trim() || 'gemini-3.7-flash';
     const conversation = history.length
       ? history
           .map((turn) => `${turn.role === 'user' ? 'Student' : 'Sophis'}: ${turn.content}`)
