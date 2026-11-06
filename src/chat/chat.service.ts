@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, MoreThan, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { MessageEvent } from '@nestjs/common';
 import { Observable, filter, map } from 'rxjs';
@@ -12,6 +12,7 @@ import { CreateChatMessageDto, CreateVoiceUploadDto } from './dto/create-chat-me
 import { RedisChatService } from './redis-chat.service';
 import { ChatUserBlock } from './entities/chat-user-block.entity';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ChatConversationRead } from './entities/chat-conversation-read.entity';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_VOICE_BYTES = 12 * 1024 * 1024;
@@ -30,6 +31,7 @@ export class ChatService {
   constructor(
     @InjectRepository(ChatMessage) private readonly repo: Repository<ChatMessage>,
     @InjectRepository(ChatUserBlock) private readonly blocks: Repository<ChatUserBlock>,
+    @InjectRepository(ChatConversationRead) private readonly reads: Repository<ChatConversationRead>,
     private readonly users: UsersService,
     private readonly s3: S3Service,
     private readonly redis: RedisChatService,
@@ -129,6 +131,93 @@ export class ChatService {
       id: otherId, academicHandle: 'Deleted user', role: UserRole.STUDENT, isDeleted: true,
     }));
     return [...activeContacts.map(contact => ({ ...contact, isDeleted: false })), ...deletedContacts];
+  }
+
+  async inbox(id: string) {
+    const contacts = await this.contacts(id);
+
+    const conversations = await Promise.all(contacts.map(async contact => {
+      const roomKey = this.directKey(id, contact.id);
+      const [latest, readState] = await Promise.all([
+        this.repo.findOne({
+          where: { roomKey, kind: ChatKind.DIRECT },
+          order: { createdAt: 'DESC' },
+        }),
+        this.reads.findOne({ where: { userId: id, roomKey } }),
+      ]);
+
+      if (!latest) return null;
+
+      const unreadCount = contact.isDeleted
+        ? 0
+        : await this.repo.count({
+            where: {
+              roomKey,
+              kind: ChatKind.DIRECT,
+              senderId: contact.id,
+              createdAt: MoreThan(readState?.lastReadAt ?? new Date(0)),
+            },
+          });
+
+      const preview = latest.isDeleted
+        ? 'This message was deleted'
+        : latest.contentType === ChatContentType.VOICE
+          ? 'Voice message'
+          : latest.contentType === ChatContentType.STICKER
+            ? 'Sticker'
+            : latest.text ?? 'Message';
+
+      return {
+        contact,
+        lastMessage: {
+          id: latest.id,
+          senderHandle: latest.senderHandle,
+          contentType: latest.contentType,
+          text: latest.isDeleted ? null : latest.text,
+          preview,
+          createdAt: latest.createdAt,
+          isOwn: latest.senderId === id,
+          isDeleted: latest.isDeleted,
+        },
+        unreadCount,
+      };
+    }));
+
+    return conversations
+      .filter((item): item is NonNullable<typeof item> => item !== null)
+      .sort((a, b) => new Date(b.lastMessage.createdAt).getTime() - new Date(a.lastMessage.createdAt).getTime());
+  }
+
+  async markDirectRead(id: string, otherId: string) {
+    const current = await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
+    if (!otherId || otherId === id) throw new BadRequestException('Choose another user.');
+
+    const other = await this.users.findOne(otherId);
+    const roomKey = this.directKey(current.id, otherId);
+
+    if (other) {
+      await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
+      await this.assertNotBlocked(current.id, otherId);
+    } else {
+      const previousMessage = await this.repo.findOne({ where: { roomKey, kind: ChatKind.DIRECT } });
+      if (!previousMessage) throw new ForbiddenException('This conversation is unavailable.');
+    }
+
+    const latest = await this.repo.findOne({
+      where: { roomKey, kind: ChatKind.DIRECT },
+      order: { createdAt: 'DESC' },
+    });
+    const readState = await this.reads.findOne({ where: { userId: id, roomKey } });
+    const lastReadAt = latest?.createdAt ?? new Date();
+
+    await this.reads.save(this.reads.create({
+      ...(readState ?? {}),
+      userId: id,
+      roomKey,
+      lastReadAt,
+    }));
+
+    return { success: true, lastReadAt };
   }
 
   async createVoiceUpload(id: string, dto: CreateVoiceUploadDto) {
