@@ -11,6 +11,7 @@ describe('ChatService access and message rules', () => {
   let users: any;
   let s3: any;
   let redis: any;
+  let notifications: any;
   let redisEvents: Subject<{ roomKey: string }>;
   let onlineUsers: Set<string>;
 
@@ -55,7 +56,8 @@ describe('ChatService access and message rules', () => {
       setPresence: jest.fn(async (id: string) => { onlineUsers.add(id); }),
       isOnline: jest.fn(async (id: string) => onlineUsers.has(id)),
     };
-    service = new ChatService(repo, blocks, users, s3, redis);
+    notifications = { createNotification: jest.fn(async () => ({})) };
+    service = new ChatService(repo, blocks, users, s3, redis, notifications);
   });
 
   it('notifies subscribers in the authenticated student group when a message is created', async () => {
