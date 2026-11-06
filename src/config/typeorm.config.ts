@@ -19,6 +19,7 @@ import { PasswordResetToken } from '../auth/entities/password-reset-token.entity
 import { EmailVerificationToken } from '../auth/entities/email-verification-token.entity';
 import { SupportRequest } from '../support/entities/support-request.entity';
 import { ChatMessage } from '../chat/entities/chat-message.entity';
+import { ChatUserBlock } from '../chat/entities/chat-user-block.entity';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -40,7 +41,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   entities: [
     User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
     ModerationReview, PointWallet, PointTransaction, FileUpload, Referral,
-    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, SupportRequest, ChatMessage, UserActivityEvent,
+    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, SupportRequest, ChatMessage, ChatUserBlock, UserActivityEvent,
   ],
   synchronize: !isProduction,
   logging: !isProduction,
