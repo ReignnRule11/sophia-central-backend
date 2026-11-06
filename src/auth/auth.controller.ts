@@ -11,6 +11,8 @@ import { SocialSignInDto } from './dto/social-signin.dto';
 import { OnboardingDto } from './dto/onboarding.dto';
 import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
+import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
 import { User } from '../users/entities/user.entity';
@@ -21,18 +23,12 @@ const CSRF_COOKIE = 'sophia_csrf_token';
 
 function cookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
-  // Vercel frontend + Render API are cross-site; production must use SameSite=None + Secure.
-  // Ignore stale AUTH_COOKIE_SAME_SITE=lax overrides that would silently drop auth cookies.
   const sameSite = isProduction ? 'none' : 'lax';
-  // No maxAge/expires: authentication is intentionally limited to the browser session.
   return { httpOnly: true, secure: isProduction, sameSite, path: '/' } as const;
 }
 function csrfCookieOptions() {
   const isProduction = process.env.NODE_ENV === 'production';
-  // Vercel frontend + Render API are cross-site; production must use SameSite=None + Secure.
-  // Ignore stale AUTH_COOKIE_SAME_SITE=lax overrides that would silently drop auth cookies.
   const sameSite = isProduction ? 'none' : 'lax';
-  // Keep the CSRF cookie session-scoped as well so auth state is never restored after the browser session ends.
   return { httpOnly: false, secure: isProduction, sameSite, path: '/' } as const;
 }
 
@@ -50,15 +46,25 @@ export class AuthController {
   }
 
   @Post('signup')
-  @ApiOperation({ summary: 'Register with email and password' })
-  async signup(@Body() dto: RegisterDto, @Res({ passthrough: true }) response: Response) {
-    const result = await this.authService.register(dto);
-    const csrfToken = this.setSessionCookies(response, result.accessToken);
-    return { user: result.user, csrfToken };
+  @ApiOperation({ summary: 'Create an account and send an email activation link; no session is created yet' })
+  signup(@Body() dto: RegisterDto) {
+    return this.authService.register(dto);
+  }
+
+  @Post('email-verification/resend')
+  @ApiOperation({ summary: 'Resend an email activation link without revealing account existence' })
+  resendEmailVerification(@Body() dto: ResendEmailVerificationDto) {
+    return this.authService.resendEmailVerification(dto);
+  }
+
+  @Post('email-verification/confirm')
+  @ApiOperation({ summary: 'Verify an email address using its single-use activation token' })
+  confirmEmailVerification(@Body() dto: ConfirmEmailVerificationDto) {
+    return this.authService.confirmEmailVerification(dto.token);
   }
 
   @Post('login')
-  @ApiOperation({ summary: 'Authenticate with email and password' })
+  @ApiOperation({ summary: 'Authenticate with verified email and password' })
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.login(dto);
     this.setSessionCookies(response, result.accessToken);
