@@ -4,7 +4,9 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { PasswordResetEmailService } from './password-reset-email.service';
+import { EmailVerificationEmailService } from './email-verification-email.service';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
+import { EmailVerificationToken } from './entities/email-verification-token.entity';
 import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import type { JwtModuleOptions } from '@nestjs/jwt';
@@ -17,7 +19,7 @@ import { ReferralModule } from '../referral/referral.module';
     PassportModule,
     UsersModule,
     ReferralModule,
-    TypeOrmModule.forFeature([PasswordResetToken]),
+    TypeOrmModule.forFeature([PasswordResetToken, EmailVerificationToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -38,7 +40,7 @@ import { ReferralModule } from '../referral/referral.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PasswordResetEmailService],
+  providers: [AuthService, JwtStrategy, PasswordResetEmailService, EmailVerificationEmailService],
   exports: [AuthService],
 })
 export class AuthModule {}
