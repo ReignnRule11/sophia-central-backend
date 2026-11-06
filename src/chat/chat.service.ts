@@ -11,6 +11,7 @@ import { ChatContentType, ChatKind, ChatMessage } from './entities/chat-message.
 import { CreateChatMessageDto, CreateVoiceUploadDto } from './dto/create-chat-message.dto';
 import { RedisChatService } from './redis-chat.service';
 import { ChatUserBlock } from './entities/chat-user-block.entity';
+import { NotificationsService } from '../notifications/notifications.service';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_VOICE_BYTES = 12 * 1024 * 1024;
@@ -32,6 +33,7 @@ export class ChatService {
     private readonly users: UsersService,
     private readonly s3: S3Service,
     private readonly redis: RedisChatService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async eligible(id: string, roles: UserRole[]): Promise<User> {
@@ -214,6 +216,27 @@ export class ChatService {
       contentType, text: hasText ? dto.text!.trim() : null, voiceKey, stickerId,
     }));
     this.publishRoom(roomKey);
+
+    if (dto.kind === 'direct' && dto.recipientId) {
+      const preview = hasText
+        ? dto.text!.trim().slice(0, 140)
+        : hasVoice
+          ? 'Sent a voice message'
+          : 'Sent a sticker';
+
+      try {
+        await this.notifications.createNotification(
+          dto.recipientId,
+          'chat_message',
+          `New message from @${sender.academicHandle}`,
+          preview,
+          `/messages?userId=${encodeURIComponent(sender.id)}`,
+        );
+      } catch {
+        // A notification failure must not undo or fail a successfully stored chat message.
+      }
+    }
+
     return this.present(message, id);
   }
 
