@@ -114,7 +114,7 @@ export class AuthService {
     const tokenHash = createHash('sha256').update(token).digest('hex');
     const tokenRecord = await this.verificationTokens.findOne({ where: { tokenHash } });
     if (!tokenRecord || tokenRecord.expiresAt.getTime() <= Date.now()) {
-      if (tokenRecord) await this.verificationTokens.delete({ id: tokenRecord.id });
+      // Keep an expired record until resend so any pending referral code can be carried forward.
       throw new UnauthorizedException('This verification link is invalid or has expired. Request a new link and try again.');
     }
 
