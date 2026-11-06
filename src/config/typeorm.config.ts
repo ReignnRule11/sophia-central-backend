@@ -16,6 +16,7 @@ import { Notification } from '../notifications/entities/notification.entity';
 import { AiSession } from '../ai/entities/ai-session.entity';
 import { AiMessage } from '../ai/entities/ai-message.entity';
 import { PasswordResetToken } from '../auth/entities/password-reset-token.entity';
+import { EmailVerificationToken } from '../auth/entities/email-verification-token.entity';
 import { SupportRequest } from '../support/entities/support-request.entity';
 import { ChatMessage } from '../chat/entities/chat-message.entity';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
@@ -39,7 +40,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   entities: [
     User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
     ModerationReview, PointWallet, PointTransaction, FileUpload, Referral,
-    Notification, AiSession, AiMessage, PasswordResetToken, SupportRequest, ChatMessage, UserActivityEvent,
+    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, SupportRequest, ChatMessage, UserActivityEvent,
   ],
   synchronize: !isProduction,
   logging: !isProduction,
