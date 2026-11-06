@@ -155,6 +155,7 @@ export class ChatService {
               roomKey,
               kind: ChatKind.DIRECT,
               senderId: contact.id,
+              isDeleted: false,
               createdAt: MoreThan(readState?.lastReadAt ?? new Date(0)),
             },
           });
