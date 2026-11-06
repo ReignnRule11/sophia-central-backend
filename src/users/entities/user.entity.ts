@@ -85,8 +85,12 @@ export class User {
   @Column({ nullable: true, type: 'text' })
   bio?: string;
 
+  // Identity/academic verification is separate from email ownership verification.
   @Column({ default: false })
   isVerified!: boolean;
+
+  @Column({ default: false })
+  emailVerified!: boolean;
 
   @Column({ default: false })
   isSuspended!: boolean;
