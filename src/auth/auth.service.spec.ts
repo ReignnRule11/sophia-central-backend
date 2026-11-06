@@ -1,5 +1,6 @@
 import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
+import { createHash } from 'node:crypto';
 import { AuthService } from './auth.service';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -164,9 +165,8 @@ describe('AuthService', () => {
     });
     users.findOne.mockResolvedValue({ ...user } as never);
     users.update.mockResolvedValue({ ...user, emailVerified: true } as never);
-    const crypto = require('node:crypto');
     const token = 'sample-verification-token';
-    const expectedHash = crypto.createHash('sha256').update(token).digest('hex');
+    const expectedHash = createHash('sha256').update(token).digest('hex');
     verificationTokens.findOne.mockResolvedValue({
       id: 'token-1', userId: user.id, tokenHash: expectedHash, expiresAt: new Date(Date.now() + 60_000),
     });
