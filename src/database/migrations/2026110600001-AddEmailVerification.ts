@@ -10,7 +10,7 @@ export class AddEmailVerification2026110600001 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "emailVerified" SET DEFAULT false`);
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "email_verification_tokens" (
-        "id" uuid NOT NULL DEFAULT uuid_generate_v4(),
+        "id" uuid NOT NULL DEFAULT gen_random_uuid(),
         "userId" uuid NOT NULL,
         "tokenHash" character varying(64) NOT NULL,
         "expiresAt" TIMESTAMP WITH TIME ZONE NOT NULL,
