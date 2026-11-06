@@ -105,7 +105,7 @@ export class AuthService {
     if (user && user.authProvider === 'email' && user.emailVerified === false) {
       const latestToken = await this.verificationTokens.findOne({ where: { userId: user.id }, order: { createdAt: 'DESC' } });
       const sentRecently = latestToken && Date.now() - latestToken.createdAt.getTime() < 60_000;
-      if (!sentRecently) await this.issueEmailVerification(user);
+      if (!sentRecently) await this.issueEmailVerification(user, latestToken?.referralCode);
     }
     return { message: EMAIL_VERIFICATION_RESPONSE };
   }
@@ -224,7 +224,8 @@ export class AuthService {
       await this.verificationEmail.sendVerificationLink(user.email, token, user.firstName);
       return true;
     } catch (error) {
-      await this.verificationTokens.delete({ tokenHash });
+      // Keep the hashed token record so a later resend can preserve a pending referral attribution.
+      // The raw token was not delivered, so only a newly generated token can activate the account.
       this.logger.error(`Verification email could not be delivered for user ${user.id}: ${error instanceof Error ? error.message : 'unknown error'}`);
       return false;
     }
