@@ -32,10 +32,14 @@ export const securitySetup = (app: NestExpressApplication) => {
     },
     credentials: true,
   });
+
+  // Keep a broad safety ceiling for unexpected traffic without allowing
+  // ordinary app activity (polling, notifications, chat, etc.) to exhaust
+  // the same small quota used by authentication requests.
   app.use(
     rateLimit({
       windowMs: 15 * 60 * 1000,
-      max: 300,
+      max: 5000,
       standardHeaders: true,
       legacyHeaders: false,
     }),
