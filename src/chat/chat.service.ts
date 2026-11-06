@@ -138,6 +138,15 @@ export class ChatService {
 
     const conversations = await Promise.all(contacts.map(async contact => {
       const roomKey = this.directKey(id, contact.id);
+
+      if (!contact.isDeleted) {
+        try {
+          await this.assertNotBlocked(id, contact.id);
+        } catch {
+          return null;
+        }
+      }
+
       const [latest, readState] = await Promise.all([
         this.repo.findOne({
           where: { roomKey, kind: ChatKind.DIRECT },
