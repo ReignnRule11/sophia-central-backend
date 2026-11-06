@@ -8,9 +8,11 @@ describe('ChatService access and message rules', () => {
   let service: ChatService;
   let repo: any;
   let blocks: any;
+  let reads: any;
   let users: any;
   let s3: any;
   let redis: any;
+  let notifications: any;
   let redisEvents: Subject<{ roomKey: string }>;
   let onlineUsers: Set<string>;
 
@@ -27,6 +29,7 @@ describe('ChatService access and message rules', () => {
   beforeEach(() => {
     repo = {
       findOne: jest.fn(),
+      count: jest.fn(async () => 0),
       save: jest.fn(async value => value),
       create: jest.fn(value => value),
       createQueryBuilder: jest.fn(),
@@ -37,6 +40,11 @@ describe('ChatService access and message rules', () => {
       save: jest.fn(async value => value),
       create: jest.fn(value => value),
       delete: jest.fn(async () => ({ affected: 1 })),
+    };
+    reads = {
+      findOne: jest.fn(async () => null),
+      save: jest.fn(async value => value),
+      create: jest.fn(value => value),
     };
     users = {
       findOne: jest.fn(async id => id === student.id ? { ...student } : null),
@@ -55,7 +63,8 @@ describe('ChatService access and message rules', () => {
       setPresence: jest.fn(async (id: string) => { onlineUsers.add(id); }),
       isOnline: jest.fn(async (id: string) => onlineUsers.has(id)),
     };
-    service = new ChatService(repo, blocks, users, s3, redis);
+    notifications = { createNotification: jest.fn(async () => ({})) };
+    service = new ChatService(repo, blocks, reads, users, s3, redis, notifications);
   });
 
   it('notifies subscribers in the authenticated student group when a message is created', async () => {
@@ -304,6 +313,102 @@ describe('ChatService access and message rules', () => {
     await expect(service.create(student.id, { kind: 'group', text: 'Hello group' } as any))
       .resolves.toMatchObject({ text: 'Hello group' });
     expect(blocks.findOne).not.toHaveBeenCalled();
+  });
+
+
+  it('creates a persistent notification for the recipient of a private message', async () => {
+    const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
+    users.findOne.mockImplementation(async id =>
+      id === student.id ? { ...student } : id === recipient.id ? recipient : null,
+    );
+
+    const saved = {
+      id: 'direct-message',
+      kind: ChatKind.DIRECT,
+      roomKey: 'direct:student-1:student-2',
+      senderId: student.id,
+      senderHandle: student.academicHandle,
+      contentType: ChatContentType.TEXT,
+      text: 'Hello there',
+      voiceKey: null,
+      stickerId: null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      isDeleted: false,
+    };
+    repo.create.mockReturnValue(saved);
+    repo.save.mockResolvedValue(saved);
+
+    await service.create(student.id, {
+      kind: 'direct',
+      recipientId: recipient.id,
+      text: 'Hello there',
+    } as any);
+
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      recipient.id,
+      'chat_message',
+      'New message from @learner',
+      'Hello there',
+      '/messages?userId=student-1',
+    );
+  });
+
+  it('returns recent private conversations with unread message counts', async () => {
+    users.findChatContacts.mockResolvedValue([
+      { id: 'student-2', academicHandle: 'reader2', role: UserRole.STUDENT },
+    ]);
+    repo.createQueryBuilder.mockReturnValue({
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn(async () => []),
+    });
+    const createdAt = new Date('2026-11-06T10:00:00.000Z');
+    repo.findOne.mockResolvedValue({
+      id: 'latest-message',
+      roomKey: 'direct:student-1:student-2',
+      kind: ChatKind.DIRECT,
+      senderId: 'student-2',
+      senderHandle: 'reader2',
+      contentType: ChatContentType.TEXT,
+      text: 'Are you available?',
+      createdAt,
+      isDeleted: false,
+    });
+    reads.findOne.mockResolvedValue(null);
+    repo.count.mockResolvedValue(2);
+
+    const result = await service.inbox(student.id);
+
+    expect(result).toHaveLength(1);
+    expect(result[0]).toMatchObject({
+      contact: { id: 'student-2', academicHandle: 'reader2' },
+      lastMessage: {
+        id: 'latest-message',
+        preview: 'Are you available?',
+        isOwn: false,
+      },
+      unreadCount: 2,
+    });
+  });
+
+  it('persists the latest message timestamp when a private conversation is read', async () => {
+    const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
+    users.findOne.mockImplementation(async id =>
+      id === student.id ? { ...student } : id === recipient.id ? recipient : null,
+    );
+    const createdAt = new Date('2026-11-06T10:30:00.000Z');
+    repo.findOne.mockResolvedValue({ roomKey: 'direct:student-1:student-2', createdAt });
+
+    const result = await service.markDirectRead(student.id, recipient.id);
+
+    expect(reads.save).toHaveBeenCalledWith(expect.objectContaining({
+      userId: student.id,
+      roomKey: 'direct:student-1:student-2',
+      lastReadAt: createdAt,
+    }));
+    expect(result).toEqual({ success: true, lastReadAt: createdAt });
   });
 
 });

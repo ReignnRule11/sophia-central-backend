@@ -9,29 +9,29 @@ import {
 @Entity({ name: 'notifications' })
 export class Notification {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  userId: string;
+  userId!: string;
 
   @Column()
-  type: string; // 'resource_approved', 'points_awarded', 'referral_bonus', etc.
+  type!: string; // 'resource_approved', 'points_awarded', 'referral_bonus', etc.
 
   @Column()
-  title: string;
+  title!: string;
 
   @Column({ type: 'text' })
-  message: string;
+  message!: string;
 
   @Column({ nullable: true })
   link?: string;
 
   @Column({ default: false })
-  isRead: boolean;
+  isRead!: boolean;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

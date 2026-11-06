@@ -23,6 +23,14 @@ export class ChatController {
   @Get('contacts')
   contacts(@Req() request: AuthRequest, @Query('search') search?: string) { return this.chat.contacts(request.user.id, search); }
 
+  @Get('inbox')
+  inbox(@Req() request: AuthRequest) { return this.chat.inbox(request.user.id); }
+
+  @Post('direct/:userId/read')
+  markDirectRead(@Req() request: AuthRequest, @Param('userId', ParseUUIDPipe) userId: string) {
+    return this.chat.markDirectRead(request.user.id, userId);
+  }
+
   @Get('blocks')
   blocks(@Req() request: AuthRequest) { return this.chat.listBlocks(request.user.id); }
 
