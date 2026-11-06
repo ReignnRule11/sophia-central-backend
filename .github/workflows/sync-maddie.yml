@@ -10,6 +10,8 @@ permissions:
 
 jobs:
   sync:
+    # This workflow is mirrored to Maddie, but must only execute from the Reign source repository.
+    if: github.repository == 'ReignnRule11/sophia-central-backend'
     runs-on: ubuntu-latest
     steps:
       - name: Check destination token
