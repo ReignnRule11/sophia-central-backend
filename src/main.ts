@@ -8,11 +8,28 @@ import { rateLimit } from 'express-rate-limit';
 import { HttpExceptionFilter } from './common/filters/http-exception.filter';
 import { SentryService } from './common/services/sentry.service';
 
+const authRateLimit = (max: number) =>
+  rateLimit({
+    windowMs: 15 * 60 * 1000,
+    max,
+    standardHeaders: true,
+    legacyHeaders: false,
+  });
+
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   securitySetup(app as any);
-  app.use('/auth/password-reset/request', rateLimit({ windowMs: 15 * 60 * 1000, max: 5, standardHeaders: true, legacyHeaders: false }));
-  app.use('/auth/password-reset/confirm', rateLimit({ windowMs: 15 * 60 * 1000, max: 10, standardHeaders: true, legacyHeaders: false }));
+
+  // Apply focused limits to authentication endpoints while keeping the
+  // CSRF bootstrap endpoint usable during normal page loads and retries.
+  app.use('/auth/csrf', authRateLimit(120));
+  app.use('/auth/login', authRateLimit(30));
+  app.use('/auth/signup', authRateLimit(10));
+  app.use('/auth/email-verification/resend', authRateLimit(5));
+  app.use('/auth/email-verification/confirm', authRateLimit(20));
+  app.use('/auth/password-reset/request', authRateLimit(5));
+  app.use('/auth/password-reset/confirm', authRateLimit(10));
+
   app.useGlobalGuards(new CsrfGuard());
 
   // Resolve the configured service from Nest's container and register the
