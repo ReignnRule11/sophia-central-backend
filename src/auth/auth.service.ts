@@ -103,7 +103,9 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const user = await this.usersService.findByEmail(email);
     if (user && user.authProvider === 'email' && user.emailVerified === false) {
-      await this.issueEmailVerification(user);
+      const latestToken = await this.verificationTokens.findOne({ where: { userId: user.id }, order: { createdAt: 'DESC' } });
+      const sentRecently = latestToken && Date.now() - latestToken.createdAt.getTime() < 60_000;
+      if (!sentRecently) await this.issueEmailVerification(user);
     }
     return { message: EMAIL_VERIFICATION_RESPONSE };
   }
