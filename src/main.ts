@@ -1,4 +1,6 @@
+
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { securitySetup } from './common/security';
 import { CsrfGuard } from './common/guards/csrf.guard';
@@ -17,8 +19,11 @@ const authRateLimit = (max: number) =>
   });
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
-  securitySetup(app as any);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Configure Express proxy trust and application security before
+  // registering any rate-limiting middleware.
+  securitySetup(app);
 
   // Apply focused limits to authentication endpoints while keeping the
   // CSRF bootstrap endpoint usable during normal page loads and retries.
@@ -58,6 +63,7 @@ async function bootstrap() {
 
   const logger = new Logger('Bootstrap');
   await app.listen(process.env.PORT ?? 3000, '0.0.0.0');
+
   logger.log(`Sophis Central API is running on port ${process.env.PORT ?? 3000}`);
 }
 
