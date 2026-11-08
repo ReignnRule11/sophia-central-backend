@@ -21,11 +21,21 @@ export class InstitutionsService {
   ) {}
 
   async submit(dto: CreateAcademicCatalogueSubmissionDto, submittedBy: string) {
-    if (dto.entryType === AcademicEntryType.FACULTY && !dto.parentInstitutionId) {
+    if (dto.entryType === AcademicEntryType.FACULTY && !dto.parentInstitutionId && !dto.parentInstitutionSubmissionId) {
       throw new BadRequestException('Select the institution for this faculty.');
     }
     if (dto.entryType === AcademicEntryType.DEPARTMENT && !dto.parentFacultyId && !dto.parentFacultySubmissionId) {
       throw new BadRequestException('Select the faculty for this department.');
+    }
+
+    if (dto.parentInstitutionSubmissionId) {
+      const parentSubmission = await this.submissionRepository.findOne({ where: { id: dto.parentInstitutionSubmissionId } });
+      if (!parentSubmission || parentSubmission.entryType !== AcademicEntryType.INSTITUTION) {
+        throw new NotFoundException('Parent institution submission not found.');
+      }
+      if (parentSubmission.status === AcademicEntryStatus.REJECTED) {
+        throw new ConflictException('The parent institution submission was rejected.');
+      }
     }
 
     if (dto.parentInstitutionId) {
@@ -59,9 +69,11 @@ export class InstitutionsService {
       .andWhere('submission.entryType = :entryType', { entryType: dto.entryType })
       .andWhere('submission.status = :status', { status: AcademicEntryStatus.PENDING });
     if (dto.parentInstitutionId) duplicateQuery.andWhere('submission.parentInstitutionId = :institutionId', { institutionId: dto.parentInstitutionId });
+    if (dto.parentInstitutionSubmissionId) duplicateQuery.andWhere('submission.parentInstitutionSubmissionId = :institutionSubmissionId', { institutionSubmissionId: dto.parentInstitutionSubmissionId });
     if (dto.parentFacultyId) duplicateQuery.andWhere('submission.parentFacultyId = :facultyId', { facultyId: dto.parentFacultyId });
     if (dto.parentFacultySubmissionId) duplicateQuery.andWhere('submission.parentFacultySubmissionId = :facultySubmissionId', { facultySubmissionId: dto.parentFacultySubmissionId });
-    if (await duplicateQuery.getOne()) throw new ConflictException('A matching entry is already awaiting review.');
+    const duplicate = await duplicateQuery.getOne();
+    if (duplicate) return duplicate;
 
     const submission = this.submissionRepository.create({
       ...dto,
@@ -96,8 +108,21 @@ export class InstitutionsService {
           }));
         }
       } else if (submission.entryType === AcademicEntryType.FACULTY) {
-        if (!submission.parentInstitutionId) throw new BadRequestException('Faculty submission has no parent institution.');
-        const parent = await this.findOne(submission.parentInstitutionId);
+        let parent: Institution | null = null;
+        if (submission.parentInstitutionId) {
+          parent = await this.institutionRepository.findOne({ where: { id: submission.parentInstitutionId } });
+        } else if (submission.parentInstitutionSubmissionId) {
+          const parentSubmission = await this.submissionRepository.findOne({ where: { id: submission.parentInstitutionSubmissionId } });
+          if (!parentSubmission || parentSubmission.entryType !== AcademicEntryType.INSTITUTION) {
+            throw new NotFoundException('Parent institution submission not found.');
+          }
+          if (parentSubmission.status !== AcademicEntryStatus.APPROVED) {
+            throw new ConflictException('Approve the parent institution before approving this faculty.');
+          }
+          parent = await this.institutionRepository.createQueryBuilder('i')
+            .where('LOWER(i.name) = LOWER(:name)', { name: parentSubmission.name }).getOne();
+        }
+        if (!parent) throw new NotFoundException('Parent institution not found. Approve its institution submission first.');
         const exists = await this.facultyRepository.createQueryBuilder('f')
           .where('LOWER(f.name) = LOWER(:name)', { name: submission.name })
           .andWhere('f.institutionId = :id', { id: parent.id }).getOne();
