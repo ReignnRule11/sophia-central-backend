@@ -313,6 +313,12 @@ export class ChatService {
       roomKey = this.directKey(sender.id, recipient.id);
     }
 
+    if (replyToMessage) {
+      const sameConversation = replyToMessage.kind === (dto.kind === 'group' ? ChatKind.GROUP : ChatKind.DIRECT) && replyToMessage.roomKey === roomKey;
+      const privateReplyToGroupSender = replyToMessage.kind === ChatKind.GROUP && dto.kind === 'direct' && replyToMessage.senderId === dto.recipientId;
+      if (!sameConversation && !privateReplyToGroupSender) throw new BadRequestException('Replies must stay in the original conversation, except when replying privately to the group-message sender.');
+    }
+
     let contentType = forwardedMessage?.contentType ?? ChatContentType.TEXT;
     let voiceKey: string | null = forwardedMessage?.voiceKey ?? null;
     let stickerId: string | null = forwardedMessage?.stickerId ?? null;
