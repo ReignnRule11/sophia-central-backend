@@ -49,7 +49,7 @@ async function fetchNbtePolytechnics(): Promise<ImportedInstitution[]> {
       const parts = cleanCell(match[2]).split('·').map((part) => part.trim());
       const name = cleanCell(title ?? parts[0]);
       if (!name || /^(institutions|polytechnics)$/i.test(name)) continue;
-      const stateLabel = parts[2]?.replace(/\s+\\d+\\s+programmes?.*$/i, '').trim();
+      const stateLabel = parts[2]?.replace(/\s+\d+\s+programmes?.*$/i, '').trim();
       records.push({
         name,
         institutionType: InstitutionType.POLYTECHNIC,
@@ -132,7 +132,7 @@ async function main() {
 
   if (process.env.NODE_ENV !== 'production') throw new Error('Refusing to write: set NODE_ENV=production.');
   if (process.env.DB_SSL !== 'true') throw new Error('Refusing to write: DB_SSL must be true.');
-  if (!/\.neon\\.tech$/i.test(process.env.DB_HOST ?? '')) throw new Error('Refusing to write: DB_HOST must identify the configured Neon host.');
+  if (!/\.neon\.tech$/i.test(process.env.DB_HOST ?? '')) throw new Error('Refusing to write: DB_HOST must identify the configured Neon host.');
   if (process.env.DB_DATABASE !== 'neondb') throw new Error('Refusing to write: DB_DATABASE must be neondb.');
 
   const dataSource = new DataSource({ ...typeOrmConfig, synchronize: false, migrationsRun: false } as DataSourceOptions);
