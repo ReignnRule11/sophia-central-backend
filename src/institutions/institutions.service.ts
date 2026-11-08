@@ -127,6 +127,9 @@ export class InstitutionsService {
             .where('LOWER(i.name) = LOWER(:name)', { name: parentSubmission.name }).getOne();
         }
         if (!parent) throw new NotFoundException('Parent institution not found. Approve its institution submission first.');
+        // Persist the resolved institution ID so child department submissions can
+        // be resolved after the parent faculty has been approved.
+        submission.parentInstitutionId = parent.id;
         const exists = await this.facultyRepository.createQueryBuilder('f')
           .where('LOWER(f.name) = LOWER(:name)', { name: submission.name })
           .andWhere('f.institutionId = :id', { id: parent.id }).getOne();
