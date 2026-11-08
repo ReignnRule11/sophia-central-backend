@@ -24,6 +24,16 @@ export class CreateChatMessageDto {
   @IsString()
   @MaxLength(40)
   stickerId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  replyToMessageId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  forwardMessageId?: string;
 }
 
 export class EditChatMessageDto {
