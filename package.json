@@ -19,6 +19,7 @@
     "migration:run": "node dist/database/run-migrations.js",
     "migration:smoke": "node scripts/db-migration-smoke.cjs",
     "import:nuc": "ts-node --transpile-only src/database/import-nuc-universities.ts",
+    "import:other-institutions": "ts-node --transpile-only src/database/import-other-institutions.ts",
     "import:academic-catalogue": "ts-node --transpile-only src/database/import-nigeria-academic-catalogue.ts"
   },
   "dependencies": {
