@@ -46,15 +46,15 @@ async function fetchNbtePolytechnics(): Promise<ImportedInstitution[]> {
     for (const match of links) {
       const attributes = match[1];
       const title = attributes.match(/title=["']([^"']+)["']/i)?.[1];
-      const text = cleanCell(match[2]).split('·')[0].trim();
-      const name = cleanCell(title ?? text);
+      const parts = cleanCell(match[2]).split('·').map((part) => part.trim());
+      const name = cleanCell(title ?? parts[0]);
       if (!name || /^(institutions|polytechnics)$/i.test(name)) continue;
-      const cardText = cleanCell(match[0]);
-      const ownership = ownershipFrom(cardText);
+      const stateLabel = parts[2]?.replace(/\\s+\\d+\\s+programmes?.*$/i, '').trim();
       records.push({
         name,
         institutionType: InstitutionType.POLYTECHNIC,
-        ownership,
+        ownership: ownershipFrom(parts[1] ?? ''),
+        state: stateLabel?.replace(/\\s+State$/i, '') || undefined,
         source: 'NBTE',
       });
     }
@@ -83,11 +83,8 @@ async function fetchNcceInstitutions(): Promise<ImportedInstitution[]> {
     const classification = cells[3] ?? '';
     const state = cells[4] ?? undefined;
 
-    if (/polytechnics offering NCE/i.test(classification)) {
-      records.push({ name, institutionType: InstitutionType.POLYTECHNIC, state, ownership: ownershipFrom(classification), source: 'NCCE' });
-      continue;
-    }
-
+    // Polytechnics are sourced from NBTE's dedicated polytechnic register below.
+    // NCCE's table also lists polytechnics offering NCE; excluding those rows avoids duplicate records.
     const isCollegeOfEducation = /college of education/i.test(classification) || /college of education/i.test(name);
     if (!isCollegeOfEducation) continue;
     records.push({
