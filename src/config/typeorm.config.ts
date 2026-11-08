@@ -21,6 +21,7 @@ import { SupportRequest } from '../support/entities/support-request.entity';
 import { ChatMessage } from '../chat/entities/chat-message.entity';
 import { ChatUserBlock } from '../chat/entities/chat-user-block.entity';
 import { ChatConversationRead } from '../chat/entities/chat-conversation-read.entity';
+import { ChatMessageUserHide } from '../chat/entities/chat-message-user-hide.entity';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 
 const isProduction = process.env.NODE_ENV === 'production';
@@ -42,7 +43,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   entities: [
     User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
     ModerationReview, PointWallet, PointTransaction, FileUpload, Referral,
-    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, UserActivityEvent,
+    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, UserActivityEvent,
   ],
   synchronize: !isProduction,
   logging: !isProduction,
