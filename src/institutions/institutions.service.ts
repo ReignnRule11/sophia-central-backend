@@ -56,7 +56,11 @@ export class InstitutionsService {
       if (!parentSubmission || parentSubmission.entryType !== AcademicEntryType.FACULTY) {
         throw new NotFoundException('Parent faculty submission not found.');
       }
-      if (parentSubmission.parentInstitutionId !== dto.parentInstitutionId) {
+      if (dto.parentInstitutionSubmissionId) {
+        if (parentSubmission.parentInstitutionSubmissionId !== dto.parentInstitutionSubmissionId) {
+          throw new BadRequestException('The pending faculty belongs to a different institution.');
+        }
+      } else if (parentSubmission.parentInstitutionId !== dto.parentInstitutionId) {
         throw new BadRequestException('The pending faculty belongs to a different institution.');
       }
       if (parentSubmission.status === AcademicEntryStatus.REJECTED) {
