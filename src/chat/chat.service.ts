@@ -289,8 +289,21 @@ export class ChatService {
     }
     const rows = await query.orderBy('message.createdAt', 'DESC').addOrderBy('message.id', 'DESC').take(limit + 1).getMany();
     const hasMore = rows.length > limit;
-    const items = await Promise.all(rows.slice(0, limit).reverse().map(message => this.present(message, id)));
-    return { items, hasMore, nextBefore: hasMore ? rows[limit - 1]?.id : null };
+    const [items, hiddenRows] = await Promise.all([
+      Promise.all(rows.slice(0, limit).reverse().map(message => this.present(message, id))),
+      this.messageHides.createQueryBuilder('hidden')
+        .innerJoin(ChatMessage, 'message', 'message.id = hidden."messageId"')
+        .where('hidden."userId" = :viewerId', { viewerId: id })
+        .andWhere('message."roomKey" = :room', { room })
+        .select('hidden."messageId"', 'messageId')
+        .getRawMany<{ messageId: string }>(),
+    ]);
+    return {
+      items,
+      hasMore,
+      nextBefore: hasMore ? rows[limit - 1]?.id : null,
+      hiddenMessageIds: hiddenRows.map(row => row.messageId),
+    };
   }
 
   async create(id: string, dto: CreateChatMessageDto) {
