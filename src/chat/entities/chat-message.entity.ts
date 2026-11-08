@@ -13,6 +13,8 @@ export class ChatMessage {
  @Column({ type: 'text', nullable: true }) text?: string | null;
  @Column({ type: 'text', nullable: true }) voiceKey?: string | null;
  @Column({ type: 'varchar', length: 40, nullable: true }) stickerId?: string | null;
+ @Column({ type: 'uuid', nullable: true }) replyToMessageId?: string | null;
+ @Column({ type: 'uuid', nullable: true }) forwardedFromMessageId?: string | null;
  @Column({ type: 'boolean', default: false }) isDeleted!: boolean;
  @Column({ type: 'timestamp', nullable: true }) editedAt?: Date | null;
  @CreateDateColumn() createdAt!: Date;
