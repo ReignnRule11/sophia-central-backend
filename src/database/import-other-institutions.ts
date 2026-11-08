@@ -110,13 +110,9 @@ async function fetchNcceInstitutions(): Promise<ImportedInstitution[]> {
 }
 
 async function main() {
-  // The importer is deliberately restricted to the configured Neon production database.
-  // It is a separate, explicit command; it is never run by the application startup path.
-  if (process.env.NODE_ENV !== 'production') throw new Error('Refusing to import: set NODE_ENV=production.');
-  if (process.env.DB_SSL !== 'true') throw new Error('Refusing to import: DB_SSL must be true.');
-  if (!/\.neon\.tech$/i.test(process.env.DB_HOST ?? '')) throw new Error('Refusing to import: DB_HOST must identify the configured Neon host.');
-  if (process.env.DB_DATABASE !== 'neondb') throw new Error('Refusing to import: DB_DATABASE must be neondb.');
-
+  // Safe by default: fetch and validate official source lists without connecting to any database.
+  // Database writes require an explicit --apply flag and the configured Neon production environment.
+  const apply = process.argv.includes('--apply');
   const [polytechnics, ncceRecords] = await Promise.all([fetchNbtePolytechnics(), fetchNcceInstitutions()]);
   const records = new Map<string, ImportedInstitution>();
   for (const item of [...polytechnics, ...ncceRecords]) {
@@ -124,6 +120,19 @@ async function main() {
     const current = records.get(key);
     if (!current || (current.source === 'NCCE' && item.source === 'NBTE')) records.set(key, item);
   }
+
+  console.log(JSON.stringify({
+    mode: apply ? 'apply' : 'dry-run',
+    nbtePolytechnics: polytechnics.length,
+    ncceCollegesOfEducation: ncceRecords.length,
+    totalUniqueInstitutions: records.size,
+  }, null, 2));
+  if (!apply) return;
+
+  if (process.env.NODE_ENV !== 'production') throw new Error('Refusing to write: set NODE_ENV=production.');
+  if (process.env.DB_SSL !== 'true') throw new Error('Refusing to write: DB_SSL must be true.');
+  if (!/\\.neon\\.tech$/i.test(process.env.DB_HOST ?? '')) throw new Error('Refusing to write: DB_HOST must identify the configured Neon host.');
+  if (process.env.DB_DATABASE !== 'neondb') throw new Error('Refusing to write: DB_DATABASE must be neondb.');
 
   const dataSource = new DataSource({ ...typeOrmConfig, synchronize: false, migrationsRun: false } as DataSourceOptions);
   await dataSource.initialize();
