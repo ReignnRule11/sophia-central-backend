@@ -2,6 +2,7 @@ import { Injectable, NotFoundException, ConflictException, BadRequestException }
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Institution, Faculty, Department } from './entities';
+import { InstitutionType } from './entities/institution.entity';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { AcademicCatalogueSubmission, AcademicEntryStatus, AcademicEntryType } from './entities/academic-catalogue-submission.entity';
 import { CreateAcademicCatalogueSubmissionDto } from './dto/create-academic-catalogue-submission.dto';
@@ -81,6 +82,7 @@ export class InstitutionsService {
 
     const submission = this.submissionRepository.create({
       ...dto,
+      institutionType: dto.institutionType ?? InstitutionType.UNIVERSITY,
       name: dto.name.trim(),
       country: 'Nigeria',
       status: AcademicEntryStatus.PENDING,
@@ -109,6 +111,7 @@ export class InstitutionsService {
             city: submission.city,
             state: submission.state,
             ownership: submission.ownership,
+            institutionType: submission.institutionType ?? InstitutionType.UNIVERSITY,
           }));
         }
       } else if (submission.entryType === AcademicEntryType.FACULTY) {
