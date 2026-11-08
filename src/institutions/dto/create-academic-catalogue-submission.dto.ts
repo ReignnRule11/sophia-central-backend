@@ -1,5 +1,6 @@
 import { IsIn, IsNotEmpty, IsOptional, IsString, MaxLength, IsUUID } from 'class-validator';
 import { AcademicEntryType } from '../entities/academic-catalogue-submission.entity';
+import { InstitutionType } from '../entities/institution.entity';
 
 export class CreateAcademicCatalogueSubmissionDto {
   @IsIn(Object.values(AcademicEntryType)) entryType: AcademicEntryType;
@@ -11,4 +12,5 @@ export class CreateAcademicCatalogueSubmissionDto {
   @IsOptional() @IsString() @MaxLength(100) state?: string;
   @IsOptional() @IsString() @MaxLength(100) city?: string;
   @IsOptional() @IsIn(['Federal', 'State', 'Private']) ownership?: string;
+  @IsOptional() @IsIn(Object.values(InstitutionType)) institutionType?: InstitutionType;
 }
