@@ -10,6 +10,13 @@ import {
 } from 'typeorm';
 import { Course } from '../../courses/entities/course.entity';
 
+export enum InstitutionType {
+  UNIVERSITY = 'university',
+  POLYTECHNIC = 'polytechnic',
+  MONOTECHNIC = 'monotechnic',
+  COLLEGE_OF_EDUCATION = 'college_of_education',
+}
+
 @Entity({ name: 'institutions' })
 export class Institution {
   @PrimaryGeneratedColumn('uuid')
@@ -26,6 +33,9 @@ export class Institution {
 
   @Column({ nullable: true })
   state?: string;
+
+  @Column({ type: 'varchar', default: InstitutionType.UNIVERSITY })
+  institutionType: InstitutionType;
 
   @Column({ type: 'varchar', nullable: true })
   ownership?: string;
