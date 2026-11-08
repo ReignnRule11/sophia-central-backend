@@ -1,4 +1,5 @@
-import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { InstitutionType } from '../entities/institution.entity';
 
 export class CreateInstitutionDto {
   @IsString()
@@ -20,6 +21,10 @@ export class CreateInstitutionDto {
   @IsOptional()
   @IsString()
   ownership?: string;
+
+  @IsOptional()
+  @IsIn(Object.values(InstitutionType))
+  institutionType?: InstitutionType;
 }
 
 export class UpdateInstitutionDto {
