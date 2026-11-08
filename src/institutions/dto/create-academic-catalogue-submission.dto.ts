@@ -5,6 +5,7 @@ export class CreateAcademicCatalogueSubmissionDto {
   @IsIn(Object.values(AcademicEntryType)) entryType: AcademicEntryType;
   @IsString() @IsNotEmpty() @MaxLength(180) name: string;
   @IsOptional() @IsUUID() parentInstitutionId?: string;
+  @IsOptional() @IsUUID() parentInstitutionSubmissionId?: string;
   @IsOptional() @IsUUID() parentFacultyId?: string;
   @IsOptional() @IsUUID() parentFacultySubmissionId?: string;
   @IsOptional() @IsString() @MaxLength(100) state?: string;
