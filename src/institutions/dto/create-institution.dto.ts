@@ -39,4 +39,8 @@ export class UpdateInstitutionDto {
   @IsOptional()
   @IsString()
   city?: string;
+
+  @IsOptional()
+  @IsIn(Object.values(InstitutionType))
+  institutionType?: InstitutionType;
 }
