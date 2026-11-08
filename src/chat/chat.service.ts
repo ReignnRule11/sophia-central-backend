@@ -57,6 +57,14 @@ export class ChatService {
     if (block) throw new ForbiddenException('Private messaging is unavailable because one account has blocked the other.');
   }
 
+  private async assertCanViewMessage(user: User, message: ChatMessage): Promise<void> {
+    if (message.kind === ChatKind.GROUP) {
+      if (user.role !== UserRole.STUDENT || this.groupKey(user) !== message.roomKey) throw new ForbiddenException('You cannot reference a message outside your group.');
+      return;
+    }
+    if (!message.roomKey.split(':').includes(user.id)) throw new ForbiddenException('You cannot reference a message outside your conversation.');
+  }
+
   async listBlocks(userId: string) {
     await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
     const rows = await this.blocks.find({ where: { userId }, order: { createdAt: 'DESC' } });
@@ -278,7 +286,21 @@ export class ChatService {
     const hasText = typeof dto.text === 'string' && dto.text.trim().length > 0;
     const hasVoice = typeof dto.voiceKey === 'string' && dto.voiceKey.length > 0;
     const hasSticker = typeof dto.stickerId === 'string' && dto.stickerId.length > 0;
-    if ([hasText, hasVoice, hasSticker].filter(Boolean).length !== 1) throw new BadRequestException('Send exactly one text message, voice recording, or approved sticker.');
+    const hasForward = typeof dto.forwardMessageId === 'string' && dto.forwardMessageId.length > 0;
+    if ([hasText, hasVoice, hasSticker, hasForward].filter(Boolean).length !== 1) throw new BadRequestException('Send exactly one message, voice recording, sticker, or forwarded message.');
+    if (dto.replyToMessageId && hasForward) throw new BadRequestException('A forwarded message cannot also be a reply.');
+    let replyToMessage: ChatMessage | null = null;
+    if (dto.replyToMessageId) {
+      replyToMessage = await this.repo.findOne({ where: { id: dto.replyToMessageId } });
+      if (!replyToMessage || replyToMessage.isDeleted) throw new BadRequestException('The message you are replying to is unavailable.');
+      await this.assertCanViewMessage(sender, replyToMessage);
+    }
+    let forwardedMessage: ChatMessage | null = null;
+    if (hasForward) {
+      forwardedMessage = await this.repo.findOne({ where: { id: dto.forwardMessageId! } });
+      if (!forwardedMessage || forwardedMessage.isDeleted) throw new BadRequestException('The message you are forwarding is unavailable.');
+      await this.assertCanViewMessage(sender, forwardedMessage);
+    }
     if (hasSticker && !STICKER_CATALOG.includes(dto.stickerId as typeof STICKER_CATALOG[number])) throw new BadRequestException('This sticker is not available.');
     if (dto.kind === 'group' && dto.recipientId) throw new BadRequestException('Group messages cannot specify a recipient.');
 
@@ -291,10 +313,11 @@ export class ChatService {
       roomKey = this.directKey(sender.id, recipient.id);
     }
 
-    let contentType = ChatContentType.TEXT;
-    let voiceKey: string | null = null;
-    let stickerId: string | null = null;
-    if (hasSticker) { contentType = ChatContentType.STICKER; stickerId = dto.stickerId!; }
+    let contentType = forwardedMessage?.contentType ?? ChatContentType.TEXT;
+    let voiceKey: string | null = forwardedMessage?.voiceKey ?? null;
+    let stickerId: string | null = forwardedMessage?.stickerId ?? null;
+    if (forwardedMessage?.contentType === ChatContentType.TEXT && !forwardedMessage.text?.trim()) throw new BadRequestException('This message cannot be forwarded.');
+    if (!forwardedMessage && hasSticker) { contentType = ChatContentType.STICKER; stickerId = dto.stickerId!; }
     if (hasVoice) {
       const key = dto.voiceKey!;
       const allowedKey = new RegExp(`^voice-messages/${id}/[0-9a-f-]{36}\\.(webm|ogg|m4a|mp3|wav)$`, 'i');
@@ -312,16 +335,22 @@ export class ChatService {
     const message = await this.repo.save(this.repo.create({
       kind: dto.kind === 'group' ? ChatKind.GROUP : ChatKind.DIRECT,
       roomKey, senderId: sender.id, senderHandle: sender.academicHandle!,
-      contentType, text: hasText ? dto.text!.trim() : null, voiceKey, stickerId,
+      contentType,
+      text: forwardedMessage ? forwardedMessage.text : hasText ? dto.text!.trim() : null,
+      voiceKey, stickerId,
+      replyToMessageId: replyToMessage?.id ?? null,
+      forwardedFromMessageId: forwardedMessage?.id ?? null,
     }));
     this.publishRoom(roomKey);
 
     if (dto.kind === 'direct' && dto.recipientId) {
-      const preview = hasText
-        ? dto.text!.trim().slice(0, 140)
-        : hasVoice
-          ? 'Sent a voice message'
-          : 'Sent a sticker';
+      const preview = forwardedMessage
+        ? forwardedMessage.contentType === ChatContentType.TEXT ? (forwardedMessage.text ?? 'Forwarded message').slice(0, 140) : forwardedMessage.contentType === ChatContentType.VOICE ? 'Forwarded a voice message' : 'Forwarded a sticker'
+        : hasText
+          ? dto.text!.trim().slice(0, 140)
+          : hasVoice
+            ? 'Sent a voice message'
+            : 'Sent a sticker';
 
       try {
         await this.notifications.createNotification(
@@ -368,10 +397,14 @@ export class ChatService {
     const voiceUrl = !message.isDeleted && message.contentType === ChatContentType.VOICE && message.voiceKey
       ? await this.s3.createPresignedDownloadUrl(message.voiceKey, undefined, 'inline', 300)
       : null;
+    const quoteId = message.replyToMessageId ?? message.forwardedFromMessageId ?? null;
+    const quoted = quoteId ? await this.repo.findOne({ where: { id: quoteId } }) : null;
+    const quotedMessage = quoted ? { id: quoted.id, senderHandle: quoted.senderHandle, contentType: quoted.contentType, text: quoted.isDeleted ? null : quoted.text ?? null, stickerId: quoted.isDeleted ? null : quoted.stickerId ?? null, isDeleted: quoted.isDeleted } : null;
     return {
       id: message.id, kind: message.kind, senderId: message.senderId, senderHandle: message.senderHandle,
       contentType: message.contentType, text: message.isDeleted ? null : message.text,
       voiceUrl, stickerId: message.isDeleted ? null : message.stickerId ?? null, isDeleted: message.isDeleted, editedAt: message.editedAt,
+      replyToMessageId: message.replyToMessageId ?? null, forwardedFromMessageId: message.forwardedFromMessageId ?? null, quotedMessage,
       createdAt: message.createdAt, updatedAt: message.updatedAt, isOwn: message.senderId === viewerId,
     };
   }
