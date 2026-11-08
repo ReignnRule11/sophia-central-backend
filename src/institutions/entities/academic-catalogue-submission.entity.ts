@@ -1,4 +1,5 @@
 import { Column, CreateDateColumn, Entity, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import { InstitutionType } from './institution.entity';
 
 export enum AcademicEntryType { INSTITUTION = 'institution', FACULTY = 'faculty', DEPARTMENT = 'department' }
 export enum AcademicEntryStatus { PENDING = 'pending', APPROVED = 'approved', REJECTED = 'rejected' }
@@ -16,6 +17,7 @@ export class AcademicCatalogueSubmission {
   @Column({ type: 'varchar', nullable: true }) state?: string;
   @Column({ type: 'varchar', nullable: true }) city?: string;
   @Column({ type: 'varchar', nullable: true }) ownership?: string;
+  @Column({ type: 'varchar', default: InstitutionType.UNIVERSITY }) institutionType: InstitutionType;
   @Column({ type: 'varchar', default: AcademicEntryStatus.PENDING }) status: AcademicEntryStatus;
   @Column({ type: 'uuid' }) submittedBy: string;
   @Column({ type: 'uuid', nullable: true }) reviewedBy?: string;
