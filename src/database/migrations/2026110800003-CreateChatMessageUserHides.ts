@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class CreateChatMessageUserHides202611080003 implements MigrationInterface {
-  name = 'CreateChatMessageUserHides202611080003';
+export class CreateChatMessageUserHides2026110800003 implements MigrationInterface {
+  name = 'CreateChatMessageUserHides2026110800003';
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`CREATE TABLE IF NOT EXISTS chat_message_user_hides (
