@@ -16,6 +16,8 @@ describe('UploadService.completeUpload', () => {
   let fileUploadRepository: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
   let resourceRepository: { findOne: jest.Mock; save: jest.Mock };
   let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock };
+  let transactionManager: any;
+  let storageCleanup: any;
 
   const pendingUpload = () => ({
     id: 'upload-row-1',
@@ -35,9 +37,16 @@ describe('UploadService.completeUpload', () => {
       save: jest.fn().mockImplementation(async (value) => value),
       create: jest.fn(),
     };
+    transactionManager = {
+      findOne: jest.fn()
+        .mockResolvedValueOnce({ id: resourceId, uploaderId: userId, fileUrl: null })
+        .mockResolvedValueOnce(pendingUpload()),
+      save: jest.fn().mockImplementation(async (_entity, value) => value),
+    };
     resourceRepository = {
       findOne: jest.fn().mockResolvedValue({ id: resourceId, uploaderId: userId, fileUrl: null }),
       save: jest.fn().mockImplementation(async (value) => value),
+      manager: { transaction: jest.fn(async callback => callback(transactionManager)) },
     };
     s3Service = {
       getObjectMetadata: jest.fn().mockResolvedValue({
@@ -47,12 +56,17 @@ describe('UploadService.completeUpload', () => {
       getPublicUrl: jest.fn().mockReturnValue('https://files.example.test/resources/user-1/test.pdf'),
     };
 
+    storageCleanup = {
+      enqueue: jest.fn(async () => undefined),
+      enqueueWithManager: jest.fn(async () => undefined),
+    };
     service = new UploadService(
       fileUploadRepository as any,
       resourceRepository as any,
       {} as any,
       s3Service as any,
-      { update: jest.fn() } as any,
+      { update: jest.fn(), updateProfileImage: jest.fn() } as any,
+      storageCleanup,
     );
   });
 
@@ -67,7 +81,7 @@ describe('UploadService.completeUpload', () => {
     fileUploadRepository.findOne.mockResolvedValueOnce(null);
 
     await expect(service.completeUpload(userId, dto)).rejects.toBeInstanceOf(BadRequestException);
-    expect(resourceRepository.save).not.toHaveBeenCalled();
+    expect(transactionManager.save).not.toHaveBeenCalled();
   });
 
   it('rejects a stored object whose size differs from the initiated upload', async () => {
@@ -78,14 +92,15 @@ describe('UploadService.completeUpload', () => {
 
     await expect(service.completeUpload(userId, dto)).rejects.toBeInstanceOf(BadRequestException);
     expect(resourceRepository.save).not.toHaveBeenCalled();
-    expect(fileUploadRepository.save).not.toHaveBeenCalled();
+    expect(transactionManager.save).not.toHaveBeenCalled();
   });
 
   it('links the verified object and marks the matching pending upload completed', async () => {
     const result = await service.completeUpload(userId, dto);
 
     expect(result).toMatchObject({ success: true, resourceId, fileUrl: 'https://files.example.test/resources/user-1/test.pdf' });
-    expect(resourceRepository.save).toHaveBeenCalledWith(expect.objectContaining({ fileUrl: result.fileUrl }));
-    expect(fileUploadRepository.save).toHaveBeenCalledWith(expect.objectContaining({ status: 'completed' }));
+    expect(transactionManager.save).toHaveBeenCalledTimes(2);
+    expect(transactionManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ fileUrl: result.fileUrl }));
+    expect(transactionManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'completed' }));
   });
 });
