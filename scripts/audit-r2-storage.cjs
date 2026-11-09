@@ -42,7 +42,7 @@ if (!Number.isFinite(graceDays) || graceDays < 1) {
   process.exit(1);
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 const s3 = new S3Client({
   region,
   endpoint: process.env.AWS_S3_ENDPOINT,
