@@ -139,8 +139,9 @@ async function main() {
          VALUES ($1, $2, 'queued', NOW())
          ON CONFLICT ("objectKey") DO UPDATE
          SET reason = EXCLUDED.reason, status = 'queued', attempts = 0,
-             "availableAt" = NOW(), "lockedAt" = NULL, "lastError" = NULL, "updatedAt" = NOW()
-         WHERE storage_cleanup_jobs.status IN ('deleted', 'protected', 'failed')`,
+             "availableAt" = LEAST(storage_cleanup_jobs."availableAt", EXCLUDED."availableAt"),
+             "lockedAt" = NULL, "lastError" = NULL, "updatedAt" = NOW()
+         WHERE storage_cleanup_jobs.status IN ('queued', 'deleted', 'protected', 'failed')`,
         [key, reason],
       );
     }
