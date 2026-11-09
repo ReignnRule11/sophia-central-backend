@@ -207,12 +207,22 @@ export class UploadService {
     }
 
     const publicUrl = this.s3Service.getPublicUrl(dto.key);
-    resource.fileUrl = publicUrl;
-    await this.resourceRepository.save(resource);
-
-    fileUpload.status = 'completed';
-    fileUpload.completedAt = new Date();
-    await this.fileUploadRepository.save(fileUpload);
+    await this.resourceRepository.manager.transaction(async manager => {
+      const currentResource = await manager.findOne(Resource, { where: { id: dto.resourceId, uploaderId: userId } });
+      const currentUpload = await manager.findOne(FileUpload, {
+        where: { s3Key: dto.key, resourceId: dto.resourceId, userId, status: 'pending' },
+      });
+      if (!currentResource || !currentUpload) throw new BadRequestException('The resource upload changed before completion. Please retry.');
+      const previousFileUrl = currentResource.fileUrl;
+      currentResource.fileUrl = publicUrl;
+      currentUpload.status = 'completed';
+      currentUpload.completedAt = new Date();
+      await manager.save(Resource, currentResource);
+      await manager.save(FileUpload, currentUpload);
+      if (previousFileUrl && previousFileUrl !== publicUrl) {
+        await this.storageCleanup.enqueueWithManager(manager, previousFileUrl, 'resource-file-replaced');
+      }
+    });
 
     return {
       success: true,
