@@ -74,6 +74,24 @@ The apply mode rechecks each candidate against Neon immediately before deleting 
 
 An object still referenced by a test user's profile, resource, support request, or chat message is not an orphan. The orphan utility deliberately preserves it. A one-time test-data reset must first identify the exact test account IDs and remove their relevant database references transactionally; the resulting object keys can then pass through the same reference-checked cleanup queue. Do not clear all production user records just because the existing accounts were used for testing.
 
+## Explicit test-account storage reset
+
+If the existing database file references belong to known test accounts, use the account-scoped reset utility. It is dry-run by default and requires the exact account UUID list to be confirmed twice before applying. It clears only file references and upload state for those selected accounts; it does not delete user accounts, resource metadata, support requests, or other users' records. Chat voice messages authored by those accounts are soft-deleted, and shared forwarded audio remains protected by the normal reference checker.
+
+Dry run:
+
+```bash
+R2_TEST_USER_IDS=id1,id2 node --env-file=.env scripts/reset-test-account-storage.cjs
+```
+
+Apply only after reviewing the dry-run output and verifying every UUID is a test account:
+
+```bash
+R2_TEST_USER_IDS=id1,id2 node --env-file=.env scripts/reset-test-account-storage.cjs --apply --confirm-bucket=sophia-central --confirm-user-ids=id1,id2
+```
+
+The script clears profile/resource/support file references, marks those accounts' file-upload rows failed, soft-deletes their voice messages, and inserts cleanup jobs in one database transaction. The worker then deletes only objects that remain unreferenced. It intentionally does not choose test accounts automatically.
+
 ## Production safety
 
 The scripts never print credentials. Do not run a cleanup script against a development database while pointing it at the production bucket, or vice versa. Before any local backend commit/push or production cleanup, verify the intended production Neon configuration and bucket are selected. The normal application worker performs only queued, reference-checked deletes; it does not mass-delete existing bucket contents.
