@@ -26,7 +26,7 @@ Referenced objects are marked `protected`, not deleted. A later removal/replacem
 - Support attachments uploaded but never attached to a support request: queued after 7 days.
 - Resource uploads left in `pending`: after 24 hours they are marked `failed` and queued for deletion. Users can initiate a fresh upload instead of reusing an expired pending key.
 
-The worker only handles objects in the application prefixes `profile-images/`, `resources/`, `support-attachments/`, and `voice-messages/`. It never deletes arbitrary bucket keys.
+The backend runtime R2 API token must be scoped to this bucket and allow the object operations the app uses, including object deletion. If delete permission is missing, cleanup jobs will retry and eventually appear as `failed` for operator review.\n\nThe worker only handles objects in the application prefixes `profile-images/`, `resources/`, `support-attachments/`, and `voice-messages/`. It never deletes arbitrary bucket keys.
 
 ## Read-only inventory
 
