@@ -76,6 +76,16 @@ function csvCell(value) {
   return '"' + text.replace(/"/g, '""') + '"';
 }
 
+async function readCleanupQueue() {
+  try {
+    return await pool.query('SELECT status, COUNT(*)::int AS count FROM storage_cleanup_jobs GROUP BY status');
+  } catch (error) {
+    // The audit can also be run before the cleanup migration has been deployed.
+    if (error && error.code === '42P01') return { rows: [] };
+    throw error;
+  }
+}
+
 async function queryReferences() {
   const refs = new Map();
   const add = (value, source) => {
@@ -98,7 +108,7 @@ async function queryReferences() {
     pool.query('SELECT attachments AS value FROM support_requests WHERE attachments IS NOT NULL'),
     pool.query(`SELECT "s3Key" AS value FROM file_uploads
       WHERE status = 'pending' AND "uploadedAt" >= NOW() - INTERVAL '24 hours'`),
-    pool.query(`SELECT status, COUNT(*)::int AS count FROM storage_cleanup_jobs GROUP BY status`),
+    readCleanupQueue(),
   ]);
 
   for (const row of profiles.rows) add(row.value, 'users.profileImage');
