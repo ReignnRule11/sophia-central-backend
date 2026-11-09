@@ -2,12 +2,14 @@ import { ConflictException, Injectable, NotFoundException } from '@nestjs/common
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
+import { StorageCleanupService } from '../upload/storage-cleanup.service';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     private readonly dataSource: DataSource,
+    private readonly storageCleanup: StorageCleanupService,
   ) {}
 
   async create(data: Partial<User>): Promise<User> {
@@ -77,6 +79,40 @@ export class UsersService {
 
   private async removeAccountData(id: string): Promise<void> {
     await this.dataSource.transaction(async manager => {
+      // Queue owned objects in the same transaction as the account-data deletion.
+      // The worker performs a final global reference check before deleting from R2.
+      const profileRows = await manager.query('SELECT "profileImage" FROM users WHERE id = $1::uuid', [id]);
+      await this.storageCleanup.enqueueWithManager(manager, profileRows[0]?.profileImage, 'account-deleted-profile-image');
+
+      const resourceFiles = await manager.query(
+        'SELECT "fileUrl" FROM resources WHERE "uploaderId"::text = $1::text AND "fileUrl" IS NOT NULL',
+        [id],
+      );
+      for (const row of resourceFiles) {
+        await this.storageCleanup.enqueueWithManager(manager, row.fileUrl, 'account-deleted-resource-file');
+      }
+
+      const uploadFiles = await manager.query(
+        'SELECT "s3Key" FROM file_uploads WHERE "userId"::text = $1::text',
+        [id],
+      );
+      for (const row of uploadFiles) {
+        await this.storageCleanup.enqueueWithManager(manager, row.s3Key, 'account-deleted-upload');
+      }
+
+      const supportRows = await manager.query(
+        'SELECT attachments FROM support_requests WHERE "userId" = $1::uuid',
+        [id],
+      );
+      for (const row of supportRows) {
+        const attachments = Array.isArray(row.attachments) ? row.attachments : [];
+        for (const attachment of attachments) {
+          if (typeof attachment === 'string') {
+            await this.storageCleanup.enqueueWithManager(manager, attachment, 'account-deleted-support-attachment');
+          }
+        }
+      }
+
       // Reverse only the unspent portion of the referral reward tied to this referred student.
       const incomingReferrals = await manager.query(
         'SELECT id, "referrerId", "rewardRemaining" FROM referrals WHERE "referredUserId" = $1::uuid FOR UPDATE',
