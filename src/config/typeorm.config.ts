@@ -11,6 +11,7 @@ import { ModerationReview } from '../moderation/entities/moderation-review.entit
 import { PointWallet } from '../points/entities/point-wallet.entity';
 import { PointTransaction } from '../points/entities/point-transaction.entity';
 import { FileUpload } from '../upload/entities/file-upload.entity';
+import { StorageCleanupJob } from '../upload/entities/storage-cleanup-job.entity';
 import { Referral } from '../referral/entities/referral.entity';
 import { Notification } from '../notifications/entities/notification.entity';
 import { AiSession } from '../ai/entities/ai-session.entity';
@@ -42,7 +43,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   database: process.env.DB_DATABASE || 'sophia_central',
   entities: [
     User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
-    ModerationReview, PointWallet, PointTransaction, FileUpload, Referral,
+    ModerationReview, PointWallet, PointTransaction, FileUpload, StorageCleanupJob, Referral,
     Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, UserActivityEvent,
   ],
   synchronize: !isProduction,
