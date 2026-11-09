@@ -5,10 +5,9 @@ import { SupportController } from './support.controller';
 import { SupportService } from './support.service';
 import { User } from '../users/entities/user.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { StorageModule } from '../upload/storage.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([SupportRequest, User]), NotificationsModule, StorageModule],
+  imports: [TypeOrmModule.forFeature([SupportRequest, User]), NotificationsModule],
   controllers: [SupportController],
   providers: [SupportService],
   exports: [SupportService],
