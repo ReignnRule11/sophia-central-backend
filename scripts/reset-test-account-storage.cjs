@@ -24,8 +24,8 @@ const confirmIds = (process.argv.find(v => v.startsWith('--confirm-user-ids='))?
   .split(',').map(v => v.trim()).filter(Boolean).sort();
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-if (!process.env.DATABASE_URL) {
-  console.error('Missing DATABASE_URL.');
+if (!process.env.DATABASE_URL || !process.env.AWS_S3_BUCKET_URL) {
+  console.error('Missing DATABASE_URL or AWS_S3_BUCKET_URL.');
   process.exit(1);
 }
 if (!ids.length || ids.some(id => !uuid.test(id))) {
@@ -135,7 +135,7 @@ async function main() {
     await client.query('UPDATE users SET "profileImage" = NULL WHERE id = ANY($1::uuid[])', [ids]);
     await client.query('UPDATE resources SET "fileUrl" = NULL WHERE "uploaderId"::text = ANY($1::text[])', [ids]);
     await client.query('UPDATE file_uploads SET status = \'failed\', "updatedAt" = NOW() WHERE "userId"::text = ANY($1::text[])', [ids]);
-    await client.query('UPDATE support_requests SET attachments = \'[]\'::jsonb, "updatedAt" = NOW() WHERE "userId" = ANY($1::uuid[])');
+    await client.query('UPDATE support_requests SET attachments = \'[]\'::jsonb, "updatedAt" = NOW() WHERE "userId" = ANY($1::uuid[])', [ids]);
     await client.query(
       `UPDATE chat_messages
        SET "isDeleted" = true, text = NULL, "stickerId" = NULL, "updatedAt" = NOW()
