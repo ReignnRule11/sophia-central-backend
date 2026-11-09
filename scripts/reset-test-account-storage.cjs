@@ -68,8 +68,8 @@ async function collect(client) {
   const params = [ids];
   const [users, resources, uploads, support, voices] = await Promise.all([
     client.query('SELECT id, "profileImage" FROM users WHERE id = ANY($1::uuid[])', params),
-    client.query('SELECT id, "fileUrl" FROM resources WHERE "uploaderId" = ANY($1::uuid[]) AND "fileUrl" IS NOT NULL', params),
-    client.query('SELECT id, "s3Key" FROM file_uploads WHERE "userId" = ANY($1::uuid[])', params),
+    client.query('SELECT id, "fileUrl" FROM resources WHERE "uploaderId"::text = ANY($1::text[]) AND "fileUrl" IS NOT NULL', params),
+    client.query('SELECT id, "s3Key" FROM file_uploads WHERE "userId"::text = ANY($1::text[])', params),
     client.query('SELECT id, attachments FROM support_requests WHERE "userId" = ANY($1::uuid[])', params),
     client.query('SELECT id, "voiceKey" FROM chat_messages WHERE "senderId" = ANY($1::uuid[]) AND "voiceKey" IS NOT NULL AND "isDeleted" = false', params),
   ]);
@@ -133,12 +133,12 @@ async function main() {
     }
 
     await client.query('UPDATE users SET "profileImage" = NULL WHERE id = ANY($1::uuid[])', [ids]);
-    await client.query('UPDATE resources SET "fileUrl" = NULL WHERE "uploaderId" = ANY($1::uuid[])', [ids]);
+    await client.query('UPDATE resources SET "fileUrl" = NULL WHERE "uploaderId"::text = ANY($1::text[])', [ids]);
     await client.query('UPDATE file_uploads SET status = \'failed\', "updatedAt" = NOW() WHERE "userId" = ANY($1::uuid[])', [ids]);
     await client.query('UPDATE support_requests SET attachments = \'[]\'::jsonb, "updatedAt" = NOW() WHERE "userId" = ANY($1::uuid[])');
     await client.query(
       `UPDATE chat_messages
-       SET "isDeleted" = true, text = NULL, sticker_id = NULL, "updatedAt" = NOW()
+       SET "isDeleted" = true, text = NULL, "stickerId" = NULL, "updatedAt" = NOW()
        WHERE "senderId" = ANY($1::uuid[]) AND "voiceKey" IS NOT NULL AND "isDeleted" = false`,
       [ids],
     );
