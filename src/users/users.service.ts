@@ -52,19 +52,29 @@ export class UsersService {
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {
-    const user = await this.findOne(id);
-    if (!user) throw new NotFoundException('User not found');
-    if (data.academicHandle !== undefined) {
-      const normalized = data.academicHandle.trim().replace(/^@+/, '').toLowerCase();
-      const existing = await this.usersRepository.createQueryBuilder('user')
-        .where('LOWER(user.academicHandle) = :handle', { handle: normalized })
-        .andWhere('user.id != :id', { id })
-        .getOne();
-      if (existing) throw new ConflictException('Academic handle already exists');
-      data.academicHandle = normalized;
-    }
-    Object.assign(user, data);
-    return this.usersRepository.save(user);
+    return this.dataSource.transaction(async manager => {
+      const user = await manager.findOne(User, { where: { id } });
+      if (!user) throw new NotFoundException('User not found');
+
+      const updateData = { ...data };
+      if (updateData.academicHandle !== undefined) {
+        const normalized = updateData.academicHandle.trim().replace(/^@+/, '').toLowerCase();
+        const existing = await manager.createQueryBuilder(User, 'user')
+          .where('LOWER(user.academicHandle) = :handle', { handle: normalized })
+          .andWhere('user.id != :id', { id })
+          .getOne();
+        if (existing) throw new ConflictException('Academic handle already exists');
+        updateData.academicHandle = normalized;
+      }
+
+      const previousProfileImage = user.profileImage;
+      Object.assign(user, updateData);
+      const saved = await manager.save(User, user);
+      if (updateData.profileImage !== undefined && previousProfileImage && previousProfileImage !== saved.profileImage) {
+        await this.storageCleanup.enqueueWithManager(manager, previousProfileImage, 'replaced-profile-image');
+      }
+      return saved;
+    });
   }
 
   async updateProfileImage(id: string, profileImage: string): Promise<User> {
