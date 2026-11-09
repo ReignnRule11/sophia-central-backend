@@ -1116,6 +1116,14 @@ async function runReadOnlyAudit(
   const successorCandidates: object[] = [];
   const possibleNearDuplicates: object[] = [];
   const unmatched: string[] = [];
+  const sourceNearDuplicateCandidates =
+    findIncomingNearDuplicatePairs(records);
+  const sourceNearDuplicateKeys = new Set(
+    sourceNearDuplicateCandidates.flatMap((pair) => [
+      normalizeName(pair.first.name),
+      normalizeName(pair.second.name),
+    ]),
+  );
 
   for (const item of records.values()) {
     const key = normalizeName(item.name);
@@ -1196,7 +1204,11 @@ async function runReadOnlyAudit(
       });
     }
 
-    if (matchedSuccessors.length === 0 && nearMatches.length === 0) {
+    if (
+      matchedSuccessors.length === 0 &&
+      nearMatches.length === 0 &&
+      !sourceNearDuplicateKeys.has(key)
+    ) {
       unmatched.push(item.name);
     }
   }
@@ -1220,9 +1232,6 @@ async function runReadOnlyAudit(
     }),
   ).filter((candidate: any) => candidate.candidates.length > 0);
 
-  const sourceNearDuplicateCandidates =
-    findIncomingNearDuplicatePairs(records);
-
   console.log('\nREAD-ONLY PRODUCTION AUDIT RESULTS:');
 
   console.log(
@@ -1239,9 +1248,13 @@ async function runReadOnlyAudit(
         possibleNearDuplicates: filteredNearDuplicates,
         sourceNearDuplicateCandidates,
         reviewRequiredIncomingCount: new Set([
-          ...successorCandidates.map((candidate: any) => candidate.incoming),
-          ...filteredNearDuplicates.map((candidate: any) => candidate.incoming),
-          ...sourceNearDuplicateCandidates.flatMap((pair) => [pair.first.name, pair.second.name]),
+          ...successorCandidates.map((candidate: any) =>
+            normalizeName(candidate.incoming),
+          ),
+          ...filteredNearDuplicates.map((candidate: any) =>
+            normalizeName(candidate.incoming),
+          ),
+          ...sourceNearDuplicateKeys,
         ]).size,
         unmatchedCount: unmatched.length,
         unmatched,
@@ -1275,7 +1288,7 @@ async function runImport(
         'Potential near-duplicate names exist within the same official source; they require manual review and must not be silently merged or imported as separate institutions.',
         JSON.stringify(sourceNearDuplicateCandidates, null, 2),
         'No database changes were made.',
-      ].join('\\n'),
+      ].join('\n'),
     );
   }
 
