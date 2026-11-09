@@ -220,10 +220,17 @@ export class ResourcesService {
   }
 
   async update(id: string, dto: UpdateResourceDto): Promise<Resource> {
-    const resource = await this.resourceRepository.findOne({ where: { id } });
-    if (!resource) throw new NotFoundException('Resource not found');
-    Object.assign(resource, dto);
-    return this.resourceRepository.save(resource);
+    return this.resourceRepository.manager.transaction(async manager => {
+      const resource = await manager.findOne(Resource, { where: { id } });
+      if (!resource) throw new NotFoundException('Resource not found');
+      const previousFileUrl = resource.fileUrl;
+      Object.assign(resource, dto);
+      const saved = await manager.save(Resource, resource);
+      if (previousFileUrl && previousFileUrl !== saved.fileUrl) {
+        await this.storageCleanup.enqueueWithManager(manager, previousFileUrl, 'resource-file-replaced');
+      }
+      return saved;
+    });
   }
 
   async remove(id: string): Promise<void> {
