@@ -36,6 +36,13 @@ type SuccessorReviewRule = {
   reason: string;
 };
 
+type AdjudicatedInstitutionRule = {
+  incomingAliases: string[];
+  existingAliases: string[];
+  decision: 'predecessor-successor' | 'same-institution';
+  reason: string;
+};
+
 type ExistingInstitution = {
   id?: number | string;
   name: string;
@@ -87,7 +94,15 @@ const NCCE_NUMERIC_CLASSIFICATIONS = new Set(['1', '2', '3']);
  * They are NOT automatic duplicate rules.
  * They must never cause an incoming institution to be silently discarded.
  */
-const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
+/*
+ * Explicitly adjudicated identity relationships. These decisions preserve the
+ * existing production institution row: predecessor records and cross-category
+ * source listings are not imported as additional institutions.
+ *
+ * MAPOLY, Shehu Shagari and the Raindrops source-record pair remain unresolved
+ * and continue to block --apply until separately reviewed.
+ */
+const ADJUDICATED_INSTITUTION_RULES: AdjudicatedInstitutionRule[] = [
   {
     incomingAliases: [
       'Delta State Polytechnic, Ozoro',
@@ -97,16 +112,22 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
     existingAliases: [
       'University of Science and Technology, Ozoro, Delta State',
     ],
+    decision: 'predecessor-successor',
     reason:
-      'Possible institutional upgrade or successor relationship; verify the historical institution and current university record before importing.',
+      'The state university is the documented successor to Delta State Polytechnic. Preserve the existing production institution row and do not import the predecessor as a second institution.',
   },
   {
-    incomingAliases: ['Moshood Abiola Polytechnic, Abeokuta'],
-    existingAliases: [
-      'Moshood Abiola University of Science and Technology, Abeokuta',
+    incomingAliases: [
+      'Lagos State Polytechnic',
+      'Lagos State Polytechnic, Ikorodu',
+      'Lagos State Polytechnic, Ikorodu (Now Lagos State University of Science and Technology)',
     ],
+    existingAliases: [
+      'Lagos University of Science and Technology, Ikorodu, Lagos State',
+    ],
+    decision: 'predecessor-successor',
     reason:
-      'Possible institutional upgrade or successor relationship; verify the historical institution and current university record before importing.',
+      'NBTE identifies Lagos State Polytechnic as now Lagos State University of Science and Technology. Preserve the existing production institution row.',
   },
   {
     incomingAliases: [
@@ -118,8 +139,9 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
     existingAliases: [
       'Cross River University of Education and Entrepreneurship, Akampa, Cross River State',
     ],
+    decision: 'predecessor-successor',
     reason:
-      'Possible institutional upgrade or successor relationship; the NCCE register abbreviates College as Coll. Verify before importing.',
+      'Cross River State Government documents the transition to Cross River University of Education and Entrepreneurship. Preserve the existing production institution row.',
   },
   {
     incomingAliases: [
@@ -129,8 +151,31 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
     existingAliases: [
       'Bamidele Olumulia University of Education Science and Technology, Ikere - Ekiti State',
     ],
+    decision: 'predecessor-successor',
     reason:
-      'Possible institutional upgrade or successor relationship; preserve the exact existing production name and verify the institution history before importing.',
+      'Ekiti State Government and the university identify the College of Education as part of the successor university. Preserve the existing production institution row.',
+  },
+  {
+    incomingAliases: [
+      'Air Force Institute of Technology (AFIT), Airforce Base, Kaduna',
+      'Air Force Institute of Technology (AFIT), Kaduna',
+      'Air Force Institute of Technology, Kaduna',
+    ],
+    existingAliases: ['Air Force Institute of Technology, Kaduna'],
+    decision: 'same-institution',
+    reason:
+      'The NBTE and NUC entries refer to the same Air Force Institute of Technology. The existing production university record is retained; the NBTE polytechnic listing is not imported as a second institution.',
+  },
+];
+
+const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
+  {
+    incomingAliases: ['Moshood Abiola Polytechnic, Abeokuta'],
+    existingAliases: [
+      'Moshood Abiola University of Science and Technology, Abeokuta',
+    ],
+    reason:
+      'Conflicting current evidence: NBTE continues to list active accredited polytechnic programmes while NUC lists the successor university. Manual review is required; do not merge or discard either record.',
   },
   {
     incomingAliases: [
@@ -141,29 +186,7 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
       'Shehu Shagari University of Education, Sokoto, Sokoto State',
     ],
     reason:
-      'Possible institutional upgrade or successor relationship; verify before importing.',
-  },
-  {
-    incomingAliases: [
-      'Lagos State Polytechnic',
-      'Lagos State Polytechnic, Ikorodu',
-      'Lagos State Polytechnic, Ikorodu (Now Lagos State University of Science and Technology)',
-    ],
-    existingAliases: [
-      'Lagos University of Science and Technology, Ikorodu, Lagos State',
-    ],
-    reason:
-      'Possible institutional upgrade or successor relationship; verify the historical institution and current university record before importing.',
-  },
-  {
-    incomingAliases: [
-      'Air Force Institute of Technology (AFIT), Airforce Base, Kaduna',
-      'Air Force Institute of Technology (AFIT), Kaduna',
-      'Air Force Institute of Technology, Kaduna',
-    ],
-    existingAliases: ['Air Force Institute of Technology, Kaduna'],
-    reason:
-      'Possible acronym or location-format match. The production record is currently typed as a university, so review the type difference rather than importing a second record.',
+      'The university reports an upgrade, while NCCE and the college continue to list the College of Education and NCE programmes. Manual review is required; do not merge or discard either record.',
   },
 ];
 
@@ -363,6 +386,33 @@ function findSuccessorReview(
         (alias) => normalizeName(alias) === existingKey,
       ),
   );
+}
+
+function findAdjudicatedInstitution(
+  incomingName: string,
+  existingInstitutions: ExistingInstitution[],
+): { existing: ExistingInstitution; rule: AdjudicatedInstitutionRule } | undefined {
+  const incomingKey = normalizeName(incomingName);
+
+  for (const rule of ADJUDICATED_INSTITUTION_RULES) {
+    if (
+      !rule.incomingAliases.some(
+        (alias) => normalizeName(alias) === incomingKey,
+      )
+    ) {
+      continue;
+    }
+
+    const existing = existingInstitutions.find((institution) =>
+      rule.existingAliases.some(
+        (alias) => normalizeName(alias) === normalizeName(institution.name),
+      ),
+    );
+
+    if (existing) return { existing, rule };
+  }
+
+  return undefined;
 }
 
 function buildExistingNameIndex(
@@ -1124,6 +1174,7 @@ async function runReadOnlyAudit(
   const formattingMatches: object[] = [];
   const typeConflicts: object[] = [];
   const ambiguousMatches: object[] = [];
+  const adjudicatedMatches: object[] = [];
   const successorCandidates: object[] = [];
   const possibleNearDuplicates: object[] = [];
   const unmatched: string[] = [];
@@ -1174,6 +1225,25 @@ async function runReadOnlyAudit(
         typeConflicts.push(match);
       }
 
+      continue;
+    }
+
+    const adjudicated = findAdjudicatedInstitution(
+      item.name,
+      existingInstitutions,
+    );
+
+    if (adjudicated) {
+      adjudicatedMatches.push({
+        incoming: item.name,
+        sourceName: item.sourceName,
+        incomingType: item.institutionType,
+        existing: adjudicated.existing.name,
+        existingType: adjudicated.existing.institutionType,
+        source: item.source,
+        decision: adjudicated.rule.decision,
+        reason: adjudicated.rule.reason,
+      });
       continue;
     }
 
@@ -1255,6 +1325,8 @@ async function runReadOnlyAudit(
         formattingMatches,
         typeConflicts,
         ambiguousMatches,
+        adjudicatedMatches,
+        adjudicatedIncomingCount: adjudicatedMatches.length,
         successorCandidates,
         possibleNearDuplicates: filteredNearDuplicates,
         sourceNearDuplicateCandidates,
@@ -1306,6 +1378,10 @@ async function runImport(
   let inserted = 0;
   let updated = 0;
   let unchanged = 0;
+  let excludedAsAdjudicated = 0;
+
+  const excludedIncomingKeys = new Set<string>();
+  const adjudicatedDecisions: object[] = [];
 
   const conflicts: Array<{
     name: string;
@@ -1364,6 +1440,22 @@ async function runImport(
             'Multiple existing production records share this normalized name.',
         });
 
+        continue;
+      }
+
+      const adjudicated = findAdjudicatedInstitution(
+        item.name,
+        existingInstitutions,
+      );
+
+      if (adjudicated) {
+        excludedIncomingKeys.add(key);
+        adjudicatedDecisions.push({
+          incoming: item.name,
+          existing: adjudicated.existing.name,
+          decision: adjudicated.rule.decision,
+          reason: adjudicated.rule.reason,
+        });
         continue;
       }
 
@@ -1443,6 +1535,11 @@ async function runImport(
      */
 
     for (const [key, item] of records.entries()) {
+      if (excludedIncomingKeys.has(key)) {
+        excludedAsAdjudicated += 1;
+        continue;
+      }
+
       const existing = existingByIncomingName.get(key) ?? null;
 
       if (existing) {
@@ -1500,6 +1597,8 @@ async function runImport(
         inserted,
         updated,
         unchanged,
+        excludedAsAdjudicated,
+        adjudicatedDecisions,
         conflicts: conflicts.length,
         transaction: 'committed',
         deleted: 0,
