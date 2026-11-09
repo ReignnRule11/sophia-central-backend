@@ -124,6 +124,18 @@ export class UsersService {
         await this.storageCleanup.enqueueWithManager(manager, row.s3Key, 'account-deleted-upload');
       }
 
+      const legacyFiles = await manager.query(
+        'SELECT legacy.s3_key FROM resource_files legacy JOIN resources resource ON resource.id = legacy.resource_id WHERE resource."uploaderId"::text = $1::text',
+        [id],
+      );
+      for (const row of legacyFiles) {
+        await this.storageCleanup.enqueueWithManager(manager, row.s3_key, 'account-deleted-legacy-resource-file');
+      }
+      await manager.query(
+        'DELETE FROM resource_files WHERE resource_id IN (SELECT id FROM resources WHERE "uploaderId"::text = $1::text)',
+        [id],
+      );
+
       const supportRows = await manager.query(
         'SELECT attachments FROM support_requests WHERE "userId" = $1::uuid',
         [id],
