@@ -14,7 +14,7 @@ describe('UploadService.completeUpload', () => {
 
   let service: UploadService;
   let fileUploadRepository: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
-  let resourceRepository: { findOne: jest.Mock; save: jest.Mock };
+  let resourceRepository: any;
   let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock };
   let transactionManager: any;
   let storageCleanup: any;
