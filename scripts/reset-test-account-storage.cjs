@@ -79,10 +79,11 @@ function safeKey(value) {
 
 async function collect(client) {
   const params = [ids];
-  const [users, resources, uploads, support, voices] = await Promise.all([
+  const [users, resources, uploads, legacy, support, voices] = await Promise.all([
     client.query('SELECT id, "profileImage" FROM users WHERE id = ANY($1::uuid[])', params),
     client.query('SELECT id, "fileUrl" FROM resources WHERE "uploaderId"::text = ANY($1::text[]) AND "fileUrl" IS NOT NULL', params),
     client.query('SELECT id, "s3Key" FROM file_uploads WHERE "userId"::text = ANY($1::text[])', params),
+    client.query('SELECT legacy.s3_key FROM resource_files legacy JOIN resources resource ON resource.id = legacy.resource_id WHERE resource."uploaderId"::text = ANY($1::text[])', params),
     client.query('SELECT id, attachments FROM support_requests WHERE "userId" = ANY($1::uuid[])', params),
     client.query('SELECT id, "voiceKey" FROM chat_messages WHERE "senderId" = ANY($1::uuid[]) AND "voiceKey" IS NOT NULL AND "isDeleted" = false', params),
   ]);
@@ -91,6 +92,7 @@ async function collect(client) {
   for (const row of users.rows) if (row.profileImage) references.push({ value: row.profileImage, reason: 'test-account-profile-image' });
   for (const row of resources.rows) references.push({ value: row.fileUrl, reason: 'test-account-resource-file' });
   for (const row of uploads.rows) references.push({ value: row.s3Key, reason: 'test-account-upload' });
+  for (const row of legacy.rows) references.push({ value: row.s3_key, reason: 'test-account-legacy-resource-file' });
   for (const row of support.rows) {
     for (const attachment of (Array.isArray(row.attachments) ? row.attachments : [])) {
       if (typeof attachment === 'string') references.push({ value: attachment, reason: 'test-account-support-attachment' });
@@ -103,7 +105,7 @@ async function collect(client) {
     const key = safeKey(item.value);
     if (key && !keys.has(key)) keys.set(key, item.reason);
   }
-  return { users: users.rows, resources: resources.rows, uploads: uploads.rows, support: support.rows, voices: voices.rows, keys };
+  return { users: users.rows, resources: resources.rows, uploads: uploads.rows, legacy: legacy.rows, support: support.rows, voices: voices.rows, keys };
 }
 
 async function main() {
@@ -119,6 +121,7 @@ async function main() {
         profileImages: data.users.filter(row => row.profileImage).length,
         resourceFiles: data.resources.length,
         uploadRecords: data.uploads.length,
+        legacyResourceFiles: data.legacy.length,
         supportRequestsWithAttachments: data.support.filter(row => Array.isArray(row.attachments) && row.attachments.length).length,
         chatVoiceFiles: data.voices.length,
         distinctR2ObjectsToQueue: data.keys.size,
@@ -148,6 +151,7 @@ async function main() {
 
     await client.query('UPDATE users SET "profileImage" = NULL WHERE id = ANY($1::uuid[])', [ids]);
     await client.query('UPDATE resources SET "fileUrl" = NULL WHERE "uploaderId"::text = ANY($1::text[])', [ids]);
+    await client.query('DELETE FROM resource_files WHERE resource_id IN (SELECT id FROM resources WHERE "uploaderId"::text = ANY($1::text[]))', [ids]);
     await client.query('UPDATE file_uploads SET status = \'failed\', "updatedAt" = NOW() WHERE "userId"::text = ANY($1::text[])', [ids]);
     await client.query('UPDATE support_requests SET attachments = \'[]\'::jsonb, "updatedAt" = NOW() WHERE "userId" = ANY($1::uuid[])', [ids]);
     await client.query(
@@ -166,6 +170,7 @@ async function main() {
       profileImagesCleared: data.users.filter(row => row.profileImage).length,
       resourceFileReferencesCleared: data.resources.length,
       uploadRecordsMarkedFailed: data.uploads.length,
+      legacyResourceFileRowsDeleted: data.legacy.length,
       supportRequestsCleared: data.support.filter(row => Array.isArray(row.attachments) && row.attachments.length).length,
       chatVoiceMessagesSoftDeleted: data.voices.length,
       note: 'Database references were cleared transactionally. R2 deletion is performed asynchronously by the reference-checking worker.',
