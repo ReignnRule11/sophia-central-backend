@@ -385,14 +385,8 @@ describe('ChatService access and message rules', () => {
     users.findChatContacts.mockResolvedValue([
       { id: 'student-2', academicHandle: 'reader2', role: UserRole.STUDENT },
     ]);
-    repo.createQueryBuilder.mockReturnValue({
-      select: jest.fn().mockReturnThis(),
-      where: jest.fn().mockReturnThis(),
-      andWhere: jest.fn().mockReturnThis(),
-      getRawMany: jest.fn(async () => []),
-    });
     const createdAt = new Date('2026-11-06T10:00:00.000Z');
-    repo.findOne.mockResolvedValue({
+    const latestMessage = {
       id: 'latest-message',
       roomKey: 'direct:student-1:student-2',
       kind: ChatKind.DIRECT,
@@ -402,7 +396,22 @@ describe('ChatService access and message rules', () => {
       text: 'Are you available?',
       createdAt,
       isDeleted: false,
-    });
+    };
+    const contactsQuery = {
+      select: jest.fn().mockReturnThis(),
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      getRawMany: jest.fn(async () => []),
+    };
+    const inboxQuery = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      getOne: jest.fn(async () => latestMessage),
+    };
+    repo.createQueryBuilder
+      .mockReturnValueOnce(contactsQuery)
+      .mockReturnValueOnce(inboxQuery);
     reads.findOne.mockResolvedValue(null);
     repo.count.mockResolvedValue(2);
 
