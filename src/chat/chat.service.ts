@@ -13,6 +13,7 @@ import { RedisChatService } from './redis-chat.service';
 import { ChatUserBlock } from './entities/chat-user-block.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatConversationRead } from './entities/chat-conversation-read.entity';
+import { ChatMessageUserHide } from './entities/chat-message-user-hide.entity';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_VOICE_BYTES = 12 * 1024 * 1024;
@@ -32,6 +33,7 @@ export class ChatService {
     @InjectRepository(ChatMessage) private readonly repo: Repository<ChatMessage>,
     @InjectRepository(ChatUserBlock) private readonly blocks: Repository<ChatUserBlock>,
     @InjectRepository(ChatConversationRead) private readonly reads: Repository<ChatConversationRead>,
+    @InjectRepository(ChatMessageUserHide) private readonly messageHides: Repository<ChatMessageUserHide>,
     private readonly users: UsersService,
     private readonly s3: S3Service,
     private readonly redis: RedisChatService,
@@ -156,10 +158,15 @@ export class ChatService {
       }
 
       const [latest, readState] = await Promise.all([
-        this.repo.findOne({
-          where: { roomKey, kind: ChatKind.DIRECT },
-          order: { createdAt: 'DESC' },
-        }),
+        this.repo.createQueryBuilder('message')
+          .where('message.roomKey = :roomKey', { roomKey })
+          .andWhere('message.kind = :kind', { kind: ChatKind.DIRECT })
+          .andWhere(
+            'NOT EXISTS (SELECT 1 FROM chat_message_user_hides hidden WHERE hidden."messageId" = message.id AND hidden."userId" = :viewerId)',
+            { viewerId: id },
+          )
+          .orderBy('message.createdAt', 'DESC')
+          .getOne(),
         this.reads.findOne({ where: { userId: id, roomKey } }),
       ]);
 
@@ -266,7 +273,12 @@ export class ChatService {
     }
     const parsed = Number(limitValue || 30);
     const limit = Number.isInteger(parsed) ? Math.max(1, Math.min(100, parsed)) : 30;
-    const query = this.repo.createQueryBuilder('message').where('message.roomKey = :room', { room });
+    const query = this.repo.createQueryBuilder('message')
+      .where('message.roomKey = :room', { room })
+      .andWhere(
+        'NOT EXISTS (SELECT 1 FROM chat_message_user_hides hidden WHERE hidden."messageId" = message.id AND hidden."userId" = :viewerId)',
+        { viewerId: id },
+      );
     if (before) {
       const cursor = await this.repo.findOne({ where: { id: before, roomKey: room } });
       if (!cursor) throw new BadRequestException('Invalid pagination cursor.');
@@ -277,8 +289,21 @@ export class ChatService {
     }
     const rows = await query.orderBy('message.createdAt', 'DESC').addOrderBy('message.id', 'DESC').take(limit + 1).getMany();
     const hasMore = rows.length > limit;
-    const items = await Promise.all(rows.slice(0, limit).reverse().map(message => this.present(message, id)));
-    return { items, hasMore, nextBefore: hasMore ? rows[limit - 1]?.id : null };
+    const [items, hiddenRows] = await Promise.all([
+      Promise.all(rows.slice(0, limit).reverse().map(message => this.present(message, id))),
+      this.messageHides.createQueryBuilder('hidden')
+        .innerJoin(ChatMessage, 'message', 'message.id = hidden."messageId"')
+        .where('hidden."userId" = :viewerId', { viewerId: id })
+        .andWhere('message."roomKey" = :room', { room })
+        .select('hidden."messageId"', 'messageId')
+        .getRawMany<{ messageId: string }>(),
+    ]);
+    return {
+      items,
+      hasMore,
+      nextBefore: hasMore ? rows[limit - 1]?.id : null,
+      hiddenMessageIds: hiddenRows.map(row => row.messageId),
+    };
   }
 
   async create(id: string, dto: CreateChatMessageDto) {
@@ -395,6 +420,22 @@ export class ChatService {
     if (message.senderId !== id) throw new ForbiddenException('You can only delete your own messages.');
     message.isDeleted = true; message.text = null; message.voiceKey = null; message.stickerId = null;
     await this.repo.save(message);
+    this.publishRoom(message.roomKey);
+    return { success: true, id: message.id };
+  }
+
+  async hideDeletedMessage(userId: string, messageId: string) {
+    const user = await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
+    const message = await this.repo.findOne({ where: { id: messageId } });
+    if (!message) throw new NotFoundException('Message not found.');
+    if (!message.isDeleted) throw new BadRequestException('Only deleted messages can be removed from your chat.');
+    await this.assertCanViewMessage(user, message);
+
+    const existing = await this.messageHides.findOne({ where: { userId, messageId } });
+    if (!existing) {
+      await this.messageHides.save(this.messageHides.create({ userId, messageId }));
+    }
+
     this.publishRoom(message.roomKey);
     return { success: true, id: message.id };
   }

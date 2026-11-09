@@ -63,6 +63,11 @@ export class ChatController {
     return this.chat.edit(request.user.id, id, dto.text);
   }
 
+  @Delete('messages/:id/hide')
+  hideDeletedMessage(@Req() request: AuthRequest, @Param('id', ParseUUIDPipe) id: string) {
+    return this.chat.hideDeletedMessage(request.user.id, id);
+  }
+
   @Delete('messages/:id')
   remove(@Req() request: AuthRequest, @Param('id', ParseUUIDPipe) id: string) { return this.chat.remove(request.user.id, id); }
 }
