@@ -58,11 +58,9 @@ export class UploadService {
     if (!Number.isInteger(file.size) || file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Profile image must be smaller than 5 MB');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
-    const previous = await this.usersService.findOne(userId);
     const profileImage = await this.s3Service.uploadPublicObject(key, file.buffer, file.mimetype);
     await this.storageCleanup.enqueue(key, 'unclaimed-profile-image-upload', 24 * 60 * 60 * 1000);
-    const user = await this.usersService.update(userId, { profileImage });
-    if (previous?.profileImage && previous.profileImage !== profileImage) await this.storageCleanup.enqueue(previous.profileImage, 'replaced-profile-image');
+    const user = await this.usersService.updateProfileImage(userId, profileImage);
     const { password: _password, ...safeUser } = user;
     return { success: true, profileImage, user: safeUser };
   }
@@ -93,9 +91,7 @@ export class UploadService {
     const stored = await this.s3Service.getObjectMetadata(dto.key);
     if (!stored || stored.contentLength !== dto.size || stored.contentType !== dto.mimetype) throw new BadRequestException('Uploaded profile image could not be verified');
     const profileImage = this.s3Service.getPublicUrl(dto.key);
-    const previous = await this.usersService.findOne(userId);
-    const user = await this.usersService.update(userId, { profileImage });
-    if (previous?.profileImage && previous.profileImage !== profileImage) await this.storageCleanup.enqueue(previous.profileImage, 'replaced-profile-image');
+    const user = await this.usersService.updateProfileImage(userId, profileImage);
     const { password: _password, ...safeUser } = user;
     return { success: true, profileImage, user: safeUser };
   }
