@@ -5,7 +5,7 @@ import { UploadService } from './upload.service';
 import { FileUpload } from './entities/file-upload.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { PointsModule } from '../points/points.module';
-import { S3Service } from './s3.service';
+import { StorageModule } from './storage.module';
 import { UsersModule } from '../users/users.module';
 
 @Module({
@@ -13,9 +13,10 @@ import { UsersModule } from '../users/users.module';
     TypeOrmModule.forFeature([FileUpload, Resource]),
     PointsModule,
     UsersModule,
+    StorageModule,
   ],
   controllers: [UploadController],
-  providers: [UploadService, S3Service],
-  exports: [UploadService, S3Service],
+  providers: [UploadService],
+  exports: [UploadService],
 })
 export class UploadModule {}
