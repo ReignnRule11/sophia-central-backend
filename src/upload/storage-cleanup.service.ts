@@ -39,9 +39,9 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
        VALUES ($1, $2, 'queued', NOW() + ($3::bigint * INTERVAL '1 millisecond'))
        ON CONFLICT ("objectKey") DO UPDATE
        SET reason = EXCLUDED.reason, status = 'queued', attempts = 0,
-           "availableAt" = EXCLUDED."availableAt", "lockedAt" = NULL,
-           "lastError" = NULL, "updatedAt" = NOW()
-       WHERE storage_cleanup_jobs.status IN ('deleted', 'protected', 'failed')`,
+           "availableAt" = LEAST(storage_cleanup_jobs."availableAt", EXCLUDED."availableAt"),
+           "lockedAt" = NULL, "lastError" = NULL, "updatedAt" = NOW()
+       WHERE storage_cleanup_jobs.status IN ('queued', 'deleted', 'protected', 'failed')`,
       [key, reason.slice(0, 240), Math.max(0, Math.floor(delayMs))],
     );
   }
