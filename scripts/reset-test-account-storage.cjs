@@ -24,8 +24,9 @@ const confirmIds = (process.argv.find(v => v.startsWith('--confirm-user-ids='))?
   .split(',').map(v => v.trim()).filter(Boolean).sort();
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
-if (!process.env.DATABASE_URL || !process.env.AWS_S3_BUCKET_URL) {
-  console.error('Missing DATABASE_URL or AWS_S3_BUCKET_URL.');
+const DB_REQUIRED = process.env.DATABASE_URL ? [] : ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_DATABASE'];
+if (!process.env.AWS_S3_BUCKET_URL || DB_REQUIRED.some(name => !process.env[name])) {
+  console.error('Missing AWS_S3_BUCKET_URL or the backend Neon database environment variables.');
   process.exit(1);
 }
 if (!ids.length || ids.some(id => !uuid.test(id))) {
@@ -37,7 +38,19 @@ if (apply && (confirmBucket !== bucket || confirmIds.join(',') !== ids.join(',')
   process.exit(1);
 }
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: true } } : {}),
+    })
+  : new Pool({
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT || 5432),
+      user: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_DATABASE,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : false,
+    });
 
 function objectKey(value) {
   if (typeof value !== 'string' || !value.trim()) return null;
