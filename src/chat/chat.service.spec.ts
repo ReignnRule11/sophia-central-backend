@@ -9,6 +9,7 @@ describe('ChatService access and message rules', () => {
   let repo: any;
   let blocks: any;
   let reads: any;
+  let messageHides: any;
   let users: any;
   let s3: any;
   let redis: any;
@@ -46,6 +47,18 @@ describe('ChatService access and message rules', () => {
       save: jest.fn(async value => value),
       create: jest.fn(value => value),
     };
+    messageHides = {
+      findOne: jest.fn(async () => null),
+      save: jest.fn(async value => value),
+      create: jest.fn(value => value),
+      createQueryBuilder: jest.fn(() => ({
+        innerJoin: jest.fn().mockReturnThis(),
+        where: jest.fn().mockReturnThis(),
+        andWhere: jest.fn().mockReturnThis(),
+        select: jest.fn().mockReturnThis(),
+        getRawMany: jest.fn(async () => []),
+      })),
+    };
     users = {
       findOne: jest.fn(async id => id === student.id ? { ...student } : null),
       findChatContacts: jest.fn(async () => []),
@@ -64,7 +77,16 @@ describe('ChatService access and message rules', () => {
       isOnline: jest.fn(async (id: string) => onlineUsers.has(id)),
     };
     notifications = { createNotification: jest.fn(async () => ({})) };
-    service = new ChatService(repo, blocks, reads, users, s3, redis, notifications);
+    service = new ChatService(
+      repo,
+      blocks,
+      reads,
+      messageHides,
+      users,
+      s3,
+      redis,
+      notifications,
+    );
   });
 
   it('notifies subscribers in the authenticated student group when a message is created', async () => {
@@ -119,7 +141,12 @@ describe('ChatService access and message rules', () => {
     expect(qb.where).toHaveBeenCalledWith('message.roomKey = :room', {
       room: 'group:example university:science:biology',
     });
-    expect(result).toEqual({ items: [], hasMore: false, nextBefore: null });
+    expect(result).toEqual({
+      items: [],
+      hasMore: false,
+      nextBefore: null,
+      hiddenMessageIds: [],
+    });
   });
 
   it('rejects attempts to edit another user\'s message', async () => {
