@@ -134,7 +134,7 @@ async function main() {
 
     await client.query('UPDATE users SET "profileImage" = NULL WHERE id = ANY($1::uuid[])', [ids]);
     await client.query('UPDATE resources SET "fileUrl" = NULL WHERE "uploaderId"::text = ANY($1::text[])', [ids]);
-    await client.query('UPDATE file_uploads SET status = \'failed\', "updatedAt" = NOW() WHERE "userId" = ANY($1::uuid[])', [ids]);
+    await client.query('UPDATE file_uploads SET status = \'failed\', "updatedAt" = NOW() WHERE "userId"::text = ANY($1::text[])', [ids]);
     await client.query('UPDATE support_requests SET attachments = \'[]\'::jsonb, "updatedAt" = NOW() WHERE "userId" = ANY($1::uuid[])');
     await client.query(
       `UPDATE chat_messages
