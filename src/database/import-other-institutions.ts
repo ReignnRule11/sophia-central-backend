@@ -28,8 +28,8 @@ type NbteDuplicateRule = {
 };
 
 type SuccessorReviewRule = {
-  incoming: string;
-  existing: string;
+  incomingAliases: string[];
+  existingAliases: string[];
   reason: string;
 };
 
@@ -86,50 +86,72 @@ const NCCE_NUMERIC_CLASSIFICATIONS = new Set(['1', '2', '3']);
  */
 const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
   {
-    incoming: 'delta state polytechnic ozoro',
-    existing: 'university of science and technology ozoro',
+    incomingAliases: [
+      'Delta State Polytechnic, Ozoro',
+      'Delta State Polytechnic, Ozoro, Delta State',
+      'Delta State Polytechnic, Ozoro, Delta State (Now Delta State University of Science And Technology)',
+    ],
+    existingAliases: [
+      'University of Science and Technology, Ozoro, Delta State',
+    ],
     reason:
-      'Possible institutional upgrade or successor relationship.',
+      'Possible institutional upgrade or successor relationship; verify the historical institution and current university record before importing.',
   },
   {
-    incoming: 'moshood abiola polytechnic abeokuta',
-    existing:
-      'moshood abiola university of science and technology abeokuta',
+    incomingAliases: ['Moshood Abiola Polytechnic, Abeokuta'],
+    existingAliases: [
+      'Moshood Abiola University of Science and Technology, Abeokuta',
+    ],
     reason:
-      'Possible institutional upgrade or successor relationship.',
+      'Possible institutional upgrade or successor relationship; verify the historical institution and current university record before importing.',
   },
   {
-    incoming: 'cross river state college of education akampa',
-    existing:
-      'cross river university of education and entrepreneurship',
+    incomingAliases: [
+      'Cross River State Coll. of Education, Akampa',
+      'Cross River State College of Education, Akampa',
+    ],
+    existingAliases: [
+      'Cross River University of Education and Entrepreneurship, Akampa, Cross River State',
+    ],
     reason:
-      'Possible institutional upgrade or successor relationship.',
+      'Possible institutional upgrade or successor relationship; the NCCE register abbreviates College as Coll. Verify before importing.',
   },
   {
-    incoming: 'college of education ikere ekiti',
-    existing:
-      'bamidele olumilua university of education science and technology',
+    incomingAliases: ['College of Education, Ikere-Ekiti'],
+    existingAliases: [
+      'Bamidele Olumulia University of Education Science and Technology, Ikere - Ekiti State',
+    ],
     reason:
-      'Possible institutional upgrade or successor relationship.',
+      'Possible institutional upgrade or successor relationship; preserve the exact existing production name and verify the institution history before importing.',
   },
   {
-    incoming: 'shehu shagari college of education sokoto',
-    existing: 'shehu shagari university of education sokoto',
+    incomingAliases: ['Shehu Shagari College of Education, Sokoto'],
+    existingAliases: [
+      'Shehu Shagari University of Education, Sokoto, Sokoto State',
+    ],
     reason:
-      'Possible institutional upgrade or successor relationship.',
+      'Possible institutional upgrade or successor relationship; verify before importing.',
   },
   {
-    incoming: 'lagos state polytechnic',
-    existing:
-      'lagos state university of science and technology',
+    incomingAliases: [
+      'Lagos State Polytechnic',
+      'Lagos State Polytechnic, Ikorodu',
+    ],
+    existingAliases: [
+      'Lagos University of Science and Technology, Ikorodu, Lagos State',
+    ],
     reason:
-      'Possible institutional upgrade or successor relationship.',
+      'Possible institutional upgrade or successor relationship; verify the historical institution and current university record before importing.',
   },
   {
-    incoming: 'air force institute of technology afit kaduna',
-    existing: 'air force institute of technology kaduna',
+    incomingAliases: [
+      'Air Force Institute of Technology (AFIT), Airforce Base, Kaduna',
+      'Air Force Institute of Technology (AFIT), Kaduna',
+      'Air Force Institute of Technology, Kaduna',
+    ],
+    existingAliases: ['Air Force Institute of Technology, Kaduna'],
     reason:
-      'Possible acronym or name-format variation.',
+      'Possible acronym or location-format match. The production record is currently typed as a university, so review the type difference rather than importing a second record.',
   },
 ];
 
@@ -307,8 +329,12 @@ function findSuccessorReview(
 
   return SUCCESSOR_REVIEW_RULES.find(
     (rule) =>
-      normalizeName(rule.incoming) === incomingKey &&
-      normalizeName(rule.existing) === existingKey,
+      rule.incomingAliases.some(
+        (alias) => normalizeName(alias) === incomingKey,
+      ) &&
+      rule.existingAliases.some(
+        (alias) => normalizeName(alias) === existingKey,
+      ),
   );
 }
 
