@@ -91,15 +91,21 @@ async function queryReferences() {
     pool.query('SELECT "fileUrl" AS value FROM resources WHERE "fileUrl" IS NOT NULL'),
     pool.query('SELECT s3_key AS value FROM resource_files WHERE s3_key IS NOT NULL'),
     pool.query('SELECT "voiceKey" AS value FROM chat_messages WHERE "voiceKey" IS NOT NULL AND "isDeleted" = false'),
+    pool.query(`SELECT original."voiceKey" AS value
+      FROM chat_messages forwarded
+      JOIN chat_messages original ON original.id = forwarded."forwardedFromMessageId"
+      WHERE forwarded."isDeleted" = false AND original."voiceKey" IS NOT NULL`),
     pool.query('SELECT attachments AS value FROM support_requests WHERE attachments IS NOT NULL'),
     pool.query(`SELECT "s3Key" AS value FROM file_uploads
       WHERE status = 'pending' AND "uploadedAt" >= NOW() - INTERVAL '24 hours'`),
+    pool.query(`SELECT status, COUNT(*)::int AS count FROM storage_cleanup_jobs GROUP BY status`),
   ]);
 
   for (const row of profiles.rows) add(row.value, 'users.profileImage');
   for (const row of resources.rows) add(row.value, 'resources.fileUrl');
   for (const row of legacy.rows) add(row.value, 'resource_files.s3_key');
-  for (const row of voices.rows) add(row.value, 'chat_messages.voiceKey');
+  for (const row of voices.rows) add(row.value, 'active chat_messages.voiceKey');
+  for (const row of forwardedVoices.rows) add(row.value, 'active forwarded chat voice');
   for (const row of pending.rows) add(row.value, 'recent pending upload (<24h)');
 
   for (const row of support.rows) {
@@ -171,6 +177,7 @@ async function main() {
     bucket,
     graceDays,
     summary,
+    cleanupQueue: cleanupJobs.rows,
     missingReferences,
     objects: inventory,
   }, null, 2));
@@ -189,6 +196,7 @@ async function main() {
     bucket,
     summary,
     missingReferenceCount: missingReferences.length,
+    cleanupQueue: cleanupJobs.rows,
     jsonReport: jsonPath,
     csvReport: csvPath,
     note: 'Read-only audit. No database rows or R2 objects were changed.',
