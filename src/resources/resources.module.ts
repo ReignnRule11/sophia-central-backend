@@ -7,12 +7,12 @@ import { UserActivityEvent } from '../analytics/entities/user-activity-event.ent
 import { Resource } from './entities/resource.entity';
 import { SavedResource } from './entities/saved-resource.entity';
 import { User } from '../users/entities/user.entity';
-import { S3Service } from '../upload/s3.service';
+import { StorageModule } from '../upload/storage.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Resource, SavedResource, User, UserActivityEvent])],
+  imports: [TypeOrmModule.forFeature([Resource, SavedResource, User, UserActivityEvent]), StorageModule],
   controllers: [ResourcesController],
-  providers: [ResourcesService, CommunityResourcesService, S3Service],
+  providers: [ResourcesService, CommunityResourcesService],
   exports: [ResourcesService, CommunityResourcesService],
 })
 export class ResourcesModule {}
