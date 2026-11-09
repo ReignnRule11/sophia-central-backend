@@ -88,12 +88,6 @@ const NBTE_DUPLICATE_ALLOWLIST: NbteDuplicateRule[] = [
 
 const NCCE_NUMERIC_CLASSIFICATIONS = new Set(['1', '2', '3']);
 
-/**
- * These are possible successor relationships requiring manual review.
- *
- * They are NOT automatic duplicate rules.
- * They must never cause an incoming institution to be silently discarded.
- */
 /*
  * Explicitly adjudicated identity relationships. These decisions preserve the
  * existing production institution row: predecessor records and cross-category
