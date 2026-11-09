@@ -105,6 +105,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       {} as any,
       activityRepository,
       savedRepository,
+      storageCleanup,
     );
 
     await expect(downloadService.downloadForUser('resource-1', {
