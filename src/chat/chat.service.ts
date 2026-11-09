@@ -7,6 +7,7 @@ import { Observable, filter, map } from 'rxjs';
 import { User, UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { S3Service } from '../upload/s3.service';
+import { StorageCleanupService } from '../upload/storage-cleanup.service';
 import { ChatContentType, ChatKind, ChatMessage } from './entities/chat-message.entity';
 import { CreateChatMessageDto, CreateVoiceUploadDto } from './dto/create-chat-message.dto';
 import { RedisChatService } from './redis-chat.service';
@@ -38,6 +39,7 @@ export class ChatService {
     private readonly s3: S3Service,
     private readonly redis: RedisChatService,
     private readonly notifications: NotificationsService,
+    private readonly storageCleanup: StorageCleanupService,
   ) {}
 
   private async eligible(id: string, roles: UserRole[]): Promise<User> {
@@ -252,6 +254,7 @@ export class ChatService {
     }
     const key = `voice-messages/${id}/${randomUUID()}.${VOICE_TYPES[dto.mimetype]}`;
     const signed = await this.s3.createPresignedUploadUrl(key, dto.mimetype, 300);
+    await this.storageCleanup.enqueue(key, 'unclaimed-chat-voice-upload', 24 * 60 * 60 * 1000);
     return { uploadUrl: signed.url, key, contentType: dto.mimetype, expiresIn: 300, maxBytes: MAX_VOICE_BYTES };
   }
 
@@ -415,13 +418,32 @@ export class ChatService {
 
   async remove(id: string, messageId: string) {
     await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
-    const message = await this.repo.findOne({ where: { id: messageId } });
-    if (!message) throw new NotFoundException('Message not found.');
-    if (message.senderId !== id) throw new ForbiddenException('You can only delete your own messages.');
-    message.isDeleted = true; message.text = null; message.voiceKey = null; message.stickerId = null;
-    await this.repo.save(message);
-    this.publishRoom(message.roomKey);
-    return { success: true, id: message.id };
+    let roomKey = '';
+    await this.repo.manager.transaction(async manager => {
+      const message = await manager.findOne(ChatMessage, { where: { id: messageId } });
+      if (!message) throw new NotFoundException('Message not found.');
+      if (message.senderId !== id) throw new ForbiddenException('You can only delete your own messages.');
+
+      const keys = new Set<string>();
+      if (message.voiceKey) keys.add(message.voiceKey);
+      if (message.forwardedFromMessageId) {
+        const original = await manager.findOne(ChatMessage, { where: { id: message.forwardedFromMessageId } });
+        if (original?.voiceKey) keys.add(original.voiceKey);
+      }
+
+      // Keep the original key on the tombstone so active forwarded messages can
+      // continue to protect the shared audio object until their last reference is removed.
+      message.isDeleted = true;
+      message.text = null;
+      message.stickerId = null;
+      roomKey = message.roomKey;
+      await manager.save(ChatMessage, message);
+      for (const key of keys) {
+        await this.storageCleanup.enqueueWithManager(manager, key, 'chat-voice-message-deleted');
+      }
+    });
+    this.publishRoom(roomKey);
+    return { success: true, id: messageId };
   }
 
   async hideDeletedMessage(userId: string, messageId: string) {
