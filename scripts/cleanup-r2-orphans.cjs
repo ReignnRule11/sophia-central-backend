@@ -19,8 +19,9 @@ const path = require('node:path');
 const { Pool } = require('pg');
 const { S3Client, ListObjectsV2Command, DeleteObjectCommand } = require('@aws-sdk/client-s3');
 
-const REQUIRED = ['DATABASE_URL', 'AWS_S3_ENDPOINT', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_S3_BUCKET_URL'];
-for (const name of REQUIRED) {
+const REQUIRED = ['AWS_S3_ENDPOINT', 'AWS_ACCESS_KEY_ID', 'AWS_SECRET_ACCESS_KEY', 'AWS_S3_BUCKET_URL'];
+const DB_REQUIRED = process.env.DATABASE_URL ? [] : ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_DATABASE'];
+for (const name of [...REQUIRED, ...DB_REQUIRED]) {
   if (!process.env[name]) {
     console.error(`Missing required environment variable: ${name}`);
     process.exit(1);
@@ -43,7 +44,19 @@ if (!Number.isFinite(graceDays) || graceDays < 7) {
 }
 
 const allowedPrefixes = ['profile-images/', 'resources/', 'support-attachments/', 'voice-messages/'];
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = process.env.DATABASE_URL
+  ? new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ...(process.env.DB_SSL === 'true' ? { ssl: { rejectUnauthorized: true } } : {}),
+    })
+  : new Pool({
+      host: process.env.DB_HOST,
+      port: Number(process.env.DB_PORT || 5432),
+      user: process.env.DB_USERNAME,
+      password: process.env.DB_PASSWORD,
+      database: process.env.DB_DATABASE,
+      ssl: process.env.DB_SSL === 'true' ? { rejectUnauthorized: true } : false,
+    });
 const s3 = new S3Client({
   region: process.env.AWS_REGION || 'auto',
   endpoint: process.env.AWS_S3_ENDPOINT,
