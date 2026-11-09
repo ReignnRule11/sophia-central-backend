@@ -67,6 +67,20 @@ export class UsersService {
     return this.usersRepository.save(user);
   }
 
+  async updateProfileImage(id: string, profileImage: string): Promise<User> {
+    return this.dataSource.transaction(async manager => {
+      const user = await manager.findOne(User, { where: { id } });
+      if (!user) throw new NotFoundException('User not found');
+      const previous = user.profileImage;
+      user.profileImage = profileImage;
+      const saved = await manager.save(User, user);
+      if (previous && previous !== profileImage) {
+        await this.storageCleanup.enqueueWithManager(manager, previous, 'replaced-profile-image');
+      }
+      return saved;
+    });
+  }
+
   async remove(id: string): Promise<void> {
     if (!await this.findOne(id)) throw new NotFoundException('User not found');
     await this.removeAccountData(id);
