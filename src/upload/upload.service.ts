@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
 import { CreateProfileImageUploadDto } from './dto/create-profile-image-upload.dto';
@@ -128,6 +128,7 @@ export class UploadService {
         mimetype: dto.mimetype,
         size: dto.size,
         status: 'pending',
+        uploadedAt: MoreThan(new Date(Date.now() - 24 * 60 * 60 * 1000)),
       },
       order: { uploadedAt: 'DESC' },
     });
