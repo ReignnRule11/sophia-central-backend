@@ -239,10 +239,15 @@ export class ResourcesService {
       if (!resource) throw new NotFoundException('Resource not found');
 
       const uploads = await manager.find(FileUpload, { where: { resourceId: id } });
+      const legacyFiles = await manager.query('SELECT s3_key FROM resource_files WHERE resource_id = $1::uuid', [id]);
       await this.storageCleanup.enqueueWithManager(manager, resource.fileUrl, 'resource-deleted');
       for (const upload of uploads) {
         await this.storageCleanup.enqueueWithManager(manager, upload.s3Key, 'resource-upload-deleted');
       }
+      for (const legacyFile of legacyFiles) {
+        await this.storageCleanup.enqueueWithManager(manager, legacyFile.s3_key, 'legacy-resource-file-deleted');
+      }
+      await manager.query('DELETE FROM resource_files WHERE resource_id = $1::uuid', [id]);
 
       await manager.remove(Resource, resource);
     });
