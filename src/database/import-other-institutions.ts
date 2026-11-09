@@ -286,7 +286,18 @@ function isPossibleNearDuplicate(
   const characterScore = nameSimilarity(a, b);
   const tokenScore = tokenSimilarity(a, b);
 
-  return characterScore >= 0.88 || tokenScore >= 0.75;
+  /*
+   * Require BOTH signals to be strong. Institution registers repeat long
+   * category prefixes (for example, "Federal Polytechnic" and "College of
+   * Education"). Character similarity alone therefore produces many false
+   * positives when two different campuses/locations share that prefix.
+   *
+   * The stricter conjunction still catches spelling variants such as
+   * "Amannchi" vs "Amannachi", while distinct location names fail the token
+   * overlap threshold. Exact normalized duplicates are handled separately
+   * by the source record map.
+   */
+  return characterScore >= 0.94 && tokenScore >= 0.75;
 }
 
 async function fetchWithRetry(
