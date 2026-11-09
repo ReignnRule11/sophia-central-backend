@@ -55,7 +55,7 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
       const stale = await manager.query(
         `SELECT id, "s3Key" FROM file_uploads
          WHERE status = 'pending' AND "uploadedAt" < NOW() - INTERVAL '24 hours'
-         ORDER BY "uploadedAt" ASC FOR UPDATE SKIP LOCKED LIMIT 50`,
+         ORDER BY "uploadedAt" ASC LIMIT 50 FOR UPDATE SKIP LOCKED`,
       ) as Array<{ id: string; s3Key: string }>;
       for (const upload of stale) {
         await this.enqueueWithManager(manager, upload.s3Key, 'expired-uncompleted-resource-upload');
@@ -76,7 +76,7 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
            WHERE (status = 'queued' AND "availableAt" <= NOW())
               OR (status = 'processing' AND "lockedAt" < NOW() - INTERVAL '5 minutes')
            ORDER BY "availableAt" ASC, "createdAt" ASC
-           FOR UPDATE SKIP LOCKED LIMIT 25
+           LIMIT 25 FOR UPDATE SKIP LOCKED
          )
          UPDATE storage_cleanup_jobs job
          SET status = 'processing', "lockedAt" = NOW(), attempts = job.attempts + 1, "updatedAt" = NOW()
