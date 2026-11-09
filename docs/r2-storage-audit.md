@@ -76,7 +76,7 @@ An object still referenced by a test user's profile, resource, support request, 
 
 ## Explicit test-account storage reset
 
-If the existing database file references belong to known test accounts, use the account-scoped reset utility. It is dry-run by default and requires the exact account UUID list to be confirmed twice before applying. It clears only file references and upload state for those selected accounts; it does not delete user accounts, resource metadata, support requests, or other users' records. Chat voice messages authored by those accounts are soft-deleted, and shared forwarded audio remains protected by the normal reference checker.
+If the existing database file references belong to known test accounts, use the account-scoped reset utility. It is dry-run by default and requires the exact account UUID list to be confirmed twice before applying. It clears only file references and upload state for those selected accounts; it does not delete user accounts, resource records, support-request records, or other users' records. Legacy resource-file reference rows for those users are removed. Chat voice messages authored by those accounts are soft-deleted, and shared forwarded audio remains protected by the normal reference checker.
 
 Dry run:
 
