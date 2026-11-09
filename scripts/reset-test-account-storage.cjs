@@ -3,7 +3,7 @@
 
 /**
  * Clear uploaded-file references for explicitly selected TEST accounts.
- * This does not delete users, resource metadata, support requests, or chat rows.
+ * This does not delete user accounts, resource records, support requests, or chat rows. It removes legacy file-reference rows for the selected test users.
  * It queues their R2 objects for the normal reference-checked deletion worker.
  *
  * Dry run:
