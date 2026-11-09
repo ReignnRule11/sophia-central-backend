@@ -46,7 +46,7 @@ const USER_AGENT = 'SophisCentralAcademicCatalogueImporter/1.0';
 
 const EXPECTED_NBTE_RAW_COUNT = 207;
 const EXPECTED_NBTE_UNIQUE_COUNT = 205;
-const EXPECTED_NCCE_MINIMUM_COUNT = 200;
+const EXPECTED_NCCE_UNIQUE_COUNT = 245;
 
 const EXPECTED_PRODUCTION_DB_HOST =
   'ep-holy-bar-b5y0ppqu.c-7.us-east-2.aws.neon.tech';
@@ -908,9 +908,9 @@ async function fetchNcceInstitutions(): Promise<ImportedInstitution[]> {
 
   const colleges = [...unique.values()];
 
-  if (colleges.length < EXPECTED_NCCE_MINIMUM_COUNT) {
+  if (colleges.length !== EXPECTED_NCCE_UNIQUE_COUNT) {
     throw new Error(
-      `NCCE parser returned only ${colleges.length} Colleges of Education. Expected at least ${EXPECTED_NCCE_MINIMUM_COUNT} based on the current register. Check the official source. No database changes were made.`,
+      `NCCE count validation failed: extracted ${colleges.length} unique Colleges of Education; expected exactly ${EXPECTED_NCCE_UNIQUE_COUNT}. The official register may have changed or parsing may be incomplete. Review the source before updating this guard. No database changes were made.`,
     );
   }
 
@@ -1163,6 +1163,19 @@ async function runImport(
   }> = [];
 
   await dataSource.transaction(async (manager) => {
+    /*
+     * Serialize this import against all other institution-table writers.
+     *
+     * Row-level FOR UPDATE locks below only cover rows that already exist;
+     * they do not protect absent names from concurrent inserts. This table
+     * lock conflicts with ordinary INSERT/UPDATE/DELETE table locks and is
+     * held only for this transaction. Reads remain available, but catalogue
+     * writes may wait until the import transaction completes.
+     */
+    await manager.query(
+      'LOCK TABLE "institutions" IN SHARE ROW EXCLUSIVE MODE',
+    );
+
     const repository = manager.getRepository(Institution);
 
     const existingInstitutions = (await repository
