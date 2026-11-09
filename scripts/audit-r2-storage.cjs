@@ -86,7 +86,7 @@ async function queryReferences() {
     refs.set(key, sources);
   };
 
-  const [profiles, resources, legacy, voices, support, pending] = await Promise.all([
+  const [profiles, resources, legacy, voices, forwardedVoices, support, pending, cleanupJobs] = await Promise.all([
     pool.query('SELECT "profileImage" AS value FROM users WHERE "profileImage" IS NOT NULL'),
     pool.query('SELECT "fileUrl" AS value FROM resources WHERE "fileUrl" IS NOT NULL'),
     pool.query('SELECT s3_key AS value FROM resource_files WHERE s3_key IS NOT NULL'),
