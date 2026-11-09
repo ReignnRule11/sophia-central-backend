@@ -38,7 +38,7 @@ node --env-file=.env scripts/audit-r2-storage.cjs
 
 Required environment variables:
 
-- `DATABASE_URL`
+- Database connection: either `DATABASE_URL`, or the backend's existing `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_DATABASE`, and optional `DB_SSL` variables
 - `AWS_S3_ENDPOINT` — Cloudflare R2 S3 API endpoint
 - `AWS_S3_BUCKET_NAME` — defaults to `sophia-central`
 - `AWS_ACCESS_KEY_ID`
