@@ -9,6 +9,9 @@ import {
 
 type ImportedInstitution = {
   name: string;
+  sourceName?: string;
+  sourceRecordId?: string;
+  sourcePage?: number;
   institutionType: InstitutionType;
   state?: string;
   ownership?: string;
@@ -108,7 +111,9 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
   {
     incomingAliases: [
       'Cross River State Coll. of Education, Akampa',
+      'Cross River State Coll. of Education, Akampa OPEN',
       'Cross River State College of Education, Akampa',
+      'Cross River State College of Education, Akampa OPEN',
     ],
     existingAliases: [
       'Cross River University of Education and Entrepreneurship, Akampa, Cross River State',
@@ -117,7 +122,10 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
       'Possible institutional upgrade or successor relationship; the NCCE register abbreviates College as Coll. Verify before importing.',
   },
   {
-    incomingAliases: ['College of Education, Ikere-Ekiti'],
+    incomingAliases: [
+      'College of Education, Ikere-Ekiti',
+      'College of Education, Ikere-Ekiti OPEN',
+    ],
     existingAliases: [
       'Bamidele Olumulia University of Education Science and Technology, Ikere - Ekiti State',
     ],
@@ -125,7 +133,10 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
       'Possible institutional upgrade or successor relationship; preserve the exact existing production name and verify the institution history before importing.',
   },
   {
-    incomingAliases: ['Shehu Shagari College of Education, Sokoto'],
+    incomingAliases: [
+      'Shehu Shagari College of Education, Sokoto',
+      'Shehu Shagari College of Education, Sokoto OPEN',
+    ],
     existingAliases: [
       'Shehu Shagari University of Education, Sokoto, Sokoto State',
     ],
@@ -136,6 +147,7 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
     incomingAliases: [
       'Lagos State Polytechnic',
       'Lagos State Polytechnic, Ikorodu',
+      'Lagos State Polytechnic, Ikorodu (Now Lagos State University of Science and Technology)',
     ],
     existingAliases: [
       'Lagos University of Science and Technology, Ikorodu, Lagos State',
@@ -187,8 +199,12 @@ function ownershipFrom(value: string): string | undefined {
   return undefined;
 }
 
+function cleanInstitutionName(value: string): string {
+  return value.replace(/\s+OPEN\s*$/i, '').replace(/\s+/g, ' ').trim();
+}
+
 function normalizeName(value: string): string {
-  return value
+  return cleanInstitutionName(value)
     .normalize('NFKD')
     .replace(/[\u0300-\u036f]/g, '')
     .toLocaleLowerCase()
@@ -402,6 +418,57 @@ function findNearDuplicateCandidates(
         Math.max(a.characterSimilarity, a.tokenSimilarity),
     )
     .slice(0, 3);
+}
+
+function findIncomingNearDuplicatePairs(
+  records: Map<string, ImportedInstitution>,
+): Array<{
+  source: string;
+  first: { name: string; sourceRecordId?: string; sourcePage?: number };
+  second: { name: string; sourceRecordId?: string; sourcePage?: number };
+  characterSimilarity: number;
+  tokenSimilarity: number;
+}> {
+  const items = [...records.values()];
+  const pairs: Array<{
+    source: string;
+    first: { name: string; sourceRecordId?: string; sourcePage?: number };
+    second: { name: string; sourceRecordId?: string; sourcePage?: number };
+    characterSimilarity: number;
+    tokenSimilarity: number;
+  }> = [];
+
+  for (let i = 0; i < items.length; i += 1) {
+    for (let j = i + 1; j < items.length; j += 1) {
+      const first = items[i];
+      const second = items[j];
+
+      if (first.source !== second.source) continue;
+      if (!isPossibleNearDuplicate(first.name, second.name)) continue;
+
+      pairs.push({
+        source: first.source,
+        first: {
+          name: first.sourceName ?? first.name,
+          sourceRecordId: first.sourceRecordId,
+          sourcePage: first.sourcePage,
+        },
+        second: {
+          name: second.sourceName ?? second.name,
+          sourceRecordId: second.sourceRecordId,
+          sourcePage: second.sourcePage,
+        },
+        characterSimilarity: Number(
+          nameSimilarity(normalizeName(first.name), normalizeName(second.name)).toFixed(3),
+        ),
+        tokenSimilarity: Number(
+          tokenSimilarity(first.name, second.name).toFixed(3),
+        ),
+      });
+    }
+  }
+
+  return pairs;
 }
 
 /* -------------------------------------------------------------------------- */
@@ -698,8 +765,11 @@ async function fetchNbtePolytechnics(): Promise<ImportedInstitution[]> {
   );
 
   return canonicalRecords.map(
-    ({ recordId: _recordId, page: _page, ...institution }) =>
-      institution,
+    ({ recordId, page, ...institution }) => ({
+      ...institution,
+      sourceRecordId: recordId,
+      sourcePage: page,
+    }),
   );
 }
 
@@ -833,7 +903,8 @@ async function fetchNcceInstitutions(): Promise<ImportedInstitution[]> {
 
     if (/college\s+of\s+education/i.test(classification)) {
       records.push({
-        name,
+        name: cleanInstitutionName(name),
+        sourceName: name,
         institutionType: InstitutionType.COLLEGE_OF_EDUCATION,
         state: state || undefined,
         ownership: ownershipFrom(classification),
@@ -848,7 +919,8 @@ async function fetchNcceInstitutions(): Promise<ImportedInstitution[]> {
       /college\s+of\s+education/i.test(name)
     ) {
       records.push({
-        name,
+        name: cleanInstitutionName(name),
+        sourceName: name,
         institutionType: InstitutionType.COLLEGE_OF_EDUCATION,
         state: state || undefined,
         ownership: undefined,
@@ -1086,7 +1158,7 @@ async function runReadOnlyAudit(
       continue;
     }
 
-    unmatched.push(item.name);
+    const matchedSuccessors: object[] = [];
 
     for (const existing of existingInstitutions) {
       const successorRule = findSuccessorReview(
@@ -1095,14 +1167,17 @@ async function runReadOnlyAudit(
       );
 
       if (successorRule) {
-        successorCandidates.push({
+        const candidate = {
           incoming: item.name,
+          sourceName: item.sourceName,
           incomingType: item.institutionType,
           existing: existing.name,
           existingType: existing.institutionType,
           source: item.source,
           reason: successorRule.reason,
-        });
+        };
+        successorCandidates.push(candidate);
+        matchedSuccessors.push(candidate);
       }
     }
 
@@ -1114,10 +1189,15 @@ async function runReadOnlyAudit(
     if (nearMatches.length > 0) {
       possibleNearDuplicates.push({
         incoming: item.name,
+        sourceName: item.sourceName,
         incomingType: item.institutionType,
         source: item.source,
         candidates: nearMatches,
       });
+    }
+
+    if (matchedSuccessors.length === 0 && nearMatches.length === 0) {
+      unmatched.push(item.name);
     }
   }
 
@@ -1140,6 +1220,9 @@ async function runReadOnlyAudit(
     }),
   ).filter((candidate: any) => candidate.candidates.length > 0);
 
+  const sourceNearDuplicateCandidates =
+    findIncomingNearDuplicatePairs(records);
+
   console.log('\nREAD-ONLY PRODUCTION AUDIT RESULTS:');
 
   console.log(
@@ -1154,6 +1237,12 @@ async function runReadOnlyAudit(
         ambiguousMatches,
         successorCandidates,
         possibleNearDuplicates: filteredNearDuplicates,
+        sourceNearDuplicateCandidates,
+        reviewRequiredIncomingCount: new Set([
+          ...successorCandidates.map((candidate: any) => candidate.incoming),
+          ...filteredNearDuplicates.map((candidate: any) => candidate.incoming),
+          ...sourceNearDuplicateCandidates.flatMap((pair) => [pair.first.name, pair.second.name]),
+        ]).size,
         unmatchedCount: unmatched.length,
         unmatched,
         databaseChangesMade: false,
@@ -1176,6 +1265,20 @@ async function runImport(
   dataSource: DataSource,
   records: Map<string, ImportedInstitution>,
 ): Promise<void> {
+  const sourceNearDuplicateCandidates =
+    findIncomingNearDuplicatePairs(records);
+
+  if (sourceNearDuplicateCandidates.length > 0) {
+    throw new Error(
+      [
+        'Institution import preflight stopped before opening a transaction.',
+        'Potential near-duplicate names exist within the same official source; they require manual review and must not be silently merged or imported as separate institutions.',
+        JSON.stringify(sourceNearDuplicateCandidates, null, 2),
+        'No database changes were made.',
+      ].join('\\n'),
+    );
+  }
+
   let inserted = 0;
   let updated = 0;
   let unchanged = 0;
