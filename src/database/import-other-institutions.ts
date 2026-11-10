@@ -59,6 +59,48 @@ const EXPECTED_NBTE_UNIQUE_COUNT = 205;
 const EXPECTED_NCCE_UNIQUE_COUNT = 245;
 const EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT = 8;
 
+/*
+ * NBTE's current directory omits state values for these records even though
+ * its own detail pages / earlier NBTE directory provide the missing values.
+ * Yenagoa Polytechnic's current NBTE record omits ownership; preserve that
+ * value as unknown rather than inferring it from third-party directories.
+ */
+const NBTE_METADATA_OVERRIDES: Array<{
+  normalizedName: string;
+  state: string;
+  ownership?: string;
+  reason: string;
+}> = [
+  {
+    normalizedName: 'eko city polytechnic',
+    state: 'Lagos',
+    ownership: 'Private',
+    reason:
+      'NBTE record 100402 gives a Lagos address in Ikotun and explicitly labels ownership Private.',
+  },
+  {
+    normalizedName: 'minna institute of technology and innovation',
+    state: 'Niger',
+    ownership: 'State',
+    reason:
+      'NBTE 2020 Directory of Accredited Programmes lists Kpakungu Road, Minna, Niger State and classifies the institution as State-owned.',
+  },
+  {
+    normalizedName: 'yenagoa polytechnic',
+    state: 'Bayelsa',
+    reason:
+      'Yenagoa is the capital of Bayelsa State, as confirmed by the Bayelsa State Government. The current NBTE institution record does not publish ownership, so ownership remains unset.',
+  },
+];
+
+const EXPECTED_NBTE_UNRESOLVED_OWNERSHIP = [
+  {
+    normalizedName: 'yenagoa polytechnic',
+    reason:
+      'Current NBTE record 101176 does not publish an ownership classification. Do not infer ownership from third-party directories.',
+  },
+];
+
 const EXPECTED_PRODUCTION_DB_HOST =
   'ep-holy-bar-b5y0ppqu.c-7.us-east-2.aws.neon.tech';
 
@@ -1730,6 +1772,19 @@ async function main(): Promise<void> {
     fetchNcceInstitutions(),
   ]);
 
+  for (const item of polytechnics) {
+    const override = NBTE_METADATA_OVERRIDES.find(
+      (candidate) => candidate.normalizedName === normalizeName(item.name),
+    );
+    if (!override) continue;
+
+    item.state = override.state;
+    if (override.ownership) item.ownership = override.ownership;
+    console.log(
+      `Applied documented NBTE metadata correction for "${item.name}": ${override.reason}`,
+    );
+  }
+
   const records = new Map<string, ImportedInstitution>();
 
   for (const item of [...polytechnics, ...ncceRecords]) {
@@ -1761,35 +1816,60 @@ async function main(): Promise<void> {
     records.set(key, item);
   }
 
+  const nbteMissingState = polytechnics.filter((item) => !item.state);
+  const nbteMissingOwnership = polytechnics.filter(
+    (item) => !item.ownership,
+  );
   const nbteMetadataIssues = polytechnics.filter(
     (item) => !item.state || !item.ownership,
+  );
+  const expectedNbteMissingOwnership = new Set(
+    EXPECTED_NBTE_UNRESOLVED_OWNERSHIP.map(
+      (item) => item.normalizedName,
+    ),
+  );
+  const unexpectedNbteMetadataIssues = nbteMetadataIssues.filter(
+    (item) =>
+      (!item.state && normalizeName(item.name) !== 'yenagoa polytechnic') ||
+      (!item.ownership && !expectedNbteMissingOwnership.has(normalizeName(item.name))),
   );
   const ncceMissingState = ncceRecords.filter((item) => !item.state);
   const ncceMissingOwnership = ncceRecords.filter(
     (item) => !item.ownership,
   );
 
+  const metadataDiagnostics = {
+    nbteMissingState: nbteMissingState.map((item) => item.name),
+    nbteMissingOwnership: nbteMissingOwnership.map((item) => ({
+      name: item.name,
+      reason:
+        EXPECTED_NBTE_UNRESOLVED_OWNERSHIP.find(
+          (expected) => expected.normalizedName === normalizeName(item.name),
+        )?.reason ?? 'No documented ownership value is available.',
+    })),
+    ncceMissingState: ncceMissingState.map((item) => item.name),
+    ncceMissingOwnership: ncceMissingOwnership.map((item) => item.name),
+    expectedNcceUnresolvedOwnershipCount:
+      EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT,
+  };
+
   if (
-    nbteMetadataIssues.length > 0 ||
+    unexpectedNbteMetadataIssues.length > 0 ||
     ncceMissingState.length > 0 ||
-    ncceMissingOwnership.length !== EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT
+    ncceMissingOwnership.length !== EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT ||
+    (apply && nbteMetadataIssues.length > 0)
   ) {
     throw new Error(
       [
         'Source metadata validation failed. No database changes were made.',
         JSON.stringify(
           {
-            nbteMissingStateOrOwnership: nbteMetadataIssues.map((item) => ({
-              name: item.name,
-              missingState: !item.state,
-              missingOwnership: !item.ownership,
-            })),
-            ncceMissingState: ncceMissingState.map((item) => item.name),
-            ncceMissingOwnership: ncceMissingOwnership.map(
+            ...metadataDiagnostics,
+            unexpectedNbteMetadataIssues: unexpectedNbteMetadataIssues.map(
               (item) => item.name,
             ),
-            expectedNcceUnresolvedOwnershipCount:
-              EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT,
+            applyBlockedByUnresolvedNbteMetadata:
+              apply && nbteMetadataIssues.length > 0,
           },
           null,
           2,
@@ -1799,8 +1879,14 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `Source metadata validation passed: NBTE ${polytechnics.length} records with state and ownership; NCCE ${ncceRecords.length} records with state and ${ncceMissingOwnership.length} explicitly unresolved ownership values.`,
+    `Source metadata validation passed for audit: NBTE ${polytechnics.length} records, ${nbteMissingState.length} unresolved state values, ${nbteMissingOwnership.length} unresolved ownership values; NCCE ${ncceRecords.length} records, ${ncceMissingOwnership.length} explicitly unresolved ownership values.`,
   );
+  if (nbteMetadataIssues.length > 0) {
+    console.log(
+      'NBTE metadata exceptions are permitted for read-only audit only. --apply remains blocked until every NBTE record has state and ownership.',
+    );
+    console.log(JSON.stringify(metadataDiagnostics, null, 2));
+  }
 
   const mode = audit ? 'audit' : apply ? 'apply' : 'dry-run';
 
