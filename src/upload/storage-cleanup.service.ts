@@ -68,9 +68,27 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
     });
   }
 
+  private extractClaimRows(result: unknown): unknown[] {
+    if (Array.isArray(result)) {
+      // Some PostgreSQL adapters wrap rows as [rows, rowCount]; TypeORM's
+      // standard Postgres driver returns the rows array directly.
+      if (result.length === 2 && Array.isArray(result[0]) && typeof result[1] === 'number') {
+        return result[0];
+      }
+      return result;
+    }
+    if (result && typeof result === 'object') {
+      const value = result as { rows?: unknown; records?: unknown; result?: unknown };
+      if (Array.isArray(value.rows)) return value.rows;
+      if (Array.isArray(value.records)) return value.records;
+      if (Array.isArray(value.result)) return value.result;
+    }
+    return [];
+  }
+
   private async claimJobs(): Promise<CleanupJob[]> {
     return this.dataSource.transaction(async manager => {
-      const rows = await manager.query(
+      const result: unknown = await manager.query(
         `WITH candidates AS (
            SELECT id FROM storage_cleanup_jobs
            WHERE (status = 'queued' AND "availableAt" <= NOW())
@@ -81,9 +99,28 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
          UPDATE storage_cleanup_jobs job
          SET status = 'processing', "lockedAt" = NOW(), attempts = job.attempts + 1, "updatedAt" = NOW()
          FROM candidates WHERE job.id = candidates.id
-         RETURNING job.id, job."objectKey" AS object_key, job.attempts`,
+         RETURNING job.id AS "id", job."objectKey" AS "object_key", job.attempts AS "attempts"`,
       );
-      return rows as CleanupJob[];
+
+      const rows = this.extractClaimRows(result);
+      const jobs: CleanupJob[] = [];
+      for (const value of rows) {
+        if (!value || typeof value !== 'object') {
+          this.logger.error('Storage cleanup claim returned a non-object row; skipping it without touching R2.');
+          continue;
+        }
+        const row = value as Record<string, unknown>;
+        const id = row.id ?? row.ID ?? row.Id;
+        const objectKey = row.object_key ?? row.objectKey ?? row.objectkey;
+        if (typeof id !== 'string' || !id || typeof objectKey !== 'string' || !objectKey) {
+          this.logger.error(
+            `Storage cleanup claim returned an incomplete row (fields: ${Object.keys(row).join(', ') || 'none'}); skipping it without touching R2.`,
+          );
+          continue;
+        }
+        jobs.push({ id, object_key: objectKey, attempts: row.attempts });
+      }
+      return jobs;
     });
   }
 
