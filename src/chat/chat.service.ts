@@ -83,7 +83,6 @@ export class ChatService {
   }
 
   async blockUser(userId: string, blockedUserId: string) {
-    await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
     if (!blockedUserId || userId === blockedUserId) throw new BadRequestException('Choose another account to block.');
     const blocker = await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
     const blocked = await this.eligible(blockedUserId, [UserRole.STUDENT, UserRole.LECTURER]);
