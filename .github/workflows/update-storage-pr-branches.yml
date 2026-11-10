@@ -1,0 +1,57 @@
+name: Update storage PR branches from main
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: update-storage-pr-branches
+  cancel-in-progress: false
+
+jobs:
+  update-branches:
+    name: Update PR #81 and #82 from main
+    runs-on: ubuntu-latest
+    steps:
+      - name: Update PR #81
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          pr=81
+          pr_data="$(gh api "repos/${repo}/pulls/${pr}")"
+          state="$(jq -r '.state' <<< "$pr_data")"
+          base="$(jq -r '.base.ref' <<< "$pr_data")"
+          head_repo="$(jq -r '.head.repo.full_name // ""' <<< "$pr_data")"
+          head_sha="$(jq -r '.head.sha' <<< "$pr_data")"
+          if [[ "$state" != "open" || "$base" != "main" || "$head_repo" != "$repo" ]]; then
+            echo "PR #${pr} must be open, target main, and use a branch in ${repo}."
+            exit 1
+          fi
+          echo "Requesting GitHub to merge the latest main into PR #${pr} (head ${head_sha})."
+          gh api --method PUT "repos/${repo}/pulls/${pr}/update-branch" -f "expected_head_sha=${head_sha}"
+          echo "Update request accepted for PR #${pr}. Check the PR's mergeability and CI before merging."
+
+      - name: Update PR #82
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          repo="${GITHUB_REPOSITORY}"
+          pr=82
+          pr_data="$(gh api "repos/${repo}/pulls/${pr}")"
+          state="$(jq -r '.state' <<< "$pr_data")"
+          base="$(jq -r '.base.ref' <<< "$pr_data")"
+          head_repo="$(jq -r '.head.repo.full_name // ""' <<< "$pr_data")"
+          head_sha="$(jq -r '.head.sha' <<< "$pr_data")"
+          if [[ "$state" != "open" || "$base" != "main" || "$head_repo" != "$repo" ]]; then
+            echo "PR #${pr} must be open, target main, and use a branch in ${repo}."
+            exit 1
+          fi
+          echo "Requesting GitHub to merge the latest main into PR #${pr} (head ${head_sha})."
+          gh api --method PUT "repos/${repo}/pulls/${pr}/update-branch" -f "expected_head_sha=${head_sha}"
+          echo "Update request accepted for PR #${pr}. Check the PR's mergeability and CI before merging."
