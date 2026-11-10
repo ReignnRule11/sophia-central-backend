@@ -4469,5 +4469,389 @@
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.buk.edu.ng/instituitional_data",
     "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Akure",
+    "institutionWebsite": "https://futa.edu.ng",
+    "facultyName": "School of Earth and Mineral Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futa.edu.ng/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Akure",
+    "institutionWebsite": "https://futa.edu.ng",
+    "facultyName": "School of Life Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futa.edu.ng/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Akure",
+    "institutionWebsite": "https://futa.edu.ng",
+    "facultyName": "School of Physical Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futa.edu.ng/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Akure",
+    "institutionWebsite": "https://futa.edu.ng",
+    "facultyName": "School of Logistics and Innovation Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futa.edu.ng/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Akure",
+    "institutionWebsite": "https://futa.edu.ng",
+    "facultyName": "School of Infrastructure, Minerals and Manufacturing Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futa.edu.ng/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Akure",
+    "institutionWebsite": "https://futa.edu.ng",
+    "facultyName": "School of Electrical Systems Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futa.edu.ng/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Akure",
+    "institutionWebsite": "https://futa.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futa.edu.ng/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Akure",
+    "institutionWebsite": "https://futa.edu.ng",
+    "facultyName": "School of Environmental Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futa.edu.ng/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Akure",
+    "institutionWebsite": "https://futa.edu.ng",
+    "facultyName": "School of Computing",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futa.edu.ng/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Agricultural Management and Extension Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Agronomy and Forestry Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Architectural Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Food Science and Agricultural Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Electrical Engineering and Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Environmental Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Innovative Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Information and Communication Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Life Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Physical Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Science and Technology Education",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Basic Medical Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Allied Health Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Pharmaceutical Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Infrastructure, Process Engineering and Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futminna.edu.ng/sict/wp-content/uploads/sites/5/2026/04/UPDATED-CCMAS-2024-Printed-New-Curriculum-LAST-2-1.pdf",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Basic Medical Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Biological Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Electrical Systems and Engineering Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Environmental Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Health Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Logistics and Innovation Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Information and Communication Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Physical Sciences",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Art",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Basic Medical Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Clinical Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Communication and Media Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Environmental Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Management Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Nursing and Allied Health Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Social Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Abuja, Abuja",
+    "institutionWebsite": "https://www.uniabuja.edu.ng",
+    "facultyName": "Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniabuja.edu.ng/faculties",
+    "verifiedAt": "2026-11-10"
   }
 ]
