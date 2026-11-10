@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/commo
 import { DataSource, EntityManager } from 'typeorm';
 import { S3Service } from './s3.service';
 
-type CleanupJob = { id: string; object_key: string; attempts: number };
+type CleanupJob = { id: string; object_key: string; attempts: unknown };
 
 @Injectable()
 export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
@@ -118,17 +118,27 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
     );
   }
 
+  private normalizeAttemptCount(value: unknown): number {
+    const parsed = typeof value === 'number' ? value : Number(value);
+    if (!Number.isFinite(parsed) || parsed < 1) {
+      this.logger.warn(`Invalid storage cleanup attempt count "${String(value)}"; using attempt 1 for retry backoff.`);
+      return 1;
+    }
+    return Math.floor(parsed);
+  }
+
   private async retryJob(job: CleanupJob, error: unknown): Promise<void> {
     const message = String(error instanceof Error ? error.message : error).slice(0, 1800);
-    const terminal = job.attempts >= 20;
-    const delayMinutes = Math.min(360, Math.max(1, 2 ** Math.min(job.attempts, 8)));
+    const attempts = this.normalizeAttemptCount(job.attempts);
+    const terminal = attempts >= 20;
+    const delayMinutes = Math.min(360, Math.max(1, 2 ** Math.min(attempts, 8)));
     await this.dataSource.query(
       `UPDATE storage_cleanup_jobs SET status = $2,
        "availableAt" = NOW() + ($3::int * INTERVAL '1 minute'),
        "lockedAt" = NULL, "lastError" = $4, "updatedAt" = NOW() WHERE id = $1`,
       [job.id, terminal ? 'failed' : 'queued', delayMinutes, message],
     );
-    this.logger.error(`R2 cleanup job ${job.id} failed (attempt ${job.attempts}/20): ${message}`);
+    this.logger.error(`R2 cleanup job ${job.id} failed (attempt ${attempts}/20): ${message}`);
   }
 
   async runBatch(): Promise<void> {
