@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { MoreThan, Repository } from 'typeorm';
 import * as crypto from 'crypto';
 import { UsersService } from '../users/users.service';
 import { CreateProfileImageUploadDto } from './dto/create-profile-image-upload.dto';
@@ -11,6 +11,7 @@ import { CreateFileUploadDto } from './dto/create-file-upload.dto';
 import { CompleteFileUploadDto } from './dto/complete-file-upload.dto';
 import { PointsService } from '../points/points.service';
 import { S3Service } from './s3.service';
+import { StorageCleanupService } from './storage-cleanup.service';
 
 type SupportAttachmentFile = { mimetype: string; size: number; buffer: Buffer };
 
@@ -37,6 +38,7 @@ export class UploadService {
     private readonly pointsService: PointsService,
     private readonly s3Service: S3Service,
     private readonly usersService: UsersService,
+    private readonly storageCleanup: StorageCleanupService,
   ) {}
 
   async uploadSupportAttachment(userId: string, file: SupportAttachmentFile) {
@@ -46,6 +48,7 @@ export class UploadService {
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = `support-attachments/${userId}/${crypto.randomUUID()}.${ext}`;
     const url = await this.s3Service.uploadPublicObject(key, file.buffer, file.mimetype);
+    await this.storageCleanup.enqueue(url, 'unused-support-attachment-upload', 7 * 24 * 60 * 60 * 1000);
     return { url, key };
   }
 
@@ -61,7 +64,8 @@ export class UploadService {
       file.mimetype,
       'public, max-age=31536000, immutable',
     );
-    const user = await this.usersService.update(userId, { profileImage });
+    await this.storageCleanup.enqueue(key, 'unclaimed-profile-image-upload', 24 * 60 * 60 * 1000);
+    const user = await this.usersService.updateProfileImage(userId, profileImage);
     const { password: _password, ...safeUser } = user;
     return { success: true, profileImage, user: safeUser };
   }
@@ -73,6 +77,7 @@ export class UploadService {
     const ext = dto.mimetype === 'image/jpeg' ? 'jpg' : dto.mimetype === 'image/png' ? 'png' : 'webp';
     const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
     const signed = await this.s3Service.createPresignedUploadUrl(key, dto.mimetype, 600);
+    await this.storageCleanup.enqueue(key, 'unclaimed-presigned-profile-image', 24 * 60 * 60 * 1000);
     return { presignedUrl: signed.url, key, publicUrl: signed.publicUrl };
   }
 
@@ -92,7 +97,7 @@ export class UploadService {
     const stored = await this.s3Service.getObjectMetadata(dto.key);
     if (!stored || stored.contentLength !== dto.size || stored.contentType !== dto.mimetype) throw new BadRequestException('Uploaded profile image could not be verified');
     const profileImage = this.s3Service.getPublicUrl(dto.key);
-    const user = await this.usersService.update(userId, { profileImage });
+    const user = await this.usersService.updateProfileImage(userId, profileImage);
     const { password: _password, ...safeUser } = user;
     return { success: true, profileImage, user: safeUser };
   }
@@ -129,6 +134,7 @@ export class UploadService {
         mimetype: dto.mimetype,
         size: dto.size,
         status: 'pending',
+        uploadedAt: MoreThan(new Date(Date.now() - 24 * 60 * 60 * 1000)),
       },
       order: { uploadedAt: 'DESC' },
     });
@@ -208,12 +214,18 @@ export class UploadService {
     }
 
     const publicUrl = this.s3Service.getPublicUrl(dto.key);
-    resource.fileUrl = publicUrl;
-    await this.resourceRepository.save(resource);
-
-    fileUpload.status = 'completed';
-    fileUpload.completedAt = new Date();
-    await this.fileUploadRepository.save(fileUpload);
+    await this.resourceRepository.manager.transaction(async manager => {
+      const currentResource = await manager.findOne(Resource, { where: { id: dto.resourceId, uploaderId: userId } });
+      const currentUpload = await manager.findOne(FileUpload, { where: { s3Key: dto.key, resourceId: dto.resourceId, userId, status: 'pending' } });
+      if (!currentResource || !currentUpload) throw new BadRequestException('The resource upload changed before completion. Please retry.');
+      const previousFileUrl = currentResource.fileUrl;
+      currentResource.fileUrl = publicUrl;
+      currentUpload.status = 'completed';
+      currentUpload.completedAt = new Date();
+      await manager.save(Resource, currentResource);
+      await manager.save(FileUpload, currentUpload);
+      if (previousFileUrl && previousFileUrl !== publicUrl) await this.storageCleanup.enqueueWithManager(manager, previousFileUrl, 'resource-file-replaced');
+    });
 
     return {
       success: true,

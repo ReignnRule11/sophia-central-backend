@@ -12,6 +12,8 @@ import { UpdateResourceDto } from './dto/update-resource.dto';
 import { Resource, ResourceModerationStatus } from './entities/resource.entity';
 import { SavedResource } from './entities/saved-resource.entity';
 import { S3Service } from '../upload/s3.service';
+import { StorageCleanupService } from '../upload/storage-cleanup.service';
+import { FileUpload } from '../upload/entities/file-upload.entity';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 
 @Injectable()
@@ -26,6 +28,7 @@ export class ResourcesService {
     private readonly activityRepository: Repository<UserActivityEvent>,
     @InjectRepository(SavedResource)
     private readonly savedResourceRepository: Repository<SavedResource>,
+    private readonly storageCleanup: StorageCleanupService,
   ) {}
 
   async create(dto: CreateResourceDto, uploaderId: string): Promise<Resource> {
@@ -217,16 +220,37 @@ export class ResourcesService {
   }
 
   async update(id: string, dto: UpdateResourceDto): Promise<Resource> {
-    const resource = await this.resourceRepository.findOne({ where: { id } });
-    if (!resource) throw new NotFoundException('Resource not found');
-    Object.assign(resource, dto);
-    return this.resourceRepository.save(resource);
+    return this.resourceRepository.manager.transaction(async manager => {
+      const resource = await manager.findOne(Resource, { where: { id } });
+      if (!resource) throw new NotFoundException('Resource not found');
+      const previousFileUrl = resource.fileUrl;
+      Object.assign(resource, dto);
+      const saved = await manager.save(Resource, resource);
+      if (previousFileUrl && previousFileUrl !== saved.fileUrl) {
+        await this.storageCleanup.enqueueWithManager(manager, previousFileUrl, 'resource-file-replaced');
+      }
+      return saved;
+    });
   }
 
   async remove(id: string): Promise<void> {
-    const resource = await this.resourceRepository.findOne({ where: { id } });
-    if (!resource) throw new NotFoundException('Resource not found');
-    await this.resourceRepository.remove(resource);
+    await this.resourceRepository.manager.transaction(async manager => {
+      const resource = await manager.findOne(Resource, { where: { id } });
+      if (!resource) throw new NotFoundException('Resource not found');
+
+      const uploads = await manager.find(FileUpload, { where: { resourceId: id } });
+      const legacyFiles = await manager.query('SELECT s3_key FROM resource_files WHERE resource_id = $1::uuid', [id]);
+      await this.storageCleanup.enqueueWithManager(manager, resource.fileUrl, 'resource-deleted');
+      for (const upload of uploads) {
+        await this.storageCleanup.enqueueWithManager(manager, upload.s3Key, 'resource-upload-deleted');
+      }
+      for (const legacyFile of legacyFiles) {
+        await this.storageCleanup.enqueueWithManager(manager, legacyFile.s3_key, 'legacy-resource-file-deleted');
+      }
+      await manager.query('DELETE FROM resource_files WHERE resource_id = $1::uuid', [id]);
+
+      await manager.remove(Resource, resource);
+    });
   }
 
   async findByFilters(query: Partial<Pick<Resource, 'course' | 'topic' | 'institution' | 'level' | 'type'>>) {

@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
+import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 export interface StoredObjectMetadata {
@@ -14,7 +14,7 @@ export class S3Service {
   private readonly publicBaseUrl: string;
 
   constructor() {
-    const region = process.env.AWS_REGION || 'us-east-1';
+    const region = process.env.AWS_REGION || (process.env.AWS_S3_ENDPOINT ? 'auto' : 'us-east-1');
     const endpoint = process.env.AWS_S3_ENDPOINT;
     const bucketName = process.env.AWS_S3_BUCKET_NAME || 'sophia-central';
 
@@ -87,6 +87,11 @@ export class S3Service {
       ...(cacheControl ? { CacheControl: cacheControl } : {}),
     }));
     return this.getPublicUrl(key);
+  }
+
+  async deleteObject(key: string): Promise<void> {
+    if (!key || key.startsWith('/') || key.split('/').some(part => !part || part === '.' || part === '..')) throw new Error('Refusing to delete an invalid storage object key');
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucketName, Key: key }));
   }
 
   async getObjectMetadata(key: string): Promise<StoredObjectMetadata | null> {

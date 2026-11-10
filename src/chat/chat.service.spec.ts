@@ -14,6 +14,8 @@ describe('ChatService access and message rules', () => {
   let s3: any;
   let redis: any;
   let notifications: any;
+  let storageCleanup: any;
+  let transactionManager: any;
   let redisEvents: Subject<{ roomKey: string }>;
   let onlineUsers: Set<string>;
 
@@ -28,7 +30,9 @@ describe('ChatService access and message rules', () => {
   };
 
   beforeEach(() => {
+    transactionManager = { findOne: jest.fn(), save: jest.fn(async (_entity, value) => value) };
     repo = {
+      manager: { transaction: jest.fn(async callback => callback(transactionManager)) },
       findOne: jest.fn(),
       count: jest.fn(async () => 0),
       save: jest.fn(async value => value),
@@ -77,6 +81,7 @@ describe('ChatService access and message rules', () => {
       isOnline: jest.fn(async (id: string) => onlineUsers.has(id)),
     };
     notifications = { createNotification: jest.fn(async () => ({})) };
+    storageCleanup = { enqueue: jest.fn(async () => undefined), enqueueWithManager: jest.fn(async () => undefined) };
     service = new ChatService(
       repo,
       blocks,
@@ -86,6 +91,7 @@ describe('ChatService access and message rules', () => {
       s3,
       redis,
       notifications,
+      storageCleanup,
     );
   });
 
@@ -207,16 +213,16 @@ describe('ChatService access and message rules', () => {
   });
 
   it('only allows the sender to delete a message', async () => {
-    repo.findOne.mockResolvedValue({ id: 'message-3', senderId: 'someone-else' });
+    transactionManager.findOne.mockResolvedValue({ id: 'message-3', senderId: 'someone-else' });
     await expect(service.remove(student.id, 'message-3')).rejects.toBeInstanceOf(ForbiddenException);
-    expect(repo.save).not.toHaveBeenCalled();
+    expect(transactionManager.save).not.toHaveBeenCalled();
   });
 
   it('soft-deletes the sender\'s own message and clears its content', async () => {
     const message = { id: 'message-4', senderId: student.id, text: 'hello', voiceKey: null, isDeleted: false };
-    repo.findOne.mockResolvedValue(message);
+    transactionManager.findOne.mockResolvedValue(message);
     await expect(service.remove(student.id, 'message-4')).resolves.toEqual({ success: true, id: 'message-4' });
-    expect(repo.save).toHaveBeenCalledWith(expect.objectContaining({ isDeleted: true, text: null, voiceKey: null, stickerId: null }));
+    expect(transactionManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ isDeleted: true, text: null, voiceKey: null, stickerId: null }));
   });
 
   it('rejects an edit after the 15-minute window', async () => {

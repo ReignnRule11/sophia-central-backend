@@ -8,7 +8,7 @@ import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
 import { RedisChatService } from './redis-chat.service';
 import { UsersModule } from '../users/users.module';
-import { UploadModule } from '../upload/upload.module';
+import { StorageModule } from '../upload/storage.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-@Module({ imports: [TypeOrmModule.forFeature([ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide]), UsersModule, UploadModule, NotificationsModule], controllers: [ChatController], providers: [ChatService, RedisChatService] })
+@Module({ imports: [TypeOrmModule.forFeature([ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide]), UsersModule, StorageModule, NotificationsModule], controllers: [ChatController], providers: [ChatService, RedisChatService] })
 export class ChatModule {}

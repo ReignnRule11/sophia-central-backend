@@ -12,12 +12,14 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value),
   };
+  const storageCleanup: any = { enqueueWithManager: jest.fn() };
   const service = new ResourcesService(
     resourceRepository,
     {} as any,
     {} as any,
     activityRepository,
     {} as any,
+    storageCleanup,
   );
 
   const resource = (overrides: Record<string, unknown> = {}) => ({
@@ -78,6 +80,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       {} as any,
       activityRepository,
       savedRepository,
+      storageCleanup,
     );
 
     await expect(downloadService.downloadForUser('resource-1', {
@@ -102,6 +105,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       {} as any,
       activityRepository,
       savedRepository,
+      storageCleanup,
     );
 
     await expect(downloadService.downloadForUser('resource-1', {
