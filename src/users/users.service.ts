@@ -54,28 +54,36 @@ export class UsersService {
     if (!user) throw new NotFoundException('User not found');
     const facultyChanged = data.faculty !== undefined && data.faculty.trim().toLocaleLowerCase() !== (user.faculty ?? '').trim().toLocaleLowerCase();
     const departmentChanged = data.department !== undefined && data.department.trim().toLocaleLowerCase() !== (user.department ?? '').trim().toLocaleLowerCase();
+    const completingOnboarding = data.isProfileComplete === true && user.isProfileComplete !== true;
 
     // Academic placement is a single institution -> faculty -> department relationship.
-    // Never accept a partial or free-text change that could move a user into an unrelated group.
-    if (facultyChanged || departmentChanged) {
+    // Enforce it both when onboarding is completed and whenever an existing user changes placement.
+    if (facultyChanged || departmentChanged || completingOnboarding) {
       if (data.faculty === undefined || data.department === undefined) {
-        throw new BadRequestException('Faculty and department must be updated together so the academic structure can be validated.');
+        throw new BadRequestException('Faculty and department must be selected together so the academic structure can be validated.');
       }
-      const institutionName = (user.institution ?? '').trim();
+      const institutionName = (data.institution ?? user.institution ?? '').trim();
       const facultyName = data.faculty.trim();
       const departmentName = data.department.trim();
       if (!institutionName || !facultyName || !departmentName) {
-        throw new BadRequestException('A valid institution, faculty and department are required for academic profile changes.');
+        throw new BadRequestException('A valid institution, faculty and department are required to complete or change academic placement.');
+      }
+      const institutionRows = await this.dataSource.query(
+        'SELECT i.id FROM institutions i WHERE LOWER(TRIM(i.name)) = LOWER(TRIM($1)) LIMIT 1',
+        [institutionName],
+      );
+      if (!institutionRows.length) {
+        throw new BadRequestException('Your institution is not yet in the approved academic catalogue. Submit it for review before completing academic setup.');
       }
       const facultyRows = await this.dataSource.query(
-        'SELECT f.id FROM faculties f INNER JOIN institutions i ON i.id = f."institutionId" WHERE LOWER(TRIM(i.name)) = LOWER(TRIM($1)) AND LOWER(TRIM(f.name)) = LOWER(TRIM($2)) LIMIT 1',
-        [institutionName, facultyName],
+        'SELECT f.id FROM faculties f WHERE f."institutionId" = $1 AND LOWER(TRIM(f.name)) = LOWER(TRIM($2)) LIMIT 1',
+        [institutionRows[0].id, facultyName],
       );
       if (!facultyRows.length) {
         throw new BadRequestException('This faculty is not approved under your institution. Submit it for academic catalogue review first.');
       }
       const departmentRows = await this.dataSource.query(
-        'SELECT d.id FROM departments d INNER JOIN faculties f ON f.id = d."facultyId" WHERE f.id = $1 AND LOWER(TRIM(d.name)) = LOWER(TRIM($2)) LIMIT 1',
+        'SELECT d.id FROM departments d WHERE d."facultyId" = $1 AND LOWER(TRIM(d.name)) = LOWER(TRIM($2)) LIMIT 1',
         [facultyRows[0].id, departmentName],
       );
       if (!departmentRows.length) {
