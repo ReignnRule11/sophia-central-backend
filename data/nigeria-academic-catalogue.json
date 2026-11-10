@@ -3010,5 +3010,703 @@
     "facultyType": "school",
     "officialSourceUrl": "https://www.unilorin.edu.ng/academics/",
     "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculties/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculties/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Basic Medical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculties/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Anaesthesiology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Medicine"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mental Health"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Nursing Science"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Obstetrics and Gynaecology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Preventive and Social Medicine"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Paediatrics and Child Health"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Surgery"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Radiology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Ophthalmology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-clinical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Ear, Nose and Throat Surgery"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Communication and Media Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-communication-media-studies/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Broadcasting"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Communication and Media Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-communication-media-studies/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Film and Multimedia Studies"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Communication and Media Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-communication-media-studies/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Journalism and Media Studies"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Communication and Media Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-communication-media-studies/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Public Relations & Advertising"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Computing",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-computing/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Computer Science"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Computing",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-computing/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Information Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Computing",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-computing/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Cyber Security"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-dentistry/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Child Dental Health"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-dentistry/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Oral and Maxillofacial Surgery"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-dentistry/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Oral Pathology and Oral Biology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-dentistry/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Preventive Dentistry"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-dentistry/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Restorative Dentistry"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-education/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Adult & Non-Formal Education"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-education/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Curriculum Studies and Educational Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-education/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Early Childhood and Primary Education"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-education/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Educational Foundations"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-education/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Educational Management and Planning"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-education/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Educational Psychology, Guidance and Counselling"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-education/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Human Kinetics & Health Education"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-education/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Library and Information Science"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-education/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Science Education"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-engineering/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Chemical Engineering"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-engineering/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Civil and Environmental Engineering"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-engineering/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Electrical/Electronics Engineering"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-engineering/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mechanical Engineering"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-engineering/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mechatronics Engineering"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-engineering/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Petroleum and Gas Engineering"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Humanities",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculties/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-law/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Public Law"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-law/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Private and Property Law"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-law/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Jurisprudence and International Law"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-law/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Commercial and Industrial Law"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-management-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Accounting"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-management-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Finance and Banking"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-management-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Management"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-management-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Marketing"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-management-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Hospitality Management and Tourism"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-pharmaceutical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Clinical Pharmacy and Pharmacy Management"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-pharmaceutical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Experimental Pharmacology and Toxicology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-pharmaceutical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmaceutical and Medicinal Chemistry"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-pharmaceutical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmaceutical Microbiology and Biotechnology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-pharmaceutical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmaceutics and Pharmaceutical Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-pharmaceutical-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmacognosy and Phytotherapy"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "School of Science Laboratory Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/science-laboratory-technology/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Biochemistry and Chemistry Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "School of Science Laboratory Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/science-laboratory-technology/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Biology and Biotechnology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "School of Science Laboratory Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/science-laboratory-technology/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Biomedical Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "School of Science Laboratory Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/science-laboratory-technology/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Geology and Mining Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "School of Science Laboratory Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/science-laboratory-technology/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Industrial Chemistry and Petroleum Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "School of Science Laboratory Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/science-laboratory-technology/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Microbiology Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "School of Science Laboratory Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/science-laboratory-technology/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Physics with Electronic Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "School of Science Laboratory Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/science-laboratory-technology/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Physics with Production Technology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Animal and Environmental Biology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Biochemistry"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Geology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mathematics and Statistics"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Microbiology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Physics"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Plant Science and Biotechnology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pure and Industrial Chemistry"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-social-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Economics"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-social-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Geography & Environmental Management"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-social-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Political & Administrative Studies"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-social-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Sociology"
+  },
+  {
+    "institutionName": "University of Port-Harcourt, Port-Harcourt",
+    "institutionWebsite": "https://uniport.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.uniport.edu.ng/faculty/faculty-of-social-sciences/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Social Work"
   }
 ]
