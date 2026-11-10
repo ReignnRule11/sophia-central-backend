@@ -1851,7 +1851,7 @@ async function main(): Promise<void> {
       [
         'Institution source metadata validation failed: invalid Nigerian state values were found. No database changes were made.',
         JSON.stringify(invalidStateValues, null, 2),
-      ].join('\\n'),
+      ].join('\n'),
     );
   }
 
