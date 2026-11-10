@@ -22,6 +22,11 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @MaxLength(160)
+  institution?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
   firstName?: string;
 
   @IsOptional()
