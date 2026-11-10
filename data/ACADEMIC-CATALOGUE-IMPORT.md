@@ -27,8 +27,27 @@ Checked against official institutional pages on 2026-11-10:
 | University of Ilorin, Ilorin | 19 | 90 | https://www.unilorin.edu.ng/academics/ and official faculty pages |
 | University of Port-Harcourt, Port-Harcourt | 16 | 74 | https://www.uniport.edu.ng/faculties/ and official faculty pages |
 | University of Benin, Benin City | 17 | 41 | https://uniben.edu/academic-programmes.html and official faculty pages |
+| Ahmadu Bello University, Zaria | 19 | 0 | https://abu.edu.ng/faculties/ and https://abu.edu.ng/schools-and-colleges/ |
+| Bayero University, Kano | 19 | 0 | https://www.buk.edu.ng/instituitional_data |
+| Federal University of Technology, Minna | 12 | 0 | https://staff.futminna.edu.ng/faculties |
+| Federal University of Technology, Owerri | 10 | 0 | https://futo.edu.ng/schools |
+| University of Abuja, Abuja | 14 | 0 | https://www.uniabuja.edu.ng/faculties |
+| University of Maiduguri, Maiduguri | 18 | 0 | https://unimaid.edu.ng/Faculties.php |
+| University of Jos, Jos | 19 | 0 | https://www.unijos.edu.ng/unijos-academics |
+| University of Calabar, Calabar | 23 | 0 | https://unical.edu.ng/faculties.php |
+| Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
+| Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The production catalogue currently contains 769 institutions: 328 universities, 199 polytechnics, and 242 colleges of education. The production audit currently finds zero academic-unit and department records across those institution categories. Remaining institutions must be researched in batches from their own official websites, handbooks, directories, or prospectuses.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 636 source rows representing 266 academic units and 442 departments across 16 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education; the production audit found zero academic-unit and department records before this PR.
+
+### Manual-entry fallback / intentionally omitted batches
+
+- Federal University of Technology, Akure: the earlier homepage-only school list was not sufficient to verify the current academic hierarchy; the current schools portal was not reliably readable for a full reconciliation.
+- Abubakar Tafawa Balewa University: the official page contains conflicting labels for the Education/Technology Education faculty and nested College of Medical Sciences faculties. Its units are omitted until the direct student-facing structure can be reconciled without flattening a parent and its child units.
+- University of Calabar: 23 clearly student-facing academic units are staged. Ambiguous directory entries such as the library, non-academic listing, and institute-level entries are not treated as faculty destinations without further confirmation.
+- Where the public directory is incomplete, inaccessible, or internally inconsistent, the student enters the exact academic unit and department during onboarding. No placeholder catalogue values are created and no moderator submission is generated.
+
+The remaining institutions must be researched in batches from their own official websites, handbooks, directories, or prospectuses.
 
 ## Record format
 
