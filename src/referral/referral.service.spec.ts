@@ -85,7 +85,7 @@ describe('ReferralService hybrid reward eligibility', () => {
     expect(points.awardReferralReward).toHaveBeenCalledWith('referrer-1', 'event-1', 20);
   });
 
-  it('keeps onboarding independent from the catalogue and moves an unlisted placement to referral review', async () => {
+  it('keeps unlisted manual academic placement pending without moderator review', async () => {
     const event: any = {
       id: 'event-2', rewardStatus: 'pending', referrerId: 'referrer-1',
       referredUser: {
@@ -99,9 +99,8 @@ describe('ReferralService hybrid reward eligibility', () => {
 
     await service.processPendingReferralForUser('student-3');
 
-    expect(event.rewardStatus).toBe('under_review');
-    expect(event.reviewReason).toContain('verified institution catalogue');
-    expect(referrals.save).toHaveBeenCalledWith(event);
+    expect(event.rewardStatus).toBe('pending');
+    expect(referrals.save).not.toHaveBeenCalled();
     expect(points.awardReferralReward).not.toHaveBeenCalled();
   });
 
