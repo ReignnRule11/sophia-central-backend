@@ -43,7 +43,8 @@ describe('AuthService', () => {
       verificationEmail as unknown as EmailVerificationEmailService,
       {
         validateReferralCode: jest.fn().mockResolvedValue(undefined),
-        redeemReferral: jest.fn().mockResolvedValue({ success: true, message: 'Student referral applied successfully.' }),
+        redeemReferral: jest.fn().mockResolvedValue({ success: true, message: 'Referral recorded.' }),
+        processPendingReferralForUser: jest.fn().mockResolvedValue(undefined),
       } as never,
     );
   });
