@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
@@ -52,6 +52,73 @@ export class UsersService {
   async update(id: string, data: Partial<User>): Promise<User> {
     const user = await this.findOne(id);
     if (!user) throw new NotFoundException('User not found');
+    const facultyChanged = data.faculty !== undefined && data.faculty.trim().toLocaleLowerCase() !== (user.faculty ?? '').trim().toLocaleLowerCase();
+    const departmentChanged = data.department !== undefined && data.department.trim().toLocaleLowerCase() !== (user.department ?? '').trim().toLocaleLowerCase();
+    const completingOnboarding = data.isProfileComplete === true && user.isProfileComplete !== true;
+
+    // Academic placement is a single institution -> faculty -> department relationship.
+    // Enforce it both when onboarding is completed and whenever an existing user changes placement.
+    if (facultyChanged || departmentChanged || completingOnboarding) {
+      if (data.faculty === undefined || data.department === undefined) {
+        throw new BadRequestException('Faculty and department must be selected together so the academic structure can be validated.');
+      }
+      const institutionName = (data.institution ?? user.institution ?? '').trim();
+      const facultyName = data.faculty.trim();
+      const departmentName = data.department.trim();
+      if (!institutionName || !facultyName || !departmentName) {
+        throw new BadRequestException('A valid institution, faculty and department are required to complete or change academic placement.');
+      }
+      const institutionRows = await this.dataSource.query(
+        'SELECT i.id FROM institutions i WHERE LOWER(TRIM(i.name)) = LOWER(TRIM($1)) LIMIT 1',
+        [institutionName],
+      );
+      if (!institutionRows.length) {
+        throw new BadRequestException('Your institution is not yet in the approved academic catalogue. Submit it for review before completing academic setup.');
+      }
+      const facultyRows = await this.dataSource.query(
+        'SELECT f.id FROM faculties f WHERE f."institutionId" = $1 AND LOWER(TRIM(f.name)) = LOWER(TRIM($2)) LIMIT 1',
+        [institutionRows[0].id, facultyName],
+      );
+      let facultySubmissionId: string | null = null;
+      if (!facultyRows.length) {
+        const pendingFacultyRows = await this.dataSource.query(
+          'SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentInstitutionId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) ORDER BY s."createdAt" DESC LIMIT 1',
+          ['faculty', 'pending', institutionRows[0].id, facultyName],
+        );
+        if (!pendingFacultyRows.length) {
+          throw new BadRequestException('This faculty is not in the approved catalogue. Submit it for review, then save your academic placement.');
+        }
+        facultySubmissionId = pendingFacultyRows[0].id;
+      }
+
+      if (facultyRows.length) {
+        const departmentRows = await this.dataSource.query(
+          'SELECT d.id FROM departments d WHERE d."facultyId" = $1 AND LOWER(TRIM(d.name)) = LOWER(TRIM($2)) LIMIT 1',
+          [facultyRows[0].id, departmentName],
+        );
+        if (!departmentRows.length) {
+          const pendingDepartmentRows = await this.dataSource.query(
+            'SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentFacultyId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) LIMIT 1',
+            ['department', 'pending', facultyRows[0].id, departmentName],
+          );
+          if (!pendingDepartmentRows.length) {
+            throw new BadRequestException('This department is not in the selected faculty catalogue. Submit it for review, then save your academic placement.');
+          }
+        }
+      } else {
+        const pendingDepartmentRows = await this.dataSource.query(
+          'SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentFacultySubmissionId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) LIMIT 1',
+          ['department', 'pending', facultySubmissionId, departmentName],
+        );
+        if (!pendingDepartmentRows.length) {
+          throw new BadRequestException('This department must be submitted under the pending faculty before the academic placement can be saved.');
+        }
+      }
+    }
+
+    if (data.institution !== undefined && user.isProfileComplete && data.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {
+      throw new BadRequestException('Institution cannot be changed from Edit Profile. Contact Sophis Central support if your institution is incorrect.');
+    }
     if (data.academicHandle !== undefined) {
       const normalized = data.academicHandle.trim().replace(/^@+/, '').toLowerCase();
       const existing = await this.usersRepository.createQueryBuilder('user')

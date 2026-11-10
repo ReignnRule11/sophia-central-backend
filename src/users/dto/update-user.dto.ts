@@ -1,4 +1,22 @@
-import { IsArray, IsOptional, IsString, MaxLength, MinLength, Matches } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsOptional, IsString, MaxLength, MinLength, Matches, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+
+class TeachingAssignmentUpdateDto {
+  @IsString()
+  @MaxLength(160)
+  courseName!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  courseCode?: string;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  levels!: string[];
+}
 
 export class UpdateUserDto {
   @IsOptional()
@@ -10,11 +28,6 @@ export class UpdateUserDto {
   @IsString()
   @MaxLength(160)
   lastName?: string;
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(160)
-  institution?: string;
 
   @IsOptional()
   @IsString()
@@ -36,6 +49,12 @@ export class UpdateUserDto {
   @IsString({ each: true })
   @MaxLength(160, { each: true })
   coursesTaught?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TeachingAssignmentUpdateDto)
+  teachingAssignments?: TeachingAssignmentUpdateDto[];
 
   @IsOptional()
   @IsString()
