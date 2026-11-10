@@ -22,6 +22,7 @@ Checked against official institutional pages on 2026-11-10:
 | University of Ibadan, Ibadan | 20 | 47 | https://ui.edu.ng/content/faculties-and-departments |
 | University of Nigeria, Nsukka | 17 | 91 | https://www.unn.edu.ng/departments/ |
 | University of Ilorin, Ilorin | 19 | 90 | https://www.unilorin.edu.ng/academics/ and official faculty pages |
+| University of Port-Harcourt, Port-Harcourt | 16 | 74 | https://www.uniport.edu.ng/faculties/ and official faculty pages |
 
 This is a verified starter batch, not a claim that all Nigerian institutions are populated. The production catalogue currently contains 769 institutions: 328 universities, 199 polytechnics, and 242 colleges of education. The production audit currently finds zero academic-unit and department records across those institution categories. Remaining institutions must be researched in batches from their own official websites, handbooks, directories, or prospectuses.
 
