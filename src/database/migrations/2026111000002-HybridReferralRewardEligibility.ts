@@ -8,8 +8,8 @@ export class HybridReferralRewardEligibility2026111000002 implements MigrationIn
     await queryRunner.query(`ALTER TABLE referrals ADD COLUMN "rewardAwardedAt" TIMESTAMP WITH TIME ZONE`);
     await queryRunner.query(`ALTER TABLE referrals ADD COLUMN "reviewReason" text`);
 
-    // Existing redeemed referral events were rewarded immediately by the previous
-    // workflow. Preserve their historical state and never pay them a second time.
+    // Preserve historical awards only when their matching wallet-ledger transaction
+    // exists. Uncredited legacy attributions remain pending for eligibility processing.
     await queryRunner.query(`
       UPDATE referrals
       SET "rewardStatus" = 'awarded',
@@ -18,6 +18,12 @@ export class HybridReferralRewardEligibility2026111000002 implements MigrationIn
         AND "referredUserId" IS NOT NULL
         AND "redeemedAt" IS NOT NULL
         AND "rewardAmount" > 0
+        AND EXISTS (
+          SELECT 1
+          FROM point_transactions transaction
+          WHERE transaction."userId" = referrals."referrerId"::text
+            AND transaction.reason = 'Student referral bonus - referral ' || referrals.id::text
+        )
     `);
 
     await queryRunner.query(`
