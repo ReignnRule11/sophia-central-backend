@@ -3,7 +3,6 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Referral } from './entities/referral.entity';
 import { User, UserRole } from '../users/entities/user.entity';
-import { Institution, Faculty, Department } from '../institutions/entities/institution.entity';
 import { PointsService } from '../points/points.service';
 
 @Injectable()
@@ -123,22 +122,23 @@ export class ReferralService {
     if (!institutionName || !facultyName || !departmentName) return false;
 
     const manager = this.referralRepository.manager;
-    const institution = await manager.createQueryBuilder(Institution, 'institution')
-      .where('LOWER(institution.name) = LOWER(:name)', { name: institutionName })
-      .getOne();
-    if (!institution) return false;
+    const [institution] = await manager.query(
+      'SELECT id FROM institutions WHERE LOWER(name) = LOWER($1) LIMIT 1',
+      [institutionName],
+    );
+    if (!institution?.id) return false;
 
-    const faculty = await manager.createQueryBuilder(Faculty, 'faculty')
-      .where('faculty.institutionId = :institutionId', { institutionId: institution.id })
-      .andWhere('LOWER(faculty.name) = LOWER(:name)', { name: facultyName })
-      .getOne();
-    if (!faculty) return false;
+    const [faculty] = await manager.query(
+      'SELECT id FROM faculties WHERE "institutionId" = $1 AND LOWER(name) = LOWER($2) LIMIT 1',
+      [institution.id, facultyName],
+    );
+    if (!faculty?.id) return false;
 
-    const department = await manager.createQueryBuilder(Department, 'department')
-      .where('department.facultyId = :facultyId', { facultyId: faculty.id })
-      .andWhere('LOWER(department.name) = LOWER(:name)', { name: departmentName })
-      .getOne();
-    return Boolean(department);
+    const [department] = await manager.query(
+      'SELECT id FROM departments WHERE "facultyId" = $1 AND LOWER(name) = LOWER($2) LIMIT 1',
+      [faculty.id, departmentName],
+    );
+    return Boolean(department?.id);
   }
 
   async processPendingReferralForUser(referredUserId: string): Promise<void> {
