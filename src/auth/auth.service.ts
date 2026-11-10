@@ -212,6 +212,9 @@ export class AuthService {
   async getCurrentUser(userId: string) {
     const user = await this.usersService.findOne(userId);
     if (!user) throw new UnauthorizedException('User not found');
+    // Re-evaluate any legacy pending attribution when the referred student
+    // returns after the eligibility workflow has been deployed.
+    await this.referralService.processPendingReferralForUser(userId);
     return { user: this.toSafeUser(user) };
   }
 
