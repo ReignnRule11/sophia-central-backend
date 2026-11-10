@@ -16,10 +16,12 @@ describe('ReferralService hybrid reward eligibility', () => {
       save: jest.fn(async value => ({ id: 'event-1', createdAt: new Date(), ...value })),
       manager: {
         transaction: jest.fn(async callback => callback({
-          findOne: jest.fn().mockResolvedValue({
-            id: 'student-2', email: 'new@example.com', role: UserRole.STUDENT,
-            emailVerified: true, isProfileComplete: false,
-          }),
+          findOne: jest.fn()
+            .mockResolvedValueOnce({
+              id: 'student-2', email: 'new@example.com', role: UserRole.STUDENT,
+              emailVerified: true, isProfileComplete: false,
+            })
+            .mockResolvedValueOnce(null),
           create: jest.fn((_entity, value) => value),
           save: jest.fn(async (_entity, value) => ({ id: 'event-1', createdAt: new Date(), ...value })),
         })),
