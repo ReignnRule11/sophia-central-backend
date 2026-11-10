@@ -30,6 +30,13 @@ type NbteDuplicateRule = {
   reason: string;
 };
 
+type NbteNearDuplicateRule = {
+  canonicalId: string;
+  duplicateIds: string[];
+  canonicalName: string;
+  reason: string;
+};
+
 type SuccessorReviewRule = {
   incomingAliases: string[];
   existingAliases: string[];
@@ -55,8 +62,9 @@ type ExistingInstitution = {
 const USER_AGENT = 'SophisCentralAcademicCatalogueImporter/1.0';
 
 const EXPECTED_NBTE_RAW_COUNT = 207;
-const EXPECTED_NBTE_UNIQUE_COUNT = 205;
+const EXPECTED_NBTE_UNIQUE_COUNT = 204;
 const EXPECTED_NCCE_UNIQUE_COUNT = 245;
+const EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT = 8;
 
 const EXPECTED_PRODUCTION_DB_HOST =
   'ep-holy-bar-b5y0ppqu.c-7.us-east-2.aws.neon.tech';
@@ -82,7 +90,18 @@ const NBTE_DUPLICATE_ALLOWLIST: NbteDuplicateRule[] = [
     canonicalId: '108306',
     duplicateId: '101960',
     reason:
-      'Record 108306 contains the more recent approval information.',
+      'Records 101960 and 108306 have the same displayed name, programme list and approval dates. Retain the correctly spelled record 108306.',
+  },
+];
+
+const NBTE_NEAR_DUPLICATE_ALLOWLIST: NbteNearDuplicateRule[] = [
+  {
+    canonicalId: '110924',
+    duplicateIds: ['108306'],
+    canonicalName:
+      'Raindrops Institute of Management and Technology, Amannachi, Orsu LGA, Imo State',
+    reason:
+      'Records 110924 and 108306 identify the same private institution in Orsu LGA, Imo State, with the same five-programme active portfolio and matching ownership/location. Record 110924 carries later approval dates; retain its programme-era source record while using the correctly spelled institution name shown on record 108306. Record 101960 is an exact duplicate of 108306 and is excluded by the separate exact-duplicate rule.',
   },
 ];
 
@@ -93,8 +112,8 @@ const NCCE_NUMERIC_CLASSIFICATIONS = new Set(['1', '2', '3']);
  * existing production institution row: predecessor records and cross-category
  * source listings are not imported as additional institutions.
  *
- * MAPOLY, Shehu Shagari and the Raindrops source-record pair remain unresolved
- * and continue to block --apply until separately reviewed.
+ * MAPOLY remains unresolved and continues to block --apply until separately
+ * reviewed. Shehu Shagari and the Raindrops source records are adjudicated below.
  */
 const ADJUDICATED_INSTITUTION_RULES: AdjudicatedInstitutionRule[] = [
   {
@@ -151,6 +170,18 @@ const ADJUDICATED_INSTITUTION_RULES: AdjudicatedInstitutionRule[] = [
   },
   {
     incomingAliases: [
+      'Shehu Shagari College of Education, Sokoto',
+      'Shehu Shagari College of Education, Sokoto OPEN',
+    ],
+    existingAliases: [
+      'Shehu Shagari University of Education, Sokoto, Sokoto State',
+    ],
+    decision: 'same-institution',
+    reason:
+      'NUC lists Shehu Shagari University of Education as a state university, and the university\'s official 2025/2026 calendar and programme pages continue to show NCE delivery under the university. The NCCE listing under the former College of Education name therefore represents the same institution, not a separate college. Retain the existing production university row.',
+  },
+  {
+    incomingAliases: [
       'Air Force Institute of Technology (AFIT), Airforce Base, Kaduna',
       'Air Force Institute of Technology (AFIT), Kaduna',
       'Air Force Institute of Technology, Kaduna',
@@ -169,18 +200,7 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
       'Moshood Abiola University of Science and Technology, Abeokuta',
     ],
     reason:
-      'Conflicting current evidence: NBTE continues to list active accredited polytechnic programmes while NUC lists the successor university. Manual review is required; do not merge or discard either record.',
-  },
-  {
-    incomingAliases: [
-      'Shehu Shagari College of Education, Sokoto',
-      'Shehu Shagari College of Education, Sokoto OPEN',
-    ],
-    existingAliases: [
-      'Shehu Shagari University of Education, Sokoto, Sokoto State',
-    ],
-    reason:
-      'The university reports an upgrade, while NCCE and the college continue to list the College of Education and NCE programmes. Manual review is required; do not merge or discard either record.',
+      'Conflicting official evidence requires manual review. NUC records the university and its 2017 bulletin says the former polytechnic was converted and relocated to Ipokia; however, the current NBTE register still lists Moshood Abiola Polytechnic, Abeokuta with 25 active programmes, and the institution\'s public website continues to present it as a polytechnic in Abeokuta. Do not merge or discard either record until the current legal identity and operating campus are confirmed.',
   },
 ];
 
@@ -806,6 +826,79 @@ async function fetchNbtePolytechnics(): Promise<ImportedInstitution[]> {
     });
   }
 
+  const nearDuplicateExclusions: Array<{
+    canonicalId: string;
+    excludedId: string;
+    canonicalName: string;
+    reason: string;
+  }> = [];
+
+  for (const rule of NBTE_NEAR_DUPLICATE_ALLOWLIST) {
+    const canonicalSourceRecord = records.find(
+      (item) => item.recordId === rule.canonicalId,
+    );
+    const duplicateSourceRecords = rule.duplicateIds.map((id) =>
+      records.find((item) => item.recordId === id),
+    );
+
+    if (
+      !canonicalSourceRecord ||
+      duplicateSourceRecords.some((item) => !item)
+    ) {
+      throw new Error(
+        `NBTE near-duplicate source IDs do not match the reviewed exception for record ${rule.canonicalId}. No database changes were made.`,
+      );
+    }
+
+    const canonicalIndex = canonicalRecords.findIndex(
+      (item) => item.recordId === rule.canonicalId,
+    );
+
+    if (canonicalIndex === -1) {
+      throw new Error(
+        `NBTE near-duplicate canonical record ${rule.canonicalId} was not retained by exact-duplicate adjudication. No database changes were made.`,
+      );
+    }
+
+    for (const duplicateSourceRecord of duplicateSourceRecords) {
+      const duplicate = duplicateSourceRecord!;
+      const duplicateIndex = canonicalRecords.findIndex(
+        (item) => item.recordId === duplicate.recordId,
+      );
+
+      if (
+        duplicateIndex === -1 ||
+        !isPossibleNearDuplicate(
+          canonicalSourceRecord.name,
+          duplicate.name,
+        ) ||
+        canonicalSourceRecord.state !== duplicate.state ||
+        canonicalSourceRecord.ownership !== duplicate.ownership
+      ) {
+        throw new Error(
+          `NBTE near-duplicate evidence no longer matches the reviewed exception for records ${rule.canonicalId} and ${duplicate.recordId}. No database changes were made.`,
+        );
+      }
+
+      canonicalRecords.splice(duplicateIndex, 1);
+      nearDuplicateExclusions.push({
+        canonicalId: rule.canonicalId,
+        excludedId: duplicate.recordId,
+        canonicalName: rule.canonicalName,
+        reason: rule.reason,
+      });
+    }
+
+    const retainedIndex = canonicalRecords.findIndex(
+      (item) => item.recordId === rule.canonicalId,
+    );
+
+    canonicalRecords[retainedIndex] = {
+      ...canonicalRecords[retainedIndex],
+      name: rule.canonicalName,
+    };
+  }
+
   if (canonicalRecords.length !== EXPECTED_NBTE_UNIQUE_COUNT) {
     throw new Error(
       `NBTE unique count validation failed: obtained ${canonicalRecords.length}; expected ${EXPECTED_NBTE_UNIQUE_COUNT}. No database changes were made.`,
@@ -815,8 +908,11 @@ async function fetchNbtePolytechnics(): Promise<ImportedInstitution[]> {
   console.log('\nNBTE reviewed duplicate decisions:');
   console.log(JSON.stringify(excludedRecords, null, 2));
 
+  console.log('\nNBTE reviewed spelling-variant decisions:');
+  console.log(JSON.stringify(nearDuplicateExclusions, null, 2));
+
   console.log(
-    `NBTE validation passed: ${records.length} raw records, ${canonicalRecords.length} unique institutions, ${excludedRecords.length} reviewed duplicate exclusions.`,
+    `NBTE validation passed: ${records.length} raw records, ${canonicalRecords.length} unique institutions, ${excludedRecords.length + nearDuplicateExclusions.length} reviewed duplicate exclusions.`,
   );
 
   return canonicalRecords.map(
@@ -1172,6 +1268,7 @@ async function runReadOnlyAudit(
   const successorCandidates: object[] = [];
   const possibleNearDuplicates: object[] = [];
   const unmatched: string[] = [];
+  const unmatchedRecords: ImportedInstitution[] = [];
   const sourceNearDuplicateCandidates =
     findIncomingNearDuplicatePairs(records);
   const sourceNearDuplicateKeys = new Set(
@@ -1285,6 +1382,7 @@ async function runReadOnlyAudit(
       !sourceNearDuplicateKeys.has(key)
     ) {
       unmatched.push(item.name);
+      unmatchedRecords.push(item);
     }
   }
 
@@ -1307,6 +1405,66 @@ async function runReadOnlyAudit(
     }),
   ).filter((candidate: any) => candidate.candidates.length > 0);
 
+  const incomingItems = [...records.values()];
+  const sourceMetadataCoverage = (['NBTE', 'NCCE'] as const).map(
+    (source) => {
+      const sourceItems = incomingItems.filter(
+        (item) => item.source === source,
+      );
+      return {
+        source,
+        total: sourceItems.length,
+        missingStateCount: sourceItems.filter((item) => !item.state).length,
+        missingOwnershipCount: sourceItems.filter(
+          (item) => !item.ownership,
+        ).length,
+        missingOwnershipNames: sourceItems
+          .filter((item) => !item.ownership)
+          .map((item) => item.name),
+      };
+    },
+  );
+
+  const countBy = (
+    items: ImportedInstitution[],
+    keyFor: (item: ImportedInstitution) => string,
+  ): Record<string, number> => {
+    const counts: Record<string, number> = {};
+    for (const item of items) {
+      const key = keyFor(item);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return Object.fromEntries(
+      Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)),
+    );
+  };
+
+  const unmatchedSummary = {
+    total: unmatchedRecords.length,
+    bySource: countBy(unmatchedRecords, (item) => item.source),
+    byInstitutionType: countBy(
+      unmatchedRecords,
+      (item) => item.institutionType,
+    ),
+    byState: countBy(unmatchedRecords, (item) => item.state ?? 'MISSING'),
+    byOwnership: countBy(
+      unmatchedRecords,
+      (item) => item.ownership ?? 'UNSPECIFIED',
+    ),
+    missingStateCount: unmatchedRecords.filter((item) => !item.state).length,
+    missingOwnershipCount: unmatchedRecords.filter(
+      (item) => !item.ownership,
+    ).length,
+    missingMetadataNames: unmatchedRecords
+      .filter((item) => !item.state || !item.ownership)
+      .map((item) => ({
+        name: item.name,
+        source: item.source,
+        missingState: !item.state,
+        missingOwnership: !item.ownership,
+      })),
+  };
+
   console.log('\nREAD-ONLY PRODUCTION AUDIT RESULTS:');
 
   console.log(
@@ -1321,6 +1479,7 @@ async function runReadOnlyAudit(
         ambiguousMatches,
         adjudicatedMatches,
         adjudicatedIncomingCount: adjudicatedMatches.length,
+        sourceMetadataCoverage,
         successorCandidates,
         possibleNearDuplicates: filteredNearDuplicates,
         sourceNearDuplicateCandidates,
@@ -1334,6 +1493,7 @@ async function runReadOnlyAudit(
           ...sourceNearDuplicateKeys,
         ]).size,
         unmatchedCount: unmatched.length,
+        unmatchedSummary,
         unmatched,
         databaseChangesMade: false,
       },
@@ -1663,6 +1823,47 @@ async function main(): Promise<void> {
 
     records.set(key, item);
   }
+
+  const nbteMetadataIssues = polytechnics.filter(
+    (item) => !item.state || !item.ownership,
+  );
+  const ncceMissingState = ncceRecords.filter((item) => !item.state);
+  const ncceMissingOwnership = ncceRecords.filter(
+    (item) => !item.ownership,
+  );
+
+  if (
+    nbteMetadataIssues.length > 0 ||
+    ncceMissingState.length > 0 ||
+    ncceMissingOwnership.length !== EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT
+  ) {
+    throw new Error(
+      [
+        'Source metadata validation failed. No database changes were made.',
+        JSON.stringify(
+          {
+            nbteMissingStateOrOwnership: nbteMetadataIssues.map((item) => ({
+              name: item.name,
+              missingState: !item.state,
+              missingOwnership: !item.ownership,
+            })),
+            ncceMissingState: ncceMissingState.map((item) => item.name),
+            ncceMissingOwnership: ncceMissingOwnership.map(
+              (item) => item.name,
+            ),
+            expectedNcceUnresolvedOwnershipCount:
+              EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT,
+          },
+          null,
+          2,
+        ),
+      ].join('\\n'),
+    );
+  }
+
+  console.log(
+    `Source metadata validation passed: NBTE ${polytechnics.length} records with state and ownership; NCCE ${ncceRecords.length} records with state and ${ncceMissingOwnership.length} explicitly unresolved ownership values.`,
+  );
 
   const mode = audit ? 'audit' : apply ? 'apply' : 'dry-run';
 
