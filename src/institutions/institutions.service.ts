@@ -93,7 +93,37 @@ export class InstitutionsService {
   }
 
   async listSubmissions(status?: AcademicEntryStatus) {
-    return this.submissionRepository.find({ where: status ? { status } : {}, order: { createdAt: 'ASC' } });
+    const submissions = await this.submissionRepository.find({ where: status ? { status } : {}, order: { createdAt: 'ASC' } });
+    return Promise.all(submissions.map(async submission => {
+      let parentInstitutionName: string | undefined;
+      let parentFacultyName: string | undefined;
+
+      if (submission.parentInstitutionId) {
+        const institution = await this.institutionRepository.findOne({ where: { id: submission.parentInstitutionId } });
+        parentInstitutionName = institution?.name;
+      } else if (submission.parentInstitutionSubmissionId) {
+        const parent = await this.submissionRepository.findOne({ where: { id: submission.parentInstitutionSubmissionId } });
+        parentInstitutionName = parent?.name;
+      }
+
+      if (submission.parentFacultyId) {
+        const faculty = await this.facultyRepository.findOne({ where: { id: submission.parentFacultyId }, relations: ['institution'] });
+        parentFacultyName = faculty?.name;
+        parentInstitutionName = parentInstitutionName ?? faculty?.institution?.name;
+      } else if (submission.parentFacultySubmissionId) {
+        const parent = await this.submissionRepository.findOne({ where: { id: submission.parentFacultySubmissionId } });
+        parentFacultyName = parent?.name;
+        if (!parentInstitutionName && parent?.parentInstitutionId) {
+          const institution = await this.institutionRepository.findOne({ where: { id: parent.parentInstitutionId } });
+          parentInstitutionName = institution?.name;
+        } else if (!parentInstitutionName && parent?.parentInstitutionSubmissionId) {
+          const institutionSubmission = await this.submissionRepository.findOne({ where: { id: parent.parentInstitutionSubmissionId } });
+          parentInstitutionName = institutionSubmission?.name;
+        }
+      }
+
+      return { ...submission, parentInstitutionName, parentFacultyName };
+    }));
   }
 
   async reviewSubmission(id: string, reviewerId: string, status: AcademicEntryStatus, reviewNote?: string, sourceUrl?: string, verifiedAt?: string) {
