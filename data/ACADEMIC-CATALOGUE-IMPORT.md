@@ -28,6 +28,10 @@ Example schema (illustrative only; do not import this example as real catalogue 
 
 The importer rejects non-HTTPS links, source links outside the institution's website domain, stale verification dates (older than 365 days), duplicate records, and institutions not found in the existing Nigerian catalogue. Approved faculty and department rows also retain the official source URL and verification date in the database, so moderators can audit where catalogue entries came from and when they were last checked.
 
+## Current verified batch
+
+The initial checked-in batch covers the University of Lagos catalogue record (`University of Lagos, Lagos`) with 19 faculties and 99 departments, based on the university's official 2025 restructuring notice. The source was rechecked on 2026-11-10. Other institutions remain unpopulated in this import file until their current official academic structures have been verified; do not infer completeness from the frontend candidate list.
+
 ## Safe execution
 
 1. Populate the JSON file only from current official university pages/documents and manually verify each source.
