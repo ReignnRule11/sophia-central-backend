@@ -78,17 +78,11 @@ export class UsersService {
         if (!institutionName || !facultyName || !departmentName) {
           throw new BadRequestException('Your institution, academic unit (faculty/school/college), and complete department name are required.');
         }
-        // Institution identity remains anchored to the national institution list.
-        // Academic units/departments may be typed manually when the institution's
-        // public directory is incomplete or inaccessible. These values are saved
-        // only to the user's profile; they do not create catalogue submissions.
-        const institutionRows = await manager.query(
-          'SELECT i.id FROM institutions i WHERE LOWER(TRIM(i.name)) = LOWER(TRIM($1)) LIMIT 1',
-          [institutionName],
-        );
-        if (!institutionRows.length) {
-          throw new BadRequestException('Select an institution from the institution list before entering your academic unit and department.');
-        }
+        // Institution, academic-unit and department values are profile data.
+        // When a directory or the institution list is unavailable, allow manual
+        // entry without creating or queueing a shared catalogue submission.
+        // The shared catalogue remains unchanged until an administrator imports
+        // independently verified source data.
       }
       if (updateData.academicHandle !== undefined) {
         const normalized = updateData.academicHandle.trim().replace(/^@+/, '').toLowerCase();
