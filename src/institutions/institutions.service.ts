@@ -95,10 +95,14 @@ export class InstitutionsService {
     return this.submissionRepository.find({ where: status ? { status } : {}, order: { createdAt: 'ASC' } });
   }
 
-  async reviewSubmission(id: string, reviewerId: string, status: AcademicEntryStatus, reviewNote?: string) {
+  async reviewSubmission(id: string, reviewerId: string, status: AcademicEntryStatus, reviewNote?: string, sourceUrl?: string, verifiedAt?: string) {
     const submission = await this.submissionRepository.findOne({ where: { id } });
     if (!submission) throw new NotFoundException('Catalogue submission not found.');
     if (submission.status !== AcademicEntryStatus.PENDING) throw new ConflictException('This submission has already been reviewed.');
+
+    const provenance = status === AcademicEntryStatus.APPROVED && submission.entryType !== AcademicEntryType.INSTITUTION
+      ? this.validateAcademicSource(sourceUrl ?? submission.sourceUrl, verifiedAt)
+      : undefined;
 
     if (status === AcademicEntryStatus.APPROVED) {
       if (submission.entryType === AcademicEntryType.INSTITUTION) {
@@ -136,7 +140,8 @@ export class InstitutionsService {
         const exists = await this.facultyRepository.createQueryBuilder('f')
           .where('LOWER(f.name) = LOWER(:name)', { name: submission.name })
           .andWhere('f.institutionId = :id', { id: parent.id }).getOne();
-        if (!exists) await this.createFaculty(parent.id, submission.name);
+        if (!exists) await this.createFaculty(parent.id, submission.name, provenance!.sourceUrl, provenance!.verifiedAt);
+        else { exists.sourceUrl = provenance!.sourceUrl; exists.verifiedAt = provenance!.verifiedAt; await this.facultyRepository.save(exists); }
       } else {
         let parent: Faculty | null = null;
         if (submission.parentFacultyId) {
@@ -158,14 +163,33 @@ export class InstitutionsService {
         const exists = await this.departmentRepository.createQueryBuilder('d')
           .where('LOWER(d.name) = LOWER(:name)', { name: submission.name })
           .andWhere('d.facultyId = :id', { id: parent.id }).getOne();
-        if (!exists) await this.createDepartment(parent.id, submission.name);
+        if (!exists) await this.createDepartment(parent.id, submission.name, provenance!.sourceUrl, provenance!.verifiedAt);
+        else { exists.sourceUrl = provenance!.sourceUrl; exists.verifiedAt = provenance!.verifiedAt; await this.departmentRepository.save(exists); }
       }
     }
 
     submission.status = status;
     submission.reviewedBy = reviewerId;
     submission.reviewNote = reviewNote?.trim() || undefined;
+    if (provenance) { submission.sourceUrl = provenance.sourceUrl; submission.verifiedAt = provenance.verifiedAt; }
     return this.submissionRepository.save(submission);
+  }
+
+  private validateAcademicSource(sourceUrl?: string, verifiedAt?: string): { sourceUrl: string; verifiedAt: string } {
+    if (!sourceUrl?.trim() || !verifiedAt?.trim()) {
+      throw new BadRequestException('An official HTTPS source URL and verification date are required before approving a faculty or department.');
+    }
+    let parsed: URL;
+    try { parsed = new URL(sourceUrl.trim()); } catch { throw new BadRequestException('The academic source URL is invalid.'); }
+    if (parsed.protocol !== 'https:') throw new BadRequestException('Academic source URLs must use HTTPS.');
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(verifiedAt.trim())) throw new BadRequestException('Verification date must use YYYY-MM-DD format.');
+    const date = new Date(verifiedAt.trim() + 'T00:00:00.000Z');
+    const today = new Date();
+    const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
+    if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== verifiedAt.trim() || date.getTime() > todayUtc || todayUtc - date.getTime() > 365 * 24 * 60 * 60 * 1000) {
+      throw new BadRequestException('Verification date must be valid, not in the future, and within the last 365 days.');
+    }
+    return { sourceUrl: parsed.toString(), verifiedAt: verifiedAt.trim() };
   }
 
   async create(dto: CreateInstitutionDto): Promise<Institution> {
@@ -197,19 +221,19 @@ export class InstitutionsService {
     await this.institutionRepository.remove(institution);
   }
 
-  async createFaculty(institutionId: string, name: string): Promise<Faculty> {
+  async createFaculty(institutionId: string, name: string, sourceUrl?: string, verifiedAt?: string): Promise<Faculty> {
     const institution = await this.findOne(institutionId);
-    const faculty = this.facultyRepository.create({ name, institution });
+    const faculty = this.facultyRepository.create({ name, institution, sourceUrl, verifiedAt });
     return this.facultyRepository.save(faculty);
   }
 
-  async createDepartment(facultyId: string, name: string): Promise<Department> {
+  async createDepartment(facultyId: string, name: string, sourceUrl?: string, verifiedAt?: string): Promise<Department> {
     const faculty = await this.facultyRepository.findOne({
       where: { id: facultyId },
       relations: ['institution'],
     });
     if (!faculty) throw new NotFoundException('Faculty not found');
-    const department = this.departmentRepository.create({ name, faculty });
+    const department = this.departmentRepository.create({ name, faculty, sourceUrl, verifiedAt });
     return this.departmentRepository.save(department);
   }
 }
