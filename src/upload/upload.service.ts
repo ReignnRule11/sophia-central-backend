@@ -55,7 +55,12 @@ export class UploadService {
     if (!Number.isInteger(file.size) || file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Profile image must be smaller than 5 MB');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
-    const profileImage = await this.s3Service.uploadPublicObject(key, file.buffer, file.mimetype);
+    const profileImage = await this.s3Service.uploadPublicObject(
+      key,
+      file.buffer,
+      file.mimetype,
+      'public, max-age=31536000, immutable',
+    );
     const user = await this.usersService.update(userId, { profileImage });
     const { password: _password, ...safeUser } = user;
     return { success: true, profileImage, user: safeUser };
@@ -74,8 +79,9 @@ export class UploadService {
   async getProfileImageUrl(userId: string): Promise<{ url: string | null }> {
     const user = await this.usersService.findOne(userId);
     if (!user?.profileImage) return { url: null };
-    const key = this.s3Service.getKeyFromPublicUrl(user.profileImage);
-    return { url: key ? await this.s3Service.createPresignedDownloadUrl(key) : user.profileImage };
+    // Profile images are uploaded as public objects with unique, immutable keys.
+    // Return the stable URL instead of creating a short-lived signed URL on every session.
+    return { url: user.profileImage };
   }
 
   async completeProfileImageUpload(userId: string, dto: CompleteProfileImageUploadDto) {

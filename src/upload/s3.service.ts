@@ -78,12 +78,13 @@ export class S3Service {
     } catch { return null; }
   }
 
-  async uploadPublicObject(key: string, body: Buffer, contentType: string): Promise<string> {
+  async uploadPublicObject(key: string, body: Buffer, contentType: string, cacheControl?: string): Promise<string> {
     await this.client.send(new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
       Body: body,
       ContentType: contentType,
+      ...(cacheControl ? { CacheControl: cacheControl } : {}),
     }));
     return this.getPublicUrl(key);
   }
