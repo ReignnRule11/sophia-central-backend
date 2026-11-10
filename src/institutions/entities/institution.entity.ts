@@ -68,6 +68,12 @@ export class Faculty {
   @Column()
   institutionId: string;
 
+  @Column({ type: 'varchar', nullable: true })
+  sourceUrl?: string;
+
+  @Column({ type: 'date', nullable: true })
+  verifiedAt?: string;
+
   @OneToMany(() => Department, (department) => department.faculty)
   departments: Department[];
 
@@ -92,6 +98,12 @@ export class Department {
 
   @Column()
   facultyId: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  sourceUrl?: string;
+
+  @Column({ type: 'date', nullable: true })
+  verifiedAt?: string;
 
   @CreateDateColumn()
   createdAt: Date;
