@@ -12,12 +12,13 @@ import { ReferralService } from './referral.service';
 export class ReferralController {
   constructor(private readonly referralService: ReferralService) {}
 
-  @Post('generate-code')
-  @UseGuards(JwtAuthGuard)
+  @Get('moderation/queue')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Generate or retrieve the student permanent referral code' })
-  async generateCode(@CurrentUser() user: User) {
-    return this.referralService.generateReferralCode(user.id);
+  @ApiOperation({ summary: 'List referral rewards requiring manual fraud review' })
+  async getReviewQueue() {
+    return this.referralService.getReferralReviewQueue();
   }
 
   @Get(':userId/referrals')
@@ -28,13 +29,12 @@ export class ReferralController {
     return this.referralService.getUserReferrals(userId, user.id);
   }
 
-  @Get('moderation/queue')
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @Post('generate-code')
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'List referral rewards requiring manual fraud review' })
-  async getReviewQueue() {
-    return this.referralService.getReferralReviewQueue();
+  @ApiOperation({ summary: 'Generate or retrieve the student permanent referral code' })
+  async generateCode(@CurrentUser() user: User) {
+    return this.referralService.generateReferralCode(user.id);
   }
 
   @Patch(':referralId/review')
