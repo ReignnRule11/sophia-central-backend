@@ -23,6 +23,12 @@ export type AuthProvider =
   | 'linkedin'
   | 'instagram';
 
+export interface TeachingAssignment {
+  courseName: string;
+  courseCode?: string;
+  levels: string[];
+}
+
 export interface UserSocialLinks {
   linkedin?: string;
   instagram?: string;
@@ -78,6 +84,9 @@ export class User {
 
   @Column({ type: 'jsonb', nullable: true })
   coursesTaught?: string[];
+
+  @Column({ type: 'jsonb', nullable: true })
+  teachingAssignments?: TeachingAssignment[];
 
   @Column({ nullable: true })
   studyLevel?: string;
