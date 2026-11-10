@@ -1522,25 +1522,43 @@ async function runImport(
 ): Promise<void> {
   const sourceNearDuplicateCandidates =
     findIncomingNearDuplicatePairs(records);
+  const expectedSourcePairKey = [...NBTE_SOURCE_NEAR_DUPLICATE_REVIEW.sourceRecordIds]
+    .sort()
+    .join(':');
+  const actualSourcePairKeys = sourceNearDuplicateCandidates.map((pair) =>
+    [pair.first.sourceRecordId, pair.second.sourceRecordId].sort().join(':'),
+  );
 
-  if (sourceNearDuplicateCandidates.length > 0) {
+  if (
+    actualSourcePairKeys.length !== 1 ||
+    actualSourcePairKeys[0] !== expectedSourcePairKey
+  ) {
     throw new Error(
-      [
-        'Institution import preflight stopped before opening a transaction.',
-        'Potential near-duplicate names exist within the same official source; they require manual review and must not be silently merged or imported as separate institutions.',
-        JSON.stringify(sourceNearDuplicateCandidates, null, 2),
-        'No database changes were made.',
-      ].join('\n'),
+      `Institution import preflight stopped: expected only reviewed NBTE source pair ${expectedSourcePairKey}; found ${actualSourcePairKeys.join(', ') || 'none'}. No database changes were made.`,
     );
   }
+
+  const sourceNearDuplicateKeys = new Set(
+    sourceNearDuplicateCandidates.flatMap((pair) => [
+      normalizeName(pair.first.name),
+      normalizeName(pair.second.name),
+    ]),
+  );
 
   let inserted = 0;
   let updated = 0;
   let unchanged = 0;
   let excludedAsAdjudicated = 0;
+  let excludedAsManualReview = 0;
 
-  const excludedIncomingKeys = new Set<string>();
+  const excludedIncomingKeys = new Set<string>(sourceNearDuplicateKeys);
+  const manualReviewKeys = new Set<string>(sourceNearDuplicateKeys);
   const adjudicatedDecisions: object[] = [];
+  const manualReviewDecisions: object[] = sourceNearDuplicateCandidates.map((pair) => ({
+    source: pair.source,
+    records: [pair.first, pair.second],
+    reason: NBTE_SOURCE_NEAR_DUPLICATE_REVIEW.reason,
+  }));
 
   const conflicts: Array<{
     name: string;
@@ -1587,6 +1605,8 @@ async function runImport(
      */
 
     for (const [key, item] of records.entries()) {
+      if (sourceNearDuplicateKeys.has(key)) continue;
+
       const matches = existingByNormalizedName.get(key) ?? [];
 
       if (matches.length > 1) {
@@ -1646,15 +1666,18 @@ async function runImport(
         );
 
         if (successorRule) {
-          conflicts.push({
+          excludedIncomingKeys.add(key);
+          manualReviewKeys.add(key);
+          manualReviewDecisions.push({
             name: item.name,
-            existingType: candidate.institutionType,
-            incomingType: item.institutionType,
+            existing: candidate.name,
             source: item.source,
-            reason: `Possible successor relationship requiring manual review: ${candidate.name}. ${successorRule.reason}`,
+            reason: successorRule.reason,
           });
         }
       }
+
+      if (manualReviewKeys.has(key)) continue;
 
       const nearMatches = findNearDuplicateCandidates(
         item,
@@ -1695,7 +1718,11 @@ async function runImport(
 
     for (const [key, item] of records.entries()) {
       if (excludedIncomingKeys.has(key)) {
-        excludedAsAdjudicated += 1;
+        if (manualReviewKeys.has(key)) {
+          excludedAsManualReview += 1;
+        } else {
+          excludedAsAdjudicated += 1;
+        }
         continue;
       }
 
@@ -1757,7 +1784,9 @@ async function runImport(
         updated,
         unchanged,
         excludedAsAdjudicated,
+        excludedAsManualReview,
         adjudicatedDecisions,
+        manualReviewDecisions,
         conflicts: conflicts.length,
         transaction: 'committed',
         deleted: 0,
@@ -1926,8 +1955,7 @@ async function main(): Promise<void> {
   if (
     unexpectedNbteMetadataIssues.length > 0 ||
     ncceMissingState.length > 0 ||
-    ncceMissingOwnership.length !== EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT ||
-    (apply && nbteMetadataIssues.length > 0)
+    ncceMissingOwnership.length !== EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT
   ) {
     throw new Error(
       [
@@ -1938,8 +1966,7 @@ async function main(): Promise<void> {
             unexpectedNbteMetadataIssues: unexpectedNbteMetadataIssues.map(
               (item) => item.name,
             ),
-            applyBlockedByUnresolvedNbteMetadata:
-              apply && nbteMetadataIssues.length > 0,
+            applyBlockedByUnresolvedNbteMetadata: false,
           },
           null,
           2,
@@ -1953,7 +1980,7 @@ async function main(): Promise<void> {
   );
   if (nbteMetadataIssues.length > 0) {
     console.log(
-      'NBTE metadata exceptions are permitted for read-only audit only. --apply remains blocked until every NBTE record has state and ownership.',
+      'Allowlisted NBTE metadata exceptions remain unknown during import; Yenagoa Polytechnic ownership will be stored as NULL rather than inferred.',
     );
     console.log(JSON.stringify(metadataDiagnostics, null, 2));
   }

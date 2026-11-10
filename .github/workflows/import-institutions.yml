@@ -1,0 +1,79 @@
+name: Import Nigerian Polytechnics and Colleges
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm_production_import:
+        description: Type IMPORT_INSTITUTIONS_TO_PRODUCTION to run the production import
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sophis-central-production-institution-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: production
+      DB_SSL: 'true'
+      DB_HOST: ep-holy-bar-b5y0ppqu.c-7.us-east-2.aws.neon.tech
+      DB_PORT: '5432'
+      DB_DATABASE: neondb
+    steps:
+      - name: Require explicit production confirmation
+        env:
+          CONFIRMATION: ${{ inputs.confirm_production_import }}
+        run: |
+          if [ "$CONFIRMATION" != "IMPORT_INSTITUTIONS_TO_PRODUCTION" ]; then
+            echo "Production import confirmation did not match."
+            exit 1
+          fi
+
+      - name: Validate production database secrets are configured
+        env:
+          DB_USERNAME: ${{ secrets.PRODUCTION_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+        run: |
+          if [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ]; then
+            echo "Required production database GitHub Actions secrets are missing."
+            exit 1
+          fi
+
+      - name: Checkout production main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm install --ignore-scripts
+
+      - name: Build backend
+        run: npm run build
+
+      - name: Run backend tests
+        run: npm test -- --runInBand
+
+      - name: Run fresh read-only production audit
+        env:
+          DB_USERNAME: ${{ secrets.PRODUCTION_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+        run: npm run import:other-institutions -- --audit
+
+      - name: Apply reviewed institution import
+        env:
+          DB_USERNAME: ${{ secrets.PRODUCTION_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+        run: npm run import:other-institutions -- --apply
