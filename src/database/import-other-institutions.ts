@@ -1879,7 +1879,7 @@ async function main(): Promise<void> {
   }
 
   console.log(
-    `Source metadata validation passed for audit: NBTE ${polytechnics.length} records, ${nbteMissingState.length} unresolved state values, ${nbteMissingOwnership.length} unresolved ownership values; NCCE ${ncceRecords.length} records, ${ncceMissingOwnership.length} explicitly unresolved ownership values.`,
+    `Source metadata validation passed for read-only audit/dry-run: NBTE ${polytechnics.length} records, ${nbteMissingState.length} unresolved state values, ${nbteMissingOwnership.length} unresolved ownership values; NCCE ${ncceRecords.length} records, ${ncceMissingOwnership.length} explicitly unresolved ownership values.`,
   );
   if (nbteMetadataIssues.length > 0) {
     console.log(
