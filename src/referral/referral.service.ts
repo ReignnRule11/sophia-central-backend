@@ -175,14 +175,10 @@ export class ReferralService {
       return;
     }
 
-    // Manual profile values keep onboarding non-blocking, but referral rewards
-    // remain gated on an exact institution -> academic unit -> department match.
-    if (!(await this.hasVerifiedAcademicPlacement(referred))) {
-      event.rewardStatus = 'under_review';
-      event.reviewReason = 'Academic placement is not yet present in the verified institution catalogue.';
-      await this.referralRepository.save(event);
-      return;
-    }
+    // A manually entered academic placement is not a moderator submission.
+    // Keep the referral pending until the catalogue is independently verified;
+    // do not create a moderator-review item from an unlisted profile value.
+    if (!(await this.hasVerifiedAcademicPlacement(referred))) return;
 
     await this.pointsService.awardReferralReward(event.referrerId, event.id, this.REFERRER_BONUS);
   }
