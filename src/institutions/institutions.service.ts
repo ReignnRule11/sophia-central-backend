@@ -7,6 +7,7 @@ import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { AcademicCatalogueSubmission, AcademicEntryStatus, AcademicEntryType } from './entities/academic-catalogue-submission.entity';
 import { CreateAcademicCatalogueSubmissionDto } from './dto/create-academic-catalogue-submission.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
+import { validateAcademicSource } from './academic-catalogue-provenance';
 
 @Injectable()
 export class InstitutionsService {
@@ -101,7 +102,7 @@ export class InstitutionsService {
     if (submission.status !== AcademicEntryStatus.PENDING) throw new ConflictException('This submission has already been reviewed.');
 
     const provenance = status === AcademicEntryStatus.APPROVED && submission.entryType !== AcademicEntryType.INSTITUTION
-      ? this.validateAcademicSource(sourceUrl ?? submission.sourceUrl, verifiedAt)
+      ? validateAcademicSource(sourceUrl ?? submission.sourceUrl, verifiedAt)
       : undefined;
 
     if (status === AcademicEntryStatus.APPROVED) {
@@ -173,23 +174,6 @@ export class InstitutionsService {
     submission.reviewNote = reviewNote?.trim() || undefined;
     if (provenance) { submission.sourceUrl = provenance.sourceUrl; submission.verifiedAt = provenance.verifiedAt; }
     return this.submissionRepository.save(submission);
-  }
-
-  private validateAcademicSource(sourceUrl?: string, verifiedAt?: string): { sourceUrl: string; verifiedAt: string } {
-    if (!sourceUrl?.trim() || !verifiedAt?.trim()) {
-      throw new BadRequestException('An official HTTPS source URL and verification date are required before approving a faculty or department.');
-    }
-    let parsed: URL;
-    try { parsed = new URL(sourceUrl.trim()); } catch { throw new BadRequestException('The academic source URL is invalid.'); }
-    if (parsed.protocol !== 'https:') throw new BadRequestException('Academic source URLs must use HTTPS.');
-    if (!/^\d{4}-\d{2}-\d{2}$/.test(verifiedAt.trim())) throw new BadRequestException('Verification date must use YYYY-MM-DD format.');
-    const date = new Date(verifiedAt.trim() + 'T00:00:00.000Z');
-    const today = new Date();
-    const todayUtc = Date.UTC(today.getUTCFullYear(), today.getUTCMonth(), today.getUTCDate());
-    if (!Number.isFinite(date.getTime()) || date.toISOString().slice(0, 10) !== verifiedAt.trim() || date.getTime() > todayUtc || todayUtc - date.getTime() > 365 * 24 * 60 * 60 * 1000) {
-      throw new BadRequestException('Verification date must be valid, not in the future, and within the last 365 days.');
-    }
-    return { sourceUrl: parsed.toString(), verifiedAt: verifiedAt.trim() };
   }
 
   async create(dto: CreateInstitutionDto): Promise<Institution> {
