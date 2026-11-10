@@ -75,7 +75,7 @@ describe('ReferralService hybrid reward eligibility', () => {
         id: 'student-2', role: UserRole.STUDENT, emailVerified: true, isProfileComplete: true,
         isSuspended: false, institution: 'University B', faculty: 'Science', department: 'Biology',
       },
-      referrer: { id: 'referrer-1', role: UserRole.STUDENT, isSuspended: false },
+      referrer: { id: 'referrer-1', role: UserRole.STUDENT, isSuspended: false, institution: 'University A' },
     });
     await service.processPendingReferralForUser('student-2');
     expect(points.awardReferralReward).toHaveBeenCalledWith('referrer-1', 'event-1', 20);
