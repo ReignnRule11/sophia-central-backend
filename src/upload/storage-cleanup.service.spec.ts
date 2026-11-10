@@ -49,3 +49,37 @@ describe('StorageCleanupService enqueue safety', () => {
     expect(manager.query).not.toHaveBeenCalled();
   });
 });
+
+
+describe('StorageCleanupService retry backoff safety', () => {
+  const makeRetryService = () => {
+    const dataSource = {
+      manager: { query: jest.fn().mockResolvedValue([]) },
+      query: jest.fn().mockResolvedValue([]),
+    } as any;
+    const s3 = {} as any;
+    return { service: new StorageCleanupService(dataSource, s3), dataSource };
+  };
+
+  it.each([
+    ['missing attempts', undefined, 2, 'queued'],
+    ['NaN attempts', 'NaN', 2, 'queued'],
+    ['numeric-string attempts', '3', 8, 'queued'],
+    ['negative attempts', -4, 2, 'queued'],
+    ['terminal attempt count', 20, 256, 'failed'],
+  ])('uses a finite integer delay for %s', async (_label, attempts, expectedDelay, expectedStatus) => {
+    const { service, dataSource } = makeRetryService();
+
+    await (service as any).retryJob(
+      { id: 'cleanup-job-1', object_key: 'resources/test/file.pdf', attempts },
+      new Error('simulated R2 failure'),
+    );
+
+    expect(dataSource.query).toHaveBeenCalledTimes(1);
+    const params = dataSource.query.mock.calls[0][1];
+    expect(params[1]).toBe(expectedStatus);
+    expect(Number.isFinite(params[2])).toBe(true);
+    expect(Number.isInteger(params[2])).toBe(true);
+    expect(params[2]).toBe(expectedDelay);
+  });
+});
