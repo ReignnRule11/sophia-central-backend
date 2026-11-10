@@ -123,7 +123,7 @@ export class ReferralService {
     if (!event || event.rewardStatus !== 'pending' || !event.referredUser) return;
 
     const referred = event.referredUser;
-    if (referred.emailVerified !== true || referred.isProfileComplete !== true) return;
+    if (referred.emailVerified !== true || referred.isProfileComplete !== true || !referred.programme?.trim()) return;
 
     // Onboarding validates institution/faculty/department against the approved
     // academic catalogue. Missing placement or suspended accounts require review.
@@ -140,7 +140,6 @@ export class ReferralService {
       !referred.institution?.trim() ||
       !referred.faculty?.trim() ||
       !referred.department?.trim() ||
-      !referred.programme?.trim() ||
       !event.referrer ||
       event.referrer.role !== UserRole.STUDENT
     ) {
