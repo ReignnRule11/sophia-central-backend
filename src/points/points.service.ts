@@ -106,14 +106,44 @@ export class PointsService {
   }
 
   async awardReferralReward(referrerId: string, referralId: string, amount: number): Promise<void> {
-    const wallet = await this.getOrCreateWallet(referrerId);
-    wallet.balance += amount;
-    await this.walletRepository.save(wallet);
-    await this.transactionRepository.save(this.transactionRepository.create({
-      userId: referrerId, type: PointTransactionType.BONUS, amount,
-      reason: `Student referral bonus - referral ${referralId}`,
-    }));
-    await this.referralRepository.update(referralId, { rewardRemaining: amount });
+    // Reject ineligible owners before wallet initialization can grant starter points.
+    const currentReferrer = await this.userRepository.findOne({ where: { id: referrerId } });
+    if (!currentReferrer || currentReferrer.role !== UserRole.STUDENT || currentReferrer.isSuspended) return;
+
+    // Ensure the wallet exists before entering the reward transaction. The
+    // referral row lock makes the credit idempotent under concurrent triggers.
+    await this.getOrCreateWallet(referrerId);
+    await this.referralRepository.manager.transaction(async manager => {
+      const referral = await manager.findOne(Referral, {
+        where: { id: referralId, referrerId, isCodeOwnerRecord: false },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!referral || referral.rewardStatus !== 'pending') return;
+
+      const referrer = await manager.findOne(User, { where: { id: referrerId } });
+      if (!referrer || referrer.role !== UserRole.STUDENT || referrer.isSuspended) return;
+
+      const wallet = await manager.findOne(PointWallet, {
+        where: { userId: referrerId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!wallet) throw new BadRequestException('Referral wallet could not be initialized.');
+
+      wallet.balance += amount;
+      await manager.save(PointWallet, wallet);
+      await manager.save(PointTransaction, manager.create(PointTransaction, {
+        userId: referrerId,
+        type: PointTransactionType.BONUS,
+        amount,
+        reason: `Student referral bonus - referral ${referralId}`,
+      }));
+
+      referral.rewardRemaining = amount;
+      referral.rewardStatus = 'awarded';
+      referral.rewardAwardedAt = new Date();
+      referral.reviewReason = null;
+      await manager.save(Referral, referral);
+    });
   }
 
   async reverseUnspentReferralReward(referral: Referral): Promise<number> {

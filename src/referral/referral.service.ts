@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, ForbiddenException } from '@nestjs/common';
+import { Injectable, BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Referral } from './entities/referral.entity';
@@ -21,7 +21,7 @@ export class ReferralService {
       throw new ForbiddenException('Only active student accounts can generate referral links.');
     }
 
-    // Keep one permanent code-owner row; every redemption is a separate event.
+    // One permanent code per student. There is intentionally no referral-count cap.
     let referral = await this.referralRepository.findOne({
       where: { referrerId: userId, isCodeOwnerRecord: true },
     });
@@ -31,12 +31,11 @@ export class ReferralService {
       for (let i = 0; i < 8; i++) code += chars.charAt(Math.floor(Math.random() * chars.length));
       referral = this.referralRepository.create({
         referrerId: userId, code, isActive: true, isCodeOwnerRecord: true,
-        rewardAmount: 0, rewardRemaining: 0,
+        rewardAmount: 0, rewardRemaining: 0, rewardStatus: 'pending',
       });
       try {
         referral = await this.referralRepository.save(referral);
       } catch (error) {
-        // Concurrent first requests may race; return the permanent row that won.
         const existing = await this.referralRepository.findOne({
           where: { referrerId: userId, isCodeOwnerRecord: true },
         });
@@ -56,7 +55,7 @@ export class ReferralService {
     if (!referral || !referral.referrer || referral.referrer.role !== UserRole.STUDENT || referral.referrer.isSuspended) {
       throw new BadRequestException('This student referral link is invalid.');
     }
-    if (referral.referrer.email.toLowerCase() === referredEmail.toLowerCase()) {
+    if (referral.referrer.email.trim().toLowerCase() === referredEmail.trim().toLowerCase()) {
       throw new BadRequestException('You cannot use your own referral link.');
     }
   }
@@ -74,25 +73,132 @@ export class ReferralService {
     if (!ownerReferral || !ownerReferral.referrer || ownerReferral.referrer.role !== UserRole.STUDENT || ownerReferral.referrer.isSuspended) {
       throw new BadRequestException('This student referral link is invalid.');
     }
-    if (ownerReferral.referrerId === referredUser.id || ownerReferral.referrer.email.toLowerCase() === referredUser.email.toLowerCase()) {
+    if (ownerReferral.referrerId === referredUser.id || ownerReferral.referrer.email.trim().toLowerCase() === referredUser.email.trim().toLowerCase()) {
       throw new BadRequestException('You cannot use your own referral link.');
     }
 
-    const existingAttribution = await this.referralRepository.findOne({ where: { referredUserId: referredUser.id } });
-    if (existingAttribution) throw new BadRequestException('This student account already has a referral attribution.');
+    // Serialize attribution for a referred account and rely on the unique
+    // referredUserId index as a final protection against concurrent requests.
+    const event = await this.referralRepository.manager.transaction(async manager => {
+      const lockedUser = await manager.findOne(User, {
+        where: { id: referredUser.id },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!lockedUser || lockedUser.role !== UserRole.STUDENT) {
+        throw new BadRequestException('Only student accounts can receive a referral attribution.');
+      }
+      const existingAttribution = await manager.findOne(Referral, {
+        where: { referredUserId: lockedUser.id, isCodeOwnerRecord: false },
+      });
+      if (existingAttribution) {
+        throw new BadRequestException('This student account already has a referral attribution.');
+      }
+      return manager.save(Referral, manager.create(Referral, {
+        referrerId: ownerReferral.referrerId,
+        code: ownerReferral.code,
+        isActive: false,
+        isCodeOwnerRecord: false,
+        redeemedAt: new Date(),
+        referredUserId: lockedUser.id,
+        rewardAmount: this.REFERRER_BONUS,
+        rewardRemaining: 0,
+        rewardStatus: 'pending',
+      }));
+    });
 
-    const savedEvent = await this.referralRepository.save(this.referralRepository.create({
-      referrerId: ownerReferral.referrerId,
-      code: ownerReferral.code,
-      isActive: false,
-      isCodeOwnerRecord: false,
-      redeemedAt: new Date(),
-      referredUserId: referredUser.id,
-      rewardAmount: this.REFERRER_BONUS,
-      rewardRemaining: 0,
-    }));
-    await this.pointsService.awardReferralReward(ownerReferral.referrerId, savedEvent.id, this.REFERRER_BONUS);
-    return { success: true, message: 'Student referral applied successfully.' };
+    // Email verification records attribution only. Rewarding waits until the
+    // referred student has completed a valid academic profile.
+    await this.processPendingReferralForUser(referredUser.id);
+    return {
+      success: true,
+      message: 'Referral recorded. The reward will be credited after the referred student verifies their account and completes academic onboarding.',
+    };
+  }
+
+  async processPendingReferralForUser(referredUserId: string): Promise<void> {
+    const event = await this.referralRepository.findOne({
+      where: { referredUserId, isCodeOwnerRecord: false },
+      relations: ['referrer', 'referredUser'],
+    });
+    if (!event || event.rewardStatus !== 'pending' || !event.referredUser) return;
+
+    const referred = event.referredUser;
+    if (referred.emailVerified !== true || referred.isProfileComplete !== true || !referred.programme?.trim()) return;
+
+    // Onboarding validates institution/faculty/department against the approved
+    // academic catalogue. Missing placement or suspended accounts require review.
+    if (referred.isSuspended || event.referrer?.isSuspended) {
+      event.rewardStatus = 'under_review';
+      event.reviewReason = referred.isSuspended
+        ? 'Referred student account is suspended.'
+        : 'Referring student account is suspended.';
+      await this.referralRepository.save(event);
+      return;
+    }
+    if (
+      referred.role !== UserRole.STUDENT ||
+      !referred.institution?.trim() ||
+      !referred.faculty?.trim() ||
+      !referred.department?.trim() ||
+      !event.referrer ||
+      event.referrer.role !== UserRole.STUDENT
+    ) {
+      event.rewardStatus = 'under_review';
+      event.reviewReason = 'Student role or approved academic placement could not be confirmed.';
+      await this.referralRepository.save(event);
+      return;
+    }
+
+    await this.pointsService.awardReferralReward(event.referrerId, event.id, this.REFERRER_BONUS);
+  }
+
+  async getReferralReviewQueue() {
+    return this.referralRepository.find({
+      where: { isCodeOwnerRecord: false, rewardStatus: 'under_review' },
+      relations: ['referrer', 'referredUser'],
+      order: { updatedAt: 'ASC' },
+    });
+  }
+
+  async reviewReferral(referralId: string, decision: 'approve' | 'reject', reason: string, reviewerId: string) {
+    if (!reason?.trim()) throw new BadRequestException('A review reason is required.');
+    const event = await this.referralRepository.findOne({
+      where: { id: referralId, isCodeOwnerRecord: false },
+      relations: ['referrer', 'referredUser'],
+    });
+    if (!event) throw new NotFoundException('Referral record not found.');
+    if (event.rewardStatus !== 'under_review') throw new BadRequestException('This referral is not awaiting manual review.');
+
+    if (decision === 'reject') {
+      event.rewardStatus = 'rejected';
+      event.reviewReason = `Rejected by ${reviewerId}: ${reason.trim()}`;
+      await this.referralRepository.save(event);
+      return { success: true, status: event.rewardStatus };
+    }
+
+    const referred = event.referredUser;
+    if (
+      !referred ||
+      referred.role !== UserRole.STUDENT ||
+      referred.emailVerified !== true ||
+      referred.isProfileComplete !== true ||
+      referred.isSuspended ||
+      !referred.institution?.trim() ||
+      !referred.faculty?.trim() ||
+      !referred.department?.trim() ||
+      !referred.programme?.trim() ||
+      !event.referrer ||
+      event.referrer.role !== UserRole.STUDENT ||
+      event.referrer.isSuspended
+    ) {
+      throw new BadRequestException('This referral does not currently meet the account and academic eligibility requirements.');
+    }
+
+    event.rewardStatus = 'pending';
+    event.reviewReason = `Approved by ${reviewerId}: ${reason.trim()}`;
+    await this.referralRepository.save(event);
+    await this.pointsService.awardReferralReward(event.referrerId, event.id, this.REFERRER_BONUS);
+    return { success: true, status: 'awarded' };
   }
 
   async getUserReferrals(userId: string, currentUserId: string) {
@@ -109,15 +215,24 @@ export class ReferralService {
         order: { createdAt: 'DESC' },
       }),
     ]);
-    const successfulReferrals = referralEvents.filter(r => r.redeemedAt != null);
+    const awarded = referralEvents.filter(r => r.rewardStatus === 'awarded');
     return {
       totalGenerated: codeRecord ? 1 : 0,
-      successfulReferrals: successfulReferrals.length,
-      totalBonusEarned: successfulReferrals.reduce((total, referral) => total + (referral.rewardAmount || 0), 0),
+      totalReferrals: referralEvents.length,
+      successfulReferrals: awarded.length,
+      pendingReferrals: referralEvents.filter(r => r.rewardStatus === 'pending').length,
+      referralsUnderReview: referralEvents.filter(r => r.rewardStatus === 'under_review').length,
+      rejectedReferrals: referralEvents.filter(r => r.rewardStatus === 'rejected').length,
+      totalBonusEarned: awarded.reduce((total, referral) => total + (referral.rewardAmount || 0), 0),
       referrals: referralEvents.map(r => ({
-        code: r.code, referredUserId: r.referredUserId ?? null,
-        createdAt: r.createdAt, redeemedAt: r.redeemedAt,
-        status: r.redeemedAt ? 'completed' : 'pending',
+        code: r.code,
+        referredUserId: r.referredUserId ?? null,
+        createdAt: r.createdAt,
+        redeemedAt: r.redeemedAt,
+        rewardAwardedAt: r.rewardAwardedAt ?? null,
+        status: r.rewardStatus,
+        reviewReason: r.rewardStatus === 'under_review' ? r.reviewReason ?? null : undefined,
+        rewardAmount: r.rewardAmount,
       })),
     };
   }
