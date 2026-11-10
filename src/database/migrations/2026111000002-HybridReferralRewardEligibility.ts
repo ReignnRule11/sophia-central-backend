@@ -5,7 +5,7 @@ export class HybridReferralRewardEligibility2026111000002 implements MigrationIn
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`ALTER TABLE referrals ADD COLUMN "rewardStatus" character varying(20) NOT NULL DEFAULT 'pending'`);
-    await queryRunner.query(`ALTER TABLE referrals ADD COLUMN "rewardAwardedAt" TIMESTAMP WITH TIME ZONE`);
+    await queryRunner.query(`ALTER TABLE referrals ADD COLUMN "rewardAwardedAt" TIMESTAMP`);
     await queryRunner.query(`ALTER TABLE referrals ADD COLUMN "reviewReason" text`);
 
     // Preserve historical awards only when their matching wallet-ledger transaction
