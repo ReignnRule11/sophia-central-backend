@@ -106,6 +106,10 @@ export class PointsService {
   }
 
   async awardReferralReward(referrerId: string, referralId: string, amount: number): Promise<void> {
+    // Reject ineligible owners before wallet initialization can grant starter points.
+    const currentReferrer = await this.userRepository.findOne({ where: { id: referrerId } });
+    if (!currentReferrer || currentReferrer.role !== UserRole.STUDENT || currentReferrer.isSuspended) return;
+
     // Ensure the wallet exists before entering the reward transaction. The
     // referral row lock makes the credit idempotent under concurrent triggers.
     await this.getOrCreateWallet(referrerId);
