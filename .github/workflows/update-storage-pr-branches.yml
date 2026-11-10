@@ -27,14 +27,21 @@ jobs:
           state="$(jq -r '.state' <<< "$pr_data")"
           base="$(jq -r '.base.ref' <<< "$pr_data")"
           head_repo="$(jq -r '.head.repo.full_name // ""' <<< "$pr_data")"
+          head_ref="$(jq -r '.head.ref' <<< "$pr_data")"
           head_sha="$(jq -r '.head.sha' <<< "$pr_data")"
           if [[ "$state" != "open" || "$base" != "main" || "$head_repo" != "$repo" ]]; then
             echo "PR #${pr} must be open, target main, and use a branch in ${repo}."
             exit 1
           fi
-          echo "Requesting GitHub to merge the latest main into PR #${pr} (head ${head_sha})."
+          compare="$(gh api "repos/${repo}/compare/main...${head_ref}")"
+          behind="$(jq -r '.behind_by' <<< "$compare")"
+          if [[ "$behind" == "0" ]]; then
+            echo "PR #${pr} is already up to date with main (head ${head_sha}); skipping."
+            exit 0
+          fi
+          echo "Updating PR #${pr}: branch is ${behind} commits behind main (head ${head_sha})."
           gh api --method PUT "repos/${repo}/pulls/${pr}/update-branch" -f "expected_head_sha=${head_sha}"
-          echo "Update request accepted for PR #${pr}. Check the PR's mergeability and CI before merging."
+          echo "Update request accepted for PR #${pr}. Check mergeability and CI."
 
       - name: Update PR #82
         env:
@@ -47,11 +54,18 @@ jobs:
           state="$(jq -r '.state' <<< "$pr_data")"
           base="$(jq -r '.base.ref' <<< "$pr_data")"
           head_repo="$(jq -r '.head.repo.full_name // ""' <<< "$pr_data")"
+          head_ref="$(jq -r '.head.ref' <<< "$pr_data")"
           head_sha="$(jq -r '.head.sha' <<< "$pr_data")"
           if [[ "$state" != "open" || "$base" != "main" || "$head_repo" != "$repo" ]]; then
             echo "PR #${pr} must be open, target main, and use a branch in ${repo}."
             exit 1
           fi
-          echo "Requesting GitHub to merge the latest main into PR #${pr} (head ${head_sha})."
+          compare="$(gh api "repos/${repo}/compare/main...${head_ref}")"
+          behind="$(jq -r '.behind_by' <<< "$compare")"
+          if [[ "$behind" == "0" ]]; then
+            echo "PR #${pr} is already up to date with main (head ${head_sha}); skipping."
+            exit 0
+          fi
+          echo "Updating PR #${pr}: branch is ${behind} commits behind main (head ${head_sha})."
           gh api --method PUT "repos/${repo}/pulls/${pr}/update-branch" -f "expected_head_sha=${head_sha}"
-          echo "Update request accepted for PR #${pr}. Check the PR's mergeability and CI before merging."
+          echo "Update request accepted for PR #${pr}. Check mergeability and CI."
