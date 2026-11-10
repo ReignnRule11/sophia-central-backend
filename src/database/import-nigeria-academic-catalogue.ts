@@ -46,7 +46,7 @@ function parseRecords(filePath: string): CatalogueRecord[] {
     if (!Number.isFinite(verifiedAt.getTime()) || verifiedAt.toISOString().slice(0, 10) !== row.verifiedAt || verifiedAt.getTime() > now || now - verifiedAt.getTime() > 365 * 24 * 60 * 60 * 1000) {
       throw new Error('Record ' + (index + 1) + ': verifiedAt must be a valid date within the last 365 days.');
     }
-    const key = [row.institutionName, row.facultyName, row.departmentName ?? ''].map((v) => v.trim().toLocaleLowerCase()).join('|');
+    const key = [row.institutionName!, row.facultyName!, row.departmentName ?? ''].map((v) => v.trim().toLocaleLowerCase()).join('|');
     if (seen.has(key)) throw new Error('Duplicate institution/faculty/department record: ' + key);
     seen.add(key);
     return {
