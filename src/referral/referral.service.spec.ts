@@ -7,14 +7,24 @@ describe('ReferralService hybrid reward eligibility', () => {
   let users: any;
   let points: any;
   let service: ReferralService;
+  let placementResults: any[];
 
   beforeEach(() => {
+    placementResults = [];
     referrals = {
       findOne: jest.fn(),
       find: jest.fn(),
       create: jest.fn(value => value),
       save: jest.fn(async value => ({ id: 'event-1', createdAt: new Date(), ...value })),
       manager: {
+        createQueryBuilder: jest.fn(() => {
+          const builder: any = {
+            where: jest.fn(() => builder),
+            andWhere: jest.fn(() => builder),
+            getOne: jest.fn(async () => placementResults.shift() ?? null),
+          };
+          return builder;
+        }),
         transaction: jest.fn(async callback => callback({
           findOne: jest.fn()
             .mockResolvedValueOnce({
@@ -69,6 +79,7 @@ describe('ReferralService hybrid reward eligibility', () => {
   });
 
   it('awards only after email verification and complete academic placement', async () => {
+    placementResults = [{ id: 'institution-1' }, { id: 'faculty-1' }, { id: 'department-1' }];
     referrals.findOne.mockResolvedValue({
       id: 'event-1', referrerId: 'referrer-1', rewardStatus: 'pending',
       referredUser: {
@@ -79,6 +90,26 @@ describe('ReferralService hybrid reward eligibility', () => {
     });
     await service.processPendingReferralForUser('student-2');
     expect(points.awardReferralReward).toHaveBeenCalledWith('referrer-1', 'event-1', 20);
+  });
+
+  it('keeps onboarding independent from the catalogue and moves an unlisted placement to referral review', async () => {
+    const event = {
+      id: 'event-2', rewardStatus: 'pending', referrerId: 'referrer-1',
+      referredUser: {
+        id: 'student-3', role: UserRole.STUDENT, emailVerified: true, isProfileComplete: true,
+        isSuspended: false, institution: 'New Institution', faculty: 'School of Computing',
+        department: 'Software Engineering', programme: 'B.Sc. Software Engineering',
+      },
+      referrer: { id: 'referrer-1', role: UserRole.STUDENT, isSuspended: false },
+    };
+    referrals.findOne.mockResolvedValue(event);
+
+    await service.processPendingReferralForUser('student-3');
+
+    expect(event.rewardStatus).toBe('under_review');
+    expect(event.reviewReason).toContain('verified institution catalogue');
+    expect(referrals.save).toHaveBeenCalledWith(event);
+    expect(points.awardReferralReward).not.toHaveBeenCalled();
   });
 
   it('keeps a verified referral pending until the referred student supplies a programme', async () => {
