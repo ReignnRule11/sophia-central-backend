@@ -193,6 +193,7 @@ export class AuthService {
       department: dto.department,
       programme: dto.programme,
       coursesTaught: dto.coursesTaught,
+      teachingAssignments: dto.teachingAssignments,
       studyLevel: dto.studyLevel,
       bio: dto.bio,
       ...(dto.academicHandle !== undefined ? { academicHandle: dto.academicHandle.trim().replace(/^@+/, '').toLowerCase() } : {}),
