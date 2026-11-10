@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { typeOrmConfig } from '../config/typeorm.config';
+import { canonicalizeNigerianState } from './nigerian-state';
 import {
   Institution,
   InstitutionType,
@@ -90,6 +91,31 @@ const NBTE_METADATA_OVERRIDES: Array<{
     state: 'Bayelsa',
     reason:
       'Yenagoa is the capital of Bayelsa State, as confirmed by the Bayelsa State Government. The current NBTE institution record does not publish ownership, so ownership remains unset.',
+  },
+];
+
+const NCCE_STATE_OVERRIDES: Array<{
+  normalizedName: string;
+  state: string;
+  reason: string;
+}> = [
+  {
+    normalizedName: 'al ibadan college of education',
+    state: 'Oyo',
+    reason:
+      'The JAMB NCE institution list identifies Al-Ibadan College of Education at Ibadan, Oyo State.',
+  },
+  {
+    normalizedName: 'college of education hong',
+    state: 'Adamawa',
+    reason:
+      'The college\'s official website identifies it as Adamawa State College of Education, Hong.',
+  },
+  {
+    normalizedName: 'owu college of education',
+    state: 'Ogun',
+    reason:
+      'The college\'s official website gives its address as Wasinmi, Ewekoro, Ogun State.',
   },
 ];
 
@@ -1782,6 +1808,50 @@ async function main(): Promise<void> {
     if (override.ownership) item.ownership = override.ownership;
     console.log(
       `Applied documented NBTE metadata correction for "${item.name}": ${override.reason}`,
+    );
+  }
+
+  const invalidStateValues: Array<{
+    name: string;
+    source: ImportedInstitution['source'];
+    state: string;
+  }> = [];
+
+  for (const item of ncceRecords) {
+    const override = NCCE_STATE_OVERRIDES.find(
+      (candidate) => candidate.normalizedName === normalizeName(item.name),
+    );
+
+    if (override) {
+      item.state = override.state;
+      console.log(
+        `Applied documented NCCE state correction for "${item.name}": ${override.reason}`,
+      );
+    }
+  }
+
+  for (const item of [...polytechnics, ...ncceRecords]) {
+    if (!item.state) continue;
+
+    const canonicalState = canonicalizeNigerianState(item.state);
+    if (!canonicalState) {
+      invalidStateValues.push({
+        name: item.name,
+        source: item.source,
+        state: item.state,
+      });
+      continue;
+    }
+
+    item.state = canonicalState;
+  }
+
+  if (invalidStateValues.length > 0) {
+    throw new Error(
+      [
+        'Institution source metadata validation failed: invalid Nigerian state values were found. No database changes were made.',
+        JSON.stringify(invalidStateValues, null, 2),
+      ].join('\\n'),
     );
   }
 
