@@ -17,14 +17,7 @@ describe('ReferralService hybrid reward eligibility', () => {
       create: jest.fn(value => value),
       save: jest.fn(async value => ({ id: 'event-1', createdAt: new Date(), ...value })),
       manager: {
-        createQueryBuilder: jest.fn(() => {
-          const builder: any = {
-            where: jest.fn(() => builder),
-            andWhere: jest.fn(() => builder),
-            getOne: jest.fn(async () => placementResults.shift() ?? null),
-          };
-          return builder;
-        }),
+        query: jest.fn(async () => placementResults.shift() ?? []),
         transaction: jest.fn(async callback => callback({
           findOne: jest.fn()
             .mockResolvedValueOnce({
@@ -79,7 +72,7 @@ describe('ReferralService hybrid reward eligibility', () => {
   });
 
   it('awards only after email verification and complete academic placement', async () => {
-    placementResults = [{ id: 'institution-1' }, { id: 'faculty-1' }, { id: 'department-1' }];
+    placementResults = [[{ id: 'institution-1' }], [{ id: 'faculty-1' }], [{ id: 'department-1' }]];
     referrals.findOne.mockResolvedValue({
       id: 'event-1', referrerId: 'referrer-1', rewardStatus: 'pending',
       referredUser: {
@@ -93,7 +86,7 @@ describe('ReferralService hybrid reward eligibility', () => {
   });
 
   it('keeps onboarding independent from the catalogue and moves an unlisted placement to referral review', async () => {
-    const event = {
+    const event: any = {
       id: 'event-2', rewardStatus: 'pending', referrerId: 'referrer-1',
       referredUser: {
         id: 'student-3', role: UserRole.STUDENT, emailVerified: true, isProfileComplete: true,
