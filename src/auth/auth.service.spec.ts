@@ -15,6 +15,7 @@ describe('AuthService', () => {
   let verificationTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock };
   let resetEmail: jest.Mocked<Pick<PasswordResetEmailService, 'sendResetLink'>>;
   let verificationEmail: jest.Mocked<Pick<EmailVerificationEmailService, 'sendVerificationLink'>>;
+  let referrals: { validateReferralCode: jest.Mock; redeemReferral: jest.Mock; processPendingReferralForUser: jest.Mock };
   const user = {
     id: 'user-123', email: 'learner@example.com', firstName: 'Learner', lastName: 'One',
     password: '', role: 'student' as const, authProvider: 'email' as const,
@@ -34,6 +35,11 @@ describe('AuthService', () => {
     };
     resetEmail = { sendResetLink: jest.fn().mockResolvedValue(undefined) };
     verificationEmail = { sendVerificationLink: jest.fn().mockResolvedValue(undefined) };
+    referrals = {
+      validateReferralCode: jest.fn().mockResolvedValue(undefined),
+      redeemReferral: jest.fn().mockResolvedValue({ success: true, message: 'Referral recorded.' }),
+      processPendingReferralForUser: jest.fn().mockResolvedValue(undefined),
+    };
     service = new AuthService(
       users as unknown as UsersService,
       jwt as unknown as JwtService,
@@ -41,15 +47,35 @@ describe('AuthService', () => {
       verificationTokens as never,
       resetEmail as unknown as PasswordResetEmailService,
       verificationEmail as unknown as EmailVerificationEmailService,
-      {
-        validateReferralCode: jest.fn().mockResolvedValue(undefined),
-        redeemReferral: jest.fn().mockResolvedValue({ success: true, message: 'Referral recorded.' }),
-        processPendingReferralForUser: jest.fn().mockResolvedValue(undefined),
-      } as never,
+      referrals as never,
     );
   });
 
   afterEach(() => jest.restoreAllMocks());
+
+  it('completes onboarding even if referral reward processing fails', async () => {
+    users.findOne.mockResolvedValue({ ...user, isProfileComplete: false } as never);
+    users.update.mockResolvedValue({ ...user, isProfileComplete: true } as never);
+    referrals.processPendingReferralForUser.mockRejectedValue(new Error('temporary referral database failure'));
+
+    await expect(service.completeOnboarding(user.id, {
+      institution: 'New University',
+      faculty: 'School of Computing',
+      department: 'Software Engineering',
+      programme: 'B.Sc. Software Engineering',
+      studyLevel: '300',
+    } as never)).resolves.toEqual({
+      accessToken: 'signed-access-token',
+      user: expect.objectContaining({ isProfileComplete: true }),
+    });
+
+    expect(users.update).toHaveBeenCalledWith(user.id, expect.objectContaining({
+      institution: 'New University',
+      faculty: 'School of Computing',
+      department: 'Software Engineering',
+      isProfileComplete: true,
+    }));
+  });
 
   it('returns a generic response for unknown reset-request emails', async () => {
     users.findByEmail.mockResolvedValue(null);
