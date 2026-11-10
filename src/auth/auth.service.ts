@@ -203,6 +203,9 @@ export class AuthService {
       socialLinks: dto.socialLinks,
       isProfileComplete: true,
     });
+    // A referral may be credited only after email verification and successful
+    // completion of the catalogue-validated academic onboarding flow.
+    await this.referralService.processPendingReferralForUser(userId);
     return this.buildAuthResponse(user);
   }
 
