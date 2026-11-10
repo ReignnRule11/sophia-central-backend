@@ -1,6 +1,6 @@
 # Verified Nigerian faculty and department catalogue
 
-This importer intentionally ships with an empty dataset. Do not populate it with guessed, generated, scraped-from-aggregators, or unverified academic structures.
+This importer contains only institution-specific academic structures checked against official institutional sources. Do not populate it with guessed, generated, scraped-from-aggregators, or unverified academic structures.
 
 Each JSON record represents one department and must contain:
 
