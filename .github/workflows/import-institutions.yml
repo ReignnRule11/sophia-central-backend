@@ -26,8 +26,6 @@ jobs:
       DB_HOST: ep-holy-bar-b5y0ppqu.c-7.us-east-2.aws.neon.tech
       DB_PORT: '5432'
       DB_DATABASE: neondb
-      DB_USERNAME: ${{ secrets.PRODUCTION_DB_USERNAME }}
-      DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
     steps:
       - name: Require explicit production confirmation
         env:
@@ -37,6 +35,12 @@ jobs:
             echo "Production import confirmation did not match."
             exit 1
           fi
+
+      - name: Validate production database secrets are configured
+        env:
+          DB_USERNAME: ${{ secrets.PRODUCTION_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+        run: |
           if [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ]; then
             echo "Required production database GitHub Actions secrets are missing."
             exit 1
@@ -63,7 +67,13 @@ jobs:
         run: npm test -- --runInBand
 
       - name: Run fresh read-only production audit
+        env:
+          DB_USERNAME: ${{ secrets.PRODUCTION_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
         run: npm run import:other-institutions -- --audit
 
       - name: Apply reviewed institution import
+        env:
+          DB_USERNAME: ${{ secrets.PRODUCTION_DB_USERNAME }}
+          DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
         run: npm run import:other-institutions -- --apply
