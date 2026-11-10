@@ -44,17 +44,22 @@ describe('UsersService academic profile updates', () => {
       faculty: 'Engineering',
       department: 'Mechanical Engineering',
     });
-    expect(manager.query).toHaveBeenCalledTimes(1);
+    expect(manager.query).not.toHaveBeenCalled();
   });
 
-  it('rejects an institution that is not in the approved catalogue', async () => {
-    manager.query.mockResolvedValueOnce([]);
-
-    await expect(service.update('student-1', {
+  it('allows manual institution, academic-unit and department values without creating catalogue submissions', async () => {
+    const updated = await service.update('student-1', {
       institution: 'Unlisted University',
-      faculty: 'Science',
-      department: 'Biology',
-    })).rejects.toBeInstanceOf(BadRequestException);
+      faculty: 'School of Computing',
+      department: 'Software Engineering',
+    });
+
+    expect(updated).toMatchObject({
+      institution: 'Unlisted University',
+      faculty: 'School of Computing',
+      department: 'Software Engineering',
+    });
+    expect(manager.query).not.toHaveBeenCalled();
   });
 
   it('requires faculty and department to be resubmitted when institution changes', async () => {
