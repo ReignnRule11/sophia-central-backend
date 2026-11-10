@@ -7,6 +7,7 @@ import { CreateInstitutionDto } from './dto/create-institution.dto';
 import { AcademicCatalogueSubmission, AcademicEntryStatus, AcademicEntryType } from './entities/academic-catalogue-submission.entity';
 import { CreateAcademicCatalogueSubmissionDto } from './dto/create-academic-catalogue-submission.dto';
 import { UpdateInstitutionDto } from './dto/update-institution.dto';
+import { validateAcademicSource } from './academic-catalogue-provenance';
 
 @Injectable()
 export class InstitutionsService {
@@ -92,13 +93,47 @@ export class InstitutionsService {
   }
 
   async listSubmissions(status?: AcademicEntryStatus) {
-    return this.submissionRepository.find({ where: status ? { status } : {}, order: { createdAt: 'ASC' } });
+    const submissions = await this.submissionRepository.find({ where: status ? { status } : {}, order: { createdAt: 'ASC' } });
+    return Promise.all(submissions.map(async submission => {
+      let parentInstitutionName: string | undefined;
+      let parentFacultyName: string | undefined;
+
+      if (submission.parentInstitutionId) {
+        const institution = await this.institutionRepository.findOne({ where: { id: submission.parentInstitutionId } });
+        parentInstitutionName = institution?.name;
+      } else if (submission.parentInstitutionSubmissionId) {
+        const parent = await this.submissionRepository.findOne({ where: { id: submission.parentInstitutionSubmissionId } });
+        parentInstitutionName = parent?.name;
+      }
+
+      if (submission.parentFacultyId) {
+        const faculty = await this.facultyRepository.findOne({ where: { id: submission.parentFacultyId }, relations: ['institution'] });
+        parentFacultyName = faculty?.name;
+        parentInstitutionName = parentInstitutionName ?? faculty?.institution?.name;
+      } else if (submission.parentFacultySubmissionId) {
+        const parent = await this.submissionRepository.findOne({ where: { id: submission.parentFacultySubmissionId } });
+        parentFacultyName = parent?.name;
+        if (!parentInstitutionName && parent?.parentInstitutionId) {
+          const institution = await this.institutionRepository.findOne({ where: { id: parent.parentInstitutionId } });
+          parentInstitutionName = institution?.name;
+        } else if (!parentInstitutionName && parent?.parentInstitutionSubmissionId) {
+          const institutionSubmission = await this.submissionRepository.findOne({ where: { id: parent.parentInstitutionSubmissionId } });
+          parentInstitutionName = institutionSubmission?.name;
+        }
+      }
+
+      return { ...submission, parentInstitutionName, parentFacultyName };
+    }));
   }
 
-  async reviewSubmission(id: string, reviewerId: string, status: AcademicEntryStatus, reviewNote?: string) {
+  async reviewSubmission(id: string, reviewerId: string, status: AcademicEntryStatus, reviewNote?: string, sourceUrl?: string, verifiedAt?: string) {
     const submission = await this.submissionRepository.findOne({ where: { id } });
     if (!submission) throw new NotFoundException('Catalogue submission not found.');
     if (submission.status !== AcademicEntryStatus.PENDING) throw new ConflictException('This submission has already been reviewed.');
+
+    const provenance = status === AcademicEntryStatus.APPROVED && submission.entryType !== AcademicEntryType.INSTITUTION
+      ? validateAcademicSource(sourceUrl ?? submission.sourceUrl, verifiedAt)
+      : undefined;
 
     if (status === AcademicEntryStatus.APPROVED) {
       if (submission.entryType === AcademicEntryType.INSTITUTION) {
@@ -136,7 +171,8 @@ export class InstitutionsService {
         const exists = await this.facultyRepository.createQueryBuilder('f')
           .where('LOWER(f.name) = LOWER(:name)', { name: submission.name })
           .andWhere('f.institutionId = :id', { id: parent.id }).getOne();
-        if (!exists) await this.createFaculty(parent.id, submission.name);
+        if (!exists) await this.createFaculty(parent.id, submission.name, provenance!.sourceUrl, provenance!.verifiedAt);
+        else { exists.sourceUrl = provenance!.sourceUrl; exists.verifiedAt = provenance!.verifiedAt; await this.facultyRepository.save(exists); }
       } else {
         let parent: Faculty | null = null;
         if (submission.parentFacultyId) {
@@ -158,13 +194,15 @@ export class InstitutionsService {
         const exists = await this.departmentRepository.createQueryBuilder('d')
           .where('LOWER(d.name) = LOWER(:name)', { name: submission.name })
           .andWhere('d.facultyId = :id', { id: parent.id }).getOne();
-        if (!exists) await this.createDepartment(parent.id, submission.name);
+        if (!exists) await this.createDepartment(parent.id, submission.name, provenance!.sourceUrl, provenance!.verifiedAt);
+        else { exists.sourceUrl = provenance!.sourceUrl; exists.verifiedAt = provenance!.verifiedAt; await this.departmentRepository.save(exists); }
       }
     }
 
     submission.status = status;
     submission.reviewedBy = reviewerId;
     submission.reviewNote = reviewNote?.trim() || undefined;
+    if (provenance) { submission.sourceUrl = provenance.sourceUrl; submission.verifiedAt = provenance.verifiedAt; }
     return this.submissionRepository.save(submission);
   }
 
@@ -197,19 +235,19 @@ export class InstitutionsService {
     await this.institutionRepository.remove(institution);
   }
 
-  async createFaculty(institutionId: string, name: string): Promise<Faculty> {
+  async createFaculty(institutionId: string, name: string, sourceUrl?: string, verifiedAt?: string): Promise<Faculty> {
     const institution = await this.findOne(institutionId);
-    const faculty = this.facultyRepository.create({ name, institution });
+    const faculty = this.facultyRepository.create({ name, institution, sourceUrl, verifiedAt });
     return this.facultyRepository.save(faculty);
   }
 
-  async createDepartment(facultyId: string, name: string): Promise<Department> {
+  async createDepartment(facultyId: string, name: string, sourceUrl?: string, verifiedAt?: string): Promise<Department> {
     const faculty = await this.facultyRepository.findOne({
       where: { id: facultyId },
       relations: ['institution'],
     });
     if (!faculty) throw new NotFoundException('Faculty not found');
-    const department = this.departmentRepository.create({ name, faculty });
+    const department = this.departmentRepository.create({ name, faculty, sourceUrl, verifiedAt });
     return this.departmentRepository.save(department);
   }
 }

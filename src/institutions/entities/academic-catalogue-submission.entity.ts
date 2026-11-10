@@ -22,6 +22,8 @@ export class AcademicCatalogueSubmission {
   @Column({ type: 'uuid' }) submittedBy: string;
   @Column({ type: 'uuid', nullable: true }) reviewedBy?: string;
   @Column({ type: 'text', nullable: true }) reviewNote?: string;
+  @Column({ type: 'varchar', nullable: true }) sourceUrl?: string;
+  @Column({ type: 'date', nullable: true }) verifiedAt?: string;
   @CreateDateColumn() createdAt: Date;
   @UpdateDateColumn() updatedAt: Date;
 }

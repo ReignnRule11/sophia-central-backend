@@ -82,9 +82,14 @@ async function applyRecords(manager: EntityManager, records: CatalogueRecord[]) 
       faculty = await manager.createQueryBuilder(Faculty, 'faculty')
         .where('faculty.institutionId = :institutionId', { institutionId: institution.id })
         .andWhere('LOWER(faculty.name) = LOWER(:name)', { name: record.facultyName }).getOne() ?? undefined;
-      if (faculty) facultiesExisting += 1;
+      if (faculty) {
+        facultiesExisting += 1;
+        faculty.sourceUrl = record.officialSourceUrl;
+        faculty.verifiedAt = record.verifiedAt;
+        await manager.save(Faculty, faculty);
+      }
       else {
-        faculty = manager.create(Faculty, { name: record.facultyName, institution, institutionId: institution.id });
+        faculty = manager.create(Faculty, { name: record.facultyName, institution, institutionId: institution.id, sourceUrl: record.officialSourceUrl, verifiedAt: record.verifiedAt });
         faculty = await manager.save(Faculty, faculty);
         facultiesInserted += 1;
       }
@@ -96,8 +101,11 @@ async function applyRecords(manager: EntityManager, records: CatalogueRecord[]) 
       .andWhere('LOWER(department.name) = LOWER(:name)', { name: record.departmentName }).getOne();
     if (existingDepartment) {
       departmentsExisting += 1;
+      existingDepartment.sourceUrl = record.officialSourceUrl;
+      existingDepartment.verifiedAt = record.verifiedAt;
+      await manager.save(Department, existingDepartment);
     } else {
-      const department = manager.create(Department, { name: record.departmentName, faculty, facultyId: faculty.id });
+      const department = manager.create(Department, { name: record.departmentName, faculty, facultyId: faculty.id, sourceUrl: record.officialSourceUrl, verifiedAt: record.verifiedAt });
       await manager.save(Department, department);
       departmentsInserted += 1;
     }
