@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Referral } from './entities/referral.entity';
 import { User, UserRole } from '../users/entities/user.entity';
+import { Institution, Faculty, Department } from '../institutions/entities/institution.entity';
 import { PointsService } from '../points/points.service';
 
 @Injectable()
@@ -115,6 +116,31 @@ export class ReferralService {
     };
   }
 
+  private async hasVerifiedAcademicPlacement(user: User): Promise<boolean> {
+    const institutionName = user.institution?.trim();
+    const facultyName = user.faculty?.trim();
+    const departmentName = user.department?.trim();
+    if (!institutionName || !facultyName || !departmentName) return false;
+
+    const manager = this.referralRepository.manager;
+    const institution = await manager.createQueryBuilder(Institution, 'institution')
+      .where('LOWER(institution.name) = LOWER(:name)', { name: institutionName })
+      .getOne();
+    if (!institution) return false;
+
+    const faculty = await manager.createQueryBuilder(Faculty, 'faculty')
+      .where('faculty.institutionId = :institutionId', { institutionId: institution.id })
+      .andWhere('LOWER(faculty.name) = LOWER(:name)', { name: facultyName })
+      .getOne();
+    if (!faculty) return false;
+
+    const department = await manager.createQueryBuilder(Department, 'department')
+      .where('department.facultyId = :facultyId', { facultyId: faculty.id })
+      .andWhere('LOWER(department.name) = LOWER(:name)', { name: departmentName })
+      .getOne();
+    return Boolean(department);
+  }
+
   async processPendingReferralForUser(referredUserId: string): Promise<void> {
     const event = await this.referralRepository.findOne({
       where: { referredUserId, isCodeOwnerRecord: false },
@@ -144,7 +170,16 @@ export class ReferralService {
       event.referrer.role !== UserRole.STUDENT
     ) {
       event.rewardStatus = 'under_review';
-      event.reviewReason = 'Student role or approved academic placement could not be confirmed.';
+      event.reviewReason = 'Student role or academic placement could not be confirmed.';
+      await this.referralRepository.save(event);
+      return;
+    }
+
+    // Manual profile values keep onboarding non-blocking, but referral rewards
+    // remain gated on an exact institution -> academic unit -> department match.
+    if (!(await this.hasVerifiedAcademicPlacement(referred))) {
+      event.rewardStatus = 'under_review';
+      event.reviewReason = 'Academic placement is not yet present in the verified institution catalogue.';
       await this.referralRepository.save(event);
       return;
     }
@@ -192,6 +227,10 @@ export class ReferralService {
       event.referrer.isSuspended
     ) {
       throw new BadRequestException('This referral does not currently meet the account and academic eligibility requirements.');
+    }
+
+    if (!(await this.hasVerifiedAcademicPlacement(referred))) {
+      throw new BadRequestException('The academic placement must exist in the verified institution catalogue before this referral can be approved.');
     }
 
     event.rewardStatus = 'pending';
