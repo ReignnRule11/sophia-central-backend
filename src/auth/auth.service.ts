@@ -203,18 +203,26 @@ export class AuthService {
       socialLinks: dto.socialLinks,
       isProfileComplete: true,
     });
-    // A referral may be credited only after email verification and successful
-    // completion of the catalogue-validated academic onboarding flow.
-    await this.referralService.processPendingReferralForUser(userId);
+    // Referral processing is post-onboarding work. A reward/catalogue failure
+    // must never roll back or block a student's or lecturer's profile completion.
+    await this.processPendingReferralSafely(userId);
     return this.buildAuthResponse(user);
+  }
+
+  private async processPendingReferralSafely(userId: string): Promise<void> {
+    try {
+      await this.referralService.processPendingReferralForUser(userId);
+    } catch (error) {
+      this.logger.warn(`Referral processing deferred for user ${userId}: ${error instanceof Error ? error.message : 'unknown error'}`);
+    }
   }
 
   async getCurrentUser(userId: string) {
     const user = await this.usersService.findOne(userId);
     if (!user) throw new UnauthorizedException('User not found');
-    // Re-evaluate any legacy pending attribution when the referred student
-    // returns after the eligibility workflow has been deployed.
-    await this.referralService.processPendingReferralForUser(userId);
+    // Re-evaluate legacy pending attribution without making sign-in/session
+    // retrieval depend on the referral subsystem being available.
+    await this.processPendingReferralSafely(userId);
     return { user: this.toSafeUser(user) };
   }
 
