@@ -20,10 +20,10 @@ export enum InstitutionType {
 @Entity({ name: 'institutions' })
 export class Institution {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  name: string;
+  name!: string;
 
   @Column({ nullable: true })
   country?: string;
@@ -35,38 +35,38 @@ export class Institution {
   state?: string;
 
   @Column({ type: 'varchar', default: InstitutionType.UNIVERSITY })
-  institutionType: InstitutionType;
+  institutionType!: InstitutionType;
 
   @Column({ type: 'varchar', nullable: true })
   ownership?: string;
 
   @OneToMany(() => Faculty, (faculty) => faculty.institution)
-  faculties: Faculty[];
+  faculties!: Faculty[];
 
   @OneToMany(() => Course, (course) => course.institution)
-  courses: Course[];
+  courses!: Course[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 @Entity({ name: 'faculties' })
 export class Faculty {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  name: string;
+  name!: string;
 
   @ManyToOne(() => Institution, (institution) => institution.faculties, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'institutionId' })
-  institution: Institution;
+  institution!: Institution;
 
   @Column()
-  institutionId: string;
+  institutionId!: string;
 
   @Column({ type: 'varchar', nullable: true })
   sourceUrl?: string;
@@ -75,29 +75,29 @@ export class Faculty {
   verifiedAt?: string;
 
   @OneToMany(() => Department, (department) => department.faculty)
-  departments: Department[];
+  departments!: Department[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
 
 @Entity({ name: 'departments' })
 export class Department {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  name: string;
+  name!: string;
 
   @ManyToOne(() => Faculty, (faculty) => faculty.departments, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'facultyId' })
-  faculty: Faculty;
+  faculty!: Faculty;
 
   @Column()
-  facultyId: string;
+  facultyId!: string;
 
   @Column({ type: 'varchar', nullable: true })
   sourceUrl?: string;
@@ -106,8 +106,8 @@ export class Department {
   verifiedAt?: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
