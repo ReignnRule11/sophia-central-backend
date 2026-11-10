@@ -31,9 +31,17 @@ export class UsersService {
   }
 
   async findChatContacts(currentUserId: string, search?: string) {
+    const currentUser = await this.usersRepository.findOne({
+      where: { id: currentUserId },
+      select: ['id', 'institution'],
+    });
+    const institution = currentUser?.institution?.trim();
+    if (!institution) return [];
+
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.academicHandle', 'user.role', 'user.institution', 'user.faculty', 'user.department'])
       .where('user.id != :currentUserId', { currentUserId })
+      .andWhere('LOWER(TRIM(user.institution)) = LOWER(TRIM(:institution))', { institution })
       .andWhere('user.role IN (:...roles)', { roles: [UserRole.STUDENT, UserRole.LECTURER] })
       .andWhere('user.isSuspended = false')
       .andWhere('user.academicHandle IS NOT NULL');
