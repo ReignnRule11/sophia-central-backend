@@ -79,15 +79,40 @@ export class UsersService {
         'SELECT f.id FROM faculties f WHERE f."institutionId" = $1 AND LOWER(TRIM(f.name)) = LOWER(TRIM($2)) LIMIT 1',
         [institutionRows[0].id, facultyName],
       );
+      let facultySubmissionId: string | null = null;
       if (!facultyRows.length) {
-        throw new BadRequestException('This faculty is not approved under your institution. Submit it for academic catalogue review first.');
+        const pendingFacultyRows = await this.dataSource.query(
+          'SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentInstitutionId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) ORDER BY s."createdAt" DESC LIMIT 1',
+          ['faculty', 'pending', institutionRows[0].id, facultyName],
+        );
+        if (!pendingFacultyRows.length) {
+          throw new BadRequestException('This faculty is not in the approved catalogue. Submit it for review, then save your academic placement.');
+        }
+        facultySubmissionId = pendingFacultyRows[0].id;
       }
-      const departmentRows = await this.dataSource.query(
-        'SELECT d.id FROM departments d WHERE d."facultyId" = $1 AND LOWER(TRIM(d.name)) = LOWER(TRIM($2)) LIMIT 1',
-        [facultyRows[0].id, departmentName],
-      );
-      if (!departmentRows.length) {
-        throw new BadRequestException('This department is not approved under the selected faculty. Submit it for academic catalogue review first.');
+
+      if (facultyRows.length) {
+        const departmentRows = await this.dataSource.query(
+          'SELECT d.id FROM departments d WHERE d."facultyId" = $1 AND LOWER(TRIM(d.name)) = LOWER(TRIM($2)) LIMIT 1',
+          [facultyRows[0].id, departmentName],
+        );
+        if (!departmentRows.length) {
+          const pendingDepartmentRows = await this.dataSource.query(
+            'SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentFacultyId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) LIMIT 1',
+            ['department', 'pending', facultyRows[0].id, departmentName],
+          );
+          if (!pendingDepartmentRows.length) {
+            throw new BadRequestException('This department is not in the selected faculty catalogue. Submit it for review, then save your academic placement.');
+          }
+        }
+      } else {
+        const pendingDepartmentRows = await this.dataSource.query(
+          'SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentFacultySubmissionId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) LIMIT 1',
+          ['department', 'pending', facultySubmissionId, departmentName],
+        );
+        if (!pendingDepartmentRows.length) {
+          throw new BadRequestException('This department must be submitted under the pending faculty before the academic placement can be saved.');
+        }
       }
     }
 
