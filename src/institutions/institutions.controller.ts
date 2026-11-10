@@ -28,9 +28,9 @@ export class InstitutionsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
-  reviewSubmission(@Param('id') id: string, @Body() body: { status: AcademicEntryStatus.APPROVED | AcademicEntryStatus.REJECTED; reviewNote?: string }, @CurrentUser() user: User) {
+  reviewSubmission(@Param('id') id: string, @Body() body: { status: AcademicEntryStatus.APPROVED | AcademicEntryStatus.REJECTED; reviewNote?: string; sourceUrl?: string; verifiedAt?: string }, @CurrentUser() user: User) {
     if (![AcademicEntryStatus.APPROVED, AcademicEntryStatus.REJECTED].includes(body.status)) throw new BadRequestException('Invalid review status');
-    return this.institutionsService.reviewSubmission(id, user.id, body.status, body.reviewNote);
+    return this.institutionsService.reviewSubmission(id, user.id, body.status, body.reviewNote, body.sourceUrl, body.verifiedAt);
   }
 
   @Post()
