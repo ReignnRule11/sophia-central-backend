@@ -155,6 +155,27 @@ describe('ChatService access and message rules', () => {
     });
   });
 
+
+
+  it('keeps programme out of Student Group Chat membership', async () => {
+    users.findOne.mockResolvedValue({ ...student, programme: 'B.Sc. Biochemistry' });
+    const qb = {
+      where: jest.fn().mockReturnThis(),
+      andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
+      addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(),
+      getMany: jest.fn(async () => []),
+    };
+    repo.createQueryBuilder.mockReturnValue(qb);
+
+    await service.history(student.id, 'group');
+
+    expect(qb.where).toHaveBeenCalledWith('message.roomKey = :room', {
+      room: 'group:example university:science:biology',
+    });
+  });
+
   it('rejects attempts to edit another user\'s message', async () => {
     repo.findOne.mockResolvedValue({
       id: 'message-1',

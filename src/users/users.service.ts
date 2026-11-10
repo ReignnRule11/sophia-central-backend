@@ -64,10 +64,11 @@ export class UsersService {
       const user = await manager.findOne(User, { where: { id } });
       if (!user) throw new NotFoundException('User not found');
       const updateData = { ...data };
+      const institutionChanged = updateData.institution !== undefined && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase();
       const facultyChanged = updateData.faculty !== undefined && updateData.faculty.trim().toLocaleLowerCase() !== (user.faculty ?? '').trim().toLocaleLowerCase();
       const departmentChanged = updateData.department !== undefined && updateData.department.trim().toLocaleLowerCase() !== (user.department ?? '').trim().toLocaleLowerCase();
       const completingOnboarding = updateData.isProfileComplete === true && user.isProfileComplete !== true;
-      if (facultyChanged || departmentChanged || completingOnboarding) {
+      if (institutionChanged || facultyChanged || departmentChanged || completingOnboarding) {
         if (updateData.faculty === undefined || updateData.department === undefined) throw new BadRequestException('Faculty and department must be selected together so the academic structure can be validated.');
         const institutionName = (updateData.institution ?? user.institution ?? '').trim();
         const facultyName = updateData.faculty.trim();
@@ -93,7 +94,6 @@ export class UsersService {
           if (!pendingDepartmentRows.length) throw new BadRequestException('This department must be submitted under the pending faculty before the academic placement can be saved.');
         }
       }
-      if (updateData.institution !== undefined && user.isProfileComplete && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) throw new BadRequestException('Institution cannot be changed from Edit Profile. Contact Sophis Central support if your institution is incorrect.');
       if (updateData.academicHandle !== undefined) {
         const normalized = updateData.academicHandle.trim().replace(/^@+/, '').toLowerCase();
         const existing = await manager.createQueryBuilder(User, 'user').where('LOWER(user.academicHandle) = :handle', { handle: normalized }).andWhere('user.id != :id', { id }).getOne();
