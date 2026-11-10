@@ -129,13 +129,13 @@ export class ReferralService {
     if (!institution?.id) return false;
 
     const [faculty] = await manager.query(
-      'SELECT id FROM faculties WHERE "institutionId" = $1 AND LOWER(name) = LOWER($2) LIMIT 1',
+      'SELECT id FROM faculties WHERE "institutionId" = $1 AND LOWER(name) = LOWER($2) AND "sourceUrl" IS NOT NULL AND "verifiedAt" IS NOT NULL LIMIT 1',
       [institution.id, facultyName],
     );
     if (!faculty?.id) return false;
 
     const [department] = await manager.query(
-      'SELECT id FROM departments WHERE "facultyId" = $1 AND LOWER(name) = LOWER($2) LIMIT 1',
+      'SELECT id FROM departments WHERE "facultyId" = $1 AND LOWER(name) = LOWER($2) AND "sourceUrl" IS NOT NULL AND "verifiedAt" IS NOT NULL LIMIT 1',
       [faculty.id, departmentName],
     );
     return Boolean(department?.id);
