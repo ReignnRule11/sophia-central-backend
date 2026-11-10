@@ -140,6 +140,7 @@ export class ReferralService {
       !referred.institution?.trim() ||
       !referred.faculty?.trim() ||
       !referred.department?.trim() ||
+      !referred.programme?.trim() ||
       !event.referrer ||
       event.referrer.role !== UserRole.STUDENT
     ) {
@@ -186,6 +187,7 @@ export class ReferralService {
       !referred.institution?.trim() ||
       !referred.faculty?.trim() ||
       !referred.department?.trim() ||
+      !referred.programme?.trim() ||
       !event.referrer ||
       event.referrer.role !== UserRole.STUDENT ||
       event.referrer.isSuspended
