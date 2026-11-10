@@ -790,5 +790,1367 @@
     "departmentName": "Sociology",
     "officialSourceUrl": "https://unilag.edu.ng/when-the-future-calls-unilag-answers-with-new-faculties-and-a-new-vision/",
     "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Agriculture and Forestry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Animal Science"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Agriculture and Forestry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Agricultural Economics"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Agriculture and Forestry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Agronomy"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Agriculture and Forestry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Forest Resources Management"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Music"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Religious Studies"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Arabic and Islamic Studies"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Communication and Language Arts"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "European Studies"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "History"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Theatre Arts"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Philosophy"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Human Nutrition"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Obstetrics and Gynaecology"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Ophthalmology"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Paediatrics"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Physiotherapy"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Radiotherapy"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Surgery"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Biochemistry"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Epidemiology, Medical Statistics and Environmental Health (EMSEH)"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Health Policy and Management"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Health Promotion and Education"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Medicine"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Physiology"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Preventive Medicine and Primary Care"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "College of Medicine",
+    "facultyType": "college",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Psychiatry"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Teacher Education"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Adult Education"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Guidance and Counselling"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Human Kinetics and Health Education"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Pharmacy",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmaceutics and Industrial Pharmacy"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mathematics"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Physics"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Statistics"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Botany"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Geology"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Microbiology"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Zoology"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "The Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Psychology"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "The Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Economics"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "The Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Geography"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "The Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Sociology"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Technology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Electrical and Electronic Engineering"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Technology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mechanical Engineering"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Technology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Industrial and Production Engineering"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Physiology, Biochemistry and Pharmacology"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Basic Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Basic Medical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Computing",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Dentistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Economics and Management Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Environmental Design and Management",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Multidisciplinary Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Public Health",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Ibadan, Ibadan",
+    "institutionWebsite": "https://ui.edu.ng",
+    "facultyName": "Renewable Natural Resources",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://ui.edu.ng/content/faculties-and-departments",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Agricultural Economics"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Agricultural Extension"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Animal Science"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Soil Science"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Nutrition & Dietetics"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Home Science & Management"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Food Science and Technology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Crop Science"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "History & International Studies"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mass Communication"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Archaeology & Tourism"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "English & Literary Studies"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Fine & Applied Arts"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Linguistics, Igbo & other Nigerian Languages"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Music"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Theatre & Film Studies"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Foreign Language & Literature"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Biomedical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Biological Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Biochemistry"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Biological Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Microbiology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Biological Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Plant Science & Biotechnology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Biological Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Genetics & Biotechnology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Biological Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Zoology & Environmental Biology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Business Administration",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Accountancy"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Business Administration",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Marketing"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Business Administration",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Banking & Finance"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Business Administration",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Management"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Adult Education"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Arts Education"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Computer Education"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Educational Foundations"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Library Science"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Human Kinetics & Health Education"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Science Education"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Social Science"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Agric. & Bioresources Engineering"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Civil Engineering"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Electrical Engineering"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Electronic Engineering"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mechanical Engineering"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Metallurgical & Materials Engineering"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mechatronic Engineering"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "BioMedical Engineering"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Estate Management"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Architecture"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Urban & Regional Planning"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Geoinformatics & Surveying"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Health Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "International & Comparative Law"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Commercial & Corporate Law"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Customary & Indigenous Law"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Jurisprudence & Legal Theory"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Property Law"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Public Law"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Private Law"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Medical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmaceutical & Medicinal Chemistry"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmacology & Toxicology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmaceutics"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmaceutical Technology & Industrial Pharmacy"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmacognosy & Environmental Medicines"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Clinical Pharmacy & Pharmacy Management"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Pharmaceutical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pharmaceutical Microbiology & Biotechnology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Public Administration & Local Government"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Economics"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Political Science"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Social Work"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Religion & Cultural Studies"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Psychology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Philosophy"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Geography"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Sociology & Anthropology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Pure & Industrial Chemistry"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Computer Science"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Geology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Mathematics"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Physics & Astronomy"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Science Laboratory Technology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Statistics"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Pathology & Microbiology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Obstetrics & Reproductive Diseases"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Physiology & Pharmacology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Anatomy"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Medicine"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Animal Health & Production"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Parasitology & Entomology"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Public Health & Preventive Medicine"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Surgery"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Veterinary Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Veterinary Teaching Hospital"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Vocational Technical Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Agricultural Education"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Vocational Technical Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Business Education"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Vocational Technical Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Computer Education"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Vocational Technical Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Industrial Technical Education"
+  },
+  {
+    "institutionName": "University of Nigeria, Nsukka",
+    "institutionWebsite": "https://www.unn.edu.ng",
+    "facultyName": "Faculty of Vocational Technical Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://www.unn.edu.ng/departments/",
+    "verifiedAt": "2026-11-10",
+    "departmentName": "Home Economics & Hospitality Management Education"
   }
 ]
