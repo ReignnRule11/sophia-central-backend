@@ -30,10 +30,7 @@ describe('ChatService access and message rules', () => {
   };
 
   beforeEach(() => {
-    transactionManager = {
-      findOne: jest.fn(),
-      save: jest.fn(async (_entity, value) => value),
-    };
+    transactionManager = { findOne: jest.fn(), save: jest.fn(async (_entity, value) => value) };
     repo = {
       manager: { transaction: jest.fn(async callback => callback(transactionManager)) },
       findOne: jest.fn(),
@@ -84,10 +81,7 @@ describe('ChatService access and message rules', () => {
       isOnline: jest.fn(async (id: string) => onlineUsers.has(id)),
     };
     notifications = { createNotification: jest.fn(async () => ({})) };
-    storageCleanup = {
-      enqueue: jest.fn(async () => undefined),
-      enqueueWithManager: jest.fn(async () => undefined),
-    };
+    storageCleanup = { enqueue: jest.fn(async () => undefined), enqueueWithManager: jest.fn(async () => undefined) };
     service = new ChatService(
       repo,
       blocks,
@@ -458,5 +452,33 @@ describe('ChatService access and message rules', () => {
     }));
     expect(result).toEqual({ success: true, lastReadAt: createdAt });
   });
+  it('rejects private DM history with a user from another institution', async () => {
+    const outside = { ...student, id: 'student-outside', academicHandle: 'outside', institution: 'Different University' };
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === outside.id ? outside : null);
+    await expect(service.history(student.id, 'direct', outside.id)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(repo.createQueryBuilder).not.toHaveBeenCalled();
+  });
+
+  it('rejects sending a private DM to another institution even when the recipient ID is known', async () => {
+    const outside = { ...student, id: 'lecturer-outside', academicHandle: 'lectureroutside', role: UserRole.LECTURER, institution: 'Different University' };
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === outside.id ? outside : null);
+    await expect(service.create(student.id, { kind: 'direct', recipientId: outside.id, text: 'Hello' } as any))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('allows private DMs across faculties and departments within the same institution', async () => {
+    const lecturer = { ...student, id: 'lecturer-2', academicHandle: 'lecturer2', role: UserRole.LECTURER, faculty: 'Engineering', department: 'Mechanical Engineering' };
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === lecturer.id ? lecturer : null);
+    const qb = {
+      where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(), addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(), getMany: jest.fn(async () => []),
+    };
+    repo.createQueryBuilder.mockReturnValue(qb);
+    await expect(service.history(student.id, 'direct', lecturer.id)).resolves.toMatchObject({ items: [], hasMore: false });
+    expect(qb.where).toHaveBeenCalledWith('message.roomKey = :room', { room: 'direct:lecturer-2:student-1' });
+  });
+
 
 });

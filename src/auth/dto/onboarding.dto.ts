@@ -1,4 +1,5 @@
 import {
+  ArrayNotEmpty,
   IsArray,
   IsOptional,
   IsString,
@@ -9,6 +10,23 @@ import {
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { SocialLinksDto } from './social-links.dto';
+
+export class TeachingAssignmentDto {
+  @IsString()
+  @MaxLength(160)
+  courseName!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  courseCode?: string;
+
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  @MaxLength(80, { each: true })
+  levels!: string[];
+}
 
 export class OnboardingDto {
   @IsOptional()
@@ -36,6 +54,12 @@ export class OnboardingDto {
   @IsString({ each: true })
   @MaxLength(160, { each: true })
   coursesTaught?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => TeachingAssignmentDto)
+  teachingAssignments?: TeachingAssignmentDto[];
 
   @IsOptional()
   @IsString()

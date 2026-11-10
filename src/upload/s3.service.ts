@@ -78,25 +78,20 @@ export class S3Service {
     } catch { return null; }
   }
 
-  async uploadPublicObject(key: string, body: Buffer, contentType: string): Promise<string> {
+  async uploadPublicObject(key: string, body: Buffer, contentType: string, cacheControl?: string): Promise<string> {
     await this.client.send(new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
       Body: body,
       ContentType: contentType,
+      ...(cacheControl ? { CacheControl: cacheControl } : {}),
     }));
     return this.getPublicUrl(key);
   }
 
-
   async deleteObject(key: string): Promise<void> {
-    if (!key || key.startsWith('/') || key.split('/').some(part => !part || part === '.' || part === '..')) {
-      throw new Error('Refusing to delete an invalid storage object key');
-    }
-    await this.client.send(new DeleteObjectCommand({
-      Bucket: this.bucketName,
-      Key: key,
-    }));
+    if (!key || key.startsWith('/') || key.split('/').some(part => !part || part === '.' || part === '..')) throw new Error('Refusing to delete an invalid storage object key');
+    await this.client.send(new DeleteObjectCommand({ Bucket: this.bucketName, Key: key }));
   }
 
   async getObjectMetadata(key: string): Promise<StoredObjectMetadata | null> {

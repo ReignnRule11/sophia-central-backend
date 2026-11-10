@@ -61,6 +61,14 @@ export class ChatService {
     if (block) throw new ForbiddenException('Private messaging is unavailable because one account has blocked the other.');
   }
 
+  private assertSameInstitution(sender: User, recipient: User): void {
+    const senderInstitution = sender.institution?.trim().toLocaleLowerCase();
+    const recipientInstitution = recipient.institution?.trim().toLocaleLowerCase();
+    if (!senderInstitution || !recipientInstitution || senderInstitution !== recipientInstitution) {
+      throw new ForbiddenException('Private DM is available only between students and lecturers at the same institution.');
+    }
+  }
+
   private async assertCanViewMessage(user: User, message: ChatMessage): Promise<void> {
     if (message.kind === ChatKind.GROUP) {
       if (user.role !== UserRole.STUDENT || this.groupKey(user) !== message.roomKey) throw new ForbiddenException('You cannot reference a message outside your group.');
@@ -77,9 +85,10 @@ export class ChatService {
   }
 
   async blockUser(userId: string, blockedUserId: string) {
-    await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
     if (!blockedUserId || userId === blockedUserId) throw new BadRequestException('Choose another account to block.');
-    await this.eligible(blockedUserId, [UserRole.STUDENT, UserRole.LECTURER]);
+    const blocker = await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
+    const blocked = await this.eligible(blockedUserId, [UserRole.STUDENT, UserRole.LECTURER]);
+    this.assertSameInstitution(blocker, blocked);
     const existing = await this.blocks.findOne({ where: { userId, blockedUserId } });
     if (!existing) await this.blocks.save(this.blocks.create({ userId, blockedUserId }));
     return { success: true, blockedUserId };
@@ -223,7 +232,8 @@ export class ChatService {
     const roomKey = this.directKey(current.id, otherId);
 
     if (other) {
-      await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
+      const recipient = await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
+      this.assertSameInstitution(current, recipient);
       await this.assertNotBlocked(current.id, otherId);
     } else {
       const previousMessage = await this.repo.findOne({ where: { roomKey, kind: ChatKind.DIRECT } });
@@ -267,7 +277,8 @@ export class ChatService {
       const recipient = await this.users.findOne(otherId);
       room = this.directKey(sender.id, otherId);
       if (recipient) {
-        await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
+        const eligibleRecipient = await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
+        this.assertSameInstitution(sender, eligibleRecipient);
         await this.assertNotBlocked(sender.id, recipient.id);
       } else {
         const preservedHistory = await this.repo.findOne({ where: { roomKey: room, kind: ChatKind.DIRECT, senderId: IsNull() } });
@@ -337,6 +348,7 @@ export class ChatService {
     else {
       if (!dto.recipientId || dto.recipientId === id) throw new BadRequestException('Choose a recipient.');
       const recipient = await this.eligible(dto.recipientId, [UserRole.STUDENT, UserRole.LECTURER]);
+      this.assertSameInstitution(sender, recipient);
       await this.assertNotBlocked(sender.id, recipient.id);
       roomKey = this.directKey(sender.id, recipient.id);
     }
@@ -423,14 +435,12 @@ export class ChatService {
       const message = await manager.findOne(ChatMessage, { where: { id: messageId } });
       if (!message) throw new NotFoundException('Message not found.');
       if (message.senderId !== id) throw new ForbiddenException('You can only delete your own messages.');
-
       const keys = new Set<string>();
       if (message.voiceKey) keys.add(message.voiceKey);
       if (message.forwardedFromMessageId) {
         const original = await manager.findOne(ChatMessage, { where: { id: message.forwardedFromMessageId } });
         if (original?.voiceKey) keys.add(original.voiceKey);
       }
-
       // Keep the original key on the tombstone so active forwarded messages can
       // continue to protect the shared audio object until their last reference is removed.
       message.isDeleted = true;
@@ -438,9 +448,7 @@ export class ChatService {
       message.stickerId = null;
       roomKey = message.roomKey;
       await manager.save(ChatMessage, message);
-      for (const key of keys) {
-        await this.storageCleanup.enqueueWithManager(manager, key, 'chat-voice-message-deleted');
-      }
+      for (const key of keys) await this.storageCleanup.enqueueWithManager(manager, key, 'chat-voice-message-deleted');
     });
     this.publishRoom(roomKey);
     return { success: true, id: messageId };

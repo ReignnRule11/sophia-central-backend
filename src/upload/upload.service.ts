@@ -58,7 +58,12 @@ export class UploadService {
     if (!Number.isInteger(file.size) || file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Profile image must be smaller than 5 MB');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
-    const profileImage = await this.s3Service.uploadPublicObject(key, file.buffer, file.mimetype);
+    const profileImage = await this.s3Service.uploadPublicObject(
+      key,
+      file.buffer,
+      file.mimetype,
+      'public, max-age=31536000, immutable',
+    );
     await this.storageCleanup.enqueue(key, 'unclaimed-profile-image-upload', 24 * 60 * 60 * 1000);
     const user = await this.usersService.updateProfileImage(userId, profileImage);
     const { password: _password, ...safeUser } = user;
@@ -79,8 +84,9 @@ export class UploadService {
   async getProfileImageUrl(userId: string): Promise<{ url: string | null }> {
     const user = await this.usersService.findOne(userId);
     if (!user?.profileImage) return { url: null };
-    const key = this.s3Service.getKeyFromPublicUrl(user.profileImage);
-    return { url: key ? await this.s3Service.createPresignedDownloadUrl(key) : user.profileImage };
+    // Profile images are uploaded as public objects with unique, immutable keys.
+    // Return the stable URL instead of creating a short-lived signed URL on every session.
+    return { url: user.profileImage };
   }
 
   async completeProfileImageUpload(userId: string, dto: CompleteProfileImageUploadDto) {
@@ -210,9 +216,7 @@ export class UploadService {
     const publicUrl = this.s3Service.getPublicUrl(dto.key);
     await this.resourceRepository.manager.transaction(async manager => {
       const currentResource = await manager.findOne(Resource, { where: { id: dto.resourceId, uploaderId: userId } });
-      const currentUpload = await manager.findOne(FileUpload, {
-        where: { s3Key: dto.key, resourceId: dto.resourceId, userId, status: 'pending' },
-      });
+      const currentUpload = await manager.findOne(FileUpload, { where: { s3Key: dto.key, resourceId: dto.resourceId, userId, status: 'pending' } });
       if (!currentResource || !currentUpload) throw new BadRequestException('The resource upload changed before completion. Please retry.');
       const previousFileUrl = currentResource.fileUrl;
       currentResource.fileUrl = publicUrl;
@@ -220,9 +224,7 @@ export class UploadService {
       currentUpload.completedAt = new Date();
       await manager.save(Resource, currentResource);
       await manager.save(FileUpload, currentUpload);
-      if (previousFileUrl && previousFileUrl !== publicUrl) {
-        await this.storageCleanup.enqueueWithManager(manager, previousFileUrl, 'resource-file-replaced');
-      }
+      if (previousFileUrl && previousFileUrl !== publicUrl) await this.storageCleanup.enqueueWithManager(manager, previousFileUrl, 'resource-file-replaced');
     });
 
     return {

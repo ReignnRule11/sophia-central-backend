@@ -33,9 +33,17 @@ export class UsersService {
   }
 
   async findChatContacts(currentUserId: string, search?: string) {
+    const currentUser = await this.usersRepository.findOne({
+      where: { id: currentUserId },
+      select: ['id', 'institution'],
+    });
+    const institution = currentUser?.institution?.trim();
+    if (!institution) return [];
+
     const query = this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.academicHandle', 'user.role', 'user.institution', 'user.faculty', 'user.department'])
       .where('user.id != :currentUserId', { currentUserId })
+      .andWhere('LOWER(TRIM(user.institution)) = LOWER(TRIM(:institution))', { institution })
       .andWhere('user.role IN (:...roles)', { roles: [UserRole.STUDENT, UserRole.LECTURER] })
       .andWhere('user.isSuspended = false')
       .andWhere('user.academicHandle IS NOT NULL');
@@ -55,24 +63,47 @@ export class UsersService {
     return this.dataSource.transaction(async manager => {
       const user = await manager.findOne(User, { where: { id } });
       if (!user) throw new NotFoundException('User not found');
-
       const updateData = { ...data };
+      const facultyChanged = updateData.faculty !== undefined && updateData.faculty.trim().toLocaleLowerCase() !== (user.faculty ?? '').trim().toLocaleLowerCase();
+      const departmentChanged = updateData.department !== undefined && updateData.department.trim().toLocaleLowerCase() !== (user.department ?? '').trim().toLocaleLowerCase();
+      const completingOnboarding = updateData.isProfileComplete === true && user.isProfileComplete !== true;
+      if (facultyChanged || departmentChanged || completingOnboarding) {
+        if (updateData.faculty === undefined || updateData.department === undefined) throw new BadRequestException('Faculty and department must be selected together so the academic structure can be validated.');
+        const institutionName = (updateData.institution ?? user.institution ?? '').trim();
+        const facultyName = updateData.faculty.trim();
+        const departmentName = updateData.department.trim();
+        if (!institutionName || !facultyName || !departmentName) throw new BadRequestException('A valid institution, faculty and department are required to complete or change academic placement.');
+        const institutionRows = await manager.query('SELECT i.id FROM institutions i WHERE LOWER(TRIM(i.name)) = LOWER(TRIM($1)) LIMIT 1', [institutionName]);
+        if (!institutionRows.length) throw new BadRequestException('Your institution is not yet in the approved academic catalogue. Submit it for review before completing academic setup.');
+        const facultyRows = await manager.query('SELECT f.id FROM faculties f WHERE f."institutionId" = $1 AND LOWER(TRIM(f.name)) = LOWER(TRIM($2)) LIMIT 1', [institutionRows[0].id, facultyName]);
+        let facultySubmissionId: string | null = null;
+        if (!facultyRows.length) {
+          const pendingFacultyRows = await manager.query('SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentInstitutionId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) ORDER BY s."createdAt" DESC LIMIT 1', ['faculty', 'pending', institutionRows[0].id, facultyName]);
+          if (!pendingFacultyRows.length) throw new BadRequestException('This faculty is not in the approved catalogue. Submit it for review, then save your academic placement.');
+          facultySubmissionId = pendingFacultyRows[0].id;
+        }
+        if (facultyRows.length) {
+          const departmentRows = await manager.query('SELECT d.id FROM departments d WHERE d."facultyId" = $1 AND LOWER(TRIM(d.name)) = LOWER(TRIM($2)) LIMIT 1', [facultyRows[0].id, departmentName]);
+          if (!departmentRows.length) {
+            const pendingDepartmentRows = await manager.query('SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentFacultyId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) LIMIT 1', ['department', 'pending', facultyRows[0].id, departmentName]);
+            if (!pendingDepartmentRows.length) throw new BadRequestException('This department is not in the selected faculty catalogue. Submit it for review, then save your academic placement.');
+          }
+        } else {
+          const pendingDepartmentRows = await manager.query('SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentFacultySubmissionId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) LIMIT 1', ['department', 'pending', facultySubmissionId, departmentName]);
+          if (!pendingDepartmentRows.length) throw new BadRequestException('This department must be submitted under the pending faculty before the academic placement can be saved.');
+        }
+      }
+      if (updateData.institution !== undefined && user.isProfileComplete && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) throw new BadRequestException('Institution cannot be changed from Edit Profile. Contact Sophis Central support if your institution is incorrect.');
       if (updateData.academicHandle !== undefined) {
         const normalized = updateData.academicHandle.trim().replace(/^@+/, '').toLowerCase();
-        const existing = await manager.createQueryBuilder(User, 'user')
-          .where('LOWER(user.academicHandle) = :handle', { handle: normalized })
-          .andWhere('user.id != :id', { id })
-          .getOne();
+        const existing = await manager.createQueryBuilder(User, 'user').where('LOWER(user.academicHandle) = :handle', { handle: normalized }).andWhere('user.id != :id', { id }).getOne();
         if (existing) throw new ConflictException('Academic handle already exists');
         updateData.academicHandle = normalized;
       }
-
       const previousProfileImage = user.profileImage;
       Object.assign(user, updateData);
       const saved = await manager.save(User, user);
-      if (updateData.profileImage !== undefined && previousProfileImage && previousProfileImage !== saved.profileImage) {
-        await this.storageCleanup.enqueueWithManager(manager, previousProfileImage, 'replaced-profile-image');
-      }
+      if (updateData.profileImage !== undefined && previousProfileImage && previousProfileImage !== saved.profileImage) await this.storageCleanup.enqueueWithManager(manager, previousProfileImage, 'replaced-profile-image');
       return saved;
     });
   }

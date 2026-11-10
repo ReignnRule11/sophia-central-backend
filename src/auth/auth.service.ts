@@ -187,12 +187,15 @@ export class AuthService {
   }
 
   async completeOnboarding(userId: string, dto: OnboardingDto) {
+    const currentUser = await this.usersService.findOne(userId);
+    if (!currentUser) throw new UnauthorizedException('User not found');
     const user = await this.usersService.update(userId, {
-      institution: dto.institution,
+      ...(!currentUser.isProfileComplete ? { institution: dto.institution } : {}),
       faculty: dto.faculty,
       department: dto.department,
       programme: dto.programme,
       coursesTaught: dto.coursesTaught,
+      teachingAssignments: dto.teachingAssignments,
       studyLevel: dto.studyLevel,
       bio: dto.bio,
       ...(dto.academicHandle !== undefined ? { academicHandle: dto.academicHandle.trim().replace(/^@+/, '').toLowerCase() } : {}),
