@@ -9,6 +9,9 @@ The academic structure catalogue is institution-specific. It stores faculties, s
 - Use the academic-unit name and type as published by the institution: `faculty`, `school`, or `college`.
 - A record may omit `departmentName` when the official source confirms the academic unit but does not publish its departments on that source.
 - Do not invent departments, borrow another institution's structure, or treat generic discipline lists as institution-specific.
+- When a public directory is incomplete or inaccessible, students may enter their academic unit and full department name manually during onboarding. These profile values are not catalogue submissions and are not sent to moderators.
+- Keep manual academic placement on the user profile only; do not insert it into `faculties`, `departments`, or `academic_catalogue_submissions`.
+- Referral rewards remain pending until the institution → academic unit → department placement is independently present in the verified catalogue. An unlisted manual value does not create a moderator-review item.
 - Every record must include the institution's official HTTPS website, an official source URL on that website or its subdomain, and a verification date within the last 365 days.
 - The importer is additive: it inserts missing units/departments and refreshes provenance on exact matches. It does not rename or delete existing catalogue records or user profiles.
 
