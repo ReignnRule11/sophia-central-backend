@@ -826,7 +826,7 @@ async function fetchNbtePolytechnics(): Promise<ImportedInstitution[]> {
   console.log(JSON.stringify(excludedRecords, null, 2));
 
   console.log(
-    `NBTE validation passed: ${records.length} raw records, ${canonicalRecords.length} unique-name records after ${excludedRecords.length} exact duplicate exclusion(s). Spelling variants remain subject to the production audit review gate.`,
+    `NBTE validation passed: ${records.length} raw records, ${canonicalRecords.length} unique-name records after ${excludedRecords.length} reviewed duplicate exclusion(s). Spelling variants remain subject to the production audit review gate.`,
   );
 
   return canonicalRecords.map(
@@ -1794,7 +1794,7 @@ async function main(): Promise<void> {
           null,
           2,
         ),
-      ].join('\\n'),
+      ].join('\n'),
     );
   }
 
