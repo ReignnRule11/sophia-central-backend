@@ -30,13 +30,6 @@ type NbteDuplicateRule = {
   reason: string;
 };
 
-type NbteNearDuplicateRule = {
-  canonicalId: string;
-  duplicateIds: string[];
-  canonicalName: string;
-  reason: string;
-};
-
 type SuccessorReviewRule = {
   incomingAliases: string[];
   existingAliases: string[];
@@ -62,7 +55,7 @@ type ExistingInstitution = {
 const USER_AGENT = 'SophisCentralAcademicCatalogueImporter/1.0';
 
 const EXPECTED_NBTE_RAW_COUNT = 207;
-const EXPECTED_NBTE_UNIQUE_COUNT = 204;
+const EXPECTED_NBTE_UNIQUE_COUNT = 205;
 const EXPECTED_NCCE_UNIQUE_COUNT = 245;
 const EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT = 8;
 
@@ -90,20 +83,16 @@ const NBTE_DUPLICATE_ALLOWLIST: NbteDuplicateRule[] = [
     canonicalId: '108306',
     duplicateId: '101960',
     reason:
-      'Records 101960 and 108306 have the same displayed name, programme list and approval dates. Retain the correctly spelled record 108306.',
+      'Records 101960 and 108306 have the same displayed name and overlapping programme portfolio. Record 108306 carries a later SLT approval date (17 February 2026 versus 17 February 2025); retain record 108306.',
   },
 ];
 
-const NBTE_NEAR_DUPLICATE_ALLOWLIST: NbteNearDuplicateRule[] = [
-  {
-    canonicalId: '110924',
-    duplicateIds: ['108306'],
-    canonicalName:
-      'Raindrops Institute of Management and Technology, Amannachi, Orsu LGA, Imo State',
-    reason:
-      'Records 110924 and 108306 identify the same private institution in Orsu LGA, Imo State, with the same five-programme active portfolio and matching ownership/location. Record 110924 carries later approval dates; retain its programme-era source record while using the correctly spelled institution name shown on record 108306. Record 101960 is an exact duplicate of 108306 and is excluded by the separate exact-duplicate rule.',
-  },
-];
+
+const NBTE_SOURCE_NEAR_DUPLICATE_REVIEW = {
+  sourceRecordIds: ['108306', '110924'],
+  reason:
+    'The records have spelling-variant names, the same private ownership and Orsu LGA, and overlapping active programme portfolios. Their programme lists and approval dates are not identical: record 110924 shows several October 2025 approvals, while record 108306 includes a later February 2026 SLT approval. The official register does not establish whether these are duplicate entries or distinct approvals/campuses. Keep both visible and block --apply until NBTE confirms the legal identity and canonical record.',
+};
 
 const NCCE_NUMERIC_CLASSIFICATIONS = new Set(['1', '2', '3']);
 
@@ -112,8 +101,9 @@ const NCCE_NUMERIC_CLASSIFICATIONS = new Set(['1', '2', '3']);
  * existing production institution row: predecessor records and cross-category
  * source listings are not imported as additional institutions.
  *
- * MAPOLY remains unresolved and continues to block --apply until separately
- * reviewed. Shehu Shagari and the Raindrops source records are adjudicated below.
+ * MAPOLY and the Raindrops spelling-variant records remain unresolved and
+ * continue to block --apply until separately reviewed. Shehu Shagari is
+ * adjudicated below.
  */
 const ADJUDICATED_INSTITUTION_RULES: AdjudicatedInstitutionRule[] = [
   {
@@ -826,79 +816,6 @@ async function fetchNbtePolytechnics(): Promise<ImportedInstitution[]> {
     });
   }
 
-  const nearDuplicateExclusions: Array<{
-    canonicalId: string;
-    excludedId: string;
-    canonicalName: string;
-    reason: string;
-  }> = [];
-
-  for (const rule of NBTE_NEAR_DUPLICATE_ALLOWLIST) {
-    const canonicalSourceRecord = records.find(
-      (item) => item.recordId === rule.canonicalId,
-    );
-    const duplicateSourceRecords = rule.duplicateIds.map((id) =>
-      records.find((item) => item.recordId === id),
-    );
-
-    if (
-      !canonicalSourceRecord ||
-      duplicateSourceRecords.some((item) => !item)
-    ) {
-      throw new Error(
-        `NBTE near-duplicate source IDs do not match the reviewed exception for record ${rule.canonicalId}. No database changes were made.`,
-      );
-    }
-
-    const canonicalIndex = canonicalRecords.findIndex(
-      (item) => item.recordId === rule.canonicalId,
-    );
-
-    if (canonicalIndex === -1) {
-      throw new Error(
-        `NBTE near-duplicate canonical record ${rule.canonicalId} was not retained by exact-duplicate adjudication. No database changes were made.`,
-      );
-    }
-
-    for (const duplicateSourceRecord of duplicateSourceRecords) {
-      const duplicate = duplicateSourceRecord!;
-      const duplicateIndex = canonicalRecords.findIndex(
-        (item) => item.recordId === duplicate.recordId,
-      );
-
-      if (
-        duplicateIndex === -1 ||
-        !isPossibleNearDuplicate(
-          canonicalSourceRecord.name,
-          duplicate.name,
-        ) ||
-        canonicalSourceRecord.state !== duplicate.state ||
-        canonicalSourceRecord.ownership !== duplicate.ownership
-      ) {
-        throw new Error(
-          `NBTE near-duplicate evidence no longer matches the reviewed exception for records ${rule.canonicalId} and ${duplicate.recordId}. No database changes were made.`,
-        );
-      }
-
-      canonicalRecords.splice(duplicateIndex, 1);
-      nearDuplicateExclusions.push({
-        canonicalId: rule.canonicalId,
-        excludedId: duplicate.recordId,
-        canonicalName: rule.canonicalName,
-        reason: rule.reason,
-      });
-    }
-
-    const retainedIndex = canonicalRecords.findIndex(
-      (item) => item.recordId === rule.canonicalId,
-    );
-
-    canonicalRecords[retainedIndex] = {
-      ...canonicalRecords[retainedIndex],
-      name: rule.canonicalName,
-    };
-  }
-
   if (canonicalRecords.length !== EXPECTED_NBTE_UNIQUE_COUNT) {
     throw new Error(
       `NBTE unique count validation failed: obtained ${canonicalRecords.length}; expected ${EXPECTED_NBTE_UNIQUE_COUNT}. No database changes were made.`,
@@ -908,11 +825,8 @@ async function fetchNbtePolytechnics(): Promise<ImportedInstitution[]> {
   console.log('\nNBTE reviewed duplicate decisions:');
   console.log(JSON.stringify(excludedRecords, null, 2));
 
-  console.log('\nNBTE reviewed spelling-variant decisions:');
-  console.log(JSON.stringify(nearDuplicateExclusions, null, 2));
-
   console.log(
-    `NBTE validation passed: ${records.length} raw records, ${canonicalRecords.length} unique institutions, ${excludedRecords.length + nearDuplicateExclusions.length} reviewed duplicate exclusions.`,
+    `NBTE validation passed: ${records.length} raw records, ${canonicalRecords.length} unique-name records after ${excludedRecords.length} exact duplicate exclusion(s). Spelling variants remain subject to the production audit review gate.`,
   );
 
   return canonicalRecords.map(
@@ -1278,6 +1192,24 @@ async function runReadOnlyAudit(
     ]),
   );
 
+  const expectedSourcePairKey = [...NBTE_SOURCE_NEAR_DUPLICATE_REVIEW.sourceRecordIds]
+    .sort()
+    .join(':');
+  const actualSourcePairKeys = sourceNearDuplicateCandidates.map((pair) =>
+    [pair.first.sourceRecordId, pair.second.sourceRecordId]
+      .sort()
+      .join(':'),
+  );
+
+  if (
+    actualSourcePairKeys.length !== 1 ||
+    actualSourcePairKeys[0] !== expectedSourcePairKey
+  ) {
+    throw new Error(
+      `NBTE source near-duplicate review changed unexpectedly. Expected record pair ${expectedSourcePairKey}; found ${actualSourcePairKeys.join(', ') || 'none'}. No database changes were made.`,
+    );
+  }
+
   for (const item of records.values()) {
     const key = normalizeName(item.name);
     const matches = existingByNormalizedName.get(key) ?? [];
@@ -1482,7 +1414,12 @@ async function runReadOnlyAudit(
         sourceMetadataCoverage,
         successorCandidates,
         possibleNearDuplicates: filteredNearDuplicates,
-        sourceNearDuplicateCandidates,
+        sourceNearDuplicateCandidates: sourceNearDuplicateCandidates.map(
+          (pair) => ({
+            ...pair,
+            reviewReason: NBTE_SOURCE_NEAR_DUPLICATE_REVIEW.reason,
+          }),
+        ),
         reviewRequiredIncomingCount: new Set([
           ...successorCandidates.map((candidate: any) =>
             normalizeName(candidate.incoming),
