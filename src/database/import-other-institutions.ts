@@ -2,6 +2,7 @@ import 'reflect-metadata';
 
 import { DataSource, DataSourceOptions } from 'typeorm';
 import { typeOrmConfig } from '../config/typeorm.config';
+import { canonicalizeNigerianState } from './nigerian-state';
 import {
   Institution,
   InstitutionType,
@@ -36,6 +37,13 @@ type SuccessorReviewRule = {
   reason: string;
 };
 
+type AdjudicatedInstitutionRule = {
+  incomingAliases: string[];
+  existingAliases: string[];
+  decision: 'predecessor-successor' | 'same-institution';
+  reason: string;
+};
+
 type ExistingInstitution = {
   id?: number | string;
   name: string;
@@ -50,6 +58,74 @@ const USER_AGENT = 'SophisCentralAcademicCatalogueImporter/1.0';
 const EXPECTED_NBTE_RAW_COUNT = 207;
 const EXPECTED_NBTE_UNIQUE_COUNT = 205;
 const EXPECTED_NCCE_UNIQUE_COUNT = 245;
+const EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT = 8;
+
+/*
+ * NBTE's current directory omits state values for these records even though
+ * its own detail pages / earlier NBTE directory provide the missing values.
+ * Yenagoa Polytechnic's current NBTE record omits ownership; preserve that
+ * value as unknown rather than inferring it from third-party directories.
+ */
+const NBTE_METADATA_OVERRIDES: Array<{
+  normalizedName: string;
+  state: string;
+  ownership?: string;
+  reason: string;
+}> = [
+  {
+    normalizedName: 'eko city polytechnic',
+    state: 'Lagos',
+    ownership: 'Private',
+    reason:
+      'NBTE record 100402 gives a Lagos address in Ikotun and explicitly labels ownership Private.',
+  },
+  {
+    normalizedName: 'minna institute of technology and innovation',
+    state: 'Niger',
+    ownership: 'State',
+    reason:
+      'NBTE 2020 Directory of Accredited Programmes lists Kpakungu Road, Minna, Niger State and classifies the institution as State-owned.',
+  },
+  {
+    normalizedName: 'yenagoa polytechnic',
+    state: 'Bayelsa',
+    reason:
+      'Yenagoa is the capital of Bayelsa State, as confirmed by the Bayelsa State Government. The current NBTE institution record does not publish ownership, so ownership remains unset.',
+  },
+];
+
+const NCCE_STATE_OVERRIDES: Array<{
+  normalizedName: string;
+  state: string;
+  reason: string;
+}> = [
+  {
+    normalizedName: 'al ibadan college of education',
+    state: 'Oyo',
+    reason:
+      'The JAMB NCE institution list identifies Al-Ibadan College of Education at Ibadan, Oyo State.',
+  },
+  {
+    normalizedName: 'college of education hong',
+    state: 'Adamawa',
+    reason:
+      'The college\'s official website identifies it as Adamawa State College of Education, Hong.',
+  },
+  {
+    normalizedName: 'owu college of education',
+    state: 'Ogun',
+    reason:
+      'The college\'s official website gives its address as Wasinmi, Ewekoro, Ogun State.',
+  },
+];
+
+const EXPECTED_NBTE_UNRESOLVED_OWNERSHIP = [
+  {
+    normalizedName: 'yenagoa polytechnic',
+    reason:
+      'Current NBTE record 101176 does not publish an ownership classification. Do not infer ownership from third-party directories.',
+  },
+];
 
 const EXPECTED_PRODUCTION_DB_HOST =
   'ep-holy-bar-b5y0ppqu.c-7.us-east-2.aws.neon.tech';
@@ -75,19 +151,29 @@ const NBTE_DUPLICATE_ALLOWLIST: NbteDuplicateRule[] = [
     canonicalId: '108306',
     duplicateId: '101960',
     reason:
-      'Record 108306 contains the more recent approval information.',
+      'Records 101960 and 108306 have the same displayed name and overlapping programme portfolio. Record 108306 carries a later SLT approval date (17 February 2026 versus 17 February 2025); retain record 108306.',
   },
 ];
 
+
+const NBTE_SOURCE_NEAR_DUPLICATE_REVIEW = {
+  sourceRecordIds: ['108306', '110924'],
+  reason:
+    'The records have spelling-variant names, the same private ownership and Orsu LGA, and overlapping active programme portfolios. Their programme lists and approval dates are not identical: record 110924 shows several October 2025 approvals, while record 108306 includes a later February 2026 SLT approval. The official register does not establish whether these are duplicate entries or distinct approvals/campuses. Keep both visible and block --apply until NBTE confirms the legal identity and canonical record.',
+};
+
 const NCCE_NUMERIC_CLASSIFICATIONS = new Set(['1', '2', '3']);
 
-/**
- * These are possible successor relationships requiring manual review.
+/*
+ * Explicitly adjudicated identity relationships. These decisions preserve the
+ * existing production institution row: predecessor records and cross-category
+ * source listings are not imported as additional institutions.
  *
- * They are NOT automatic duplicate rules.
- * They must never cause an incoming institution to be silently discarded.
+ * MAPOLY and the Raindrops spelling-variant records remain unresolved and
+ * continue to block --apply until separately reviewed. Shehu Shagari is
+ * adjudicated below.
  */
-const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
+const ADJUDICATED_INSTITUTION_RULES: AdjudicatedInstitutionRule[] = [
   {
     incomingAliases: [
       'Delta State Polytechnic, Ozoro',
@@ -97,16 +183,22 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
     existingAliases: [
       'University of Science and Technology, Ozoro, Delta State',
     ],
+    decision: 'predecessor-successor',
     reason:
-      'Possible institutional upgrade or successor relationship; verify the historical institution and current university record before importing.',
+      'The state university is the documented successor to Delta State Polytechnic. Preserve the existing production institution row and do not import the predecessor as a second institution.',
   },
   {
-    incomingAliases: ['Moshood Abiola Polytechnic, Abeokuta'],
-    existingAliases: [
-      'Moshood Abiola University of Science and Technology, Abeokuta',
+    incomingAliases: [
+      'Lagos State Polytechnic',
+      'Lagos State Polytechnic, Ikorodu',
+      'Lagos State Polytechnic, Ikorodu (Now Lagos State University of Science and Technology)',
     ],
+    existingAliases: [
+      'Lagos University of Science and Technology, Ikorodu, Lagos State',
+    ],
+    decision: 'predecessor-successor',
     reason:
-      'Possible institutional upgrade or successor relationship; verify the historical institution and current university record before importing.',
+      'NBTE identifies Lagos State Polytechnic as now Lagos State University of Science and Technology. Preserve the existing production institution row.',
   },
   {
     incomingAliases: [
@@ -118,8 +210,9 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
     existingAliases: [
       'Cross River University of Education and Entrepreneurship, Akampa, Cross River State',
     ],
+    decision: 'predecessor-successor',
     reason:
-      'Possible institutional upgrade or successor relationship; the NCCE register abbreviates College as Coll. Verify before importing.',
+      'Cross River State Government documents the transition to Cross River University of Education and Entrepreneurship. Preserve the existing production institution row.',
   },
   {
     incomingAliases: [
@@ -129,8 +222,9 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
     existingAliases: [
       'Bamidele Olumulia University of Education Science and Technology, Ikere - Ekiti State',
     ],
+    decision: 'predecessor-successor',
     reason:
-      'Possible institutional upgrade or successor relationship; preserve the exact existing production name and verify the institution history before importing.',
+      'Ekiti State Government and the university identify the College of Education as part of the successor university. Preserve the existing production institution row.',
   },
   {
     incomingAliases: [
@@ -140,20 +234,9 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
     existingAliases: [
       'Shehu Shagari University of Education, Sokoto, Sokoto State',
     ],
+    decision: 'same-institution',
     reason:
-      'Possible institutional upgrade or successor relationship; verify before importing.',
-  },
-  {
-    incomingAliases: [
-      'Lagos State Polytechnic',
-      'Lagos State Polytechnic, Ikorodu',
-      'Lagos State Polytechnic, Ikorodu (Now Lagos State University of Science and Technology)',
-    ],
-    existingAliases: [
-      'Lagos University of Science and Technology, Ikorodu, Lagos State',
-    ],
-    reason:
-      'Possible institutional upgrade or successor relationship; verify the historical institution and current university record before importing.',
+      'NUC lists Shehu Shagari University of Education as a state university, and the university\'s official 2025/2026 calendar and programme pages continue to show NCE delivery under the university. The NCCE listing under the former College of Education name therefore represents the same institution, not a separate college. Retain the existing production university row.',
   },
   {
     incomingAliases: [
@@ -162,8 +245,20 @@ const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
       'Air Force Institute of Technology, Kaduna',
     ],
     existingAliases: ['Air Force Institute of Technology, Kaduna'],
+    decision: 'same-institution',
     reason:
-      'Possible acronym or location-format match. The production record is currently typed as a university, so review the type difference rather than importing a second record.',
+      'The NBTE and NUC entries refer to the same Air Force Institute of Technology. The existing production university record is retained; the NBTE polytechnic listing is not imported as a second institution.',
+  },
+];
+
+const SUCCESSOR_REVIEW_RULES: SuccessorReviewRule[] = [
+  {
+    incomingAliases: ['Moshood Abiola Polytechnic, Abeokuta'],
+    existingAliases: [
+      'Moshood Abiola University of Science and Technology, Abeokuta',
+    ],
+    reason:
+      'Conflicting official evidence requires manual review. NUC records the university and its 2017 bulletin says the former polytechnic was converted and relocated to Ipokia; however, the current NBTE register still lists Moshood Abiola Polytechnic, Abeokuta with 25 active programmes, and the institution\'s public website continues to present it as a polytechnic in Abeokuta. Do not merge or discard either record until the current legal identity and operating campus are confirmed.',
   },
 ];
 
@@ -286,7 +381,18 @@ function isPossibleNearDuplicate(
   const characterScore = nameSimilarity(a, b);
   const tokenScore = tokenSimilarity(a, b);
 
-  return characterScore >= 0.88 || tokenScore >= 0.75;
+  /*
+   * Require BOTH signals to be strong. Institution registers repeat long
+   * category prefixes (for example, "Federal Polytechnic" and "College of
+   * Education"). Character similarity alone therefore produces many false
+   * positives when two different campuses/locations share that prefix.
+   *
+   * The stricter conjunction still catches spelling variants such as
+   * "Amannchi" vs "Amannachi", while distinct location names fail the token
+   * overlap threshold. Exact normalized duplicates are handled separately
+   * by the source record map.
+   */
+  return characterScore >= 0.94 && tokenScore >= 0.75;
 }
 
 async function fetchWithRetry(
@@ -352,6 +458,33 @@ function findSuccessorReview(
         (alias) => normalizeName(alias) === existingKey,
       ),
   );
+}
+
+function findAdjudicatedInstitution(
+  incomingName: string,
+  existingInstitutions: ExistingInstitution[],
+): { existing: ExistingInstitution; rule: AdjudicatedInstitutionRule } | undefined {
+  const incomingKey = normalizeName(incomingName);
+
+  for (const rule of ADJUDICATED_INSTITUTION_RULES) {
+    if (
+      !rule.incomingAliases.some(
+        (alias) => normalizeName(alias) === incomingKey,
+      )
+    ) {
+      continue;
+    }
+
+    const existing = existingInstitutions.find((institution) =>
+      rule.existingAliases.some(
+        (alias) => normalizeName(alias) === normalizeName(institution.name),
+      ),
+    );
+
+    if (existing) return { existing, rule };
+  }
+
+  return undefined;
 }
 
 function buildExistingNameIndex(
@@ -761,7 +894,7 @@ async function fetchNbtePolytechnics(): Promise<ImportedInstitution[]> {
   console.log(JSON.stringify(excludedRecords, null, 2));
 
   console.log(
-    `NBTE validation passed: ${records.length} raw records, ${canonicalRecords.length} unique institutions, ${excludedRecords.length} reviewed duplicate exclusions.`,
+    `NBTE validation passed: ${records.length} raw records, ${canonicalRecords.length} unique-name records after ${excludedRecords.length} reviewed duplicate exclusion(s). Spelling variants remain subject to the production audit review gate.`,
   );
 
   return canonicalRecords.map(
@@ -1113,9 +1246,11 @@ async function runReadOnlyAudit(
   const formattingMatches: object[] = [];
   const typeConflicts: object[] = [];
   const ambiguousMatches: object[] = [];
+  const adjudicatedMatches: object[] = [];
   const successorCandidates: object[] = [];
   const possibleNearDuplicates: object[] = [];
   const unmatched: string[] = [];
+  const unmatchedRecords: ImportedInstitution[] = [];
   const sourceNearDuplicateCandidates =
     findIncomingNearDuplicatePairs(records);
   const sourceNearDuplicateKeys = new Set(
@@ -1124,6 +1259,24 @@ async function runReadOnlyAudit(
       normalizeName(pair.second.name),
     ]),
   );
+
+  const expectedSourcePairKey = [...NBTE_SOURCE_NEAR_DUPLICATE_REVIEW.sourceRecordIds]
+    .sort()
+    .join(':');
+  const actualSourcePairKeys = sourceNearDuplicateCandidates.map((pair) =>
+    [pair.first.sourceRecordId, pair.second.sourceRecordId]
+      .sort()
+      .join(':'),
+  );
+
+  if (
+    actualSourcePairKeys.length !== 1 ||
+    actualSourcePairKeys[0] !== expectedSourcePairKey
+  ) {
+    throw new Error(
+      `NBTE source near-duplicate review changed unexpectedly. Expected record pair ${expectedSourcePairKey}; found ${actualSourcePairKeys.join(', ') || 'none'}. No database changes were made.`,
+    );
+  }
 
   for (const item of records.values()) {
     const key = normalizeName(item.name);
@@ -1163,6 +1316,25 @@ async function runReadOnlyAudit(
         typeConflicts.push(match);
       }
 
+      continue;
+    }
+
+    const adjudicated = findAdjudicatedInstitution(
+      item.name,
+      existingInstitutions,
+    );
+
+    if (adjudicated) {
+      adjudicatedMatches.push({
+        incoming: item.name,
+        sourceName: item.sourceName,
+        incomingType: item.institutionType,
+        existing: adjudicated.existing.name,
+        existingType: adjudicated.existing.institutionType,
+        source: item.source,
+        decision: adjudicated.rule.decision,
+        reason: adjudicated.rule.reason,
+      });
       continue;
     }
 
@@ -1210,6 +1382,7 @@ async function runReadOnlyAudit(
       !sourceNearDuplicateKeys.has(key)
     ) {
       unmatched.push(item.name);
+      unmatchedRecords.push(item);
     }
   }
 
@@ -1232,6 +1405,66 @@ async function runReadOnlyAudit(
     }),
   ).filter((candidate: any) => candidate.candidates.length > 0);
 
+  const incomingItems = [...records.values()];
+  const sourceMetadataCoverage = (['NBTE', 'NCCE'] as const).map(
+    (source) => {
+      const sourceItems = incomingItems.filter(
+        (item) => item.source === source,
+      );
+      return {
+        source,
+        total: sourceItems.length,
+        missingStateCount: sourceItems.filter((item) => !item.state).length,
+        missingOwnershipCount: sourceItems.filter(
+          (item) => !item.ownership,
+        ).length,
+        missingOwnershipNames: sourceItems
+          .filter((item) => !item.ownership)
+          .map((item) => item.name),
+      };
+    },
+  );
+
+  const countBy = (
+    items: ImportedInstitution[],
+    keyFor: (item: ImportedInstitution) => string,
+  ): Record<string, number> => {
+    const counts: Record<string, number> = {};
+    for (const item of items) {
+      const key = keyFor(item);
+      counts[key] = (counts[key] ?? 0) + 1;
+    }
+    return Object.fromEntries(
+      Object.entries(counts).sort(([a], [b]) => a.localeCompare(b)),
+    );
+  };
+
+  const unmatchedSummary = {
+    total: unmatchedRecords.length,
+    bySource: countBy(unmatchedRecords, (item) => item.source),
+    byInstitutionType: countBy(
+      unmatchedRecords,
+      (item) => item.institutionType,
+    ),
+    byState: countBy(unmatchedRecords, (item) => item.state ?? 'MISSING'),
+    byOwnership: countBy(
+      unmatchedRecords,
+      (item) => item.ownership ?? 'UNSPECIFIED',
+    ),
+    missingStateCount: unmatchedRecords.filter((item) => !item.state).length,
+    missingOwnershipCount: unmatchedRecords.filter(
+      (item) => !item.ownership,
+    ).length,
+    missingMetadataNames: unmatchedRecords
+      .filter((item) => !item.state || !item.ownership)
+      .map((item) => ({
+        name: item.name,
+        source: item.source,
+        missingState: !item.state,
+        missingOwnership: !item.ownership,
+      })),
+  };
+
   console.log('\nREAD-ONLY PRODUCTION AUDIT RESULTS:');
 
   console.log(
@@ -1244,9 +1477,17 @@ async function runReadOnlyAudit(
         formattingMatches,
         typeConflicts,
         ambiguousMatches,
+        adjudicatedMatches,
+        adjudicatedIncomingCount: adjudicatedMatches.length,
+        sourceMetadataCoverage,
         successorCandidates,
         possibleNearDuplicates: filteredNearDuplicates,
-        sourceNearDuplicateCandidates,
+        sourceNearDuplicateCandidates: sourceNearDuplicateCandidates.map(
+          (pair) => ({
+            ...pair,
+            reviewReason: NBTE_SOURCE_NEAR_DUPLICATE_REVIEW.reason,
+          }),
+        ),
         reviewRequiredIncomingCount: new Set([
           ...successorCandidates.map((candidate: any) =>
             normalizeName(candidate.incoming),
@@ -1257,6 +1498,7 @@ async function runReadOnlyAudit(
           ...sourceNearDuplicateKeys,
         ]).size,
         unmatchedCount: unmatched.length,
+        unmatchedSummary,
         unmatched,
         databaseChangesMade: false,
       },
@@ -1295,6 +1537,10 @@ async function runImport(
   let inserted = 0;
   let updated = 0;
   let unchanged = 0;
+  let excludedAsAdjudicated = 0;
+
+  const excludedIncomingKeys = new Set<string>();
+  const adjudicatedDecisions: object[] = [];
 
   const conflicts: Array<{
     name: string;
@@ -1353,6 +1599,22 @@ async function runImport(
             'Multiple existing production records share this normalized name.',
         });
 
+        continue;
+      }
+
+      const adjudicated = findAdjudicatedInstitution(
+        item.name,
+        existingInstitutions,
+      );
+
+      if (adjudicated) {
+        excludedIncomingKeys.add(key);
+        adjudicatedDecisions.push({
+          incoming: item.name,
+          existing: adjudicated.existing.name,
+          decision: adjudicated.rule.decision,
+          reason: adjudicated.rule.reason,
+        });
         continue;
       }
 
@@ -1432,6 +1694,11 @@ async function runImport(
      */
 
     for (const [key, item] of records.entries()) {
+      if (excludedIncomingKeys.has(key)) {
+        excludedAsAdjudicated += 1;
+        continue;
+      }
+
       const existing = existingByIncomingName.get(key) ?? null;
 
       if (existing) {
@@ -1489,6 +1756,8 @@ async function runImport(
         inserted,
         updated,
         unchanged,
+        excludedAsAdjudicated,
+        adjudicatedDecisions,
         conflicts: conflicts.length,
         transaction: 'committed',
         deleted: 0,
@@ -1529,6 +1798,63 @@ async function main(): Promise<void> {
     fetchNcceInstitutions(),
   ]);
 
+  for (const item of polytechnics) {
+    const override = NBTE_METADATA_OVERRIDES.find(
+      (candidate) => candidate.normalizedName === normalizeName(item.name),
+    );
+    if (!override) continue;
+
+    item.state = override.state;
+    if (override.ownership) item.ownership = override.ownership;
+    console.log(
+      `Applied documented NBTE metadata correction for "${item.name}": ${override.reason}`,
+    );
+  }
+
+  const invalidStateValues: Array<{
+    name: string;
+    source: ImportedInstitution['source'];
+    state: string;
+  }> = [];
+
+  for (const item of ncceRecords) {
+    const override = NCCE_STATE_OVERRIDES.find(
+      (candidate) => candidate.normalizedName === normalizeName(item.name),
+    );
+
+    if (override) {
+      item.state = override.state;
+      console.log(
+        `Applied documented NCCE state correction for "${item.name}": ${override.reason}`,
+      );
+    }
+  }
+
+  for (const item of [...polytechnics, ...ncceRecords]) {
+    if (!item.state) continue;
+
+    const canonicalState = canonicalizeNigerianState(item.state);
+    if (!canonicalState) {
+      invalidStateValues.push({
+        name: item.name,
+        source: item.source,
+        state: item.state,
+      });
+      continue;
+    }
+
+    item.state = canonicalState;
+  }
+
+  if (invalidStateValues.length > 0) {
+    throw new Error(
+      [
+        'Institution source metadata validation failed: invalid Nigerian state values were found. No database changes were made.',
+        JSON.stringify(invalidStateValues, null, 2),
+      ].join('\n'),
+    );
+  }
+
   const records = new Map<string, ImportedInstitution>();
 
   for (const item of [...polytechnics, ...ncceRecords]) {
@@ -1558,6 +1884,78 @@ async function main(): Promise<void> {
     }
 
     records.set(key, item);
+  }
+
+  const nbteMissingState = polytechnics.filter((item) => !item.state);
+  const nbteMissingOwnership = polytechnics.filter(
+    (item) => !item.ownership,
+  );
+  const nbteMetadataIssues = polytechnics.filter(
+    (item) => !item.state || !item.ownership,
+  );
+  const expectedNbteMissingOwnership = new Set(
+    EXPECTED_NBTE_UNRESOLVED_OWNERSHIP.map(
+      (item) => item.normalizedName,
+    ),
+  );
+  const unexpectedNbteMetadataIssues = nbteMetadataIssues.filter(
+    (item) =>
+      (!item.state && normalizeName(item.name) !== 'yenagoa polytechnic') ||
+      (!item.ownership && !expectedNbteMissingOwnership.has(normalizeName(item.name))),
+  );
+  const ncceMissingState = ncceRecords.filter((item) => !item.state);
+  const ncceMissingOwnership = ncceRecords.filter(
+    (item) => !item.ownership,
+  );
+
+  const metadataDiagnostics = {
+    nbteMissingState: nbteMissingState.map((item) => item.name),
+    nbteMissingOwnership: nbteMissingOwnership.map((item) => ({
+      name: item.name,
+      reason:
+        EXPECTED_NBTE_UNRESOLVED_OWNERSHIP.find(
+          (expected) => expected.normalizedName === normalizeName(item.name),
+        )?.reason ?? 'No documented ownership value is available.',
+    })),
+    ncceMissingState: ncceMissingState.map((item) => item.name),
+    ncceMissingOwnership: ncceMissingOwnership.map((item) => item.name),
+    expectedNcceUnresolvedOwnershipCount:
+      EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT,
+  };
+
+  if (
+    unexpectedNbteMetadataIssues.length > 0 ||
+    ncceMissingState.length > 0 ||
+    ncceMissingOwnership.length !== EXPECTED_NCCE_UNRESOLVED_OWNERSHIP_COUNT ||
+    (apply && nbteMetadataIssues.length > 0)
+  ) {
+    throw new Error(
+      [
+        'Source metadata validation failed. No database changes were made.',
+        JSON.stringify(
+          {
+            ...metadataDiagnostics,
+            unexpectedNbteMetadataIssues: unexpectedNbteMetadataIssues.map(
+              (item) => item.name,
+            ),
+            applyBlockedByUnresolvedNbteMetadata:
+              apply && nbteMetadataIssues.length > 0,
+          },
+          null,
+          2,
+        ),
+      ].join('\n'),
+    );
+  }
+
+  console.log(
+    `Source metadata validation passed for read-only audit/dry-run: NBTE ${polytechnics.length} records, ${nbteMissingState.length} unresolved state values, ${nbteMissingOwnership.length} unresolved ownership values; NCCE ${ncceRecords.length} records, ${ncceMissingOwnership.length} explicitly unresolved ownership values.`,
+  );
+  if (nbteMetadataIssues.length > 0) {
+    console.log(
+      'NBTE metadata exceptions are permitted for read-only audit only. --apply remains blocked until every NBTE record has state and ownership.',
+    );
+    console.log(JSON.stringify(metadataDiagnostics, null, 2));
   }
 
   const mode = audit ? 'audit' : apply ? 'apply' : 'dry-run';
