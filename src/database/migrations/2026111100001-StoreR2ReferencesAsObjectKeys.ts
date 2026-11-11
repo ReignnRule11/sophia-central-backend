@@ -4,16 +4,16 @@ export class StoreR2ReferencesAsObjectKeys2026111100001 implements MigrationInte
   name = 'StoreR2ReferencesAsObjectKeys2026111100001';
 
   async up(queryRunner: QueryRunner): Promise<void> {
-    const ownedReference = '^https?://[^/]+/(profile-images|resources|support-attachments)/[0-9a-f-]{36}/[A-Za-z0-9][A-Za-z0-9._-]{0,179}$';
+    const ownedReference = '^https?://sophia-central\\.s3\\.auto\\.amazonaws\\.com/(profile-images|resources|support-attachments)/[0-9a-f-]{36}/[A-Za-z0-9][A-Za-z0-9._-]{0,179}$';
     await queryRunner.query(
       `UPDATE users
-       SET "profileImage" = regexp_replace("profileImage", '^https?://[^/]+/', '')
+       SET "profileImage" = regexp_replace("profileImage", '^https?://sophia-central\\.s3\\.auto\\.amazonaws\\.com/', '')
        WHERE "profileImage" ~* $1`,
       [ownedReference],
     );
     await queryRunner.query(
       `UPDATE resources
-       SET "fileUrl" = regexp_replace("fileUrl", '^https?://[^/]+/', '')
+       SET "fileUrl" = regexp_replace("fileUrl", '^https?://sophia-central\\.s3\\.auto\\.amazonaws\\.com/', '')
        WHERE "fileUrl" ~* $1`,
       [ownedReference],
     );
@@ -24,7 +24,7 @@ export class StoreR2ReferencesAsObjectKeys2026111100001 implements MigrationInte
            jsonb_agg(
              to_jsonb(
                CASE WHEN item.value ~* $1
-                 THEN regexp_replace(item.value, '^https?://[^/]+/', '')
+                 THEN regexp_replace(item.value, '^https?://sophia-central\\.s3\\.auto\\.amazonaws\\.com/', '')
                  ELSE item.value
                END
              ) ORDER BY item.ordinality
