@@ -69,13 +69,25 @@ export class S3Service {
     try {
       const parsed = new URL(value);
       const base = new URL(this.publicBaseUrl);
-      if (parsed.host !== base.host) return null;
+      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
+      if (parsed.host !== base.host || parsed.username || parsed.password) return null;
       const basePath = base.pathname.replace(/\/$/, '');
-      const pathname = decodeURIComponent(parsed.pathname);
-      if (!pathname.startsWith(`${basePath}/`)) return null;
-      const key = pathname.slice(basePath.length + 1);
-      return key && !key.split('/').includes('..') ? key : null;
+      if (!parsed.pathname.startsWith(`${basePath}/`)) return null;
+      const encodedKey = parsed.pathname.slice(basePath.length + 1);
+      const segments = encodedKey.split('/');
+      if (!segments.length || segments.some(segment => !segment)) return null;
+      const decoded = segments.map(segment => decodeURIComponent(segment));
+      if (decoded.some(segment => !segment || segment === '.' || segment === '..' || segment.includes('/') || segment.includes(String.fromCharCode(92)))) return null;
+      const key = decoded.join('/');
+      return this.isAllowedObjectKey(key) ? key : null;
     } catch { return null; }
+  }
+
+  private isAllowedObjectKey(key: string): boolean {
+    if (!key || key.startsWith('/') || key.includes(String.fromCharCode(92)) || [...key].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return false;
+    if (key.split('/').some(part => !part || part === '.' || part === '..')) return false;
+    return ['profile-images/', 'resources/', 'support-attachments/', 'voice-messages/']
+      .some(prefix => key.startsWith(prefix));
   }
 
   async uploadPublicObject(key: string, body: Buffer, contentType: string, cacheControl?: string): Promise<string> {
@@ -90,7 +102,7 @@ export class S3Service {
   }
 
   async deleteObject(key: string): Promise<void> {
-    if (!key || key.startsWith('/') || key.split('/').some(part => !part || part === '.' || part === '..')) throw new Error('Refusing to delete an invalid storage object key');
+    if (!this.isAllowedObjectKey(key)) throw new Error('Refusing to delete an invalid or non-application storage object key');
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucketName, Key: key }));
   }
 

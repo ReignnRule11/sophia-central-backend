@@ -97,3 +97,41 @@ describe('StorageCleanupService retry backoff safety', () => {
     expect(params[2]).toBe(expectedDelay);
   });
 });
+
+describe('StorageCleanupService worker deletion boundary', () => {
+  const makeWorker = (key: string) => {
+    const dataSource = {
+      transaction: jest.fn(async (callback: (manager: any) => unknown) => callback({ query: jest.fn().mockResolvedValue([]) })),
+    } as any;
+    const s3 = { deleteObject: jest.fn().mockResolvedValue(undefined) } as any;
+    const service = new StorageCleanupService(dataSource, s3);
+    jest.spyOn(service as any, 'queueExpiredPendingUploads').mockResolvedValue(undefined);
+    jest.spyOn(service as any, 'claimJobs').mockResolvedValue([{ id: 'job-1', object_key: key, attempts: 1 }]);
+    jest.spyOn(service as any, 'isReferenced').mockResolvedValue(false);
+    const finishJob = jest.spyOn(service as any, 'finishJob').mockResolvedValue(undefined);
+    return { service, s3, finishJob };
+  };
+
+  it('protects malformed or out-of-scope persisted jobs without checking or deleting them', async () => {
+    const { service, s3, finishJob } = makeWorker('private-backups/database.dump');
+    await service.runBatch();
+    expect(finishJob).toHaveBeenCalledWith('job-1', 'protected');
+    expect(s3.deleteObject).not.toHaveBeenCalled();
+    expect((service as any).isReferenced).not.toHaveBeenCalled();
+  });
+
+  it('revalidates and deletes a valid application-owned key only after the reference check', async () => {
+    const { service, s3, finishJob } = makeWorker('resources/user/file.pdf');
+    await service.runBatch();
+    expect((service as any).isReferenced).toHaveBeenCalledWith('resources/user/file.pdf');
+    expect(s3.deleteObject).toHaveBeenCalledWith('resources/user/file.pdf');
+    expect(finishJob).toHaveBeenCalledWith('job-1', 'deleted');
+  });
+
+  it('protects keys with leading or trailing whitespace instead of normalizing them into a valid key', async () => {
+    const { service, s3, finishJob } = makeWorker(' resources/user/file.pdf ');
+    await service.runBatch();
+    expect(finishJob).toHaveBeenCalledWith('job-1', 'protected');
+    expect(s3.deleteObject).not.toHaveBeenCalled();
+  });
+});
