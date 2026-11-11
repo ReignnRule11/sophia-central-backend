@@ -6167,5 +6167,942 @@
     "officialSourceUrl": "https://www.uniabuja.edu.ng/engineering",
     "verifiedAt": "2026-11-11",
     "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-agriculture/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-arts/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Basic Medical Science",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-basic-medical-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-management-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Education",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-education/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-engineering/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-environmental-studies/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Law",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-law/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Pharmacy",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-pharmacy/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Biological Sciences",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-biological-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Computing",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-computing/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Vocational Education",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-vocational-education/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-physical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Social Science",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-social-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "departmentName": "Agricultural Economics and Extension",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-agriculture/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "departmentName": "Animal Science",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-agriculture/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "departmentName": "Crop Science",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-agriculture/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "departmentName": "Fisheries and Aquaculture",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-agriculture/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "departmentName": "Food Science and Technology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-agriculture/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "departmentName": "Forestry and Wildlife",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-agriculture/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "departmentName": "Home Economics",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-agriculture/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Agriculture",
+    "departmentName": "Soil Science",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-agriculture/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "departmentName": "Communication Arts",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-arts/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "departmentName": "English",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-arts/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "departmentName": "History and International Studies",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-arts/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "departmentName": "Linguistics and Nigerian Languages",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-arts/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "departmentName": "Music",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-arts/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "departmentName": "Philosophy",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-arts/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "departmentName": "Religious and Cultural Studies",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-arts/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "departmentName": "Theatre Arts",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-arts/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Basic Medical Science",
+    "departmentName": "Anatomy",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-basic-medical-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Basic Medical Science",
+    "departmentName": "Biochemistry",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-basic-medical-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Basic Medical Science",
+    "departmentName": "Physiology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-basic-medical-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Pathology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Chemical Pathology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Medical Microbiology and Parasitology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Haematology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Community Health",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Medicine",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Surgery",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Paediatrics",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Family Medicine",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Obstetrics and Gynaecology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Anaesthesia",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Ophthalmology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Psychiatry",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Radiology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Orthopaedics and Traumatology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/clinical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "departmentName": "Nursing Sciences",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "departmentName": "Radiography",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "departmentName": "Medical Laboratory Sciences",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "departmentName": "Physiotherapy",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "departmentName": "Nutrition and Dietetics",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "departmentName": "Preventive Dentistry",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "departmentName": "Oral Pathology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "departmentName": "Oral and Maxillofacial Surgery",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "departmentName": "Restorative Dentistry",
+    "officialSourceUrl": "https://uniuyo.edu.ng/college-of-health-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Early Childhood and Special Education",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-education/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Educational Technology and Library Science",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-education/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Educational Foundations, Guidance and Counselling",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-education/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Curriculum Studies and Educational Management Planning",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-education/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Vocational Education",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-education/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Science Education",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-education/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Physical and Health Education",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-education/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Agricultural Engineering",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-engineering/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Food Engineering",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-engineering/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Petroleum Engineering",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-engineering/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Chemical Engineering",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-engineering/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Civil Engineering",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-engineering/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Mechanical Engineering",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-engineering/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Computer Engineering",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-engineering/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Electrical and Electronics Engineering",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-engineering/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "departmentName": "Architecture",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-environmental-studies/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "departmentName": "Building",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-environmental-studies/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "departmentName": "Estate Management",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-environmental-studies/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "departmentName": "Fine and Industrial Arts",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-environmental-studies/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "departmentName": "Quantity Surveying",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-environmental-studies/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "departmentName": "Geoinformatics and Land Surveying",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-environmental-studies/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Environmental Studies",
+    "departmentName": "Urban and Regional Planning",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-environmental-studies/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Law",
+    "departmentName": "Public Law",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-law/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Law",
+    "departmentName": "Private Law",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-law/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Law",
+    "departmentName": "International Law and Jurisprudence",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-law/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Pharmacy",
+    "departmentName": "Pharmaceutics and Pharmaceutical Technology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-pharmacy/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Pharmacy",
+    "departmentName": "Pharmaceutical and Medical Chemistry",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-pharmacy/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Pharmacy",
+    "departmentName": "Pharmacognosy and Natural Medicine",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-pharmacy/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Pharmacy",
+    "departmentName": "Pharmacology and Toxicology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-pharmacy/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Pharmacy",
+    "departmentName": "Clinical and Biopharmacy",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-pharmacy/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Biological Sciences",
+    "departmentName": "Botany and Ecological Studies",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-biological-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Biological Sciences",
+    "departmentName": "Microbiology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-biological-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Biological Sciences",
+    "departmentName": "Animal and Environmental Biology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-biological-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Computing",
+    "departmentName": "Computer Science",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-computing/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Computing",
+    "departmentName": "Cyber Security",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-computing/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Computing",
+    "departmentName": "Data Science",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-computing/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "departmentName": "Chemistry",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-physical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "departmentName": "Geoscience",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-physical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "departmentName": "Mathematics",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-physical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "departmentName": "Physics",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-physical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Physical Sciences",
+    "departmentName": "Statistics",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-physical-sciences/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Social Science",
+    "departmentName": "Economics",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-social-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Social Science",
+    "departmentName": "Geography",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-social-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Social Science",
+    "departmentName": "Political Science and Public Administration",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-social-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Social Science",
+    "departmentName": "Psychology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-social-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "University of Uyo, Uyo",
+    "institutionWebsite": "https://uniuyo.edu.ng",
+    "facultyName": "Faculty of Social Science",
+    "departmentName": "Sociology and Anthropology",
+    "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-social-science/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
   }
 ]
