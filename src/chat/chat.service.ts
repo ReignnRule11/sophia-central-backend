@@ -8,6 +8,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { S3Service } from '../upload/s3.service';
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
+import { matchesFileSignature } from '../upload/file-signature.util';
 import { ChatContentType, ChatKind, ChatMessage } from './entities/chat-message.entity';
 import { CreateChatMessageDto, CreateVoiceUploadDto } from './dto/create-chat-message.dto';
 import { RedisChatService } from './redis-chat.service';
@@ -374,6 +375,10 @@ export class ChatService {
       }
       const extension = key.split('.').pop();
       if (VOICE_TYPES[stored.contentType] !== extension) throw new BadRequestException('Audio file type does not match its upload key.');
+      const prefix = await this.s3.getObjectPrefix(key);
+      if (!prefix || !matchesFileSignature(prefix, stored.contentType)) {
+        throw new BadRequestException('Voice recording content does not match its declared audio type.');
+      }
       contentType = ChatContentType.VOICE;
       voiceKey = key;
     }

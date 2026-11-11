@@ -15,7 +15,7 @@ describe('UploadService.completeUpload', () => {
   let service: UploadService;
   let fileUploadRepository: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
   let resourceRepository: any;
-  let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock };
+  let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock; getObjectPrefix: jest.Mock };
   let transactionManager: any;
   let storageCleanup: any;
 
@@ -54,6 +54,7 @@ describe('UploadService.completeUpload', () => {
         contentType: dto.mimetype,
       }),
       getPublicUrl: jest.fn().mockReturnValue('https://files.example.test/resources/user-1/test.pdf'),
+      getObjectPrefix: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.7')),
     };
 
     storageCleanup = {
@@ -95,6 +96,12 @@ describe('UploadService.completeUpload', () => {
     expect(transactionManager.save).not.toHaveBeenCalled();
   });
 
+  it('rejects an object whose bytes do not match the declared MIME type', async () => {
+    s3Service.getObjectPrefix.mockResolvedValueOnce(Buffer.from('not-a-pdf'));
+    await expect(service.completeUpload(userId, dto)).rejects.toThrow('content does not match');
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
   it('links the verified object and marks the matching pending upload completed', async () => {
     const result = await service.completeUpload(userId, dto);
 
@@ -102,5 +109,70 @@ describe('UploadService.completeUpload', () => {
     expect(transactionManager.save).toHaveBeenCalledTimes(2);
     expect(transactionManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ fileUrl: result.fileUrl }));
     expect(transactionManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'completed' }));
+  });
+});
+
+
+describe('UploadService.getUploadDetails', () => {
+  const ownerId = 'owner-1';
+  const uploadId = 'upload-1';
+  const record = {
+    uploadId,
+    userId: ownerId,
+    resourceId: 'resource-1',
+    filename: 'notes.pdf',
+    mimetype: 'application/pdf',
+    size: 128,
+    status: 'completed',
+    uploadedAt: new Date('2026-11-11T10:00:00.000Z'),
+    completedAt: new Date('2026-11-11T10:01:00.000Z'),
+    s3Key: 'resources/owner-1/private.pdf',
+    resource: { id: 'resource-1', title: 'Study notes', uploaderId: ownerId },
+  };
+
+  it('returns only safe metadata for an upload owned by the authenticated user', async () => {
+    const repository = { findOne: jest.fn().mockResolvedValue(record) };
+    const service = new UploadService(
+      repository as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+
+    await expect(service.getUploadDetails(ownerId, uploadId)).resolves.toEqual({
+      uploadId,
+      resourceId: 'resource-1',
+      filename: 'notes.pdf',
+      mimetype: 'application/pdf',
+      size: 128,
+      status: 'completed',
+      uploadedAt: record.uploadedAt,
+      completedAt: record.completedAt,
+      resource: { id: 'resource-1', title: 'Study notes' },
+    });
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { uploadId, userId: ownerId },
+      relations: ['resource'],
+    });
+  });
+
+  it('does not reveal upload identifiers owned by another account', async () => {
+    const repository = { findOne: jest.fn().mockResolvedValue(null) };
+    const service = new UploadService(
+      repository as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+    );
+
+    await expect(service.getUploadDetails('attacker-1', uploadId)).rejects.toThrow('Upload not found');
+    expect(repository.findOne).toHaveBeenCalledWith({
+      where: { uploadId, userId: 'attacker-1' },
+      relations: ['resource'],
+    });
   });
 });

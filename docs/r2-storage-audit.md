@@ -2,6 +2,31 @@
 
 Sophis Central stores uploaded objects in the `sophia-central` Cloudflare R2 bucket through the AWS S3-compatible API.
 
+## Private object access and key structure
+
+Keep the R2 bucket private. Do not enable the public development URL or add a public domain just to make application uploads render.
+
+New application object keys use exactly three path segments:
+
+```text
+profile-images/{owner-uuid}/{unique-filename}.{ext}
+resources/{owner-uuid}/{unique-filename}.{ext}
+support-attachments/{owner-uuid}/{unique-filename}.{ext}
+voice-messages/{owner-uuid}/{unique-filename}.{ext}
+```
+
+The shared `src/upload/s3.service.ts` is the only active S3-compatible client. It validates the application prefix, UUID owner segment, filename and path shape before presigning upload/download requests, reading metadata, or deleting objects. The unused legacy `src/storage` controller/service was removed.
+
+Database fields such as `users.profileImage` and `resources.fileUrl` currently retain legacy canonical reference URLs for compatibility with existing rows and cleanup checks. Treat these values as object references, not browser-accessible public URLs. Authorized endpoints should create short-lived signed download URLs. Profile images can be resolved through the authenticated `GET /upload/profile-image/{userId}/url` endpoint; support-request attachment responses are signed when returned to the submitter or moderator. Resource and chat voice downloads already use signed URLs.
+
+The support-request create path verifies that every submitted attachment belongs to the submitting account's `support-attachments/{owner-uuid}/` prefix and checks the stored object's existence, size and MIME metadata before saving the request. Multipart image uploads and presigned resource/voice uploads are checked against file signatures as well as their declared MIME types and sizes. The R2 client reads only a bounded object prefix for this check. Upload-detail lookup requires authentication and only returns records owned by the current account.
+
+## Upload validation limits
+
+File-signature checks detect MIME spoofing and obvious file-type mismatches; they are not antivirus scanning. The active root Nest upload pipeline does not currently run ClamAV or another malware scanner.
+
+The older `apps/api` + `libs/storage` scanner experiment is not wired into the production Nest application and must not be treated as a production security control. Its local-development fallback can mark files as passed when no ClamAV service is configured. A production malware-scanning workflow requires a separately reviewed integration that fails closed when the scanner is unavailable and gates resource publication on a recorded clean result.
+
 ## Automatic cleanup after deployment
 
 The `storage_cleanup_jobs` table is a transactional outbox for object deletion. Upload, replacement, resource deletion, chat-message deletion, and account deletion paths enqueue cleanup work in the same database transaction as the reference change wherever possible.
@@ -44,7 +69,7 @@ Required environment variables:
 - `AWS_ACCESS_KEY_ID`
 - `AWS_SECRET_ACCESS_KEY`
 - `AWS_REGION` — defaults to `auto`
-- `AWS_S3_BUCKET_URL` — public URL base used by the application
+- `AWS_S3_BUCKET_URL` — legacy canonical reference URL base used to map database references back to object keys; this setting does not make the bucket public
 - `R2_ORPHAN_GRACE_DAYS` — optional; defaults to 7
 
 Use a bucket-scoped Cloudflare R2 token with object-list/read permissions for this inventory. Reports are written under `storage-audit/`, which is ignored by Git.

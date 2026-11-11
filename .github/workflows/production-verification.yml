@@ -77,7 +77,7 @@ jobs:
           "src/database/**/*.ts"
           "src/notifications/**/*.ts"
           "src/resources/entities/resource.entity.ts"
-          "src/storage/**/*.ts"
+          "src/upload/**/*.ts"
           "src/users/**/*.ts"
           --rule "prettier/prettier: off"
       - name: Dependency security audit

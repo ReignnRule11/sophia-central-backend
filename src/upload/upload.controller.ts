@@ -5,9 +5,9 @@ import {
   Param,
   UseInterceptors,
   UploadedFile,
-  BadRequestException,
   UseGuards,
   Body,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -77,9 +77,17 @@ export class UploadController {
   @Get('profile-image/url')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get the stable public URL for the current user profile image' })
+  @ApiOperation({ summary: 'Get the current user profile image URL' })
   getProfileImageUrl(@CurrentUser() user: User) {
     return this.uploadService.getProfileImageUrl(user.id);
+  }
+
+  @Get('profile-image/:userId/url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a short-lived signed URL for an account profile image' })
+  getAccountProfileImageUrl(@Param('userId', new ParseUUIDPipe()) userId: string) {
+    return this.uploadService.getProfileImageUrl(userId);
   }
 
   @Post('profile-image/presigned-url')
@@ -105,8 +113,10 @@ export class UploadController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get upload details' })
-  async getUploadDetails(@Param('id') id: string) {
-    return this.uploadService.getUploadDetails(id);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the authenticated user’s upload details' })
+  async getUploadDetails(@CurrentUser() user: User, @Param('id', new ParseUUIDPipe()) id: string) {
+    return this.uploadService.getUploadDetails(user.id, id);
   }
 }
