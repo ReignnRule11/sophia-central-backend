@@ -48,7 +48,9 @@ Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,367 source rows representing 385 academic units and 1,054 departments across 26 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,367 source rows representing 385 academic units and 1,054 departments across 26 of the 769 production institutions.
+
+Coverage by institution type in this branch: 22/328 universities, 3/199 polytechnics, and 1/242 colleges of education. The remaining 743 institutions are not represented in this source batch yet; this branch is an expansion, not a completed nationwide catalogue. The onboarding manual-entry fallback remains necessary for institutions whose official directories are incomplete or inaccessible. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
 
 ### Manual-entry fallback / intentionally omitted batches
 
