@@ -21,6 +21,12 @@ Database fields such as `users.profileImage` and `resources.fileUrl` currently r
 
 The support-request create path verifies that every submitted attachment belongs to the submitting account's `support-attachments/{owner-uuid}/` prefix and checks the stored object's existence, size and MIME metadata before saving the request. Multipart image uploads and presigned resource/voice uploads are checked against file signatures as well as their declared MIME types and sizes. The R2 client reads only a bounded object prefix for this check. Upload-detail lookup requires authentication and only returns records owned by the current account.
 
+## Upload validation limits
+
+File-signature checks detect MIME spoofing and obvious file-type mismatches; they are not antivirus scanning. The active root Nest upload pipeline does not currently run ClamAV or another malware scanner.
+
+The older `apps/api` + `libs/storage` scanner experiment is not wired into the production Nest application and must not be treated as a production security control. Its local-development fallback can mark files as passed when no ClamAV service is configured. A production malware-scanning workflow requires a separately reviewed integration that fails closed when the scanner is unavailable and gates resource publication on a recorded clean result.
+
 ## Automatic cleanup after deployment
 
 The `storage_cleanup_jobs` table is a transactional outbox for object deletion. Upload, replacement, resource deletion, chat-message deletion, and account deletion paths enqueue cleanup work in the same database transaction as the reference change wherever possible.
