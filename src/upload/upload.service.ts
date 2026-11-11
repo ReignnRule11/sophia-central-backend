@@ -12,6 +12,7 @@ import { CompleteFileUploadDto } from './dto/complete-file-upload.dto';
 import { PointsService } from '../points/points.service';
 import { S3Service } from './s3.service';
 import { StorageCleanupService } from './storage-cleanup.service';
+import { matchesFileSignature } from './file-signature.util';
 
 type SupportAttachmentFile = { mimetype: string; size: number; buffer: Buffer };
 
@@ -45,6 +46,7 @@ export class UploadService {
     const allowed = ['image/jpeg', 'image/png', 'image/webp'];
     if (!file || !allowed.includes(file.mimetype)) throw new BadRequestException('Support attachments must be JPG, PNG, or WebP images');
     if (file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Support images must be smaller than 5 MB');
+    if (!matchesFileSignature(file.buffer, file.mimetype)) throw new BadRequestException('The support attachment content does not match its declared image type.');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = `support-attachments/${userId}/${crypto.randomUUID()}.${ext}`;
     const url = await this.s3Service.uploadObject(key, file.buffer, file.mimetype);
@@ -56,6 +58,7 @@ export class UploadService {
     const types = ['image/jpeg', 'image/png', 'image/webp'];
     if (!file || !types.includes(file.mimetype)) throw new BadRequestException('Profile images must be JPG, PNG, or WebP');
     if (!Number.isInteger(file.size) || file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Profile image must be smaller than 5 MB');
+    if (!matchesFileSignature(file.buffer, file.mimetype)) throw new BadRequestException('The profile image content does not match its declared image type.');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
     const profileImageReference = await this.s3Service.uploadObject(
@@ -104,6 +107,8 @@ export class UploadService {
     if (!dto.key.startsWith('profile-images/' + userId + '/')) throw new BadRequestException('Invalid profile image key');
     const stored = await this.s3Service.getObjectMetadata(dto.key);
     if (!stored || stored.contentLength !== dto.size || stored.contentType !== dto.mimetype) throw new BadRequestException('Uploaded profile image could not be verified');
+    const prefix = await this.s3Service.getObjectPrefix(dto.key);
+    if (!prefix || !matchesFileSignature(prefix, dto.mimetype)) throw new BadRequestException('Uploaded profile image content does not match its declared image type.');
     const profileImageReference = this.s3Service.getPublicUrl(dto.key);
     const user = await this.usersService.updateProfileImage(userId, profileImageReference);
     const profileImage = await this.s3Service.createPresignedDownloadUrl(dto.key, undefined, 'inline', 900);
@@ -233,6 +238,10 @@ export class UploadService {
     if (storedObject.contentType !== dto.mimetype) {
       throw new BadRequestException('Stored file content type does not match the initiated upload');
     }
+    const prefix = await this.s3Service.getObjectPrefix(dto.key);
+    if (!prefix || !matchesFileSignature(prefix, dto.mimetype)) {
+      throw new BadRequestException('Stored file content does not match the declared file type.');
+    }
 
     const publicUrl = this.s3Service.getPublicUrl(dto.key);
     await this.resourceRepository.manager.transaction(async manager => {
@@ -282,8 +291,4 @@ export class UploadService {
     };
   }
 
-  async validateAndScanFile(filePath: string): Promise<boolean> {
-    if (!filePath) return false;
-    return true;
-  }
 }
