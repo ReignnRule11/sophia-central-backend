@@ -136,7 +136,7 @@ async function queryReferences() {
     for (const attachment of attachments) add(attachment, 'support_requests.attachments');
   }
 
-  return refs;
+  return { references: refs, cleanupJobs };
 }
 
 async function listBucketObjects() {
@@ -162,7 +162,7 @@ async function listBucketObjects() {
 }
 
 async function main() {
-  const references = await queryReferences();
+  const { references, cleanupJobs } = await queryReferences();
   const objects = await listBucketObjects();
   const cutoff = Date.now() - graceDays * 24 * 60 * 60 * 1000;
   const objectKeys = new Set(objects.map((item) => item.key));
