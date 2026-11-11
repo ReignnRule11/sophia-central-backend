@@ -52,12 +52,12 @@ Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 | College of Education, Zing | 7 | 41 | https://www.coezing.edu.ng/academics/ and current staff/HOD directory |
 | College of Education, Hong | 7 | 30 | https://www.coehong.edu.ng/academics/ and individual school pages |
 | College of Education, Ila-Orangun, Osun State | 6 | 0 | https://ossceila.edu.ng/index.php/schools/ |
-| University of Jos, Jos | 19 | 0 | https://www.unijos.edu.ng/unijos-academics |
+| University of Jos, Jos | 19 | 86 | https://www.unijos.edu.ng/unijos-academics and current faculty pages |
 | University of Calabar, Calabar | 23 | 0 | https://unical.edu.ng/faculties.php |
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,609 source rows representing 439 academic units and 1,242 departments across 35 of the 769 production institutions.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,695 source rows representing 439 academic units and 1,328 departments across 35 of the 769 production institutions.
 
 Coverage by institution type in this branch: 22/328 universities, 3/199 polytechnics, and 1/242 colleges of education. The remaining 743 institutions are not represented in this source batch yet; this branch is an expansion, not a completed nationwide catalogue. The onboarding manual-entry fallback remains necessary for institutions whose official directories are incomplete or inaccessible. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
 
@@ -86,6 +86,7 @@ Coverage by institution type in this branch: 22/328 universities, 3/199 polytech
 - College of Education, Ila-Orangun: six school units are confirmed by its current schools page. The page says five school structures while enumerating six, and its detailed lists are largely NCE course combinations rather than department names; only the schools were added, leaving department entry manual.
 - Ogun State Institute of Technology: six academic schools and 24 departments are staged from current school pages. Environmental Studies has a conflicting count (five stated departments versus seven listed), so no departments were inserted for that school; Communication and Information Technology also has no explicit department list. Those two schools remain manual-entry cases. Part-Time Studies and administrative centres are excluded as non-academic units.
 - Kwara State Polytechnic: the current Institute of Information and Communication Technology directory confirms one academic unit and nine departments. Other polytechnic schools are not added until their current official directories are verified.
+- University of Jos: 86 departments are staged across 15 of its 19 existing faculties using current faculty pages. The Basic Clinical Sciences page is mislabeled in its title/body, while Communication and Media Studies, Computing and Dental Sciences lack usable department lists; those four units remain manual-entry cases. Remedial Sciences was excluded from Natural Sciences because it is a remedial programme, not a department.
 - University of Calabar: 23 clearly student-facing academic units are staged. Ambiguous directory entries such as the library, non-academic listing, and institute-level entries are not treated as faculty destinations without further confirmation.
 - Where the public directory is incomplete, inaccessible, or internally inconsistent, the student enters the exact academic unit and department during onboarding. No placeholder catalogue values are created and no moderator submission is generated.
 
