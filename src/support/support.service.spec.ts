@@ -26,6 +26,7 @@ describe('SupportService attachment ownership', () => {
         contentLength: 1024,
         contentType: 'image/jpeg',
       }),
+      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/support-image'),
     };
     service = new SupportService(
       requests,
@@ -43,7 +44,7 @@ describe('SupportService attachment ownership', () => {
       attachments: [reference],
     } as any);
 
-    expect(result.attachments).toEqual([reference]);
+    expect(result.attachments).toEqual(['https://signed.example.test/support-image']);
     expect(s3.getObjectMetadata).toHaveBeenCalledWith('support-attachments/student-1/image.jpg');
   });
 
