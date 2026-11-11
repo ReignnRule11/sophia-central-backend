@@ -25,7 +25,6 @@ concurrency:
 
 jobs:
   catalogue:
-    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     env:
@@ -54,15 +53,19 @@ jobs:
             echo "Production database safety settings are invalid."
             exit 1
           fi
+          if [ "$OPERATION" = "apply" ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Production apply is allowed only from main. Feature branches are dry-run only."
+            exit 1
+          fi
           if [ "$OPERATION" = "apply" ] && [ "$CONFIRMATION" != "IMPORT_ACADEMIC_CATALOGUE_TO_PRODUCTION" ]; then
             echo "Production apply requires the exact confirmation phrase."
             exit 1
           fi
 
-      - name: Checkout main
+      - name: Checkout selected workflow ref
         uses: actions/checkout@v6
         with:
-          ref: main
+          ref: ${{ github.ref }}
 
       - name: Set up Node.js
         uses: actions/setup-node@v7
