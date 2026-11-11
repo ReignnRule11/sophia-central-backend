@@ -374,6 +374,10 @@ export class ChatService {
       }
       const extension = key.split('.').pop();
       if (VOICE_TYPES[stored.contentType] !== extension) throw new BadRequestException('Audio file type does not match its upload key.');
+      const prefix = await this.s3.getObjectPrefix(key);
+      if (!prefix || !matchesFileSignature(prefix, stored.contentType)) {
+        throw new BadRequestException('Voice recording content does not match its declared audio type.');
+      }
       contentType = ChatContentType.VOICE;
       voiceKey = key;
     }
