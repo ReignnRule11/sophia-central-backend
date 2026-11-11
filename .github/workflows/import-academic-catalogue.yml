@@ -1,0 +1,99 @@
+name: Import verified Nigerian academic catalogue
+
+on:
+  workflow_dispatch:
+    inputs:
+      operation:
+        description: Dry-run first; production apply is separately gated
+        required: true
+        type: choice
+        options:
+          - dry-run
+          - apply
+        default: dry-run
+      confirm_production_import:
+        description: For apply only, type IMPORT_ACADEMIC_CATALOGUE_TO_PRODUCTION
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sophis-central-academic-catalogue-import
+  cancel-in-progress: false
+
+jobs:
+  catalogue:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      NODE_ENV: production
+      DB_SSL: 'true'
+      DB_HOST: ${{ secrets.PRODUCTION_DB_HOST }}
+      DB_PORT: '5432'
+      DB_DATABASE: neondb
+      DB_USERNAME: ${{ secrets.PRODUCTION_DB_USERNAME }}
+      DB_PASSWORD: ${{ secrets.PRODUCTION_DB_PASSWORD }}
+    steps:
+      - name: Validate production target and credentials
+        env:
+          OPERATION: ${{ inputs.operation }}
+          CONFIRMATION: ${{ inputs.confirm_production_import }}
+        run: |
+          if [ -z "$DB_HOST" ] || [ -z "$DB_USERNAME" ] || [ -z "$DB_PASSWORD" ]; then
+            echo "Required production database secrets are missing."
+            exit 1
+          fi
+          case "$DB_HOST" in
+            *.neon.tech) ;;
+            *) echo "Production DB host must be a Neon endpoint."; exit 1 ;;
+          esac
+          if [ "$DB_DATABASE" != "neondb" ] || [ "$DB_SSL" != "true" ]; then
+            echo "Production database safety settings are invalid."
+            exit 1
+          fi
+          if [ "$OPERATION" = "apply" ] && [ "$CONFIRMATION" != "IMPORT_ACADEMIC_CATALOGUE_TO_PRODUCTION" ]; then
+            echo "Production apply requires the exact confirmation phrase."
+            exit 1
+          fi
+
+      - name: Checkout main
+        uses: actions/checkout@v6
+        with:
+          ref: main
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci --include=dev
+
+      - name: Verify required executables
+        run: |
+          npm ls @nestjs/cli ts-node
+          test -x node_modules/.bin/nest
+          test -x node_modules/.bin/ts-node
+
+      - name: Build backend
+        run: npm run build
+
+      - name: Run backend tests
+        run: npm test -- --runInBand
+
+      - name: Validate and dry-run academic catalogue
+        if: inputs.operation == 'dry-run'
+        env:
+          ACADEMIC_CATALOGUE_APPLY: 'false'
+        run: npm run import:academic-catalogue
+
+      - name: Apply reviewed academic catalogue
+        if: inputs.operation == 'apply'
+        env:
+          ACADEMIC_CATALOGUE_APPLY: 'true'
+          ACADEMIC_CATALOGUE_CONFIRM_PRODUCTION: 'YES'
+        run: npm run import:academic-catalogue
