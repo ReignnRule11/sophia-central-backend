@@ -39,12 +39,13 @@ Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 | Akwa Ibom State University, Ikot Akpaden | 15 | 5 | https://aksu.edu.ng/web/sitemap and official Faculty of Agriculture page |
 | Lagos State University, Ojo, Lagos | 18 | 47 | https://lasu.edu.ng/home/faculties/ and official faculty pages |
 | Delta State University, Abraka | 17 | 76 | https://delsu.edu.ng/faculty and individual faculty pages |
+| Federal Polytechnic, Ilaro | 7 | 38 | https://federalpolyilaro.edu.ng/sitemap and 2026/2027 admissions advert |
 | University of Jos, Jos | 19 | 0 | https://www.unijos.edu.ng/unijos-academics |
 | University of Calabar, Calabar | 23 | 0 | https://unical.edu.ng/faculties.php |
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,229 source rows representing 361 academic units and 940 departments across 22 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,274 source rows representing 368 academic units and 978 departments across 23 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
 
 ### Manual-entry fallback / intentionally omitted batches
 
@@ -58,6 +59,7 @@ This is a verified starter batch, not a claim that all Nigerian institutions are
 - Akwa Ibom State University: 15 faculties are staged from the current university sitemap; five Agriculture departments are confirmed by the current faculty page. The sitemap also lists a College of Health Sciences parent, but it is not flattened as an independent selectable unit because the current schema cannot represent its child-faculty relationship. Other faculty department directories remain incomplete in the reviewed sources and use the manual-entry fallback.
 - Lagos State University: 18 current faculty/school units and 47 departments are staged. Department names were added only for faculties with readable, explicit lists. The Arts page has an inconsistent department count/list and the Law page's names are truncated in the published directory; no names were inferred for those faculties. Other listed schools and faculties without a complete department directory remain manual-entry cases.
 - Delta State University: 17 current faculty units and 76 departments are staged from its live faculty directory. Department lists are available for Agriculture, Arts, Basic Medical Sciences, Communication and Media Studies, Dentistry, Education, Engineering, Law, Management Sciences, Pharmacy, Sciences and Social Sciences. Allied Health has no published department list; Basic Clinical Sciences has a conflicting page description; Computing and Environmental Science pages return configuration errors; and Clinical Medicine has conflicting department counts. Those five units remain available for manual department entry rather than receiving guessed data.
+- Federal Polytechnic, Ilaro: seven academic schools and 38 departments are staged from the institution's 2026/2027 HND admissions advert and current academic sitemap. Programme specializations/options were not split into extra departments.
 - University of Calabar: 23 clearly student-facing academic units are staged. Ambiguous directory entries such as the library, non-academic listing, and institute-level entries are not treated as faculty destinations without further confirmation.
 - Where the public directory is incomplete, inaccessible, or internally inconsistent, the student enters the exact academic unit and department during onboarding. No placeholder catalogue values are created and no moderator submission is generated.
 
