@@ -8,6 +8,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { S3Service } from '../upload/s3.service';
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
+import { matchesFileSignature } from '../upload/file-signature.util';
 import { ChatContentType, ChatKind, ChatMessage } from './entities/chat-message.entity';
 import { CreateChatMessageDto, CreateVoiceUploadDto } from './dto/create-chat-message.dto';
 import { RedisChatService } from './redis-chat.service';
