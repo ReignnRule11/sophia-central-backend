@@ -35,7 +35,7 @@ export class SupportService {
     });
     const saved = await this.requests.save(request);
     return {
-      ...saved,
+      ...(await this.withSignedAttachmentUrls(saved)),
       confirmationMessage: 'Your message has been sent to Support. Our administration team will review your request and provide an update through your notifications.',
     };
   }
@@ -68,16 +68,27 @@ export class SupportService {
     return attachments;
   }
 
+  private async withSignedAttachmentUrls<T extends SupportRequest>(request: T): Promise<T> {
+    const attachments = await Promise.all((request.attachments ?? []).map(async reference => {
+      const key = this.s3.getKeyFromPublicUrl(reference);
+      if (!key) return reference;
+      return this.s3.createPresignedDownloadUrl(key, undefined, 'inline', 300);
+    }));
+    return { ...request, attachments } as T;
+  }
+
   async listMine(userId: string) {
-    return this.requests.find({ where: { userId }, order: { createdAt: 'DESC' } });
+    const requests = await this.requests.find({ where: { userId }, order: { createdAt: 'DESC' } });
+    return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
 
   async listForModeration(status: 'pending' | 'concluded' = 'pending') {
-    return this.requests.find({
+    const requests = await this.requests.find({
       where: { status },
       relations: ['user', 'reviewer'],
       order: { createdAt: 'ASC' },
     });
+    return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
 
   async conclude(id: string, reviewerId: string, dto: ConcludeSupportRequestDto) {
