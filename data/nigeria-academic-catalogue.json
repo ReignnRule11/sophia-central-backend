@@ -5439,31 +5439,31 @@
     "facultyName": "School of Agricultural Management & Extension Technology",
     "facultyType": "school",
     "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
     "institutionWebsite": "https://futminna.edu.ng",
     "facultyName": "School of Agronomy & Forestry Technology",
     "facultyType": "school",
-    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/saft",
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
     "institutionWebsite": "https://futminna.edu.ng",
     "facultyName": "School of Architectural Technology",
     "facultyType": "school",
-    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sat",
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
     "institutionWebsite": "https://futminna.edu.ng",
     "facultyName": "School of Electrical Engineering & Technology",
     "facultyType": "school",
-    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/seet",
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
@@ -5471,7 +5471,7 @@
     "facultyName": "School of Environmental Technology",
     "facultyType": "school",
     "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
@@ -5479,39 +5479,39 @@
     "facultyName": "School of Food Science & Agricultural Technology",
     "facultyType": "school",
     "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
     "institutionWebsite": "https://futminna.edu.ng",
     "facultyName": "School of Information & Communication Technology",
     "facultyType": "school",
-    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sict",
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
     "institutionWebsite": "https://futminna.edu.ng",
     "facultyName": "School of Infrastructure, Process Engineering & Technology",
     "facultyType": "school",
-    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sipet",
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
     "institutionWebsite": "https://futminna.edu.ng",
     "facultyName": "School of Innovative Technology",
     "facultyType": "school",
-    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sit",
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
     "institutionWebsite": "https://futminna.edu.ng",
     "facultyName": "School of Life Sciences",
     "facultyType": "school",
-    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sls",
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
@@ -5519,7 +5519,7 @@
     "facultyName": "School of Physical Sciences",
     "facultyType": "school",
     "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Minna",
@@ -5527,7 +5527,7 @@
     "facultyName": "School of Science & Technology Education",
     "facultyType": "school",
     "officialSourceUrl": "https://staff.futminna.edu.ng/faculties",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "University of Abuja, Abuja",
@@ -14885,6 +14885,339 @@
     "departmentName": "Veterinary Anatomy",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.unijos.edu.ng/vm",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Agronomy & Forestry Technology",
+    "departmentName": "Soil Science and Land Management",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/saft",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Agronomy & Forestry Technology",
+    "departmentName": "Forestry and Wildlife Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/saft",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Agronomy & Forestry Technology",
+    "departmentName": "Horticulture",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/saft",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Agronomy & Forestry Technology",
+    "departmentName": "Crop Production",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/saft",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Architectural Technology",
+    "departmentName": "Landscape Architecture",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sat",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Architectural Technology",
+    "departmentName": "Architecture",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sat",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Architectural Technology",
+    "departmentName": "Interior Architecture and Design",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sat",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Architectural Technology",
+    "departmentName": "Furniture Design Architecture",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sat",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Electrical Engineering & Technology",
+    "departmentName": "Mechatronics Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/seet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Electrical Engineering & Technology",
+    "departmentName": "Computer Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/seet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Electrical Engineering & Technology",
+    "departmentName": "Telecommunications Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/seet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Electrical Engineering & Technology",
+    "departmentName": "Electrical and Electronics Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/seet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Information & Communication Technology",
+    "departmentName": "Information Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sict",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Information & Communication Technology",
+    "departmentName": "Information Science and Media Studies",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sict",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Information & Communication Technology",
+    "departmentName": "Cyber Security Science",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sict",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Information & Communication Technology",
+    "departmentName": "Software Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sict",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Information & Communication Technology",
+    "departmentName": "Computer Science",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sict",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Information & Communication Technology",
+    "departmentName": "Data Science",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sict",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Infrastructure, Process Engineering & Technology",
+    "departmentName": "Agricultural and Bioresources Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sipet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Infrastructure, Process Engineering & Technology",
+    "departmentName": "Chemical Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sipet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Infrastructure, Process Engineering & Technology",
+    "departmentName": "Petroleum and Gas Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sipet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Infrastructure, Process Engineering & Technology",
+    "departmentName": "Mechanical Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sipet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Infrastructure, Process Engineering & Technology",
+    "departmentName": "Materials and Metallurgical Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sipet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Infrastructure, Process Engineering & Technology",
+    "departmentName": "Civil Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sipet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Infrastructure, Process Engineering & Technology",
+    "departmentName": "Food Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sipet",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Innovative Technology",
+    "departmentName": "Procurement Management Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sit",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Innovative Technology",
+    "departmentName": "Logistics and Supply Chain Management",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sit",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Innovative Technology",
+    "departmentName": "Project Management",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sit",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Innovative Technology",
+    "departmentName": "Logistics and Transport Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sit",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Innovative Technology",
+    "departmentName": "Entrepreneurship",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sit",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Life Sciences",
+    "departmentName": "Biochemistry",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sls",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Life Sciences",
+    "departmentName": "Plant Biology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sls",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Life Sciences",
+    "departmentName": "Public Health",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sls",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Life Sciences",
+    "departmentName": "Biotechnology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sls",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Life Sciences",
+    "departmentName": "Microbiology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sls",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Life Sciences",
+    "departmentName": "Animal Biology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sls",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Minna",
+    "institutionWebsite": "https://futminna.edu.ng",
+    "facultyName": "School of Life Sciences",
+    "departmentName": "Forensic Science",
+    "facultyType": "school",
+    "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sls",
     "verifiedAt": "2026-11-11"
   }
 ]
