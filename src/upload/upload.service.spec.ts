@@ -15,7 +15,7 @@ describe('UploadService.completeUpload', () => {
   let service: UploadService;
   let fileUploadRepository: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
   let resourceRepository: any;
-  let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock };
+  let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock; getObjectPrefix: jest.Mock };
   let transactionManager: any;
   let storageCleanup: any;
 
@@ -54,6 +54,7 @@ describe('UploadService.completeUpload', () => {
         contentType: dto.mimetype,
       }),
       getPublicUrl: jest.fn().mockReturnValue('https://files.example.test/resources/user-1/test.pdf'),
+      getObjectPrefix: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.7')),
     };
 
     storageCleanup = {
@@ -92,6 +93,12 @@ describe('UploadService.completeUpload', () => {
 
     await expect(service.completeUpload(userId, dto)).rejects.toBeInstanceOf(BadRequestException);
     expect(resourceRepository.save).not.toHaveBeenCalled();
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects an object whose bytes do not match the declared MIME type', async () => {
+    s3Service.getObjectPrefix.mockResolvedValueOnce(Buffer.from('not-a-pdf'));
+    await expect(service.completeUpload(userId, dto)).rejects.toThrow('content does not match');
     expect(transactionManager.save).not.toHaveBeenCalled();
   });
 
