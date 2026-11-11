@@ -9383,5 +9383,572 @@
     "officialSourceUrl": "https://aksu.edu.ng/newsite/faculty-of-agriculture/",
     "verifiedAt": "2026-11-11",
     "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "School of Agriculture",
+    "facultyType": "school",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=20",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=2",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Basic Medical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "School of Communications",
+    "facultyType": "school",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Computing and Information Technology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=25",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "School of Creativity, Culture and Tourism Studies",
+    "facultyType": "school",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Dentistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=12",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=6",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Environmental Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=21",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Law",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=5",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "School of Library, Archival and Information Science",
+    "facultyType": "school",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=9",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "School of Transport",
+    "facultyType": "school",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "departmentName": "Medical Laboratory Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=20",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "departmentName": "Physiotherapy",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=20",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Allied Health Sciences",
+    "departmentName": "Radiography",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=20",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Anaesthesia",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Behavioural Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Community Health and Primary Care",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Medicine",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Nursing",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Obstetrics and Gynaecology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Paediatrics and Child Health",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Radiology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Clinical Sciences",
+    "departmentName": "Surgery",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=17",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Computing and Information Technology",
+    "departmentName": "Computer Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=25",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Educational Foundations",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=12",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Educational Management",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=12",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Human Kinetics and Health Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=12",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Language Arts and Social Science Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=12",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Education",
+    "departmentName": "Science and Technology Education",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=12",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Aeronautics and Astronautics",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=6",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Aerospace Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=6",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Chemical Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=6",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Electronics and Computer Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=6",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Mechanical Engineering",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=6",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "departmentName": "Accounting",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "departmentName": "Banking and Finance",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "departmentName": "Business Administration",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "departmentName": "Industrial Relations and Human Resource Management",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "departmentName": "Insurance",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "departmentName": "Local Government Administration",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "departmentName": "Management Technology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "departmentName": "Marketing",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Management Sciences",
+    "departmentName": "Public Administration",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=7",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Biochemistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Botany",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Chemistry",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Computer Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Fisheries",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Mathematics",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Microbiology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Physics",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Science Laboratory Technology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Zoology and Environmental Biology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=1",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "departmentName": "Economics",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=9",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "departmentName": "Geography",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=9",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "departmentName": "Political Science",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=9",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "departmentName": "Psychology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=9",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Lagos State University, Ojo, Lagos",
+    "institutionWebsite": "https://lasu.edu.ng",
+    "facultyName": "Faculty of Social Sciences",
+    "departmentName": "Sociology",
+    "facultyType": "faculty",
+    "officialSourceUrl": "https://lasu.edu.ng/home/faculties/faculty.php?id=9",
+    "verifiedAt": "2026-11-11"
   }
 ]
