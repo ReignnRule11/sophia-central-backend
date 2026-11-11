@@ -33,6 +33,11 @@ describe('S3Service object-key boundary', () => {
     expect(service.getKeyFromPublicUrl(`https://files.example.test/${key}`)).toBe(key);
   });
 
+  it('accepts an already-canonical key during the URL-to-key migration', () => {
+    const key = 'profile-images/3a6e9b37-945b-48fe-a227-236c97ad1d09/4d2a06fd-c6d5-48b8-a61b-94a03753934c.jpg';
+    expect(service.getKeyFromPublicUrl(key)).toBe(key);
+  });
+
   it('rejects keys outside the exact three-segment account-scoped structure', async () => {
     await expect(service.createPresignedDownloadUrl('resources/3a6e9b37-945b-48fe-a227-236c97ad1d09/upload-id/file.pdf')).rejects.toThrow('Invalid application storage object key');
     await expect(service.deleteObject('other-prefix/3a6e9b37-945b-48fe-a227-236c97ad1d09/file.pdf')).rejects.toThrow('Refusing to delete');

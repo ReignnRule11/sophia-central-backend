@@ -65,7 +65,7 @@ export class SupportService {
         throw new BadRequestException('A support attachment is missing, too large, or has an unsupported file type.');
       }
     }
-    return attachments;
+    return attachments.map(reference => this.s3.getKeyFromPublicUrl(reference)!);
   }
 
   private async withSignedAttachmentUrls<T extends SupportRequest>(request: T): Promise<T> {

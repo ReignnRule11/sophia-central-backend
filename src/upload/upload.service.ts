@@ -13,6 +13,7 @@ import { PointsService } from '../points/points.service';
 import { S3Service } from './s3.service';
 import { StorageCleanupService } from './storage-cleanup.service';
 import { matchesFileSignature } from './file-signature.util';
+import { ClamAvService } from './clamav.service';
 
 type SupportAttachmentFile = { mimetype: string; size: number; buffer: Buffer };
 
@@ -40,6 +41,7 @@ export class UploadService {
     private readonly s3Service: S3Service,
     private readonly usersService: UsersService,
     private readonly storageCleanup: StorageCleanupService,
+    private readonly clamAv: ClamAvService,
   ) {}
 
   async uploadSupportAttachment(userId: string, file: SupportAttachmentFile) {
@@ -47,6 +49,8 @@ export class UploadService {
     if (!file || !allowed.includes(file.mimetype)) throw new BadRequestException('Support attachments must be JPG, PNG, or WebP images');
     if (file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Support images must be smaller than 5 MB');
     if (!matchesFileSignature(file.buffer, file.mimetype)) throw new BadRequestException('The support attachment content does not match its declared image type.');
+    const scan = await this.clamAv.scan(file.buffer);
+    if (!scan.clean) throw new BadRequestException('The support attachment was rejected by malware scanning.');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = `support-attachments/${userId}/${crypto.randomUUID()}.${ext}`;
     const url = await this.s3Service.uploadObject(key, file.buffer, file.mimetype);
@@ -59,16 +63,18 @@ export class UploadService {
     if (!file || !types.includes(file.mimetype)) throw new BadRequestException('Profile images must be JPG, PNG, or WebP');
     if (!Number.isInteger(file.size) || file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Profile image must be smaller than 5 MB');
     if (!matchesFileSignature(file.buffer, file.mimetype)) throw new BadRequestException('The profile image content does not match its declared image type.');
+    const scan = await this.clamAv.scan(file.buffer);
+    if (!scan.clean) throw new BadRequestException('The profile image was rejected by malware scanning.');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
-    const profileImageReference = await this.s3Service.uploadObject(
+    await this.s3Service.uploadObject(
       key,
       file.buffer,
       file.mimetype,
       'private, max-age=300, must-revalidate',
     );
     await this.storageCleanup.enqueue(key, 'unclaimed-profile-image-upload', 24 * 60 * 60 * 1000);
-    const user = await this.usersService.updateProfileImage(userId, profileImageReference);
+    const user = await this.usersService.updateProfileImage(userId, key);
     const profileImage = await this.s3Service.createPresignedDownloadUrl(key, undefined, 'inline', 900);
     const { password: _password, ...safeUser } = user;
     return { success: true, profileImage, user: { ...safeUser, profileImage } };
@@ -107,10 +113,14 @@ export class UploadService {
     if (!dto.key.startsWith('profile-images/' + userId + '/')) throw new BadRequestException('Invalid profile image key');
     const stored = await this.s3Service.getObjectMetadata(dto.key);
     if (!stored || stored.contentLength !== dto.size || stored.contentType !== dto.mimetype) throw new BadRequestException('Uploaded profile image could not be verified');
-    const prefix = await this.s3Service.getObjectPrefix(dto.key);
-    if (!prefix || !matchesFileSignature(prefix, dto.mimetype)) throw new BadRequestException('Uploaded profile image content does not match its declared image type.');
-    const profileImageReference = this.s3Service.getPublicUrl(dto.key);
-    const user = await this.usersService.updateProfileImage(userId, profileImageReference);
+    const objectBuffer = await this.s3Service.getObjectBuffer(dto.key, 5 * 1024 * 1024);
+    if (!objectBuffer || !matchesFileSignature(objectBuffer, dto.mimetype)) throw new BadRequestException('Uploaded profile image content does not match its declared image type.');
+    const scan = await this.clamAv.scan(objectBuffer);
+    if (!scan.clean) {
+      await this.storageCleanup.enqueue(dto.key, 'malware-rejected-profile-image');
+      throw new BadRequestException('The profile image was rejected by malware scanning.');
+    }
+    const user = await this.usersService.updateProfileImage(userId, dto.key);
     const profileImage = await this.s3Service.createPresignedDownloadUrl(dto.key, undefined, 'inline', 900);
     const { password: _password, ...safeUser } = user;
     return { success: true, profileImage, user: { ...safeUser, profileImage } };
@@ -238,9 +248,17 @@ export class UploadService {
     if (storedObject.contentType !== dto.mimetype) {
       throw new BadRequestException('Stored file content type does not match the initiated upload');
     }
-    const prefix = await this.s3Service.getObjectPrefix(dto.key);
-    if (!prefix || !matchesFileSignature(prefix, dto.mimetype)) {
+    const objectBuffer = await this.s3Service.getObjectBuffer(dto.key, this.MAX_FILE_SIZE);
+    if (!objectBuffer || !matchesFileSignature(objectBuffer, dto.mimetype)) {
       throw new BadRequestException('Stored file content does not match the declared file type.');
+    }
+    const scan = await this.clamAv.scan(objectBuffer);
+    if (!scan.clean) {
+      fileUpload.status = 'failed';
+      fileUpload.scanResult = scan.result;
+      await this.fileUploadRepository.save(fileUpload);
+      await this.storageCleanup.enqueue(dto.key, 'malware-rejected-resource-upload');
+      throw new BadRequestException('The resource file was rejected by malware scanning.');
     }
 
     const publicUrl = this.s3Service.getPublicUrl(dto.key);
@@ -249,8 +267,9 @@ export class UploadService {
       const currentUpload = await manager.findOne(FileUpload, { where: { s3Key: dto.key, resourceId: dto.resourceId, userId, status: 'pending' } });
       if (!currentResource || !currentUpload) throw new BadRequestException('The resource upload changed before completion. Please retry.');
       const previousFileUrl = currentResource.fileUrl;
-      currentResource.fileUrl = publicUrl;
-      currentUpload.status = 'completed';
+      currentResource.fileUrl = dto.key;
+      currentUpload.status = 'scanned';
+      currentUpload.scanResult = scan.result;
       currentUpload.completedAt = new Date();
       await manager.save(Resource, currentResource);
       await manager.save(FileUpload, currentUpload);

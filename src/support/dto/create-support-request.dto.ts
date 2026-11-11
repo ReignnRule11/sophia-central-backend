@@ -26,6 +26,5 @@ export class CreateSupportRequestDto {
   @IsArray()
   @ArrayMaxSize(5)
   @IsString({ each: true })
-  @IsUrl({ protocols: ['http', 'https'], require_protocol: true }, { each: true })
   attachments?: string[];
 }

@@ -68,11 +68,14 @@ export class S3Service {
   }
 
   getKeyFromPublicUrl(value: string): string | null {
+    if (typeof value !== 'string' || !value.trim()) return null;
+    const reference = value.trim();
+    if (!/^https?:\/\//i.test(reference)) return this.isAllowedObjectKey(reference) ? reference : null;
     try {
-      const parsed = new URL(value);
+      const parsed = new URL(reference);
       const base = new URL(this.publicBaseUrl);
-      if (parsed.protocol !== 'https:' && parsed.protocol !== 'http:') return null;
-      if (parsed.host !== base.host || parsed.username || parsed.password) return null;
+      if ((parsed.protocol !== 'https:' && parsed.protocol !== 'http:') || parsed.host !== base.host ||
+          parsed.username || parsed.password || parsed.search || parsed.hash) return null;
       const basePath = base.pathname.replace(/\/$/, '');
       if (!parsed.pathname.startsWith(`${basePath}/`)) return null;
       const encodedKey = parsed.pathname.slice(basePath.length + 1);
@@ -82,6 +85,21 @@ export class S3Service {
       if (decoded.some(segment => !segment || segment === '.' || segment === '..' || segment.includes('/') || segment.includes(String.fromCharCode(92)))) return null;
       const key = decoded.join('/');
       return this.isAllowedObjectKey(key) ? key : null;
+    } catch { return null; }
+  }
+
+  async getObjectBuffer(key: string, maxBytes: number): Promise<Buffer | null> {
+    this.assertAllowedObjectKey(key);
+    if (!Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > 50 * 1024 * 1024) {
+      throw new Error('Full object read size must be between 1 byte and 50 MiB');
+    }
+    try {
+      const response = await this.client.send(new GetObjectCommand({ Bucket: this.bucketName, Key: key }));
+      if (!Number.isInteger(response.ContentLength) || response.ContentLength! < 1 || response.ContentLength! > maxBytes) return null;
+      const body = response.Body as unknown as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
+      if (!body?.transformToByteArray) return null;
+      const bytes = Buffer.from(await body.transformToByteArray());
+      return bytes.length > 0 && bytes.length <= maxBytes ? bytes : null;
     } catch { return null; }
   }
 
