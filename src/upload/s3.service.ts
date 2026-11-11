@@ -88,6 +88,20 @@ export class S3Service {
     } catch { return null; }
   }
 
+  async getObjectBuffer(key: string, maxBytes: number): Promise<Buffer | null> {
+    this.assertAllowedObjectKey(key);
+    if (!Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > 50 * 1024 * 1024) {
+      throw new Error('Full object read size must be between 1 byte and 50 MiB');
+    }
+    try {
+      const response = await this.client.send(new GetObjectCommand({ Bucket: this.bucketName, Key: key }));
+      if (!Number.isInteger(response.ContentLength) || response.ContentLength! < 1 || response.ContentLength! > maxBytes) return null;
+      const body = response.Body as unknown as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
+      if (!body?.transformToByteArray) return null;
+      const bytes = Buffer.from(await body.transformToByteArray());
+      return bytes.length > 0 && bytes.length <= maxBytes ? bytes : null;
+    } catch { return null; }
+  }
 
   private isAllowedObjectKey(key: string): boolean {
     if (!key || key !== key.trim() || key.startsWith('/') || key.includes(String.fromCharCode(92)) || [...key].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return false;

@@ -13,7 +13,7 @@ export class StoreR2ReferencesAsObjectKeys2026111100001 implements MigrationInte
     );
     await queryRunner.query(
       `UPDATE resources
-       SET "fileUrl" = regexp_replace("fileUrl", '^https?://[^/]+/', '')
+       SET "fileUrl" = regexp_replace("fileUrl", '^https?://sophia-central\\.s3\\.auto\\.amazonaws\\.com/', '')
        WHERE "fileUrl" ~* $1`,
       [ownedReference],
     );
@@ -24,7 +24,7 @@ export class StoreR2ReferencesAsObjectKeys2026111100001 implements MigrationInte
            jsonb_agg(
              to_jsonb(
                CASE WHEN item.value ~* $1
-                 THEN regexp_replace(item.value, '^https?://[^/]+/', '')
+                 THEN regexp_replace(item.value, '^https?://sophia-central\\.s3\\.auto\\.amazonaws\\.com/', '')
                  ELSE item.value
                END
              ) ORDER BY item.ordinality

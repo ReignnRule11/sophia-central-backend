@@ -15,6 +15,7 @@ describe('ChatService access and message rules', () => {
   let redis: any;
   let notifications: any;
   let storageCleanup: any;
+  let clamAv: any;
   let transactionManager: any;
   let redisEvents: Subject<{ roomKey: string }>;
   let onlineUsers: Set<string>;
@@ -71,6 +72,7 @@ describe('ChatService access and message rules', () => {
       createPresignedUploadUrl: jest.fn(async (key, contentType) => ({ url: 'https://upload.invalid', key, contentType })),
       getObjectMetadata: jest.fn(),
       getObjectPrefix: jest.fn().mockResolvedValue(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])),
+      getObjectBuffer: jest.fn().mockResolvedValue(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])),
       createPresignedDownloadUrl: jest.fn(),
     };
     redisEvents = new Subject<{ roomKey: string }>();
@@ -83,6 +85,7 @@ describe('ChatService access and message rules', () => {
     };
     notifications = { createNotification: jest.fn(async () => ({})) };
     storageCleanup = { enqueue: jest.fn(async () => undefined), enqueueWithManager: jest.fn(async () => undefined) };
+    clamAv = { scan: jest.fn(async () => ({ clean: true, result: 'stream: OK' })) };
     service = new ChatService(
       repo,
       blocks,
@@ -92,6 +95,8 @@ describe('ChatService access and message rules', () => {
       s3,
       redis,
       notifications,
+      storageCleanup,
+      clamAv,
     );
   });
 
@@ -286,7 +291,7 @@ describe('ChatService access and message rules', () => {
 
   it('rejects voice objects whose bytes do not match the declared audio MIME type', async () => {
     s3.getObjectMetadata.mockResolvedValue({ contentLength: 1024, contentType: 'audio/webm' });
-    s3.getObjectPrefix.mockResolvedValueOnce(Buffer.from('not-a-webm-file'));
+    s3.getObjectBuffer.mockResolvedValueOnce(Buffer.from('not-a-webm-file'));
     await expect(service.create(student.id, {
       kind: 'group' as any,
       voiceKey: 'voice-messages/student-1/123e4567-e89b-12d3-a456-426614174000.webm',

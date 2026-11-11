@@ -15,9 +15,10 @@ describe('UploadService.completeUpload', () => {
   let service: UploadService;
   let fileUploadRepository: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
   let resourceRepository: any;
-  let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock; getObjectPrefix: jest.Mock };
+  let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock; getObjectPrefix: jest.Mock; getObjectBuffer: jest.Mock };
   let transactionManager: any;
   let storageCleanup: any;
+  let clamAvService: any;
 
   const pendingUpload = () => ({
     id: 'upload-row-1',
@@ -55,8 +56,10 @@ describe('UploadService.completeUpload', () => {
       }),
       getPublicUrl: jest.fn().mockReturnValue('https://files.example.test/resources/user-1/test.pdf'),
       getObjectPrefix: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.7')),
+      getObjectBuffer: jest.fn().mockResolvedValue(Buffer.from('%PDF-1.7')),
     };
 
+    clamAvService = { scan: jest.fn().mockResolvedValue({ clean: true, result: 'stream: OK' }) };
     storageCleanup = {
       enqueue: jest.fn(async () => undefined),
       enqueueWithManager: jest.fn(async () => undefined),
@@ -68,6 +71,7 @@ describe('UploadService.completeUpload', () => {
       s3Service as any,
       { update: jest.fn(), updateProfileImage: jest.fn() } as any,
       storageCleanup,
+      clamAvService,
     );
   });
 
@@ -97,18 +101,18 @@ describe('UploadService.completeUpload', () => {
   });
 
   it('rejects an object whose bytes do not match the declared MIME type', async () => {
-    s3Service.getObjectPrefix.mockResolvedValueOnce(Buffer.from('not-a-pdf'));
+    s3Service.getObjectBuffer.mockResolvedValueOnce(Buffer.from('not-a-pdf'));
     await expect(service.completeUpload(userId, dto)).rejects.toThrow('content does not match');
     expect(transactionManager.save).not.toHaveBeenCalled();
   });
 
-  it('links the verified object and marks the matching pending upload completed', async () => {
+  it('links the verified object and marks the matching pending upload scanned', async () => {
     const result = await service.completeUpload(userId, dto);
 
     expect(result).toMatchObject({ success: true, resourceId, fileUrl: 'https://files.example.test/resources/user-1/test.pdf' });
     expect(transactionManager.save).toHaveBeenCalledTimes(2);
     expect(transactionManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ fileUrl: key }));
-    expect(transactionManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'completed' }));
+    expect(transactionManager.save).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ status: 'scanned', scanResult: 'stream: OK' }));
   });
 });
 
@@ -139,6 +143,7 @@ describe('UploadService.getUploadDetails', () => {
       {} as any,
       {} as any,
       {} as any,
+      { scan: jest.fn() } as any,
     );
 
     await expect(service.getUploadDetails(ownerId, uploadId)).resolves.toEqual({
