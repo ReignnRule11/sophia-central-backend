@@ -188,7 +188,7 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
         try {
           // Revalidate persisted queue data at the destructive boundary. Queue rows
           // may be stale, malformed, or written outside the normal enqueue path.
-          const key = job.object_key === job.object_key.trim()
+          const key = typeof job.object_key === 'string' && job.object_key === job.object_key.trim()
             ? this.normalizeKey(job.object_key)
             : null;
           if (!key) {
