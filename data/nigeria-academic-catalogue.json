@@ -7104,5 +7104,336 @@
     "officialSourceUrl": "https://uniuyo.edu.ng/faculty-of-social-science/",
     "verifiedAt": "2026-11-11",
     "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Agricultural Sciences",
+    "officialSourceUrl": "https://fagricsc.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Arts",
+    "officialSourceUrl": "https://eksu.edu.ng/siwes/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "officialSourceUrl": "https://fengineenr.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Education",
+    "officialSourceUrl": "https://eksu.edu.ng/siwes/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Law",
+    "officialSourceUrl": "https://faclaw.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Management Science",
+    "officialSourceUrl": "https://eksu.edu.ng/siwes/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of the Social Sciences",
+    "officialSourceUrl": "https://eksu.edu.ng/siwes/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Multidisciplinary Studies",
+    "officialSourceUrl": "https://eksu.edu.ng/siwes/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Pharmacy",
+    "officialSourceUrl": "https://eksu.edu.ng/siwes/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "College of Medicine",
+    "officialSourceUrl": "https://eksu.edu.ng/siwes/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "college"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Agricultural Sciences",
+    "departmentName": "Agricultural Economics and Extension Services",
+    "officialSourceUrl": "https://fagricsc.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Agricultural Sciences",
+    "departmentName": "Animal Science",
+    "officialSourceUrl": "https://fagricsc.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Agricultural Sciences",
+    "departmentName": "Crop, Horticulture and Landscape Design",
+    "officialSourceUrl": "https://fagricsc.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Agricultural Sciences",
+    "departmentName": "Soil Resources and Environmental Management",
+    "officialSourceUrl": "https://fagricsc.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Agricultural Sciences",
+    "departmentName": "Fisheries and Aquaculture Management",
+    "officialSourceUrl": "https://fagricsc.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Agricultural Sciences",
+    "departmentName": "Forest Resources and Wildlife Management",
+    "officialSourceUrl": "https://fagricsc.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Civil Engineering",
+    "officialSourceUrl": "https://fengineenr.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Computer Engineering",
+    "officialSourceUrl": "https://fengineenr.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Electrical and Electronic Engineering",
+    "officialSourceUrl": "https://fengineenr.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Mechanical Engineering",
+    "officialSourceUrl": "https://fengineenr.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Engineering",
+    "departmentName": "Mechatronics Engineering",
+    "officialSourceUrl": "https://fengineenr.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Law",
+    "departmentName": "Private and Property Law",
+    "officialSourceUrl": "https://faclaw.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Law",
+    "departmentName": "Public Law",
+    "officialSourceUrl": "https://faclaw.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Law",
+    "departmentName": "Jurisprudence and International Law",
+    "officialSourceUrl": "https://faclaw.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Law",
+    "departmentName": "Business and Industrial Law",
+    "officialSourceUrl": "https://faclaw.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Biochemistry",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Chemistry",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Computer Science",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Geology",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Industrial Chemistry",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Mathematics",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Microbiology",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Physics",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Plant Science and Biotechnology",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Science Laboratory Technology",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Statistics",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
+  },
+  {
+    "institutionName": "Ekiti State University, Ado-Ekiti. (formerly University of Ado-Ekiti)",
+    "institutionWebsite": "https://eksu.edu.ng",
+    "facultyName": "Faculty of Science",
+    "departmentName": "Zoology and Environmental Biology",
+    "officialSourceUrl": "https://fscience.eksu.edu.ng/",
+    "verifiedAt": "2026-11-11",
+    "facultyType": "faculty"
   }
 ]
