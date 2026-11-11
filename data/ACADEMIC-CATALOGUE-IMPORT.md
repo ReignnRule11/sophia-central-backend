@@ -17,7 +17,7 @@ The academic structure catalogue is institution-specific. It stores faculties, s
 
 ## Current verified batch
 
-Checked against official institutional pages on 2026-11-10:
+Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 
 | Institution | Academic units | Departments | Official source |
 |---|---:|---:|---|
@@ -41,7 +41,7 @@ Checked against official institutional pages on 2026-11-10:
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 955 source rows representing 311 academic units and 716 departments across 19 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education; the production audit found zero academic-unit and department records before this PR.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 955 source rows representing 311 academic units and 716 departments across 19 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
 
 ### Manual-entry fallback / intentionally omitted batches
 
@@ -92,9 +92,10 @@ The second record creates the academic unit without asserting any department nam
    `npm run import:academic-catalogue`
 
 3. Review the institution/unit/department counts and any errors.
-4. Apply only after the dataset and dry-run output have been reviewed:
+4. Feature-branch dry-runs can be launched from the GitHub Actions workflow using this branch; the workflow checks out the selected ref and still connects read-only to production during dry-run.
+5. Production apply is permitted only from `main`, after the dataset and dry-run output have been reviewed:
 
    Git Bash:
    `ACADEMIC_CATALOGUE_APPLY=true ACADEMIC_CATALOGUE_CONFIRM_PRODUCTION=YES npm run import:academic-catalogue`
 
-The importer independently requires `NODE_ENV=production`, `DB_SSL=true`, a `.neon.tech` database host, and `DB_DATABASE=neondb`. It disables TypeORM schema synchronization and automatic migrations. Do not run the apply command until the intended production Neon configuration is confirmed and the migration adding `faculties.unitType` has been deployed.
+The importer independently requires `NODE_ENV=production`, `DB_SSL=true`, a `.neon.tech` database host, and `DB_DATABASE=neondb`. It disables TypeORM schema synchronization and automatic migrations. The GitHub Actions workflow allows dry-runs from feature branches but rejects production apply unless the selected ref is `main` and the exact confirmation phrase is supplied. Do not run the apply command until the intended production Neon configuration is confirmed and the migration adding `faculties.unitType` has been deployed.
