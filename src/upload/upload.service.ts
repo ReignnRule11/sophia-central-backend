@@ -47,7 +47,7 @@ export class UploadService {
     if (file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Support images must be smaller than 5 MB');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = `support-attachments/${userId}/${crypto.randomUUID()}.${ext}`;
-    const url = await this.s3Service.uploadPublicObject(key, file.buffer, file.mimetype);
+    const url = await this.s3Service.uploadObject(key, file.buffer, file.mimetype);
     await this.storageCleanup.enqueue(url, 'unused-support-attachment-upload', 7 * 24 * 60 * 60 * 1000);
     return { url, key };
   }
@@ -58,16 +58,17 @@ export class UploadService {
     if (!Number.isInteger(file.size) || file.size < 1 || file.size > 5 * 1024 * 1024) throw new BadRequestException('Profile image must be smaller than 5 MB');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
-    const profileImage = await this.s3Service.uploadPublicObject(
+    const profileImageReference = await this.s3Service.uploadObject(
       key,
       file.buffer,
       file.mimetype,
-      'public, max-age=31536000, immutable',
+      'private, max-age=300, must-revalidate',
     );
     await this.storageCleanup.enqueue(key, 'unclaimed-profile-image-upload', 24 * 60 * 60 * 1000);
-    const user = await this.usersService.updateProfileImage(userId, profileImage);
+    const user = await this.usersService.updateProfileImage(userId, profileImageReference);
+    const profileImage = await this.s3Service.createPresignedDownloadUrl(key, undefined, 'inline', 900);
     const { password: _password, ...safeUser } = user;
-    return { success: true, profileImage, user: safeUser };
+    return { success: true, profileImage, user: { ...safeUser, profileImage } };
   }
 
   async getProfileImagePresignedUrl(userId: string, dto: CreateProfileImageUploadDto) {
@@ -84,9 +85,16 @@ export class UploadService {
   async getProfileImageUrl(userId: string): Promise<{ url: string | null }> {
     const user = await this.usersService.findOne(userId);
     if (!user?.profileImage) return { url: null };
-    // Profile images are uploaded as public objects with unique, immutable keys.
-    // Return the stable URL instead of creating a short-lived signed URL on every session.
-    return { url: user.profileImage };
+    const key = this.s3Service.getKeyFromPublicUrl(user.profileImage);
+    if (!key) {
+      // Preserve compatibility for legacy external image URLs during migration.
+      return { url: user.profileImage };
+    }
+    const metadata = await this.s3Service.getObjectMetadata(key);
+    if (!metadata) return { url: null };
+    return {
+      url: await this.s3Service.createPresignedDownloadUrl(key, undefined, 'inline', 900),
+    };
   }
 
   async completeProfileImageUpload(userId: string, dto: CompleteProfileImageUploadDto) {
@@ -96,10 +104,11 @@ export class UploadService {
     if (!dto.key.startsWith('profile-images/' + userId + '/')) throw new BadRequestException('Invalid profile image key');
     const stored = await this.s3Service.getObjectMetadata(dto.key);
     if (!stored || stored.contentLength !== dto.size || stored.contentType !== dto.mimetype) throw new BadRequestException('Uploaded profile image could not be verified');
-    const profileImage = this.s3Service.getPublicUrl(dto.key);
-    const user = await this.usersService.updateProfileImage(userId, profileImage);
+    const profileImageReference = this.s3Service.getPublicUrl(dto.key);
+    const user = await this.usersService.updateProfileImage(userId, profileImageReference);
+    const profileImage = await this.s3Service.createPresignedDownloadUrl(dto.key, undefined, 'inline', 900);
     const { password: _password, ...safeUser } = user;
-    return { success: true, profileImage, user: safeUser };
+    return { success: true, profileImage, user: { ...safeUser, profileImage } };
   }
 
   async getPresignedUrl(
@@ -142,8 +151,20 @@ export class UploadService {
     if (!fileUpload) {
       const timestamp = Date.now();
       const random = crypto.randomBytes(8).toString('hex');
-      const ext = dto.filename.split('.').pop() || 'bin';
-      const key = `resources/${userId}/${timestamp}-${random}.${ext}`;
+      const extensionByMimeType: Record<string, string> = {
+        'application/pdf': 'pdf',
+        'application/msword': 'doc',
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+        'application/vnd.ms-powerpoint': 'ppt',
+        'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+        'text/plain': 'txt',
+        'image/jpeg': 'jpg',
+        'image/png': 'png',
+        'image/webp': 'webp',
+      };
+      const extension = extensionByMimeType[dto.mimetype];
+      if (!extension) throw new BadRequestException('Unsupported file type.');
+      const key = `resources/${userId}/${timestamp}-${random}.${extension}`;
 
       fileUpload = this.fileUploadRepository.create({
         uploadId: crypto.randomUUID(),
