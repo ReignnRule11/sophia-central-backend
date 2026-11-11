@@ -16,7 +16,7 @@ describe('SupportService attachment ownership', () => {
     };
     s3 = {
       getKeyFromPublicUrl: jest.fn(value => {
-        if (value === reference) return 'support-attachments/student-1/image.jpg';
+        if (value === reference || value === 'support-attachments/student-1/image.jpg') return 'support-attachments/student-1/image.jpg';
         if (value === 'https://files.example.test/support-attachments/other-user/image.jpg') {
           return 'support-attachments/other-user/image.jpg';
         }

@@ -291,7 +291,7 @@ describe('ChatService access and message rules', () => {
 
   it('rejects voice objects whose bytes do not match the declared audio MIME type', async () => {
     s3.getObjectMetadata.mockResolvedValue({ contentLength: 1024, contentType: 'audio/webm' });
-    s3.getObjectPrefix.mockResolvedValue(Buffer.from('not-a-webm-file'));
+    s3.getObjectBuffer.mockResolvedValueOnce(Buffer.from('not-a-webm-file'));
     await expect(service.create(student.id, {
       kind: 'group' as any,
       voiceKey: 'voice-messages/student-1/123e4567-e89b-12d3-a456-426614174000.webm',

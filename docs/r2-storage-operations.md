@@ -20,7 +20,7 @@ Configure these Render environment variables on the backend service:
 - `CLAMAV_HOST`: private/internal hostname of the ClamAV daemon service
 - `CLAMAV_PORT`: daemon TCP port, normally `3310`
 
-The daemon must be reachable over the private service network and must have current virus definitions. Do not expose the ClamAV TCP port publicly. The backend fails closed: when the scanner is missing, unreachable, times out, or returns an unrecognized response, the upload is not accepted. Existing signed downloads and already-stored content remain available.
+The daemon must be reachable over the private service network and must have current virus definitions. Configure ClamAV `StreamMaxLength` to at least 50 MiB so it can scan the largest allowed resource upload. Do not expose the ClamAV TCP port publicly. The backend fails closed: when the scanner is missing, unreachable, times out, or returns an unrecognized response, the upload is not accepted. Existing signed downloads and already-stored content remain available.
 
 Provision a separate private service running a maintained ClamAV daemon image on the same private network as the backend. Set the backend's `CLAMAV_HOST` to that service's internal hostname and `CLAMAV_PORT=3310`. ClamAV definition updates and service memory are operational requirements; choose a plan with enough memory for the daemon and its signature database. Do not assume a small free instance can reliably run it.
 
