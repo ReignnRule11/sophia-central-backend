@@ -77,14 +77,14 @@ export class S3Service {
       const segments = encodedKey.split('/');
       if (!segments.length || segments.some(segment => !segment)) return null;
       const decoded = segments.map(segment => decodeURIComponent(segment));
-      if (decoded.some(segment => !segment || segment === '.' || segment === '..' || segment.includes('/') || segment.includes('\\\\'))) return null;
+      if (decoded.some(segment => !segment || segment === '.' || segment === '..' || segment.includes('/') || segment.includes(String.fromCharCode(92)))) return null;
       const key = decoded.join('/');
       return this.isAllowedObjectKey(key) ? key : null;
     } catch { return null; }
   }
 
   private isAllowedObjectKey(key: string): boolean {
-    if (!key || key.startsWith('/') || key.includes('\\\\') || /[\\u0000-\\u001f\\u007f]/.test(key)) return false;
+    if (!key || key.startsWith('/') || key.includes(String.fromCharCode(92)) || [...key].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return false;
     if (key.split('/').some(part => !part || part === '.' || part === '..')) return false;
     return ['profile-images/', 'resources/', 'support-attachments/', 'voice-messages/']
       .some(prefix => key.startsWith(prefix));
