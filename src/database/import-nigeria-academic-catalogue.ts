@@ -137,7 +137,6 @@ async function main() {
 
   const dataSource = new DataSource({
     ...typeOrmConfig,
-    entities: [Institution, Faculty, Department],
     synchronize: false,
     migrationsRun: false,
     logging: false,
