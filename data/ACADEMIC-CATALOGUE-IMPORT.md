@@ -2,12 +2,12 @@
 
 This importer contains only institution-specific academic structures checked against official institutional sources. Do not populate it with guessed, generated, scraped-from-aggregators, or unverified academic structures.
 
-Each JSON record represents one department and must contain:
+Each JSON record represents a verified faculty and optionally one department. A faculty-only record creates or updates the faculty without inventing a department.
 
 - `institutionName`: exact name of an institution already present in the Nigerian institutions catalogue.
 - `institutionWebsite`: the institution's official HTTPS website.
 - `facultyName`: faculty as named by the institution.
-- `departmentName`: department as named by the institution.
+- `departmentName`: department as named by the institution; omit this field when the official source confirms a faculty but does not publish departments.
 - `officialSourceUrl`: an official page or official document on the institution's domain that confirms the faculty and department.
 - `verifiedAt`: date the record was checked, in ISO date form (`YYYY-MM-DD`).
 
@@ -19,14 +19,13 @@ Example schema (illustrative only; do not import this example as real catalogue 
     "institutionName": "EXACT UNIVERSITY NAME",
     "institutionWebsite": "https://www.example.edu.ng",
     "facultyName": "FACULTY NAME AS PUBLISHED",
-    "departmentName": "DEPARTMENT NAME AS PUBLISHED",
     "officialSourceUrl": "https://www.example.edu.ng/official-academic-page",
     "verifiedAt": "2026-11-05"
   }
 ]
 ```
 
-The importer rejects non-HTTPS links, source links outside the institution's website domain, stale verification dates (older than 365 days), duplicate records, and institutions not found in the existing Nigerian catalogue. Approved faculty and department rows also retain the official source URL and verification date in the database, so moderators can audit where catalogue entries came from and when they were last checked.
+The importer rejects non-HTTPS links, source links outside the institution's website domain, stale verification dates (older than 365 days), duplicate institution/faculty/department records, and institutions not found in the existing Nigerian catalogue. Omit `departmentName` for faculty-only records; the importer will not create a placeholder department. Approved faculty and department rows also retain the official source URL and verification date in the database, so moderators can audit where catalogue entries came from and when they were last checked.
 
 ## Current verified batch
 
