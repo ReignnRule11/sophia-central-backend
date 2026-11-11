@@ -186,11 +186,21 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
       const jobs = await this.claimJobs();
       for (const job of jobs) {
         try {
-          if (await this.isReferenced(job.object_key)) {
+          // Revalidate persisted queue data at the destructive boundary. Queue rows
+          // may be stale, malformed, or written outside the normal enqueue path.
+          const key = job.object_key === job.object_key.trim()
+            ? this.normalizeKey(job.object_key)
+            : null;
+          if (!key) {
+            this.logger.warn(`Protecting cleanup job ${job.id}: object key is outside approved storage prefixes or malformed.`);
             await this.finishJob(job.id, 'protected');
             continue;
           }
-          await this.s3.deleteObject(job.object_key);
+          if (await this.isReferenced(key)) {
+            await this.finishJob(job.id, 'protected');
+            continue;
+          }
+          await this.s3.deleteObject(key);
           await this.finishJob(job.id, 'deleted');
         } catch (error) {
           await this.retryJob(job, error);
