@@ -37,12 +37,13 @@ Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 | Federal University, Oye-Ekiti | 17 | 87 | https://fuoye.edu.ng/faculty-areas/ and individual faculty pages |
 | University of Maiduguri, Maiduguri | 18 | 96 | https://unimaid.edu.ng/Faculties.php and individual faculty pages |
 | Akwa Ibom State University, Ikot Akpaden | 15 | 5 | https://aksu.edu.ng/web/sitemap and official Faculty of Agriculture page |
+| Lagos State University, Ojo, Lagos | 18 | 47 | https://lasu.edu.ng/home/faculties/ and official faculty pages |
 | University of Jos, Jos | 19 | 0 | https://www.unijos.edu.ng/unijos-academics |
 | University of Calabar, Calabar | 23 | 0 | https://unical.edu.ng/faculties.php |
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,071 source rows representing 326 academic units and 817 departments across 20 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,136 source rows representing 344 academic units and 864 departments across 21 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
 
 ### Manual-entry fallback / intentionally omitted batches
 
@@ -54,6 +55,7 @@ This is a verified starter batch, not a claim that all Nigerian institutions are
 - Federal University, Oye-Ekiti: 17 academic units and 87 departments are staged from current official faculty pages. The university announced a new college system for October 2026. The current academic-unit schema stores units directly under institutions and cannot represent college-to-faculty parent relationships; the faculty and department records are retained, but the five parent-college groupings are not flattened into selectable units.
 - University of Maiduguri: 96 departments are now sourced across 16 of its 18 existing academic units. The Communications and Media Studies faculty page is still being set up, and the Pharmacy directory does not publish its departments; those two units remain available for manual department entry rather than receiving guessed or partial department lists.
 - Akwa Ibom State University: 15 faculties are staged from the current university sitemap; five Agriculture departments are confirmed by the current faculty page. The sitemap also lists a College of Health Sciences parent, but it is not flattened as an independent selectable unit because the current schema cannot represent its child-faculty relationship. Other faculty department directories remain incomplete in the reviewed sources and use the manual-entry fallback.
+- Lagos State University: 18 current faculty/school units and 47 departments are staged. Department names were added only for faculties with readable, explicit lists. The Arts page has an inconsistent department count/list and the Law page's names are truncated in the published directory; no names were inferred for those faculties. Other listed schools and faculties without a complete department directory remain manual-entry cases.
 - University of Calabar: 23 clearly student-facing academic units are staged. Ambiguous directory entries such as the library, non-academic listing, and institute-level entries are not treated as faculty destinations without further confirmation.
 - Where the public directory is incomplete, inaccessible, or internally inconsistent, the student enters the exact academic unit and department during onboarding. No placeholder catalogue values are created and no moderator submission is generated.
 
