@@ -31,19 +31,20 @@ Checked against official institutional pages on 2026-11-10:
 | Bayero University, Kano | 19 | 0 | https://www.buk.edu.ng/instituitional_data |
 | Federal University of Technology, Minna | 12 | 0 | https://staff.futminna.edu.ng/faculties |
 | Federal University of Technology, Owerri | 10 | 0 | https://futo.edu.ng/schools |
-| University of Abuja, Abuja | 14 | 0 | https://www.uniabuja.edu.ng/faculties |
+| University of Abuja, Abuja | 14 | 71 | https://www.uniabuja.edu.ng/faculty and individual faculty pages |
 | University of Maiduguri, Maiduguri | 18 | 0 | https://unimaid.edu.ng/Faculties.php |
 | University of Jos, Jos | 19 | 0 | https://www.unijos.edu.ng/unijos-academics |
 | University of Calabar, Calabar | 23 | 0 | https://unical.edu.ng/faculties.php |
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 636 source rows representing 266 academic units and 442 departments across 16 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education; the production audit found zero academic-unit and department records before this PR.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 707 source rows representing 266 academic units and 513 departments across 16 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education; the production audit found zero academic-unit and department records before this PR.
 
 ### Manual-entry fallback / intentionally omitted batches
 
 - Federal University of Technology, Akure: the earlier homepage-only school list was not sufficient to verify the current academic hierarchy; the current schools portal was not reliably readable for a full reconciliation.
 - Abubakar Tafawa Balewa University: the official page contains conflicting labels for the Education/Technology Education faculty and nested College of Medical Sciences faculties. Its units are omitted until the direct student-facing structure can be reconciled without flattening a parent and its child units.
+- University of Abuja: 14 faculty units and 71 departments are now sourced from the university's individual faculty pages. Three faculty pages (Clinical Science, Law, and Veterinary Medicine) do not publish department names in the reviewed page content; no departments were invented for them.
 - University of Calabar: 23 clearly student-facing academic units are staged. Ambiguous directory entries such as the library, non-academic listing, and institute-level entries are not treated as faculty destinations without further confirmation.
 - Where the public directory is incomplete, inaccessible, or internally inconsistent, the student enters the exact academic unit and department during onboarding. No placeholder catalogue values are created and no moderator submission is generated.
 
