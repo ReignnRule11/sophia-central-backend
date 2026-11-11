@@ -7,14 +7,17 @@ describe('ReferralService hybrid reward eligibility', () => {
   let users: any;
   let points: any;
   let service: ReferralService;
+  let placementResults: any[];
 
   beforeEach(() => {
+    placementResults = [];
     referrals = {
       findOne: jest.fn(),
       find: jest.fn(),
       create: jest.fn(value => value),
       save: jest.fn(async value => ({ id: 'event-1', createdAt: new Date(), ...value })),
       manager: {
+        query: jest.fn(async () => placementResults.shift() ?? []),
         transaction: jest.fn(async callback => callback({
           findOne: jest.fn()
             .mockResolvedValueOnce({
@@ -69,6 +72,7 @@ describe('ReferralService hybrid reward eligibility', () => {
   });
 
   it('awards only after email verification and complete academic placement', async () => {
+    placementResults = [[{ id: 'institution-1' }], [{ id: 'faculty-1' }], [{ id: 'department-1' }]];
     referrals.findOne.mockResolvedValue({
       id: 'event-1', referrerId: 'referrer-1', rewardStatus: 'pending',
       referredUser: {
@@ -79,6 +83,25 @@ describe('ReferralService hybrid reward eligibility', () => {
     });
     await service.processPendingReferralForUser('student-2');
     expect(points.awardReferralReward).toHaveBeenCalledWith('referrer-1', 'event-1', 20);
+  });
+
+  it('keeps unlisted manual academic placement pending without moderator review', async () => {
+    const event: any = {
+      id: 'event-2', rewardStatus: 'pending', referrerId: 'referrer-1',
+      referredUser: {
+        id: 'student-3', role: UserRole.STUDENT, emailVerified: true, isProfileComplete: true,
+        isSuspended: false, institution: 'New Institution', faculty: 'School of Computing',
+        department: 'Software Engineering', programme: 'B.Sc. Software Engineering',
+      },
+      referrer: { id: 'referrer-1', role: UserRole.STUDENT, isSuspended: false },
+    };
+    referrals.findOne.mockResolvedValue(event);
+
+    await service.processPendingReferralForUser('student-3');
+
+    expect(event.rewardStatus).toBe('pending');
+    expect(referrals.save).not.toHaveBeenCalled();
+    expect(points.awardReferralReward).not.toHaveBeenCalled();
   });
 
   it('keeps a verified referral pending until the referred student supplies a programme', async () => {

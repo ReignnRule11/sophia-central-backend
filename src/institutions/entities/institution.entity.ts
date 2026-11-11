@@ -10,6 +10,12 @@ import {
 } from 'typeorm';
 import { Course } from '../../courses/entities/course.entity';
 
+export enum AcademicUnitType {
+  FACULTY = 'faculty',
+  SCHOOL = 'school',
+  COLLEGE = 'college',
+}
+
 export enum InstitutionType {
   UNIVERSITY = 'university',
   POLYTECHNIC = 'polytechnic',
@@ -60,6 +66,9 @@ export class Faculty {
 
   @Column()
   name!: string;
+
+  @Column({ type: 'varchar', default: AcademicUnitType.FACULTY })
+  unitType!: AcademicUnitType;
 
   @ManyToOne(() => Institution, (institution) => institution.faculties, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'institutionId' })

@@ -115,6 +115,32 @@ export class ReferralService {
     };
   }
 
+  private async hasVerifiedAcademicPlacement(user: User): Promise<boolean> {
+    const institutionName = user.institution?.trim();
+    const facultyName = user.faculty?.trim();
+    const departmentName = user.department?.trim();
+    if (!institutionName || !facultyName || !departmentName) return false;
+
+    const manager = this.referralRepository.manager;
+    const [institution] = await manager.query(
+      'SELECT id FROM institutions WHERE LOWER(name) = LOWER($1) LIMIT 1',
+      [institutionName],
+    );
+    if (!institution?.id) return false;
+
+    const [faculty] = await manager.query(
+      'SELECT id FROM faculties WHERE "institutionId" = $1 AND LOWER(name) = LOWER($2) AND "sourceUrl" IS NOT NULL AND "verifiedAt" IS NOT NULL LIMIT 1',
+      [institution.id, facultyName],
+    );
+    if (!faculty?.id) return false;
+
+    const [department] = await manager.query(
+      'SELECT id FROM departments WHERE "facultyId" = $1 AND LOWER(name) = LOWER($2) AND "sourceUrl" IS NOT NULL AND "verifiedAt" IS NOT NULL LIMIT 1',
+      [faculty.id, departmentName],
+    );
+    return Boolean(department?.id);
+  }
+
   async processPendingReferralForUser(referredUserId: string): Promise<void> {
     const event = await this.referralRepository.findOne({
       where: { referredUserId, isCodeOwnerRecord: false },
@@ -144,10 +170,15 @@ export class ReferralService {
       event.referrer.role !== UserRole.STUDENT
     ) {
       event.rewardStatus = 'under_review';
-      event.reviewReason = 'Student role or approved academic placement could not be confirmed.';
+      event.reviewReason = 'Student role or academic placement could not be confirmed.';
       await this.referralRepository.save(event);
       return;
     }
+
+    // A manually entered academic placement is not a moderator submission.
+    // Keep the referral pending until the catalogue is independently verified;
+    // do not create a moderator-review item from an unlisted profile value.
+    if (!(await this.hasVerifiedAcademicPlacement(referred))) return;
 
     await this.pointsService.awardReferralReward(event.referrerId, event.id, this.REFERRER_BONUS);
   }
@@ -192,6 +223,10 @@ export class ReferralService {
       event.referrer.isSuspended
     ) {
       throw new BadRequestException('This referral does not currently meet the account and academic eligibility requirements.');
+    }
+
+    if (!(await this.hasVerifiedAcademicPlacement(referred))) {
+      throw new BadRequestException('The academic placement must exist in the verified institution catalogue before this referral can be approved.');
     }
 
     event.rewardStatus = 'pending';

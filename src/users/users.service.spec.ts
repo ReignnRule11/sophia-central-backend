@@ -30,11 +30,8 @@ describe('UsersService academic profile updates', () => {
     service = new UsersService({} as Repository<User>, dataSource as DataSource, {} as any);
   });
 
-  it('allows an institution change only with an approved institution and matching academic placement', async () => {
-    manager.query
-      .mockResolvedValueOnce([{ id: 'institution-new' }])
-      .mockResolvedValueOnce([{ id: 'faculty-new' }])
-      .mockResolvedValueOnce([{ id: 'department-new' }]);
+  it('allows manually entered academic units and departments for an approved institution', async () => {
+    manager.query.mockResolvedValueOnce([{ id: 'institution-new' }]);
 
     const updated = await service.update('student-1', {
       institution: 'New University',
@@ -47,17 +44,22 @@ describe('UsersService academic profile updates', () => {
       faculty: 'Engineering',
       department: 'Mechanical Engineering',
     });
-    expect(manager.query).toHaveBeenCalledTimes(3);
+    expect(manager.query).not.toHaveBeenCalled();
   });
 
-  it('rejects an institution that is not in the approved catalogue', async () => {
-    manager.query.mockResolvedValueOnce([]);
-
-    await expect(service.update('student-1', {
+  it('allows manual institution, academic-unit and department values without creating catalogue submissions', async () => {
+    const updated = await service.update('student-1', {
       institution: 'Unlisted University',
-      faculty: 'Science',
-      department: 'Biology',
-    })).rejects.toBeInstanceOf(BadRequestException);
+      faculty: 'School of Computing',
+      department: 'Software Engineering',
+    });
+
+    expect(updated).toMatchObject({
+      institution: 'Unlisted University',
+      faculty: 'School of Computing',
+      department: 'Software Engineering',
+    });
+    expect(manager.query).not.toHaveBeenCalled();
   });
 
   it('requires faculty and department to be resubmitted when institution changes', async () => {

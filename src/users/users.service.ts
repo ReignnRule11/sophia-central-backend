@@ -69,30 +69,20 @@ export class UsersService {
       const departmentChanged = updateData.department !== undefined && updateData.department.trim().toLocaleLowerCase() !== (user.department ?? '').trim().toLocaleLowerCase();
       const completingOnboarding = updateData.isProfileComplete === true && user.isProfileComplete !== true;
       if (institutionChanged || facultyChanged || departmentChanged || completingOnboarding) {
-        if (updateData.faculty === undefined || updateData.department === undefined) throw new BadRequestException('Faculty and department must be selected together so the academic structure can be validated.');
+        if (updateData.faculty === undefined || updateData.department === undefined) {
+          throw new BadRequestException('Enter your academic unit and department together to complete or change academic placement.');
+        }
         const institutionName = (updateData.institution ?? user.institution ?? '').trim();
         const facultyName = updateData.faculty.trim();
         const departmentName = updateData.department.trim();
-        if (!institutionName || !facultyName || !departmentName) throw new BadRequestException('A valid institution, faculty and department are required to complete or change academic placement.');
-        const institutionRows = await manager.query('SELECT i.id FROM institutions i WHERE LOWER(TRIM(i.name)) = LOWER(TRIM($1)) LIMIT 1', [institutionName]);
-        if (!institutionRows.length) throw new BadRequestException('Your institution is not yet in the approved academic catalogue. Submit it for review before completing academic setup.');
-        const facultyRows = await manager.query('SELECT f.id FROM faculties f WHERE f."institutionId" = $1 AND LOWER(TRIM(f.name)) = LOWER(TRIM($2)) LIMIT 1', [institutionRows[0].id, facultyName]);
-        let facultySubmissionId: string | null = null;
-        if (!facultyRows.length) {
-          const pendingFacultyRows = await manager.query('SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentInstitutionId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) ORDER BY s."createdAt" DESC LIMIT 1', ['faculty', 'pending', institutionRows[0].id, facultyName]);
-          if (!pendingFacultyRows.length) throw new BadRequestException('This faculty is not in the approved catalogue. Submit it for review, then save your academic placement.');
-          facultySubmissionId = pendingFacultyRows[0].id;
+        if (!institutionName || !facultyName || !departmentName) {
+          throw new BadRequestException('Your institution, academic unit (faculty/school/college), and complete department name are required.');
         }
-        if (facultyRows.length) {
-          const departmentRows = await manager.query('SELECT d.id FROM departments d WHERE d."facultyId" = $1 AND LOWER(TRIM(d.name)) = LOWER(TRIM($2)) LIMIT 1', [facultyRows[0].id, departmentName]);
-          if (!departmentRows.length) {
-            const pendingDepartmentRows = await manager.query('SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentFacultyId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) LIMIT 1', ['department', 'pending', facultyRows[0].id, departmentName]);
-            if (!pendingDepartmentRows.length) throw new BadRequestException('This department is not in the selected faculty catalogue. Submit it for review, then save your academic placement.');
-          }
-        } else {
-          const pendingDepartmentRows = await manager.query('SELECT s.id FROM academic_catalogue_submissions s WHERE s."entryType" = $1 AND s.status = $2 AND s."parentFacultySubmissionId" = $3 AND LOWER(TRIM(s.name)) = LOWER(TRIM($4)) LIMIT 1', ['department', 'pending', facultySubmissionId, departmentName]);
-          if (!pendingDepartmentRows.length) throw new BadRequestException('This department must be submitted under the pending faculty before the academic placement can be saved.');
-        }
+        // Institution, academic-unit and department values are profile data.
+        // When a directory or the institution list is unavailable, allow manual
+        // entry without creating or queueing a shared catalogue submission.
+        // The shared catalogue remains unchanged until an administrator imports
+        // independently verified source data.
       }
       if (updateData.academicHandle !== undefined) {
         const normalized = updateData.academicHandle.trim().replace(/^@+/, '').toLowerCase();
