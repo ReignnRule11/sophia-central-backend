@@ -19,8 +19,7 @@ export class StoreR2ReferencesAsObjectKeys2026111100001 implements MigrationInte
     );
     await queryRunner.query(
       `UPDATE support_requests request
-       SET attachments = converted.values
-       FROM LATERAL (
+       SET attachments = (
          SELECT COALESCE(
            jsonb_agg(
              to_jsonb(
@@ -31,11 +30,10 @@ export class StoreR2ReferencesAsObjectKeys2026111100001 implements MigrationInte
              ) ORDER BY item.ordinality
            ),
            '[]'::jsonb
-         ) AS values
-         FROM jsonb_array_elements_text(
-           CASE WHEN jsonb_typeof(request.attachments) = 'array' THEN request.attachments ELSE '[]'::jsonb END
-         ) WITH ORDINALITY AS item(value, ordinality)
-       ) converted
+         )
+         FROM jsonb_array_elements_text(request.attachments)
+           WITH ORDINALITY AS item(value, ordinality)
+       )
        WHERE jsonb_typeof(request.attachments) = 'array'
          AND EXISTS (
            SELECT 1 FROM jsonb_array_elements_text(request.attachments) AS existing(value)

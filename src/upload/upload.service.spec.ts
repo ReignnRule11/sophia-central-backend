@@ -15,7 +15,7 @@ describe('UploadService.completeUpload', () => {
   let service: UploadService;
   let fileUploadRepository: { findOne: jest.Mock; save: jest.Mock; create: jest.Mock };
   let resourceRepository: any;
-  let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock; getObjectPrefix: jest.Mock };
+  let s3Service: { getObjectMetadata: jest.Mock; getPublicUrl: jest.Mock; getObjectPrefix: jest.Mock; getObjectBuffer: jest.Mock };
   let transactionManager: any;
   let storageCleanup: any;
   let clamAvService: any;
@@ -172,6 +172,7 @@ describe('UploadService.getUploadDetails', () => {
       {} as any,
       {} as any,
       {} as any,
+      { scan: jest.fn() } as any,
     );
 
     await expect(service.getUploadDetails('attacker-1', uploadId)).rejects.toThrow('Upload not found');
