@@ -43,12 +43,13 @@ Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 | Yaba College of Technology, Yaba | 8 | 31 | https://yabatech.edu.ng/schl.php and individual school pages |
 | Hussaini Adamu Federal Polytechnic, Kazaure | 6 | 28 | https://portal.hafedpoly.edu.ng/students_handbook.php?section=s2 |
 | Federal College of Education, Abeokuta | 3 | 17 | https://fce-abeokuta.edu.ng individual school pages |
+| Federal College of Education Ilawe-Ekiti | 7 | 37 | https://fceilawe.edu.ng/schools-and-departments/ |
 | University of Jos, Jos | 19 | 0 | https://www.unijos.edu.ng/unijos-academics |
 | University of Calabar, Calabar | 23 | 0 | https://unical.edu.ng/faculties.php |
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,367 source rows representing 385 academic units and 1,054 departments across 26 of the 769 production institutions.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,411 source rows representing 392 academic units and 1,091 departments across 27 of the 769 production institutions.
 
 Coverage by institution type in this branch: 22/328 universities, 3/199 polytechnics, and 1/242 colleges of education. The remaining 743 institutions are not represented in this source batch yet; this branch is an expansion, not a completed nationwide catalogue. The onboarding manual-entry fallback remains necessary for institutions whose official directories are incomplete or inaccessible. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
 
@@ -68,6 +69,7 @@ Coverage by institution type in this branch: 22/328 universities, 3/199 polytech
 - Yaba College of Technology: all eight current schools are staged; 31 departments are included for Engineering, Environmental Studies, Management and Business Studies, and Technology. The Art, Science and Technical Education pages have conflicting department lists/counts, while the Liberal Studies page was inaccessible; those four schools remain manual department-entry cases.
 - Hussaini Adamu Federal Polytechnic: six schools and 28 student-admitting departments are staged from the 2025 academic-regulations handbook. Entrepreneurship and General National Studies are explicitly marked as servicing departments that do not admit students, so they were excluded from the selectable department catalogue.
 - Federal College of Education, Abeokuta: three schools and 17 departments are staged from current school pages listing their Deans and HODs. The college's own pages conflict on the total number of schools/departments, so only these individually verified school directories were imported; remaining schools are left for manual onboarding entry.
+- Federal College of Education Ilawe-Ekiti: all seven schools and 37 departments are staged from the college's 2026/2027 Schools and Departments page.
 - University of Calabar: 23 clearly student-facing academic units are staged. Ambiguous directory entries such as the library, non-academic listing, and institute-level entries are not treated as faculty destinations without further confirmation.
 - Where the public directory is incomplete, inaccessible, or internally inconsistent, the student enters the exact academic unit and department during onboarding. No placeholder catalogue values are created and no moderator submission is generated.
 
