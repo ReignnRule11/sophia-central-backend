@@ -4,10 +4,10 @@ export class StoreR2ReferencesAsObjectKeys2026111100001 implements MigrationInte
   name = 'StoreR2ReferencesAsObjectKeys2026111100001';
 
   async up(queryRunner: QueryRunner): Promise<void> {
-    const ownedReference = '^https?://[^/]+/(profile-images|resources|support-attachments)/[0-9a-f-]{36}/[A-Za-z0-9][A-Za-z0-9._-]{0,179}$';
+    const ownedReference = '^https?://sophia-central\\.s3\\.auto\\.amazonaws\\.com/(profile-images|resources|support-attachments)/[0-9a-f-]{36}/[A-Za-z0-9][A-Za-z0-9._-]{0,179}$';
     await queryRunner.query(
       `UPDATE users
-       SET "profileImage" = regexp_replace("profileImage", '^https?://[^/]+/', '')
+       SET "profileImage" = regexp_replace("profileImage", '^https?://sophia-central\\.s3\\.auto\\.amazonaws\\.com/', '')
        WHERE "profileImage" ~* $1`,
       [ownedReference],
     );
