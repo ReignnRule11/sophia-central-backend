@@ -235,17 +235,30 @@ export class UploadService {
     };
   }
 
-  async getUploadDetails(uploadId: string) {
+  async getUploadDetails(userId: string, uploadId: string) {
     const fileUpload = await this.fileUploadRepository.findOne({
-      where: { uploadId },
+      where: { uploadId, userId },
       relations: ['resource'],
     });
 
     if (!fileUpload) {
+      // Do not reveal whether another account owns this upload identifier.
       throw new NotFoundException('Upload not found');
     }
 
-    return fileUpload;
+    return {
+      uploadId: fileUpload.uploadId,
+      resourceId: fileUpload.resourceId,
+      filename: fileUpload.filename,
+      mimetype: fileUpload.mimetype,
+      size: fileUpload.size,
+      status: fileUpload.status,
+      uploadedAt: fileUpload.uploadedAt,
+      completedAt: fileUpload.completedAt ?? null,
+      resource: fileUpload.resource
+        ? { id: fileUpload.resource.id, title: fileUpload.resource.title }
+        : null,
+    };
   }
 
   async validateAndScanFile(filePath: string): Promise<boolean> {
