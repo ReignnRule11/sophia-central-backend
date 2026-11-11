@@ -8,6 +8,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { S3Service } from '../upload/s3.service';
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
+import { ClamAvService } from '../upload/clamav.service';
 import { matchesFileSignature } from '../upload/file-signature.util';
 import { ChatContentType, ChatKind, ChatMessage } from './entities/chat-message.entity';
 import { CreateChatMessageDto, CreateVoiceUploadDto } from './dto/create-chat-message.dto';
@@ -41,6 +42,7 @@ export class ChatService {
     private readonly redis: RedisChatService,
     private readonly notifications: NotificationsService,
     private readonly storageCleanup: StorageCleanupService,
+    private readonly clamAv: ClamAvService,
   ) {}
 
   private async eligible(id: string, roles: UserRole[]): Promise<User> {
@@ -375,9 +377,14 @@ export class ChatService {
       }
       const extension = key.split('.').pop();
       if (VOICE_TYPES[stored.contentType] !== extension) throw new BadRequestException('Audio file type does not match its upload key.');
-      const prefix = await this.s3.getObjectPrefix(key);
-      if (!prefix || !matchesFileSignature(prefix, stored.contentType)) {
+      const audio = await this.s3.getObjectBuffer(key, MAX_VOICE_BYTES);
+      if (!audio || !matchesFileSignature(audio, stored.contentType)) {
         throw new BadRequestException('Voice recording content does not match its declared audio type.');
+      }
+      const scan = await this.clamAv.scan(audio);
+      if (!scan.clean) {
+        await this.storageCleanup.enqueue(key, 'malware-rejected-chat-voice');
+        throw new BadRequestException('The voice recording was rejected by malware scanning.');
       }
       contentType = ChatContentType.VOICE;
       voiceKey = key;

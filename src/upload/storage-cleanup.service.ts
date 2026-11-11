@@ -128,21 +128,25 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
     const publicUrl = this.s3.getPublicUrl(key);
     const rows = await this.dataSource.query(
       `SELECT
-        EXISTS (SELECT 1 FROM users WHERE "profileImage" = $1) OR
-        EXISTS (SELECT 1 FROM resources WHERE "fileUrl" = $1) OR
-        EXISTS (SELECT 1 FROM resource_files WHERE s3_key = $2) OR
-        EXISTS (SELECT 1 FROM chat_messages WHERE "voiceKey" = $2 AND "isDeleted" = false) OR
+        EXISTS (SELECT 1 FROM users WHERE "profileImage" IN ($1, $2)) OR
+        EXISTS (SELECT 1 FROM resources WHERE "fileUrl" IN ($1, $2)) OR
+        EXISTS (SELECT 1 FROM resource_files WHERE s3_key IN ($1, $2)) OR
+        EXISTS (SELECT 1 FROM chat_messages WHERE "voiceKey" IN ($1, $2) AND "isDeleted" = false) OR
         EXISTS (
           SELECT 1 FROM chat_messages forwarded
           JOIN chat_messages original ON original.id = forwarded."forwardedFromMessageId"
-          WHERE forwarded."isDeleted" = false AND original."voiceKey" = $2
+          WHERE forwarded."isDeleted" = false AND original."voiceKey" IN ($1, $2)
         ) OR
-        EXISTS (SELECT 1 FROM support_requests WHERE attachments @> jsonb_build_array($1::text)) OR
         EXISTS (
-          SELECT 1 FROM file_uploads WHERE "s3Key" = $2 AND status = 'pending'
+          SELECT 1 FROM support_requests
+          WHERE attachments @> jsonb_build_array($1::text)
+             OR attachments @> jsonb_build_array($2::text)
+        ) OR
+        EXISTS (
+          SELECT 1 FROM file_uploads WHERE "s3Key" = $1 AND status = 'pending'
             AND "uploadedAt" > NOW() - INTERVAL '24 hours'
         ) AS referenced`,
-      [publicUrl, key],
+      [key, publicUrl],
     );
     return Boolean(rows[0]?.referenced);
   }
