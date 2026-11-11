@@ -5342,7 +5342,7 @@
     "institutionWebsite": "https://www.rsu.edu.ng",
     "facultyName": "Basic Medical Sciences",
     "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/faculties/",
+    "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
     "verifiedAt": "2026-11-11"
   },
   {
@@ -5350,7 +5350,7 @@
     "institutionWebsite": "https://www.rsu.edu.ng",
     "facultyName": "Basic Clinical Sciences",
     "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/faculties/",
+    "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-clinical-sciences/",
     "verifiedAt": "2026-11-11"
   },
   {
@@ -5358,7 +5358,7 @@
     "institutionWebsite": "https://www.rsu.edu.ng",
     "facultyName": "Clinical Sciences",
     "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/faculties/",
+    "officialSourceUrl": "https://www.rsu.edu.ng/course/faculty-of-clinical-sciences/",
     "verifiedAt": "2026-11-11"
   },
   {
@@ -5382,7 +5382,7 @@
     "institutionWebsite": "https://www.rsu.edu.ng",
     "facultyName": "Environmental Sciences",
     "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/faculties/",
+    "officialSourceUrl": "https://www.rsu.edu.ng/course/environmental-sciences/",
     "verifiedAt": "2026-11-11"
   },
   {
@@ -5406,7 +5406,7 @@
     "institutionWebsite": "https://www.rsu.edu.ng",
     "facultyName": "Administration and Management",
     "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/faculties/",
+    "officialSourceUrl": "https://www.rsu.edu.ng/course/management-sciences/",
     "verifiedAt": "2026-11-11"
   },
   {
@@ -16528,15 +16528,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Clinical Science",
-    "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-clinical-sciences/",
-    "verifiedAt": "2026-11-11"
-  },
-  {
-    "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
-    "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Clinical Science",
+    "facultyName": "Basic Clinical Sciences",
     "departmentName": "Anatomical Pathology",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-clinical-sciences/",
@@ -16545,7 +16537,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Clinical Science",
+    "facultyName": "Basic Clinical Sciences",
     "departmentName": "Chemical Pathology",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-clinical-sciences/",
@@ -16554,7 +16546,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Clinical Science",
+    "facultyName": "Basic Clinical Sciences",
     "departmentName": "Haematology, Blood Transfusion and Immunology",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-clinical-sciences/",
@@ -16563,7 +16555,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Clinical Science",
+    "facultyName": "Basic Clinical Sciences",
     "departmentName": "Medical Microbiology and Parasitology",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-clinical-sciences/",
@@ -16572,7 +16564,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Clinical Science",
+    "facultyName": "Basic Clinical Sciences",
     "departmentName": "Pharmacology and Therapeutics",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-clinical-sciences/",
@@ -16581,15 +16573,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Medical Science",
-    "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
-    "verifiedAt": "2026-11-11"
-  },
-  {
-    "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
-    "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Medical Science",
+    "facultyName": "Basic Medical Sciences",
     "departmentName": "Human Anatomy",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
@@ -16598,7 +16582,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Medical Science",
+    "facultyName": "Basic Medical Sciences",
     "departmentName": "Human Physiology",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
@@ -16607,7 +16591,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Medical Science",
+    "facultyName": "Basic Medical Sciences",
     "departmentName": "Medical Biochemistry",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
@@ -16616,7 +16600,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Medical Science",
+    "facultyName": "Basic Medical Sciences",
     "departmentName": "Nursing Sciences",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
@@ -16625,7 +16609,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Medical Science",
+    "facultyName": "Basic Medical Sciences",
     "departmentName": "Public Health Sciences",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
@@ -16634,7 +16618,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Medical Science",
+    "facultyName": "Basic Medical Sciences",
     "departmentName": "Radiography",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
@@ -16643,7 +16627,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Medical Science",
+    "facultyName": "Basic Medical Sciences",
     "departmentName": "Physiotherapy",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
@@ -16652,7 +16636,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Basic Medical Science",
+    "facultyName": "Basic Medical Sciences",
     "departmentName": "Medicine and Surgery",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/basic-medical-sciences/",
@@ -16661,15 +16645,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Clinical Science",
-    "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/course/faculty-of-clinical-sciences/",
-    "verifiedAt": "2026-11-11"
-  },
-  {
-    "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
-    "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Clinical Science",
+    "facultyName": "Clinical Sciences",
     "departmentName": "Obstetrics and Gynaecology",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/faculty-of-clinical-sciences/",
@@ -16678,7 +16654,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Clinical Science",
+    "facultyName": "Clinical Sciences",
     "departmentName": "Paediatrics and Child Health",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/faculty-of-clinical-sciences/",
@@ -16687,7 +16663,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Clinical Science",
+    "facultyName": "Clinical Sciences",
     "departmentName": "Internal Medicine",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/faculty-of-clinical-sciences/",
@@ -16696,7 +16672,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Clinical Science",
+    "facultyName": "Clinical Sciences",
     "departmentName": "Family Medicine",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/faculty-of-clinical-sciences/",
@@ -16705,7 +16681,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Clinical Science",
+    "facultyName": "Clinical Sciences",
     "departmentName": "Surgery",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/faculty-of-clinical-sciences/",
@@ -16714,7 +16690,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Clinical Science",
+    "facultyName": "Clinical Sciences",
     "departmentName": "Community Medicine",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/faculty-of-clinical-sciences/",
@@ -16912,15 +16888,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Environmental Science",
-    "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/course/environmental-sciences/",
-    "verifiedAt": "2026-11-11"
-  },
-  {
-    "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
-    "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Environmental Science",
+    "facultyName": "Environmental Sciences",
     "departmentName": "Architecture",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/environmental-sciences/",
@@ -16929,7 +16897,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Environmental Science",
+    "facultyName": "Environmental Sciences",
     "departmentName": "Estate Management",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/environmental-sciences/",
@@ -16938,7 +16906,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Environmental Science",
+    "facultyName": "Environmental Sciences",
     "departmentName": "Environmental Management",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/environmental-sciences/",
@@ -16947,7 +16915,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Environmental Science",
+    "facultyName": "Environmental Sciences",
     "departmentName": "Geography and Environmental Management",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/environmental-sciences/",
@@ -16956,7 +16924,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Environmental Science",
+    "facultyName": "Environmental Sciences",
     "departmentName": "Quantity Surveying",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/environmental-sciences/",
@@ -16965,7 +16933,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Environmental Science",
+    "facultyName": "Environmental Sciences",
     "departmentName": "Surveying and Geomatics",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/environmental-sciences/",
@@ -16974,7 +16942,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Environmental Science",
+    "facultyName": "Environmental Sciences",
     "departmentName": "Urban and Regional Planning",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/environmental-sciences/",
@@ -17073,15 +17041,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Management Science",
-    "facultyType": "faculty",
-    "officialSourceUrl": "https://www.rsu.edu.ng/course/management-sciences/",
-    "verifiedAt": "2026-11-11"
-  },
-  {
-    "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
-    "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Management Science",
+    "facultyName": "Administration and Management",
     "departmentName": "Accounting",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/management-sciences/",
@@ -17090,7 +17050,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Management Science",
+    "facultyName": "Administration and Management",
     "departmentName": "Finance",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/management-sciences/",
@@ -17099,7 +17059,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Management Science",
+    "facultyName": "Administration and Management",
     "departmentName": "Business Administration",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/management-sciences/",
@@ -17108,7 +17068,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Management Science",
+    "facultyName": "Administration and Management",
     "departmentName": "Employment Relations and Human Resource Management",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/management-sciences/",
@@ -17117,7 +17077,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Management Science",
+    "facultyName": "Administration and Management",
     "departmentName": "Office and Information Management",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/management-sciences/",
@@ -17126,7 +17086,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Management Science",
+    "facultyName": "Administration and Management",
     "departmentName": "Marketing",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/management-sciences/",
@@ -17135,7 +17095,7 @@
   {
     "institutionName": "Rivers State University of Science & Technology, Port Harcourt, Rivers State",
     "institutionWebsite": "https://www.rsu.edu.ng",
-    "facultyName": "Management Science",
+    "facultyName": "Administration and Management",
     "departmentName": "Supply Chain Management",
     "facultyType": "faculty",
     "officialSourceUrl": "https://www.rsu.edu.ng/course/management-sciences/",
