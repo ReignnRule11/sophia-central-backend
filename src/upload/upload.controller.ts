@@ -81,6 +81,14 @@ export class UploadController {
     return this.uploadService.getProfileImageUrl(user.id);
   }
 
+  @Get('profile-image/:userId/url')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a short-lived signed URL for an account profile image' })
+  getAccountProfileImageUrl(@Param('userId') userId: string) {
+    return this.uploadService.getProfileImageUrl(userId);
+  }
+
   @Post('profile-image/presigned-url')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
