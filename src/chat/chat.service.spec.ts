@@ -70,6 +70,7 @@ describe('ChatService access and message rules', () => {
     s3 = {
       createPresignedUploadUrl: jest.fn(async (key, contentType) => ({ url: 'https://upload.invalid', key, contentType })),
       getObjectMetadata: jest.fn(),
+      getObjectPrefix: jest.fn().mockResolvedValue(Buffer.from([0x1a, 0x45, 0xdf, 0xa3])),
       createPresignedDownloadUrl: jest.fn(),
     };
     redisEvents = new Subject<{ roomKey: string }>();
@@ -277,6 +278,16 @@ describe('ChatService access and message rules', () => {
 
   it('rejects voice objects whose MIME type does not match the key extension', async () => {
     s3.getObjectMetadata.mockResolvedValue({ contentLength: 1024, contentType: 'audio/ogg' });
+    await expect(service.create(student.id, {
+      kind: 'group' as any,
+      voiceKey: 'voice-messages/student-1/123e4567-e89b-12d3-a456-426614174000.webm',
+    } as any)).rejects.toBeInstanceOf(BadRequestException);
+    expect(repo.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects voice objects whose bytes do not match the declared audio MIME type', async () => {
+    s3.getObjectMetadata.mockResolvedValue({ contentLength: 1024, contentType: 'audio/webm' });
+    s3.getObjectPrefix.mockResolvedValue(Buffer.from('not-a-webm-file'));
     await expect(service.create(student.id, {
       kind: 'group' as any,
       voiceKey: 'voice-messages/student-1/123e4567-e89b-12d3-a456-426614174000.webm',
