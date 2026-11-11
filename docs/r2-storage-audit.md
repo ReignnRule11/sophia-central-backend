@@ -19,7 +19,7 @@ The shared `src/upload/s3.service.ts` is the only active S3-compatible client. I
 
 Database fields such as `users.profileImage` and `resources.fileUrl` currently retain legacy canonical reference URLs for compatibility with existing rows and cleanup checks. Treat these values as object references, not browser-accessible public URLs. Authorized endpoints should create short-lived signed download URLs. Profile images can be resolved through the authenticated `GET /upload/profile-image/{userId}/url` endpoint; support-request attachment responses are signed when returned to the submitter or moderator. Resource and chat voice downloads already use signed URLs.
 
-The support-request create path verifies that every submitted attachment belongs to the submitting account's `support-attachments/{owner-uuid}/` prefix and checks the stored object's existence, size and MIME metadata before saving the request. Upload-detail lookup requires authentication and only returns records owned by the current account.
+The support-request create path verifies that every submitted attachment belongs to the submitting account's `support-attachments/{owner-uuid}/` prefix and checks the stored object's existence, size and MIME metadata before saving the request. Multipart image uploads and presigned resource/voice uploads are checked against file signatures as well as their declared MIME types and sizes. The R2 client reads only a bounded object prefix for this check. Upload-detail lookup requires authentication and only returns records owned by the current account.
 
 ## Automatic cleanup after deployment
 
