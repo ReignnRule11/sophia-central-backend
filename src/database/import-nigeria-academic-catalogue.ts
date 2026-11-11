@@ -10,7 +10,7 @@ type CatalogueRecord = {
   institutionName: string;
   institutionWebsite: string;
   facultyName: string;
-  departmentName: string;
+  departmentName?: string;
   officialSourceUrl: string;
   verifiedAt: string;
 };
@@ -29,7 +29,7 @@ function parseRecords(filePath: string): CatalogueRecord[] {
   const seen = new Set<string>();
   return parsed.map((raw, index) => {
     const row = raw as Partial<CatalogueRecord>;
-    const fields: (keyof CatalogueRecord)[] = ['institutionName', 'institutionWebsite', 'facultyName', 'departmentName', 'officialSourceUrl', 'verifiedAt'];
+    const fields: (keyof CatalogueRecord)[] = ['institutionName', 'institutionWebsite', 'facultyName', 'officialSourceUrl', 'verifiedAt'];
     for (const field of fields) {
       if (typeof row[field] !== 'string' || !row[field]!.trim()) throw new Error('Record ' + (index + 1) + ' is missing ' + field + '.');
     }
@@ -43,14 +43,15 @@ function parseRecords(filePath: string): CatalogueRecord[] {
     if (!Number.isFinite(verifiedAt.getTime()) || verifiedAt.toISOString().slice(0, 10) !== row.verifiedAt || verifiedAt.getTime() > now || now - verifiedAt.getTime() > 365 * 24 * 60 * 60 * 1000) {
       throw new Error('Record ' + (index + 1) + ': verifiedAt must be a valid date within the last 365 days.');
     }
-    const key = [row.institutionName, row.facultyName, row.departmentName].map((v) => v!.trim().toLocaleLowerCase()).join('|');
+    if (row.departmentName !== undefined && (typeof row.departmentName !== 'string' || !row.departmentName.trim())) throw new Error('Record ' + (index + 1) + ': departmentName must be omitted or a non-empty string.');
+    const key = [row.institutionName, row.facultyName, row.departmentName ?? ''].map((v) => v.trim().toLocaleLowerCase()).join('|');
     if (seen.has(key)) throw new Error('Duplicate institution/faculty/department record: ' + key);
     seen.add(key);
     return {
       institutionName: row.institutionName!.trim(),
       institutionWebsite: row.institutionWebsite!.trim(),
       facultyName: row.facultyName!.trim(),
-      departmentName: row.departmentName!.trim(),
+      ...(row.departmentName ? { departmentName: row.departmentName.trim() } : {}),
       officialSourceUrl: row.officialSourceUrl!.trim(),
       verifiedAt: row.verifiedAt!.trim(),
     };
@@ -95,6 +96,8 @@ async function applyRecords(manager: EntityManager, records: CatalogueRecord[]) 
       }
       facultyCache.set(facultyKey, faculty);
     }
+
+    if (!record.departmentName) continue;
 
     const existingDepartment = await manager.createQueryBuilder(Department, 'department')
       .where('department.facultyId = :facultyId', { facultyId: faculty.id })
