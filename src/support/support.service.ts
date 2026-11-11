@@ -1,4 +1,4 @@
-import { ConflictException, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SupportRequest } from './entities/support-request.entity';
@@ -6,6 +6,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { CreateSupportRequestDto } from './dto/create-support-request.dto';
 import { ConcludeSupportRequestDto } from './dto/conclude-support-request.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { S3Service } from '../upload/s3.service';
 
 @Injectable()
 export class SupportService {
@@ -15,19 +16,21 @@ export class SupportService {
     @InjectRepository(SupportRequest) private readonly requests: Repository<SupportRequest>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly notifications: NotificationsService,
+    private readonly s3: S3Service,
   ) {}
 
   async create(user: User, dto: CreateSupportRequestDto) {
     if (![UserRole.STUDENT, UserRole.LECTURER].includes(user.role)) {
       throw new ForbiddenException('Only student and lecturer accounts can contact support');
     }
+    const attachments = await this.validateOwnedAttachments(user.id, dto.attachments ?? []);
     const request = this.requests.create({
       userId: user.id,
       subject: dto.subject.trim(),
       category: dto.category,
       description: dto.description.trim(),
       links: (dto.links ?? []).map((link) => link.trim()).filter(Boolean),
-      attachments: (dto.attachments ?? []).filter(Boolean),
+      attachments,
       status: 'pending',
     });
     const saved = await this.requests.save(request);
@@ -35,6 +38,34 @@ export class SupportService {
       ...saved,
       confirmationMessage: 'Your message has been sent to Support. Our administration team will review your request and provide an update through your notifications.',
     };
+  }
+
+  private async validateOwnedAttachments(userId: string, values: string[]): Promise<string[]> {
+    const attachments = [...new Set(values.map(value => value.trim()).filter(Boolean))];
+    if (attachments.length > 5) {
+      throw new BadRequestException('A support request can include at most five attachments.');
+    }
+
+    const prefix = `support-attachments/${userId}/`;
+    const allowedTypes = new Set(['image/jpeg', 'image/png', 'image/webp']);
+    for (const reference of attachments) {
+      const key = this.s3.getKeyFromPublicUrl(reference);
+      if (!key || !key.startsWith(prefix)) {
+        throw new BadRequestException('Each support attachment must be uploaded by your account.');
+      }
+      const metadata = await this.s3.getObjectMetadata(key);
+      if (
+        !metadata ||
+        !Number.isInteger(metadata.contentLength) ||
+        metadata.contentLength! < 1 ||
+        metadata.contentLength! > 5 * 1024 * 1024 ||
+        !metadata.contentType ||
+        !allowedTypes.has(metadata.contentType)
+      ) {
+        throw new BadRequestException('A support attachment is missing, too large, or has an unsupported file type.');
+      }
+    }
+    return attachments;
   }
 
   async listMine(userId: string) {
