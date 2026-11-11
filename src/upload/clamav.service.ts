@@ -59,7 +59,7 @@ export class ClamAvService {
     }
 
     if (/\bFOUND\b/i.test(response)) return { clean: false, result: response.slice(0, 500) };
-    if (/\bOK\b/i.test(response) && !/\bERROR\b/i.test(response)) {
+    if (/\sOK$/i.test(response) && !/\bERROR\b/i.test(response) && !/\bFOUND\b/i.test(response)) {
       return { clean: true, result: response.slice(0, 500) };
     }
     throw new ServiceUnavailableException('Malware scanning could not verify this upload; please retry later.');

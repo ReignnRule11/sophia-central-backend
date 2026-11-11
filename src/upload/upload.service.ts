@@ -67,7 +67,7 @@ export class UploadService {
     if (!scan.clean) throw new BadRequestException('The profile image was rejected by malware scanning.');
     const ext = file.mimetype === 'image/jpeg' ? 'jpg' : file.mimetype === 'image/png' ? 'png' : 'webp';
     const key = 'profile-images/' + userId + '/' + crypto.randomUUID() + '.' + ext;
-    const profileImageReference = await this.s3Service.uploadObject(
+    await this.s3Service.uploadObject(
       key,
       file.buffer,
       file.mimetype,
