@@ -69,19 +69,31 @@ const s3 = new S3Client({
 function keyFromReference(value) {
   if (typeof value !== 'string' || !value.trim()) return null;
   const raw = value.trim();
-  if (!/^https?:\/\//i.test(raw)) {
-    return raw.startsWith('/') ? raw.slice(1) : raw;
+  let key;
+  if (/^https?:\\/\\//i.test(raw)) {
+    try {
+      const parsed = new URL(raw);
+      const base = new URL(process.env.AWS_S3_BUCKET_URL);
+      if (parsed.host !== base.host || parsed.username || parsed.password || parsed.search || parsed.hash) return null;
+      const prefix = base.pathname.replace(/\\/$/, '');
+      if (!parsed.pathname.startsWith(prefix + '/')) return null;
+      const encoded = parsed.pathname.slice(prefix.length + 1).split('/');
+      const decoded = encoded.map(segment => decodeURIComponent(segment));
+      if (decoded.some(segment => !segment || segment.includes('/') || segment.includes('\\\\'))) return null;
+      key = decoded.join('/');
+    } catch {
+      return null;
+    }
+  } else {
+    key = raw;
   }
-  try {
-    const parsed = new URL(raw);
-    const base = new URL(process.env.AWS_S3_BUCKET_URL);
-    if (parsed.host !== base.host) return null;
-    const prefix = base.pathname.replace(/\/$/, '');
-    if (!parsed.pathname.startsWith(prefix + '/')) return null;
-    return decodeURIComponent(parsed.pathname.slice(prefix.length + 1));
-  } catch {
-    return null;
-  }
+  const parts = key.split('/');
+  if (parts.length !== 3 || parts.some(part => !part || part === '.' || part === '..')) return null;
+  if (!['profile-images', 'resources', 'support-attachments', 'voice-messages'].includes(parts[0])) return null;
+  if (!/^[0-9a-f-]{36}$/i.test(parts[1])) return null;
+  if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,179}$/.test(parts[2])) return null;
+  if (key.includes('\\\\') || [...key].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return null;
+  return key;
 }
 
 function csvCell(value) {
