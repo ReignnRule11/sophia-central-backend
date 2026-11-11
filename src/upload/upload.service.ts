@@ -272,7 +272,7 @@ export class UploadService {
       resourceId: fileUpload.resourceId,
       filename: fileUpload.filename,
       mimetype: fileUpload.mimetype,
-      size: fileUpload.size,
+      size: Number(fileUpload.size),
       status: fileUpload.status,
       uploadedAt: fileUpload.uploadedAt,
       completedAt: fileUpload.completedAt ?? null,
