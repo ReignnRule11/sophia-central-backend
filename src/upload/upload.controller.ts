@@ -5,7 +5,6 @@ import {
   Param,
   UseInterceptors,
   UploadedFile,
-  BadRequestException,
   UseGuards,
   Body,
 } from '@nestjs/common';
@@ -77,7 +76,7 @@ export class UploadController {
   @Get('profile-image/url')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Get the stable public URL for the current user profile image' })
+  @ApiOperation({ summary: 'Get the current user profile image URL' })
   getProfileImageUrl(@CurrentUser() user: User) {
     return this.uploadService.getProfileImageUrl(user.id);
   }
@@ -105,8 +104,10 @@ export class UploadController {
   }
 
   @Get(':id')
-  @ApiOperation({ summary: 'Get upload details' })
-  async getUploadDetails(@Param('id') id: string) {
-    return this.uploadService.getUploadDetails(id);
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the authenticated user’s upload details' })
+  async getUploadDetails(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.uploadService.getUploadDetails(user.id, id);
   }
 }
