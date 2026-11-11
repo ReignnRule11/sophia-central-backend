@@ -36,6 +36,7 @@ export class S3Service {
   }
 
   async createPresignedUploadUrl(key: string, contentType: string, expiresIn = 600) {
+    this.assertAllowedObjectKey(key);
     const command = new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
@@ -57,6 +58,7 @@ export class S3Service {
   }
 
   async createPresignedDownloadUrl(key: string, filename?: string, disposition: 'inline' | 'attachment' = 'inline', expiresIn = 300): Promise<string> {
+    this.assertAllowedObjectKey(key);
     const command = new GetObjectCommand({
       Bucket: this.bucketName,
       Key: key,
@@ -84,13 +86,23 @@ export class S3Service {
   }
 
   private isAllowedObjectKey(key: string): boolean {
-    if (!key || key.startsWith('/') || key.includes(String.fromCharCode(92)) || [...key].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return false;
-    if (key.split('/').some(part => !part || part === '.' || part === '..')) return false;
+    if (!key || key !== key.trim() || key.startsWith('/') || key.includes(String.fromCharCode(92)) || [...key].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)) return false;
+    const parts = key.split('/');
+    if (parts.length !== 3 || parts.some(part => !part || part === '.' || part === '..')) return false;
+    if (!/^[0-9a-f-]{36}$/i.test(parts[1])) return false;
+    if (!/^[a-zA-Z0-9][a-zA-Z0-9._-]{0,179}$/.test(parts[2])) return false;
     return ['profile-images/', 'resources/', 'support-attachments/', 'voice-messages/']
       .some(prefix => key.startsWith(prefix));
   }
 
-  async uploadPublicObject(key: string, body: Buffer, contentType: string, cacheControl?: string): Promise<string> {
+  private assertAllowedObjectKey(key: string): void {
+    if (!this.isAllowedObjectKey(key)) {
+      throw new Error('Invalid application storage object key');
+    }
+  }
+
+  async uploadObject(key: string, body: Buffer, contentType: string, cacheControl?: string): Promise<string> {
+    this.assertAllowedObjectKey(key);
     await this.client.send(new PutObjectCommand({
       Bucket: this.bucketName,
       Key: key,
@@ -101,12 +113,18 @@ export class S3Service {
     return this.getPublicUrl(key);
   }
 
+  /** @deprecated Use uploadObject; returned URL is a legacy database reference, not proof of public access. */
+  async uploadPublicObject(key: string, body: Buffer, contentType: string, cacheControl?: string): Promise<string> {
+    return this.uploadObject(key, body, contentType, cacheControl);
+  }
+
   async deleteObject(key: string): Promise<void> {
     if (!this.isAllowedObjectKey(key)) throw new Error('Refusing to delete an invalid or non-application storage object key');
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucketName, Key: key }));
   }
 
   async getObjectMetadata(key: string): Promise<StoredObjectMetadata | null> {
+    this.assertAllowedObjectKey(key);
     try {
       const response = await this.client.send(
         new HeadObjectCommand({
