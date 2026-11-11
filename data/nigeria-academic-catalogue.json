@@ -4575,7 +4575,7 @@
     "facultyName": "School of Basic Medical Sciences",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Owerri",
@@ -4583,7 +4583,7 @@
     "facultyName": "School of Biological Sciences",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Owerri",
@@ -4591,7 +4591,7 @@
     "facultyName": "School of Agriculture and Agricultural Technology",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Owerri",
@@ -4599,7 +4599,7 @@
     "facultyName": "School of Electrical Systems and Engineering Technology",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Owerri",
@@ -4607,7 +4607,7 @@
     "facultyName": "School of Environmental Sciences",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Owerri",
@@ -4615,7 +4615,7 @@
     "facultyName": "School of Health Technology",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Owerri",
@@ -4623,7 +4623,7 @@
     "facultyName": "School of Engineering and Engineering Technology",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Owerri",
@@ -4631,7 +4631,7 @@
     "facultyName": "School of Logistics and Innovation Technology",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Owerri",
@@ -4639,7 +4639,7 @@
     "facultyName": "School of Information and Communication Technology",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "Federal University of Technology, Owerri",
@@ -4647,7 +4647,7 @@
     "facultyName": "School of Physical Sciences",
     "facultyType": "school",
     "officialSourceUrl": "https://futo.edu.ng/schools",
-    "verifiedAt": "2026-11-10"
+    "verifiedAt": "2026-11-11"
   },
   {
     "institutionName": "University of Abuja, Abuja",
@@ -15218,6 +15218,510 @@
     "departmentName": "Forensic Science",
     "facultyType": "school",
     "officialSourceUrl": "https://staff.futminna.edu.ng/faculties/sls",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Basic Medical Sciences",
+    "departmentName": "Human Anatomy",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Basic Medical Sciences",
+    "departmentName": "Human Physiology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Biological Sciences",
+    "departmentName": "Biotechnology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Biological Sciences",
+    "departmentName": "Microbiology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Biological Sciences",
+    "departmentName": "Biology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Biological Sciences",
+    "departmentName": "Forensic Science",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Biological Sciences",
+    "departmentName": "Biochemistry",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "departmentName": "Agribusiness",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "departmentName": "Agricultural Economics",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "departmentName": "Agricultural Extension",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "departmentName": "Forestry and Wildlife Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "departmentName": "Fisheries and Aquaculture Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "departmentName": "Animal Science Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "departmentName": "Soil Science and Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Agriculture and Agricultural Technology",
+    "departmentName": "Crop Science and Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Electrical Systems and Engineering Technology",
+    "departmentName": "Mechatronics Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Electrical Systems and Engineering Technology",
+    "departmentName": "Computer Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Electrical Systems and Engineering Technology",
+    "departmentName": "Electronics Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Electrical Systems and Engineering Technology",
+    "departmentName": "Telecommunications Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Electrical Systems and Engineering Technology",
+    "departmentName": "Electrical (Power Systems) Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Environmental Sciences",
+    "departmentName": "Architecture",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Environmental Sciences",
+    "departmentName": "Building Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Environmental Sciences",
+    "departmentName": "Environmental Management",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Environmental Sciences",
+    "departmentName": "Quantity Surveying",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Environmental Sciences",
+    "departmentName": "Surveying and Geoinformatics",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Environmental Sciences",
+    "departmentName": "Urban and Regional Planning",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Environmental Sciences",
+    "departmentName": "Estate Management and Valuation",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Health Technology",
+    "departmentName": "Prosthetics and Orthotics",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Health Technology",
+    "departmentName": "Environmental Health Science",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Health Technology",
+    "departmentName": "Optometry",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Health Technology",
+    "departmentName": "Public Health Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Health Technology",
+    "departmentName": "Dental Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Health Technology",
+    "departmentName": "Radiography",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "departmentName": "Mechanical Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "departmentName": "Polymer and Textile Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "departmentName": "Petroleum Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "departmentName": "Food Science and Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "departmentName": "Biomedical Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "departmentName": "Materials and Metallurgical Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "departmentName": "Agricultural and Bioresources Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "departmentName": "Civil Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Engineering and Engineering Technology",
+    "departmentName": "Chemical Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Logistics and Innovation Technology",
+    "departmentName": "Maritime Technology and Logistics",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Logistics and Innovation Technology",
+    "departmentName": "Logistics and Transport Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Logistics and Innovation Technology",
+    "departmentName": "Entrepreneurship and Innovation",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Logistics and Innovation Technology",
+    "departmentName": "Logistics and Supply Chain Management",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Logistics and Innovation Technology",
+    "departmentName": "Project Management Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Information and Communication Technology",
+    "departmentName": "Software Engineering",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Information and Communication Technology",
+    "departmentName": "Computer Science",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Information and Communication Technology",
+    "departmentName": "Cyber Security",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Information and Communication Technology",
+    "departmentName": "Information Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Physical Sciences",
+    "departmentName": "Mathematics",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Physical Sciences",
+    "departmentName": "Statistics",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Physical Sciences",
+    "departmentName": "Science Laboratory Technology",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Physical Sciences",
+    "departmentName": "Chemistry",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
+    "verifiedAt": "2026-11-11"
+  },
+  {
+    "institutionName": "Federal University of Technology, Owerri",
+    "institutionWebsite": "https://futo.edu.ng",
+    "facultyName": "School of Physical Sciences",
+    "departmentName": "Physics",
+    "facultyType": "school",
+    "officialSourceUrl": "https://futo.edu.ng/schools",
     "verifiedAt": "2026-11-11"
   }
 ]
