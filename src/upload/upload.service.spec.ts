@@ -167,7 +167,6 @@ describe('UploadService.getUploadDetails', () => {
       {} as any,
       {} as any,
       {} as any,
-      { scan: jest.fn() } as any,
     );
 
     await expect(service.getUploadDetails('attacker-1', uploadId)).rejects.toThrow('Upload not found');

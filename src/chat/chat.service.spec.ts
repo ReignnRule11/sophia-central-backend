@@ -92,6 +92,7 @@ describe('ChatService access and message rules', () => {
       s3,
       redis,
       notifications,
+      storageCleanup,
     );
   });
 
