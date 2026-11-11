@@ -8,7 +8,7 @@ Each JSON record represents a verified faculty and optionally one department. A 
 - `institutionWebsite`: the institution's official HTTPS website.
 - `facultyName`: faculty as named by the institution.
 - `departmentName`: department as named by the institution; omit this field when the official source confirms a faculty but does not publish departments.
-- `officialSourceUrl`: an official page or official document on the institution's domain that confirms the faculty and department.
+- `officialSourceUrl`: an official page or official document on the institution's domain that confirms the faculty and, when supplied, the department.
 - `verifiedAt`: date the record was checked, in ISO date form (`YYYY-MM-DD`).
 
 Example schema (illustrative only; do not import this example as real catalogue data):
