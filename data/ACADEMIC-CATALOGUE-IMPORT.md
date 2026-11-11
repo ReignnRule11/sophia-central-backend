@@ -47,12 +47,13 @@ Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 | Sa'adatu Rimi College of Education, Kumbotso, Kano | 9 | 0 | https://www.srcoe.edu.ng/faculty-departments.php |
 | College of Education Oro | 6 | 27 | https://www.kwcoeoro.edu.ng/Cordinators.aspx |
 | Covenant College of Education (CCOE) | 5 | 20 | https://www.covenantcollegeaba.edu.ng/images/COVENANT%20COLLEGE%20OF%20EDUCATION%20ABA%20STUDENT%27S%20HANDBOOK.pdf |
+| College of Education, Zing | 7 | 41 | https://www.coezing.edu.ng/academics/ and current staff/HOD directory |
 | University of Jos, Jos | 19 | 0 | https://www.unijos.edu.ng/unijos-academics |
 | University of Calabar, Calabar | 23 | 0 | https://unical.edu.ng/faculties.php |
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,478 source rows representing 412 academic units and 1,138 departments across 30 of the 769 production institutions.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,526 source rows representing 419 academic units and 1,179 departments across 31 of the 769 production institutions.
 
 Coverage by institution type in this branch: 22/328 universities, 3/199 polytechnics, and 1/242 colleges of education. The remaining 743 institutions are not represented in this source batch yet; this branch is an expansion, not a completed nationwide catalogue. The onboarding manual-entry fallback remains necessary for institutions whose official directories are incomplete or inaccessible. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
 
@@ -76,6 +77,7 @@ Coverage by institution type in this branch: 22/328 universities, 3/199 polytech
 - Sa'adatu Rimi College of Education: nine schools are confirmed by the college's current Schools and Departments directory. Individual school pages returned inaccessible responses, so no department names were guessed; users can enter them manually during onboarding.
 - College of Education Oro: six schools and 27 departments are staged from the college's 2026 coordinator directory, which explicitly lists department heads for each school.
 - Covenant College of Education: five schools and 20 departments are staged from its student handbook. The Preliminary and Remedial Studies unit is excluded because it is a pre-NCE programme, and the referenced Vocational Education school has no explicit department list in the handbook.
+- College of Education, Zing: seven schools and 41 departments are staged from its current academic and HOD directories. The Undergraduate school is retained as an academic unit because the college publishes its dean and departmental listings separately from NCE schools.
 - University of Calabar: 23 clearly student-facing academic units are staged. Ambiguous directory entries such as the library, non-academic listing, and institute-level entries are not treated as faculty destinations without further confirmation.
 - Where the public directory is incomplete, inaccessible, or internally inconsistent, the student enters the exact academic unit and department during onboarding. No placeholder catalogue values are created and no moderator submission is generated.
 
