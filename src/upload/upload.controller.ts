@@ -7,6 +7,7 @@ import {
   UploadedFile,
   UseGuards,
   Body,
+  ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiConsumes, ApiOperation, ApiTags } from '@nestjs/swagger';
@@ -85,7 +86,7 @@ export class UploadController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get a short-lived signed URL for an account profile image' })
-  getAccountProfileImageUrl(@Param('userId') userId: string) {
+  getAccountProfileImageUrl(@Param('userId', new ParseUUIDPipe()) userId: string) {
     return this.uploadService.getProfileImageUrl(userId);
   }
 
@@ -115,7 +116,7 @@ export class UploadController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get the authenticated user’s upload details' })
-  async getUploadDetails(@CurrentUser() user: User, @Param('id') id: string) {
+  async getUploadDetails(@CurrentUser() user: User, @Param('id', new ParseUUIDPipe()) id: string) {
     return this.uploadService.getUploadDetails(user.id, id);
   }
 }
