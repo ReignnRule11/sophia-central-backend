@@ -41,12 +41,13 @@ Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 | Delta State University, Abraka | 17 | 76 | https://delsu.edu.ng/faculty and individual faculty pages |
 | Federal Polytechnic, Ilaro | 7 | 38 | https://federalpolyilaro.edu.ng/sitemap and 2026/2027 admissions advert |
 | Yaba College of Technology, Yaba | 8 | 31 | https://yabatech.edu.ng/schl.php and individual school pages |
+| Hussaini Adamu Federal Polytechnic, Kazaure | 6 | 28 | https://portal.hafedpoly.edu.ng/students_handbook.php?section=s2 |
 | University of Jos, Jos | 19 | 0 | https://www.unijos.edu.ng/unijos-academics |
 | University of Calabar, Calabar | 23 | 0 | https://unical.edu.ng/faculties.php |
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,313 source rows representing 376 academic units and 1,009 departments across 24 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,347 source rows representing 382 academic units and 1,037 departments across 25 of the 769 production institutions. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
 
 ### Manual-entry fallback / intentionally omitted batches
 
@@ -62,6 +63,7 @@ This is a verified starter batch, not a claim that all Nigerian institutions are
 - Delta State University: 17 current faculty units and 76 departments are staged from its live faculty directory. Department lists are available for Agriculture, Arts, Basic Medical Sciences, Communication and Media Studies, Dentistry, Education, Engineering, Law, Management Sciences, Pharmacy, Sciences and Social Sciences. Allied Health has no published department list; Basic Clinical Sciences has a conflicting page description; Computing and Environmental Science pages return configuration errors; and Clinical Medicine has conflicting department counts. Those five units remain available for manual department entry rather than receiving guessed data.
 - Federal Polytechnic, Ilaro: seven academic schools and 38 departments are staged from the institution's 2026/2027 HND admissions advert and current academic sitemap. Programme specializations/options were not split into extra departments.
 - Yaba College of Technology: all eight current schools are staged; 31 departments are included for Engineering, Environmental Studies, Management and Business Studies, and Technology. The Art, Science and Technical Education pages have conflicting department lists/counts, while the Liberal Studies page was inaccessible; those four schools remain manual department-entry cases.
+- Hussaini Adamu Federal Polytechnic: six schools and 28 student-admitting departments are staged from the 2025 academic-regulations handbook. Entrepreneurship and General National Studies are explicitly marked as servicing departments that do not admit students, so they were excluded from the selectable department catalogue.
 - University of Calabar: 23 clearly student-facing academic units are staged. Ambiguous directory entries such as the library, non-academic listing, and institute-level entries are not treated as faculty destinations without further confirmation.
 - Where the public directory is incomplete, inaccessible, or internally inconsistent, the student enters the exact academic unit and department during onboarding. No placeholder catalogue values are created and no moderator submission is generated.
 
