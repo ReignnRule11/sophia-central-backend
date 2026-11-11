@@ -123,6 +123,25 @@ export class S3Service {
     await this.client.send(new DeleteObjectCommand({ Bucket: this.bucketName, Key: key }));
   }
 
+  async getObjectPrefix(key: string, maxBytes = 8192): Promise<Buffer | null> {
+    this.assertAllowedObjectKey(key);
+    if (!Number.isInteger(maxBytes) || maxBytes < 1 || maxBytes > 65536) {
+      throw new Error('Object prefix read size must be between 1 and 65536 bytes');
+    }
+    try {
+      const response = await this.client.send(new GetObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+        Range: `bytes=0-${maxBytes - 1}`,
+      }));
+      const body = response.Body as unknown as { transformToByteArray?: () => Promise<Uint8Array> } | undefined;
+      if (!body?.transformToByteArray) return null;
+      return Buffer.from(await body.transformToByteArray());
+    } catch {
+      return null;
+    }
+  }
+
   async getObjectMetadata(key: string): Promise<StoredObjectMetadata | null> {
     this.assertAllowedObjectKey(key);
     try {
