@@ -28,11 +28,11 @@ export class ClamAvService {
           if (settled) return;
           settled = true;
           if (error) reject(error);
-          else resolve(output.trim());
+          else resolve(output.replace(/\0/g, '').trim());
         };
         socket.setTimeout(90_000);
         socket.once('connect', () => {
-          socket.write(Buffer.from('zINSTREAM\\0', 'ascii'));
+          socket.write(Buffer.from('zINSTREAM\0', 'ascii'));
           const chunkSize = 64 * 1024;
           for (let offset = 0; offset < buffer.length; offset += chunkSize) {
             const chunk = buffer.subarray(offset, Math.min(offset + chunkSize, buffer.length));
@@ -58,8 +58,8 @@ export class ClamAvService {
       throw new ServiceUnavailableException('Malware scanning is temporarily unavailable; the upload was not accepted.');
     }
 
-    if (/\\bFOUND\\b/i.test(response)) return { clean: false, result: response.slice(0, 500) };
-    if (/\\bOK\\b/i.test(response) && !/\\bERROR\\b/i.test(response)) {
+    if (/\bFOUND\b/i.test(response)) return { clean: false, result: response.slice(0, 500) };
+    if (/\bOK\b/i.test(response) && !/\bERROR\b/i.test(response)) {
       return { clean: true, result: response.slice(0, 500) };
     }
     throw new ServiceUnavailableException('Malware scanning could not verify this upload; please retry later.');

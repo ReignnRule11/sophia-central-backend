@@ -33,7 +33,7 @@ describe('ClamAvService fail-closed scanning', () => {
   }
 
   it('accepts a clean scanner response', async () => {
-    await startFake('stream: OK\\0');
+    await startFake('stream: OK\0');
     await expect(new ClamAvService().scan(Buffer.from('clean test'))).resolves.toEqual({
       clean: true,
       result: 'stream: OK',
@@ -41,7 +41,7 @@ describe('ClamAvService fail-closed scanning', () => {
   });
 
   it('rejects a malware-positive scanner response', async () => {
-    await startFake('stream: Eicar-Test-Signature FOUND\\0');
+    await startFake('stream: Eicar-Test-Signature FOUND\0');
     await expect(new ClamAvService().scan(Buffer.from('infected test'))).resolves.toMatchObject({ clean: false });
   });
 

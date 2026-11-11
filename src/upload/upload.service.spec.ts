@@ -101,12 +101,12 @@ describe('UploadService.completeUpload', () => {
   });
 
   it('rejects an object whose bytes do not match the declared MIME type', async () => {
-    s3Service.getObjectPrefix.mockResolvedValueOnce(Buffer.from('not-a-pdf'));
+    s3Service.getObjectBuffer.mockResolvedValueOnce(Buffer.from('not-a-pdf'));
     await expect(service.completeUpload(userId, dto)).rejects.toThrow('content does not match');
     expect(transactionManager.save).not.toHaveBeenCalled();
   });
 
-  it('links the verified object and marks the matching pending upload completed', async () => {
+  it('links the verified object and marks the matching pending upload scanned', async () => {
     const result = await service.completeUpload(userId, dto);
 
     expect(result).toMatchObject({ success: true, resourceId, fileUrl: 'https://files.example.test/resources/user-1/test.pdf' });
