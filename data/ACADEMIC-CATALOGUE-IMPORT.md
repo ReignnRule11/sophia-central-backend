@@ -44,6 +44,7 @@ Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 | Hussaini Adamu Federal Polytechnic, Kazaure | 6 | 28 | https://portal.hafedpoly.edu.ng/students_handbook.php?section=s2 |
 | Federal College of Education, Abeokuta | 3 | 17 | https://fce-abeokuta.edu.ng individual school pages |
 | Federal College of Education Ilawe-Ekiti | 7 | 37 | https://fceilawe.edu.ng/schools-and-departments/ |
+| Ogun State Institute of Technology, Igbesa | 6 | 24 | https://ogitech.edu.ng/portal/md_card_region/menu_for_schools |
 | Sa'adatu Rimi College of Education, Kumbotso, Kano | 9 | 0 | https://www.srcoe.edu.ng/faculty-departments.php |
 | College of Education Oro | 6 | 27 | https://www.kwcoeoro.edu.ng/Cordinators.aspx |
 | Covenant College of Education (CCOE) | 5 | 20 | https://www.covenantcollegeaba.edu.ng/images/COVENANT%20COLLEGE%20OF%20EDUCATION%20ABA%20STUDENT%27S%20HANDBOOK.pdf |
@@ -55,7 +56,7 @@ Checked against official institutional pages on 2026-11-10 and 2026-11-11:
 | Federal University of Agriculture, Abeokuta | 11 | 0 | https://funaab.edu.ng/funaab-schedules-orientation-ict-training-for-2026-2027-fresh-students/ |
 | Rivers State University of Science & Technology, Port Harcourt, Rivers State | 13 | 0 | https://www.rsu.edu.ng/faculties/ |
 
-This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,569 source rows representing 432 academic units and 1,209 departments across 33 of the 769 production institutions.
+This is a verified starter batch, not a claim that all Nigerian institutions are populated. The staged file currently contains 1,599 source rows representing 438 academic units and 1,233 departments across 34 of the 769 production institutions.
 
 Coverage by institution type in this branch: 22/328 universities, 3/199 polytechnics, and 1/242 colleges of education. The remaining 743 institutions are not represented in this source batch yet; this branch is an expansion, not a completed nationwide catalogue. The onboarding manual-entry fallback remains necessary for institutions whose official directories are incomplete or inaccessible. The production catalogue contains 328 universities, 199 polytechnics, and 242 colleges of education. Before this expansion branch, the production database contained 296 academic units and 620 departments across 17 institutions; these totals included existing records beyond the original source batch.
 
@@ -82,6 +83,7 @@ Coverage by institution type in this branch: 22/328 universities, 3/199 polytech
 - College of Education, Zing: seven schools and 41 departments are staged from its current academic and HOD directories. The Undergraduate school is retained as an academic unit because the college publishes its dean and departmental listings separately from NCE schools.
 - College of Education, Hong: seven schools are staged. Thirty NCE departments are assigned across six schools using the college's current school pages; the Undergraduate Studies school is retained as a unit but its affiliated degree programmes are not treated as departments.
 - College of Education, Ila-Orangun: six school units are confirmed by its current schools page. The page says five school structures while enumerating six, and its detailed lists are largely NCE course combinations rather than department names; only the schools were added, leaving department entry manual.
+- Ogun State Institute of Technology: six academic schools and 24 departments are staged from current school pages. Environmental Studies has a conflicting count (five stated departments versus seven listed), so no departments were inserted for that school; Communication and Information Technology also has no explicit department list. Those two schools remain manual-entry cases. Part-Time Studies and administrative centres are excluded as non-academic units.
 - University of Calabar: 23 clearly student-facing academic units are staged. Ambiguous directory entries such as the library, non-academic listing, and institute-level entries are not treated as faculty destinations without further confirmation.
 - Where the public directory is incomplete, inaccessible, or internally inconsistent, the student enters the exact academic unit and department during onboarding. No placeholder catalogue values are created and no moderator submission is generated.
 
