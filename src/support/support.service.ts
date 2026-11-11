@@ -72,7 +72,7 @@ export class SupportService {
     const attachments = await Promise.all((request.attachments ?? []).map(async reference => {
       const key = this.s3.getKeyFromPublicUrl(reference);
       if (!key) return reference;
-      return this.s3.createPresignedDownloadUrl(key, undefined, 'inline', 300);
+      return this.s3.createPresignedDownloadUrl(key, undefined, 'inline', 900);
     }));
     return { ...request, attachments } as T;
   }
