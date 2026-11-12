@@ -42,9 +42,9 @@ async function main() {
     assert.ok(migrationNames.includes('CreateSupportRequests2026103100001'), 'support request migration should be applied');
 
     const user = await client.query(
-      `INSERT INTO users (email, password, "firstName", "lastName")
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [`ci-smoke-${Date.now()}@example.invalid`, 'not-a-real-password-hash', 'CI', 'Smoke'],
+      `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [`ci-smoke-${Date.now()}@example.invalid`, 'not-a-real-password-hash', 'CI', 'Smoke', `CI-CS-${Date.now()}`],
     );
     userId = user.rows[0].id;
 
