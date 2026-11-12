@@ -34,6 +34,9 @@ export class ResourcesService {
   async create(dto: CreateResourceDto, uploaderId: string): Promise<Resource> {
     const uploader = await this.userRepository.findOne({ where: { id: uploaderId } });
     if (!uploader) throw new BadRequestException('Uploader not found');
+    if (![UserRole.STUDENT, UserRole.LECTURER].includes(uploader.role)) {
+      throw new ForbiddenException('Only students and lecturers can contribute resources.');
+    }
 
     const resource = this.resourceRepository.create({
       ...dto,
@@ -56,10 +59,10 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to resources.');
     }
 
-    // Moderators and admins need platform-wide visibility for moderation and support.
+    // Reviewer, moderator and admin accounts need platform-wide visibility for moderation and support.
     // Students and lecturers see only approved resources in the shared library.
     const resources = await this.resourceRepository.find({
-      ...(viewer.role === UserRole.MODERATOR || viewer.role === UserRole.ADMIN ? {} : { where: { moderationStatus: ResourceModerationStatus.APPROVED } }),
+      ...([UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { where: { moderationStatus: ResourceModerationStatus.APPROVED } }),
       relations: ['uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -76,7 +79,7 @@ export class ResourcesService {
   async findSavedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const savedEntries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, isSaved: true, ...( [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
+      where: { userId: viewer.id, isSaved: true, ...( [UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
       relations: ['resource', 'resource.uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -91,7 +94,7 @@ export class ResourcesService {
   async findDownloadedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const entries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
+      where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
       relations: ['resource', 'resource.uploader'],
       order: { downloadedAt: 'DESC' },
     });
@@ -117,6 +120,9 @@ export class ResourcesService {
 
   async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
     this.assertCanSave(viewer);
+    if ([UserRole.MODERATOR, UserRole.REVIEWER, UserRole.ADMIN].includes(viewer.role)) {
+      throw new ForbiddenException('Moderation accounts can preview and save resources, but cannot download them.');
+    }
     const resource = await this.findOneForViewer(id, viewer, false);
     const ownUpload = resource.uploaderId === viewer.id;
     if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownUpload) throw new NotFoundException('Approved resource not found');
@@ -164,11 +170,11 @@ export class ResourcesService {
 
     if (!resource) throw new NotFoundException('Resource not found');
 
-    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
+    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to this resource.');
     }
 
-    const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
+    const isPlatformModerator = [UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
     const isAssignedReviewer = viewer.role === UserRole.REVIEWER && !viewer.isSuspended && resource.assignedReviewerId === viewer.id;
     const isReviewer = isPlatformModerator || isAssignedReviewer;
     const isUploader = resource.uploaderId === viewer.id;
@@ -192,6 +198,9 @@ export class ResourcesService {
   }
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string; filename: string; contentType?: string }> {
+    if (download && [UserRole.MODERATOR, UserRole.REVIEWER, UserRole.ADMIN].includes(viewer.role)) {
+      throw new ForbiddenException('Moderation accounts can preview resources but cannot download them.');
+    }
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
     if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });

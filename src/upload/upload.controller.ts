@@ -43,7 +43,8 @@ export class UploadController {
   }
 
   @Post('presigned-url')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.LECTURER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get presigned URL for S3 upload' })
   async getPresignedUrl(
@@ -54,7 +55,8 @@ export class UploadController {
   }
 
   @Post('complete')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.STUDENT, UserRole.LECTURER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Complete upload and create file record' })
   async completeUpload(
