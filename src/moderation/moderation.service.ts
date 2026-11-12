@@ -82,7 +82,7 @@ export class ModerationService {
 
     resource.moderationStatus = dto.status;
     resource.isVerified = dto.status === ResourceModerationStatus.APPROVED;
-    resource.assignedReviewerId = undefined;
+    resource.assignedReviewerId = null;
     await this.resourceRepository.save(resource);
 
     const review = this.moderationReviewRepository.create({

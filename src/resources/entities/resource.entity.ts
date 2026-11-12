@@ -34,7 +34,7 @@ export class Resource {
   @Column({ type: 'timestamptz', nullable: true }) customPriceReviewedAt?: Date;
   @Column({ type: 'text', nullable: true }) customPriceReviewNote?: string;
   @Column({ type: 'timestamptz', default: () => 'NOW()' }) lastSubstantiveUpdateAt!: Date;
-  @Column({ type: 'uuid', nullable: true }) assignedReviewerId?: string;
+  @Column({ type: 'uuid', nullable: true }) assignedReviewerId?: string | null;
   @ManyToOne(() => User, (user) => user.assignedReviews, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'assignedReviewerId' })
   assignedReviewer?: User;
