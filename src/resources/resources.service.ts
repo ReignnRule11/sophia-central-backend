@@ -169,7 +169,7 @@ export class ResourcesService {
     }
 
     const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
-    const isAssignedReviewer = viewer.role === UserRole.REVIEWER && resource.assignedReviewerId === viewer.id;
+    const isAssignedReviewer = viewer.role === UserRole.REVIEWER && !viewer.isSuspended && resource.assignedReviewerId === viewer.id;
     const isReviewer = isPlatformModerator || isAssignedReviewer;
     const isUploader = resource.uploaderId === viewer.id;
 

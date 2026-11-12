@@ -38,6 +38,13 @@ describe('ModerationService academic reviewer workflow', () => {
     }));
   });
 
+
+  it('does not return queue items to suspended reviewers', async () => {
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: true } as User;
+    await expect(service.getQueue(reviewer)).resolves.toEqual([]);
+    expect(resourceRepository.find).not.toHaveBeenCalled();
+  });
+
   it('rejects assignment to a non-reviewer account', async () => {
     resourceRepository.findOne.mockResolvedValue({
       id: 'resource-1',

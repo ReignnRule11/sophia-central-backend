@@ -22,6 +22,7 @@ export class ModerationService {
   ) {}
 
   async getQueue(viewer: User) {
+    if (viewer.role === UserRole.REVIEWER && viewer.isSuspended) return [];
     const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
     return this.resourceRepository.find({
       where: isPlatformModerator
@@ -66,6 +67,9 @@ export class ModerationService {
     if (!resource) throw new NotFoundException('Resource not found');
     if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
       throw new ConflictException('This resource is no longer awaiting review');
+    }
+    if (reviewer.role === UserRole.REVIEWER && reviewer.isSuspended) {
+      throw new ForbiddenException('Suspended reviewer accounts cannot access the review workflow');
     }
     if (reviewer.role === UserRole.REVIEWER && resource.assignedReviewerId !== reviewer.id) {
       throw new ForbiddenException('This resource is not assigned to your reviewer account');

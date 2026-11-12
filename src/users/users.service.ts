@@ -147,6 +147,9 @@ export class UsersService {
         if (existing) throw new ConflictException('Academic handle already exists');
         updateData.academicHandle = normalized;
       }
+      if (updateData.isSuspended === true && user.role === UserRole.REVIEWER) {
+        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
+      }
       const previousProfileImage = user.profileImage;
       Object.assign(user, updateData);
       const saved = await manager.save(User, user);
