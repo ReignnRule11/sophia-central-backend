@@ -132,7 +132,7 @@ export class ChatService {
         participantId,
         'chat_retention',
         'Disappearing messages setting changed',
-        `@ ${current.academicHandle} changed this conversation's disappearing messages setting to ${label}. The new setting applies to future messages.`,
+        `@${current.academicHandle} changed this conversation's disappearing messages setting to ${label}. The new setting applies to future messages.`,
         index === 0
           ? `/messages?userId=${encodeURIComponent(recipient.id)}`
           : `/messages?userId=${encodeURIComponent(current.id)}`,
