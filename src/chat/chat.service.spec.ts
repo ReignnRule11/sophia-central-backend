@@ -429,7 +429,7 @@ describe('ChatService access and message rules', () => {
   });
 
 
-  it('creates a persistent notification for the recipient of a private message', async () => {
+  it('does not create a notification containing the contents of a sent private message', async () => {
     const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
     users.findOne.mockImplementation(async id =>
       id === student.id ? { ...student } : id === recipient.id ? recipient : null,
@@ -458,12 +458,12 @@ describe('ChatService access and message rules', () => {
       text: 'Hello there',
     } as any);
 
-    expect(notifications.createNotification).toHaveBeenCalledWith(
+    expect(notifications.createNotification).not.toHaveBeenCalledWith(
       recipient.id,
       'chat_message',
-      'New message from @learner',
-      'Hello there',
-      '/messages?userId=student-1',
+      expect.anything(),
+      expect.anything(),
+      expect.anything(),
     );
   });
 
