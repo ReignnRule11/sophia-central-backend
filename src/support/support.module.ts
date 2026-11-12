@@ -12,6 +12,6 @@ import { SupportEmailService } from './support-email.service';
   imports: [TypeOrmModule.forFeature([SupportRequest, User]), NotificationsModule, StorageModule],
   controllers: [SupportController],
   providers: [SupportService, SupportEmailService],
-  exports: [SupportService],
+  exports: [SupportService, SupportEmailService],
 })
 export class SupportModule {}
