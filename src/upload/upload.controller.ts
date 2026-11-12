@@ -55,7 +55,7 @@ export class UploadController {
   }
 
   @Post('complete')
-  @UseGuards(JwtAuth, RolesGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.STUDENT, UserRole.LECTURER)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Complete upload and create file record' })
