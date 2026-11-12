@@ -30,9 +30,12 @@ export class NotificationsService {
   }
 
   async getUserNotifications(userId: string, limit: number = 20, unreadOnly: boolean = false) {
+    // Private DM delivery is handled inside Messages, never in the notification centre.
+    // Exclude legacy chat_message rows as well so old message previews are not exposed.
     const query = this.notificationRepository
       .createQueryBuilder('notification')
-      .where('notification.userId = :userId', { userId });
+      .where('notification.userId = :userId', { userId })
+      .andWhere('notification.type != :excludedType', { excludedType: 'chat_message' });
 
     if (unreadOnly) {
       query.andWhere('notification.isRead = :isRead', { isRead: false });
@@ -43,9 +46,12 @@ export class NotificationsService {
       .take(limit)
       .getMany();
 
-    const unreadCount = await this.notificationRepository.count({
-      where: { userId, isRead: false },
-    });
+    const unreadCount = await this.notificationRepository
+      .createQueryBuilder('notification')
+      .where('notification.userId = :userId', { userId })
+      .andWhere('notification.isRead = :isRead', { isRead: false })
+      .andWhere('notification.type != :excludedType', { excludedType: 'chat_message' })
+      .getCount();
 
     return {
       notifications,
