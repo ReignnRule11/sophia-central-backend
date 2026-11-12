@@ -1,8 +1,8 @@
-import { ConflictException, Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { ModerationReview } from './entities/moderation-review.entity';
 import { ReviewResourceDto } from './dto/review-resource.dto';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -21,57 +21,91 @@ export class ModerationService {
     private readonly notificationsService: NotificationsService,
   ) {}
 
-  async getQueue() {
+  async getQueue(viewer: User) {
+    const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
     return this.resourceRepository.find({
-      where: { moderationStatus: ResourceModerationStatus.PENDING },
-      relations: ['uploader'],
+      where: isPlatformModerator
+        ? { moderationStatus: ResourceModerationStatus.PENDING }
+        : { moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: viewer.id },
+      relations: ['uploader', 'assignedReviewer'],
       order: { createdAt: 'ASC' },
     });
   }
 
-  async getHistory() {
+  async getHistory(viewer: User) {
+    const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
     return this.moderationReviewRepository.find({
+      where: isPlatformModerator ? {} : { reviewer: { id: viewer.id } },
       relations: ['resource', 'resource.uploader', 'reviewer'],
       order: { createdAt: 'DESC' },
     });
   }
 
-  async reviewResource(id: string, dto: ReviewResourceDto, reviewerId: string) {
+  async assignReviewer(resourceId: string, reviewerId: string) {
+    const resource = await this.resourceRepository.findOne({ where: { id: resourceId } });
+    if (!resource) throw new NotFoundException('Resource not found');
+    if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
+      throw new ConflictException('Only pending resources can be assigned for review');
+    }
+    const reviewer = await this.userRepository.findOne({ where: { id: reviewerId } });
+    if (!reviewer || reviewer.role !== UserRole.REVIEWER || reviewer.isSuspended) {
+      throw new BadRequestException('Select an active, administrator-approved academic reviewer');
+    }
+    if (!Array.isArray(reviewer.reviewerExpertise) || reviewer.reviewerExpertise.length === 0) {
+      throw new BadRequestException('The selected reviewer has no recorded subject expertise');
+    }
+    resource.assignedReviewerId = reviewer.id;
+    return this.resourceRepository.save(resource);
+  }
+
+  async reviewResource(id: string, dto: ReviewResourceDto, reviewer: User) {
     const resource = await this.resourceRepository.findOne({
       where: { id },
       relations: ['uploader'],
     });
     if (!resource) throw new NotFoundException('Resource not found');
     if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
-      throw new ConflictException('This resource has already been reviewed');
+      throw new ConflictException('This resource is no longer awaiting review');
+    }
+    if (reviewer.role === UserRole.REVIEWER && resource.assignedReviewerId !== reviewer.id) {
+      throw new ForbiddenException('This resource is not assigned to your reviewer account');
+    }
+    if (![ResourceModerationStatus.APPROVED, ResourceModerationStatus.REJECTED, ResourceModerationStatus.REVISION_REQUESTED].includes(dto.status)) {
+      throw new BadRequestException('Choose approve, reject or request revision');
+    }
+    if ((dto.status === ResourceModerationStatus.REJECTED || dto.status === ResourceModerationStatus.REVISION_REQUESTED) && !dto.note?.trim()) {
+      throw new BadRequestException('A clear reviewer note is required for rejection or revision requests');
     }
 
-    const reviewer = await this.userRepository.findOne({ where: { id: reviewerId } });
-    if (!reviewer) throw new NotFoundException('Authenticated reviewer not found');
+    const reviewerRecord = await this.userRepository.findOne({ where: { id: reviewer.id } });
+    if (!reviewerRecord) throw new NotFoundException('Authenticated reviewer not found');
 
     resource.moderationStatus = dto.status;
     resource.isVerified = dto.status === ResourceModerationStatus.APPROVED;
+    resource.assignedReviewerId = undefined;
     await this.resourceRepository.save(resource);
 
     const review = this.moderationReviewRepository.create({
       resource,
-      reviewer,
+      reviewer: reviewerRecord,
       status: dto.status,
-      note: dto.note,
+      note: dto.note?.trim() || undefined,
     });
     const savedReview = await this.moderationReviewRepository.save(review);
 
-    // A notification failure must not roll back an already-recorded moderation decision.
     try {
       const approved = dto.status === ResourceModerationStatus.APPROVED;
+      const revisionRequested = dto.status === ResourceModerationStatus.REVISION_REQUESTED;
       await this.notificationsService.createNotification(
         resource.uploaderId,
-        approved ? 'resource_approved' : 'resource_rejected',
-        approved ? 'Your resource was approved' : 'Your resource was rejected',
+        approved ? 'resource_approved' : revisionRequested ? 'resource_revision_requested' : 'resource_rejected',
+        approved ? 'Your resource was approved' : revisionRequested ? 'Changes requested for your resource' : 'Your resource was rejected',
         approved
           ? `“${resource.title}” has been approved and is now available in the shared library.`
-          : `“${resource.title}” was rejected during moderation.${dto.note ? ` Reviewer note: ${dto.note}` : ''}`,
-        approved ? '/library' : '/lecturer',
+          : revisionRequested
+            ? `“${resource.title}” needs revision before it can be approved. Reviewer feedback: ${dto.note?.trim()}`
+            : `“${resource.title}” was rejected during moderation. Reviewer note: ${dto.note?.trim()}`,
+        approved ? '/library' : '/my-resources',
       );
     } catch (error) {
       this.logger.warn(`Could not create moderation notification for resource ${resource.id}: ${String(error)}`);

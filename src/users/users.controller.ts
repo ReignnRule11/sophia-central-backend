@@ -18,6 +18,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UserRole, User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -41,6 +42,15 @@ export class UsersController {
   @ApiOperation({ summary: 'List account details for authorized moderation management' })
   managementList() {
     return this.usersService.findAll();
+  }
+
+  @Patch(':id/reviewer-access')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Grant or revoke academic reviewer access; administrator approval is required' })
+  setReviewerAccess(@Param('id') id: string, @Body() dto: SetReviewerAccessDto) {
+    return this.usersService.setReviewerAccess(id, dto);
   }
 
   @Patch(':id/status')
@@ -87,7 +97,6 @@ export class UsersController {
       throw new ForbiddenException('Only student and lecturer accounts can be deleted from the profile page.');
     }
     await this.usersService.removeOwnAccount(user.id);
-    // Clear browser cookies here because the authenticated account no longer exists.
     const isProduction = process.env.NODE_ENV === 'production';
     const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')) as 'lax' | 'strict' | 'none';
     const cookieOptions = { httpOnly: true, secure: isProduction, sameSite, path: '/' } as const;

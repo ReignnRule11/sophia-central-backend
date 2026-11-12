@@ -7,6 +7,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { User, UserRole } from '../users/entities/user.entity';
 import { ModerationService } from './moderation.service';
 import { ReviewResourceDto } from './dto/review-resource.dto';
+import { AssignReviewerDto } from './dto/assign-reviewer.dto';
 import { SupportService } from '../support/support.service';
 import { ConcludeSupportRequestDto } from '../support/dto/conclude-support-request.dto';
 
@@ -15,27 +16,30 @@ type AuthenticatedRequest = Request & { user: User };
 @ApiTags('Moderation')
 @Controller('moderation')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(UserRole.MODERATOR, UserRole.ADMIN)
 @ApiBearerAuth()
 export class ModerationController {
   constructor(private readonly moderationService: ModerationService, private readonly supportService: SupportService) {}
 
   @Get('queue')
-  getQueue() {
-    return this.moderationService.getQueue();
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER)
+  getQueue(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getQueue(request.user);
   }
 
   @Get('history')
-  getHistory() {
-    return this.moderationService.getHistory();
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER)
+  getHistory(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getHistory(request.user);
   }
 
   @Get('support-requests')
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
   getSupportRequests(@Query('status') status?: string) {
     return this.supportService.listForModeration(status === 'concluded' ? 'concluded' : 'pending');
   }
 
   @Patch('support-requests/:id/conclude')
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
   concludeSupportRequest(
     @Param('id') id: string,
     @Body() dto: ConcludeSupportRequestDto,
@@ -44,12 +48,19 @@ export class ModerationController {
     return this.supportService.conclude(id, request.user.id, dto);
   }
 
+  @Patch('resources/:id/assign-reviewer')
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  assignReviewer(@Param('id') id: string, @Body() dto: AssignReviewerDto) {
+    return this.moderationService.assignReviewer(id, dto.reviewerId);
+  }
+
   @Patch('resources/:id/review')
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER)
   reviewResource(
     @Param('id') id: string,
     @Body() dto: ReviewResourceDto,
     @Req() request: AuthenticatedRequest,
   ) {
-    return this.moderationService.reviewResource(id, dto, request.user.id);
+    return this.moderationService.reviewResource(id, dto, request.user);
   }
 }

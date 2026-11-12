@@ -52,7 +52,7 @@ export class ResourcesService {
    * Lecturer-owned submissions and moderator decisions use their separate history endpoints.
    */
   async findVisibleTo(viewer: User): Promise<Resource[]> {
-    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
+    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to resources.');
     }
 
@@ -101,7 +101,7 @@ export class ResourcesService {
   async saveForUser(id: string, viewer: User): Promise<{ saved: true; resourceId: string }> {
     this.assertCanSave(viewer);
     const resource = await this.findOneForViewer(id, viewer, false);
-    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && !(viewer.role === UserRole.LECTURER && resource.uploaderId === viewer.id)) {
+    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && ![UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role) && !(viewer.role === UserRole.LECTURER && resource.uploaderId === viewer.id)) {
       throw new NotFoundException('Approved resource not found');
     }
 
@@ -168,7 +168,9 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to this resource.');
     }
 
-    const isReviewer = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
+    const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
+    const isAssignedReviewer = viewer.role === UserRole.REVIEWER && resource.assignedReviewerId === viewer.id;
+    const isReviewer = isPlatformModerator || isAssignedReviewer;
     const isUploader = resource.uploaderId === viewer.id;
 
     // Contributors may inspect their own submissions (including pending/rejected
