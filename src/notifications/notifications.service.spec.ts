@@ -24,7 +24,7 @@ describe('NotificationsService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    repository.createQueryBuilder
+    repository.createQueryBuilder.mockReset()
       .mockReturnValueOnce(listQuery)
       .mockReturnValueOnce(countQuery);
     service = new NotificationsService(repository as any);
