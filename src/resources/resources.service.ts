@@ -62,7 +62,7 @@ export class ResourcesService {
     // Moderators and admins need platform-wide visibility for moderation and support.
     // Students and lecturers see only approved resources in the shared library.
     const resources = await this.resourceRepository.find({
-      ...(viewer.role === UserRole.MODERATOR || viewer.role === UserRole.ADMIN ? {} : { where: { moderationStatus: ResourceModerationStatus.APPROVED } }),
+      ...([UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { where: { moderationStatus: ResourceModerationStatus.APPROVED } }),
       relations: ['uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -79,7 +79,7 @@ export class ResourcesService {
   async findSavedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const savedEntries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, isSaved: true, ...( [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
+      where: { userId: viewer.id, isSaved: true, ...( [UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
       relations: ['resource', 'resource.uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -174,7 +174,7 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to this resource.');
     }
 
-    const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
+    const isPlatformModerator = [UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
     const isAssignedReviewer = viewer.role === UserRole.REVIEWER && !viewer.isSuspended && resource.assignedReviewerId === viewer.id;
     const isReviewer = isPlatformModerator || isAssignedReviewer;
     const isUploader = resource.uploaderId === viewer.id;
