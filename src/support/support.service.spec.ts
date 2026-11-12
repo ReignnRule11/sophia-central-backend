@@ -30,9 +30,10 @@ describe('SupportService attachment ownership', () => {
     };
     service = new SupportService(
       requests,
-      { findOne: jest.fn() } as any,
+      { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) } as any,
       { createNotification: jest.fn() } as any,
       s3,
+      { notifyNewRequest: jest.fn().mockResolvedValue(false), sendResolution: jest.fn().mockResolvedValue(false) } as any,
     );
   });
 
