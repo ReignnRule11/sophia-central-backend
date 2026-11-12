@@ -8,6 +8,7 @@ import { AcademicCatalogueSubmission } from '../institutions/entities/academic-c
 import { Course } from '../courses/entities/course.entity';
 import { CourseTopic } from '../courses/entities/course-topic.entity';
 import { ModerationReview } from '../moderation/entities/moderation-review.entity';
+import { ContentReport } from '../moderation/entities/content-report.entity';
 import { PointWallet } from '../points/entities/point-wallet.entity';
 import { PointTransaction } from '../points/entities/point-transaction.entity';
 import { FileUpload } from '../upload/entities/file-upload.entity';
@@ -29,9 +30,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 const requiredProductionDbVars = ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_DATABASE'];
 if (isProduction) {
   const missing = requiredProductionDbVars.filter((name) => !process.env[name]);
-  if (missing.length) {
-    throw new Error(`Missing required production database environment variables: ${missing.join(', ')}`);
-  }
+  if (missing.length) throw new Error(`Missing required production database environment variables: ${missing.join(', ')}`);
 }
 
 export const typeOrmConfig: TypeOrmModuleOptions = {
@@ -43,7 +42,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   database: process.env.DB_DATABASE || 'sophia_central',
   entities: [
     User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
-    ModerationReview, PointWallet, PointTransaction, FileUpload, StorageCleanupJob, Referral,
+    ModerationReview, ContentReport, PointWallet, PointTransaction, FileUpload, StorageCleanupJob, Referral,
     Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, UserActivityEvent,
   ],
   synchronize: !isProduction,
