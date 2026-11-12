@@ -14,11 +14,14 @@ export class UsersService {
   ) {}
 
   private async generateUniqueId(data: Partial<User>): Promise<string> {
-    const institutionLetters = (data.institution || 'Sophis Central')
+    const institutionWords = (data.institution || 'Sophis Central')
       .normalize('NFKD')
-      .replace(/[^a-z]/gi, '')
-      .toUpperCase();
-    const institutionCode = institutionLetters.slice(0, 2).padEnd(2, 'S');
+      .split(/\\s+/)
+      .map((word) => word.replace(/[^a-z]/gi, '').toUpperCase())
+      .filter((word) => word && !['OF', 'THE', 'AND', 'FOR', 'AT'].includes(word));
+    const institutionCode = institutionWords.length > 1
+      ? `${institutionWords[0][0]}${institutionWords[institutionWords.length - 1][0]}`
+      : (institutionWords[0] || 'SC').slice(0, 2).padEnd(2, 'S');
     const firstInitial = (data.firstName?.trim().charAt(0) || 'S').toUpperCase();
     const lastInitial = (data.lastName?.trim().charAt(0) || 'C').toUpperCase();
     const initials = `${firstInitial}${lastInitial}`;
