@@ -27,6 +27,11 @@ async function main() {
       assert.ok(result.rows[0].name, `expected migrated table: ${table}`);
     }
 
+    const identityColumn = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'uniqueId'");
+    assert.equal(identityColumn.rowCount, 1, 'users.uniqueId should exist');
+    const pricingColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'resources' AND column_name IN ('pricingMode', 'priceAmount', 'customPriceStatus', 'lastSubstantiveUpdateAt')");
+    assert.equal(pricingColumns.rowCount, 4, 'resource pricing and substantive-update columns should exist');
+
     const applied = await client.query('SELECT name FROM migrations ORDER BY timestamp');
     const migrationNames = applied.rows.map((row) => row.name);
     assert.ok(
@@ -40,11 +45,12 @@ async function main() {
 
     assert.ok(migrationNames.includes('CreatePasswordResetTokens2026102600001'), 'password reset token migration should be applied');
     assert.ok(migrationNames.includes('CreateSupportRequests2026103100001'), 'support request migration should be applied');
+    assert.ok(migrationNames.includes('SophisCommercialFoundation2026111200001'), 'Sophis commercial foundation migration should be applied');
 
     const user = await client.query(
-      `INSERT INTO users (email, password, "firstName", "lastName")
-       VALUES ($1, $2, $3, $4) RETURNING id`,
-      [`ci-smoke-${Date.now()}@example.invalid`, 'not-a-real-password-hash', 'CI', 'Smoke'],
+      `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
+       VALUES ($1, $2, $3, $4, $5) RETURNING id`,
+      [`ci-smoke-${Date.now()}@example.invalid`, 'not-a-real-password-hash', 'CI', 'Smoke', `CI-CS-${Date.now()}`],
     );
     userId = user.rows[0].id;
 

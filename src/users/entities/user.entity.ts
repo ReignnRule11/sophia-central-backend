@@ -40,6 +40,9 @@ export class User {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Column({ type: 'varchar', length: 32, unique: true })
+  uniqueId!: string;
+
   @Column({ unique: true, type: 'varchar', length: 320 })
   email!: string;
 
