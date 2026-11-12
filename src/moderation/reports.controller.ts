@@ -30,12 +30,6 @@ export class ReportsController {
   mine(@Req() request: AuthenticatedRequest) {
     return this.reports.listMine(request.user.id);
   }
-
-  @Get('/../moderation')
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  moderatorQueue() {
-    return this.reports.listForModeration();
-  }
 }
 
 @ApiTags('Moderation reports')
@@ -53,11 +47,7 @@ export class ModerationReportsController {
 
   @Patch(':id')
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  update(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Body() dto: UpdateContentReportDto,
-    @Req() request: AuthenticatedRequest,
-  ) {
+  update(@Param('id', ParseUUIDPipe) id: string, @Body() dto: UpdateContentReportDto, @Req() request: AuthenticatedRequest) {
     return this.reports.update(id, request.user, dto);
   }
 }
