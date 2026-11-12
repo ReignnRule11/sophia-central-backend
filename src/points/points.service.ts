@@ -105,6 +105,44 @@ export class PointsService {
     }));
   }
 
+
+  /**
+   * Credits a student once for each approved resource contribution.
+   * The wallet row lock serializes concurrent approvals for the same student,
+   * while the resource-specific transaction reason makes retries idempotent.
+   */
+  async awardResourceApprovalReward(userId: string, resourceId: string, resourceTitle: string): Promise<boolean> {
+    const eligibleUser = await this.userRepository.findOne({ where: { id: userId } });
+    if (!eligibleUser || eligibleUser.role !== UserRole.STUDENT || eligibleUser.isSuspended) return false;
+
+    await this.getOrCreateWallet(userId);
+    const reason = `Approved resource contribution: ${resourceTitle} (resource ${resourceId})`;
+
+    return this.walletRepository.manager.transaction(async manager => {
+      const user = await manager.findOne(User, { where: { id: userId } });
+      if (!user || user.role !== UserRole.STUDENT || user.isSuspended) return false;
+
+      const wallet = await manager.findOne(PointWallet, {
+        where: { userId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!wallet) throw new BadRequestException('Wisdom Points wallet could not be initialized.');
+
+      const existingReward = await manager.findOne(PointTransaction, { where: { userId, reason } });
+      if (existingReward) return false;
+
+      wallet.balance += 10;
+      await manager.save(PointWallet, wallet);
+      await manager.save(PointTransaction, manager.create(PointTransaction, {
+        userId,
+        type: PointTransactionType.EARNED,
+        amount: 10,
+        reason,
+      }));
+      return true;
+    });
+  }
+
   async awardReferralReward(referrerId: string, referralId: string, amount: number): Promise<void> {
     // Reject ineligible owners before wallet initialization can grant starter points.
     const currentReferrer = await this.userRepository.findOne({ where: { id: referrerId } });
