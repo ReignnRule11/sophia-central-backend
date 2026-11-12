@@ -10,6 +10,7 @@ import { ReviewResourceDto } from './dto/review-resource.dto';
 import { AssignReviewerDto } from './dto/assign-reviewer.dto';
 import { SupportService } from '../support/support.service';
 import { ConcludeSupportRequestDto } from '../support/dto/conclude-support-request.dto';
+import { SupportEmailService } from '../support/support-email.service';
 
 type AuthenticatedRequest = Request & { user: User };
 
@@ -18,7 +19,7 @@ type AuthenticatedRequest = Request & { user: User };
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class ModerationController {
-  constructor(private readonly moderationService: ModerationService, private readonly supportService: SupportService) {}
+  constructor(private readonly moderationService: ModerationService, private readonly supportService: SupportService, private readonly supportEmail: SupportEmailService) {}
 
   @Get('queue')
   @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER)
@@ -30,6 +31,12 @@ export class ModerationController {
   @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER)
   getHistory(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getHistory(request.user);
+  }
+
+  @Get('support-email-status')
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  getSupportEmailStatus() {
+    return this.supportEmail.getConfigurationStatus();
   }
 
   @Get('support-requests')
