@@ -7,6 +7,7 @@ import { CreateSupportRequestDto } from './dto/create-support-request.dto';
 import { ConcludeSupportRequestDto } from './dto/conclude-support-request.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { S3Service } from '../upload/s3.service';
+import { SupportEmailService } from './support-email.service';
 
 @Injectable()
 export class SupportService {
@@ -17,6 +18,7 @@ export class SupportService {
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly notifications: NotificationsService,
     private readonly s3: S3Service,
+    private readonly supportEmail: SupportEmailService,
   ) {}
 
   async create(user: User, dto: CreateSupportRequestDto) {
@@ -34,6 +36,27 @@ export class SupportService {
       status: 'pending',
     });
     const saved = await this.requests.save(request);
+
+    // Notify the moderator workspace and the dedicated support mailbox without
+    // making ticket creation depend on email-provider availability.
+    try {
+      const moderators = await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false } });
+      await Promise.all(moderators.map(moderator => this.notifications.createNotification(
+        moderator.id,
+        'support_request_new',
+        'New support request received',
+        `\${user.firstName || user.email} submitted “\${saved.subject}”.`,
+        '/moderation/support',
+      )));
+    } catch (error) {
+      this.logger.warn(`Support request \${saved.id} was saved but moderator notifications could not be created: \${String(error)}`);
+    }
+    try {
+      await this.supportEmail.notifyNewRequest(saved, user);
+    } catch (error) {
+      this.logger.error(`Support request \${saved.id} was saved but support email delivery failed: \${String(error)}`);
+    }
+
     return {
       ...(await this.withSignedAttachmentUrls(saved)),
       confirmationMessage: 'Your message has been sent to Support. Our administration team will review your request and provide an update through your notifications.',
@@ -105,16 +128,22 @@ export class SupportService {
     const saved = await this.requests.save(request);
 
     try {
-      const summary = request.subject;
       await this.notifications.createNotification(
         request.userId,
         'support_request_resolved',
         'Your support request has been concluded',
-        `Our support team has reviewed “${summary}”. ${request.resolutionMessage}`,
+        `Our Sophis Central Support team has reviewed “${request.subject}”. ${request.resolutionMessage}`,
         '/notifications',
       );
     } catch (error) {
       this.logger.error(`Support request ${id} was concluded but its notification could not be created: ${String(error)}`);
+    }
+    if (request.user) {
+      try {
+        await this.supportEmail.sendResolution(saved, request.user);
+      } catch (error) {
+        this.logger.error(`Support request ${id} was concluded but its email could not be sent: ${String(error)}`);
+      }
     }
     return saved;
   }
