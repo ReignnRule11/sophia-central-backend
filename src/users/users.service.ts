@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { randomInt } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
@@ -12,8 +13,29 @@ export class UsersService {
     private readonly storageCleanup: StorageCleanupService,
   ) {}
 
+  private async generateUniqueId(data: Partial<User>): Promise<string> {
+    const institutionLetters = (data.institution || 'Sophis Central')
+      .normalize('NFKD')
+      .replace(/[^a-z]/gi, '')
+      .toUpperCase();
+    const institutionCode = institutionLetters.slice(0, 2).padEnd(2, 'S');
+    const firstInitial = (data.firstName?.trim().charAt(0) || 'S').toUpperCase();
+    const lastInitial = (data.lastName?.trim().charAt(0) || 'C').toUpperCase();
+    const initials = `${firstInitial}${lastInitial}`;
+
+    // The database unique index is the final concurrency guard. Retry avoids
+    // ordinary random collisions before the insert reaches that constraint.
+    for (let attempt = 0; attempt < 20; attempt += 1) {
+      const sequence = String(randomInt(0, 1_000_000)).padStart(6, '0');
+      const candidate = `${institutionCode}-${initials}-${sequence}`;
+      if (!await this.usersRepository.exist({ where: { uniqueId: candidate } })) return candidate;
+    }
+    throw new ConflictException('A unique Sophis Central ID could not be generated. Please retry registration.');
+  }
+
   async create(data: Partial<User>): Promise<User> {
-    return this.usersRepository.save(this.usersRepository.create(data));
+    const uniqueId = await this.generateUniqueId(data);
+    return this.usersRepository.save(this.usersRepository.create({ ...data, uniqueId }));
   }
 
   async findByEmail(email: string): Promise<User | null> {
