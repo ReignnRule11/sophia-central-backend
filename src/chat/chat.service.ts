@@ -1,6 +1,6 @@
 import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Repository } from 'typeorm';
+import { IsNull, MoreThan, Or, Repository } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { MessageEvent } from '@nestjs/common';
 import { Observable, filter, map } from 'rxjs';
@@ -251,14 +251,16 @@ export class ChatService {
 
       const unreadCount = contact.isDeleted
         ? 0
-        : await this.repo.createQueryBuilder('message')
-            .where('message.roomKey = :roomKey', { roomKey })
-            .andWhere('message.kind = :kind', { kind: ChatKind.DIRECT })
-            .andWhere('message.senderId = :senderId', { senderId: contact.id })
-            .andWhere('message.isDeleted = false')
-            .andWhere('message.createdAt > :lastReadAt', { lastReadAt: readState?.lastReadAt ?? new Date(0) })
-            .andWhere('(message."expiresAt" IS NULL OR message."expiresAt" > NOW())')
-            .getCount();
+        : await this.repo.count({
+            where: {
+              roomKey,
+              kind: ChatKind.DIRECT,
+              senderId: contact.id,
+              isDeleted: false,
+              createdAt: MoreThan(readState?.lastReadAt ?? new Date(0)),
+              expiresAt: Or(IsNull(), MoreThan(new Date())),
+            },
+          });
 
       const preview = latest.isDeleted
         ? 'This message was deleted'
