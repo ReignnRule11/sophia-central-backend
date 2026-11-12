@@ -59,7 +59,7 @@ export class SupportService {
 
     return {
       ...(await this.withSignedAttachmentUrls(saved)),
-      confirmationMessage: 'Your message has been sent to Support. Our administration team will review your request and provide an update through your notifications.',
+      confirmationMessage: 'Your message has been sent to Support. The Sophis Central Support team will review your request and provide an update through your notifications.',
     };
   }
 
