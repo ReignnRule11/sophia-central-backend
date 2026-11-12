@@ -27,7 +27,24 @@ export class AcademicQualityReviewWorkflow2026111200002 implements MigrationInte
 
     // The resource moderation status is a PostgreSQL enum created by the
     // legacy resources migration; moderation review history has its own enum.
-    await queryRunner.query(`ALTER TYPE "resources_moderationStatus_enum" ADD VALUE IF NOT EXISTS 'revision_requested'`);
+    await queryRunner.query(`
+      DO $
+      DECLARE resource_status_enum text;
+      BEGIN
+        SELECT type_info.typname INTO resource_status_enum
+        FROM pg_attribute attribute_info
+        JOIN pg_class table_info ON table_info.oid = attribute_info.attrelid
+        JOIN pg_type type_info ON type_info.oid = attribute_info.atttypid
+        WHERE table_info.relname = 'resources'
+          AND attribute_info.attname = 'moderationStatus'
+          AND attribute_info.attnum > 0
+          AND NOT attribute_info.attisdropped;
+        IF resource_status_enum IS NULL THEN
+          RAISE EXCEPTION 'Could not locate resources.moderationStatus enum type';
+        END IF;
+        EXECUTE format('ALTER TYPE %I ADD VALUE IF NOT EXISTS %L', resource_status_enum, 'revision_requested');
+      END $;
+    `);
     await queryRunner.query(`ALTER TYPE moderation_reviews_status_enum ADD VALUE IF NOT EXISTS 'revision_requested'`);
   }
 
