@@ -1,7 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { S3Service } from '../upload/s3.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { Resource, ResourceModerationStatus } from './entities/resource.entity';
@@ -20,6 +20,9 @@ export class CommunityResourcesService {
     }
     const uploader = await this.users.findOne({ where: { id: uploaderId } });
     if (!uploader) throw new NotFoundException('Contributor not found');
+    if (![UserRole.STUDENT, UserRole.LECTURER].includes(uploader.role)) {
+      throw new BadRequestException('Only students and lecturers can contribute resources.');
+    }
     const resource = this.resources.create({
       ...dto,
       uploader,
