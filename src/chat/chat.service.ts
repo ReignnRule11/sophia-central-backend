@@ -87,17 +87,21 @@ export class ChatService {
     return null;
   }
 
-  private async ensureDirectRetention(roomKey: string, participantIds: string[]): Promise<ChatConversationRetention> {
+  private async ensureDirectRetention(
+    roomKey: string,
+    participantIds: string[],
+    initialPeriod: ChatRetentionPeriod = '90_days',
+  ): Promise<ChatConversationRetention> {
     const inserted = await this.retentions.createQueryBuilder()
       .insert()
       .into(ChatConversationRetention)
-      .values({ roomKey, retentionPeriod: '90_days' })
+      .values({ roomKey, retentionPeriod: initialPeriod })
       .orIgnore()
       .returning(['roomKey'])
       .execute();
     const retention = await this.retentions.findOne({ where: { roomKey } });
     if (!retention) throw new Error('Could not initialize private conversation retention settings.');
-    if (Array.isArray(inserted.raw) && inserted.raw.length > 0) {
+    if (initialPeriod === '90_days' && Array.isArray(inserted.raw) && inserted.raw.length > 0) {
       await Promise.all(participantIds.map((userId, index) =>
         this.notifications.createNotification(
           userId,
@@ -122,7 +126,7 @@ export class ChatService {
     this.assertSameInstitution(current, recipient);
     await this.assertNotBlocked(current.id, recipient.id);
     const roomKey = this.directKey(current.id, recipient.id);
-    const retention = await this.ensureDirectRetention(roomKey, [current.id, recipient.id]);
+    const retention = await this.ensureDirectRetention(roomKey, [current.id, recipient.id], 'off');
     retention.retentionPeriod = period;
     retention.updatedBy = current.id;
     const saved = await this.retentions.save(retention);
@@ -348,7 +352,12 @@ export class ChatService {
         const eligibleRecipient = await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
         this.assertSameInstitution(sender, eligibleRecipient);
         await this.assertNotBlocked(sender.id, recipient.id);
-        retention = await this.ensureDirectRetention(room, [sender.id, eligibleRecipient.id]);
+        const hasPriorMessages = await this.repo.exist({ where: { roomKey: room, kind: ChatKind.DIRECT } });
+        retention = await this.ensureDirectRetention(
+          room,
+          [sender.id, eligibleRecipient.id],
+          hasPriorMessages ? 'off' : '90_days',
+        );
       } else {
         const preservedHistory = await this.repo.findOne({ where: { roomKey: room, kind: ChatKind.DIRECT, senderId: IsNull() } });
         if (!preservedHistory) throw new ForbiddenException('This conversation is unavailable.');
@@ -423,7 +432,12 @@ export class ChatService {
       this.assertSameInstitution(sender, recipient);
       await this.assertNotBlocked(sender.id, recipient.id);
       roomKey = this.directKey(sender.id, recipient.id);
-      retention = await this.ensureDirectRetention(roomKey, [sender.id, recipient.id]);
+      const hasPriorMessages = await this.repo.exist({ where: { roomKey, kind: ChatKind.DIRECT } });
+      retention = await this.ensureDirectRetention(
+        roomKey,
+        [sender.id, recipient.id],
+        hasPriorMessages ? 'off' : '90_days',
+      );
     }
 
     if (replyToMessage) {
