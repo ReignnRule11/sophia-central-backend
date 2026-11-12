@@ -16,6 +16,7 @@ import { ChatUserBlock } from './entities/chat-user-block.entity';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ChatConversationRead } from './entities/chat-conversation-read.entity';
 import { ChatMessageUserHide } from './entities/chat-message-user-hide.entity';
+import { ChatConversationRetention, ChatRetentionPeriod } from './entities/chat-conversation-retention.entity';
 
 const EDIT_WINDOW_MS = 15 * 60 * 1000;
 const MAX_VOICE_BYTES = 12 * 1024 * 1024;
@@ -36,6 +37,7 @@ export class ChatService {
     @InjectRepository(ChatUserBlock) private readonly blocks: Repository<ChatUserBlock>,
     @InjectRepository(ChatConversationRead) private readonly reads: Repository<ChatConversationRead>,
     @InjectRepository(ChatMessageUserHide) private readonly messageHides: Repository<ChatMessageUserHide>,
+    @InjectRepository(ChatConversationRetention) private readonly retentions: Repository<ChatConversationRetention>,
     private readonly users: UsersService,
     private readonly s3: S3Service,
     private readonly redis: RedisChatService,
@@ -76,6 +78,68 @@ export class ChatService {
       return;
     }
     if (!message.roomKey.split(':').includes(user.id)) throw new ForbiddenException('You cannot reference a message outside your conversation.');
+  }
+
+  private retentionMilliseconds(period: ChatRetentionPeriod): number | null {
+    if (period === '24_hours') return 24 * 60 * 60 * 1000;
+    if (period === '7_days') return 7 * 24 * 60 * 60 * 1000;
+    if (period === '90_days') return 90 * 24 * 60 * 60 * 1000;
+    return null;
+  }
+
+  private async ensureDirectRetention(roomKey: string, participantIds: string[]): Promise<ChatConversationRetention> {
+    const inserted = await this.retentions.createQueryBuilder()
+      .insert()
+      .into(ChatConversationRetention)
+      .values({ roomKey, retentionPeriod: '90_days' })
+      .orIgnore()
+      .returning(['roomKey'])
+      .execute();
+    const retention = await this.retentions.findOne({ where: { roomKey } });
+    if (!retention) throw new Error('Could not initialize private conversation retention settings.');
+    if (Array.isArray(inserted.raw) && inserted.raw.length > 0) {
+      await Promise.all(participantIds.map((userId, index) =>
+        this.notifications.createNotification(
+          userId,
+          'chat_retention',
+          'Disappearing messages enabled',
+          'This new private conversation is set to automatically clear messages after 90 days. Either participant can change this setting.',
+          index === 0
+            ? `/messages?userId=${encodeURIComponent(participantIds[1])}`
+            : `/messages?userId=${encodeURIComponent(participantIds[0])}`,
+        ).catch(() => undefined),
+      ));
+    }
+    return retention;
+  }
+
+  async updateDirectRetention(userId: string, otherId: string, period: ChatRetentionPeriod) {
+    const allowed: ChatRetentionPeriod[] = ['90_days', '7_days', '24_hours', 'off'];
+    if (!allowed.includes(period)) throw new BadRequestException('Choose 90 days, 7 days, 24 hours, or off.');
+    const current = await this.eligible(userId, [UserRole.STUDENT, UserRole.LECTURER]);
+    if (!otherId || otherId === userId) throw new BadRequestException('Choose another user.');
+    const recipient = await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
+    this.assertSameInstitution(current, recipient);
+    await this.assertNotBlocked(current.id, recipient.id);
+    const roomKey = this.directKey(current.id, recipient.id);
+    const retention = await this.ensureDirectRetention(roomKey, [current.id, recipient.id]);
+    retention.retentionPeriod = period;
+    retention.updatedBy = current.id;
+    const saved = await this.retentions.save(retention);
+    const label = period === '90_days' ? '90 days' : period === '7_days' ? '7 days' : period === '24_hours' ? '24 hours' : 'off';
+    await Promise.all([current.id, recipient.id].map((participantId, index) =>
+      this.notifications.createNotification(
+        participantId,
+        'chat_retention',
+        'Disappearing messages setting changed',
+        `@ ${current.academicHandle} changed this conversation's disappearing messages setting to ${label}. The new setting applies to future messages.`,
+        index === 0
+          ? `/messages?userId=${encodeURIComponent(recipient.id)}`
+          : `/messages?userId=${encodeURIComponent(current.id)}`,
+      ).catch(() => undefined),
+    ));
+    this.publishRoom(roomKey);
+    return { roomKey, retentionPeriod: saved.retentionPeriod, updatedAt: saved.updatedAt };
   }
 
   async listBlocks(userId: string) {
@@ -271,6 +335,7 @@ export class ChatService {
 
   async history(id: string, kind: 'group' | 'direct', otherId?: string, limitValue?: string, before?: string) {
     let room: string;
+    let retention: ChatConversationRetention | null = null;
     if (kind === 'group') room = this.groupKey(await this.eligible(id, [UserRole.STUDENT]));
     else {
       const sender = await this.eligible(id, [UserRole.STUDENT, UserRole.LECTURER]);
@@ -281,6 +346,7 @@ export class ChatService {
         const eligibleRecipient = await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
         this.assertSameInstitution(sender, eligibleRecipient);
         await this.assertNotBlocked(sender.id, recipient.id);
+        retention = await this.ensureDirectRetention(room, [sender.id, eligibleRecipient.id]);
       } else {
         const preservedHistory = await this.repo.findOne({ where: { roomKey: room, kind: ChatKind.DIRECT, senderId: IsNull() } });
         if (!preservedHistory) throw new ForbiddenException('This conversation is unavailable.');
@@ -294,6 +360,7 @@ export class ChatService {
         'NOT EXISTS (SELECT 1 FROM chat_message_user_hides hidden WHERE hidden."messageId" = message.id AND hidden."userId" = :viewerId)',
         { viewerId: id },
       );
+    if (kind === 'direct') query.andWhere('(message."expiresAt" IS NULL OR message."expiresAt" > NOW())');
     if (before) {
       const cursor = await this.repo.findOne({ where: { id: before, roomKey: room } });
       if (!cursor) throw new BadRequestException('Invalid pagination cursor.');
@@ -318,6 +385,7 @@ export class ChatService {
       hasMore,
       nextBefore: hasMore ? rows[limit - 1]?.id : null,
       hiddenMessageIds: hiddenRows.map(row => row.messageId),
+      ...(kind === 'direct' && retention ? { retentionPeriod: retention.retentionPeriod, retentionUpdatedAt: retention.updatedAt } : {}),
     };
   }
 
@@ -345,6 +413,7 @@ export class ChatService {
     if (dto.kind === 'group' && dto.recipientId) throw new BadRequestException('Group messages cannot specify a recipient.');
 
     let roomKey: string;
+    let retention: ChatConversationRetention | null = null;
     if (dto.kind === 'group') roomKey = this.groupKey(sender);
     else {
       if (!dto.recipientId || dto.recipientId === id) throw new BadRequestException('Choose a recipient.');
@@ -352,6 +421,7 @@ export class ChatService {
       this.assertSameInstitution(sender, recipient);
       await this.assertNotBlocked(sender.id, recipient.id);
       roomKey = this.directKey(sender.id, recipient.id);
+      retention = await this.ensureDirectRetention(roomKey, [sender.id, recipient.id]);
     }
 
     if (replyToMessage) {
@@ -383,9 +453,14 @@ export class ChatService {
       voiceKey = key;
     }
 
+    const retentionMs = dto.kind === 'direct' && retention
+      ? this.retentionMilliseconds(retention.retentionPeriod)
+      : null;
+    const createdAt = new Date();
     const message = await this.repo.save(this.repo.create({
       kind: dto.kind === 'group' ? ChatKind.GROUP : ChatKind.DIRECT,
       roomKey, senderId: sender.id, senderHandle: sender.academicHandle!,
+      ...(retentionMs ? { expiresAt: new Date(createdAt.getTime() + retentionMs) } : {}),
       contentType,
       text: forwardedMessage ? forwardedMessage.text : hasText ? dto.text!.trim() : null,
       voiceKey, stickerId,
