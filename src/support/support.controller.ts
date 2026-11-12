@@ -14,6 +14,11 @@ import { SupportEmailService } from './support-email.service';
 export class SupportController {
   constructor(private readonly support: SupportService, private readonly supportEmail: SupportEmailService) {}
 
+  @Get('email-status')
+  getEmailStatus() {
+    return this.supportEmail.getConfigurationStatus();
+  }
+
   @Post()
   create(@CurrentUser() user: User, @Body() dto: CreateSupportRequestDto) {
     return this.support.create(user, dto);
