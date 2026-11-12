@@ -4,6 +4,7 @@ import { User } from '../../users/entities/user.entity';
 export enum ResourceModerationStatus { DRAFT='draft', PENDING='pending', REVISION_REQUESTED='revision_requested', APPROVED='approved', REJECTED='rejected', FLAGGED='flagged' }
 export enum ResourceType { LECTURE_NOTES='lecture_notes', PAST_QUESTION='past_question', RESEARCH_PAPER='research_paper', PROJECT='project', SLIDES='slides', OTHER='other' }
 export enum ResourceLicense { CC_BY_4_0='CC-BY-4.0', CC_BY_SA_4_0='CC-BY-SA-4.0', CC0_1_0='CC0-1.0', ALL_RIGHTS_RESERVED='ALL-RIGHTS-RESERVED' }
+export enum ResourceOrigin { COMMUNITY_UPLOAD='community_upload', OPEN_SOURCE='open_source' }
 export enum ResourcePricingMode { FREE='free', FIXED='fixed', CUSTOM='custom' }
 export enum CustomPriceStatus { NOT_REQUIRED='not_required', PENDING='pending', APPROVED='approved', REJECTED='rejected' }
 
@@ -16,6 +17,9 @@ export class Resource {
   @Column({ nullable: true }) course?: string;
   @Column({ nullable: true }) topic?: string;
   @Column({ nullable: true }) institution?: string;
+  @Column({ type: 'varchar', length: 200, nullable: true }) faculty?: string;
+  @Column({ type: 'varchar', length: 200, nullable: true }) department?: string;
+  @Column({ type: 'varchar', length: 24, default: ResourceOrigin.COMMUNITY_UPLOAD }) origin!: ResourceOrigin;
   @Column({ nullable: true }) level?: string;
   @Column({ nullable: true }) fileUrl?: string;
   @Column({ default: false }) downloadRestricted!: boolean;
