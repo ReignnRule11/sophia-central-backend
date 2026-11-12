@@ -11,6 +11,7 @@ import { Resource } from '../../resources/entities/resource.entity';
 export enum UserRole {
   STUDENT = 'student',
   LECTURER = 'lecturer',
+  REVIEWER = 'reviewer',
   MODERATOR = 'moderator',
   ADMIN = 'admin',
 }
@@ -70,6 +71,14 @@ export class User {
   @Column({ type: 'varchar', default: UserRole.STUDENT })
   role!: UserRole;
 
+  // Reviewer access is explicitly granted by an administrator. The previous
+  // student/lecturer role is retained so access can be revoked safely.
+  @Column({ type: 'jsonb', nullable: true })
+  reviewerExpertise?: string[];
+
+  @Column({ type: 'varchar', length: 16, nullable: true })
+  reviewerBaseRole?: 'student' | 'lecturer';
+
   @Column({ type: 'varchar', default: 'email' })
   authProvider!: AuthProvider;
 
@@ -115,6 +124,9 @@ export class User {
 
   @OneToMany(() => Resource, (resource) => resource.uploader)
   resources!: Resource[];
+
+  @OneToMany(() => Resource, (resource) => resource.assignedReviewer)
+  assignedReviews!: Resource[];
 
   @CreateDateColumn()
   createdAt!: Date;

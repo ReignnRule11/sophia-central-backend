@@ -4,6 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
+import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
 
 @Injectable()
 export class UsersService {
@@ -79,8 +80,39 @@ export class UsersService {
 
   async findAll(): Promise<User[]> {
     return this.usersRepository.find({
-      select: ['id', 'email', 'firstName', 'lastName', 'role', 'authProvider', 'isVerified', 'isSuspended', 'suspensionReason', 'institution', 'createdAt', 'updatedAt'],
+      select: ['id', 'email', 'firstName', 'lastName', 'role', 'reviewerExpertise', 'authProvider', 'isVerified', 'isSuspended', 'suspensionReason', 'institution', 'createdAt', 'updatedAt'],
       order: { createdAt: 'DESC' },
+    });
+  }
+
+
+  async setReviewerAccess(id: string, dto: SetReviewerAccessDto): Promise<User> {
+    return this.dataSource.transaction(async manager => {
+      const user = await manager.findOne(User, { where: { id } });
+      if (!user) throw new NotFoundException('User not found');
+
+      if (dto.enabled) {
+        if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
+          throw new BadRequestException('Only student or lecturer accounts can be granted academic reviewer access');
+        }
+        const expertiseAreas = [...new Set((dto.expertiseAreas ?? []).map(area => area.trim()).filter(Boolean))];
+        if (expertiseAreas.length === 0) {
+          throw new BadRequestException('At least one verified subject expertise area is required');
+        }
+        if (user.role !== UserRole.REVIEWER) user.reviewerBaseRole = user.role as 'student' | 'lecturer';
+        user.role = UserRole.REVIEWER;
+        user.reviewerExpertise = expertiseAreas;
+      } else {
+        if (user.role !== UserRole.REVIEWER) {
+          throw new BadRequestException('This account does not currently have reviewer access');
+        }
+        user.role = (user.reviewerBaseRole as UserRole | undefined) ?? UserRole.STUDENT;
+        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
+        user.reviewerBaseRole = undefined;
+        user.reviewerExpertise = [];
+      }
+
+      return manager.save(User, user);
     });
   }
 
@@ -114,6 +146,9 @@ export class UsersService {
         const existing = await manager.createQueryBuilder(User, 'user').where('LOWER(user.academicHandle) = :handle', { handle: normalized }).andWhere('user.id != :id', { id }).getOne();
         if (existing) throw new ConflictException('Academic handle already exists');
         updateData.academicHandle = normalized;
+      }
+      if (updateData.isSuspended === true && user.role === UserRole.REVIEWER) {
+        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
       }
       const previousProfileImage = user.profileImage;
       Object.assign(user, updateData);
