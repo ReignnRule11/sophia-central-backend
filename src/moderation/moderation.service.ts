@@ -6,6 +6,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { ModerationReview } from './entities/moderation-review.entity';
 import { ReviewResourceDto } from './dto/review-resource.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PointsService } from '../points/points.service';
 
 @Injectable()
 export class ModerationService {
@@ -19,6 +20,7 @@ export class ModerationService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly notificationsService: NotificationsService,
+    private readonly pointsService: PointsService,
   ) {}
 
   async getQueue(viewer: User) {
@@ -101,6 +103,19 @@ export class ModerationService {
     resource.assignedReviewerId = null;
     await this.resourceRepository.save(resource);
 
+    let wisdomRewardAwarded = false;
+    if (dto.status === ResourceModerationStatus.APPROVED) {
+      try {
+        wisdomRewardAwarded = await this.pointsService.awardResourceApprovalReward(
+          resource.uploaderId,
+          resource.id,
+          resource.title,
+        );
+      } catch (error) {
+        this.logger.error(`Resource ${resource.id} was approved, but its Wisdom Points reward could not be credited: ${String(error)}`);
+      }
+    }
+
     const review = this.moderationReviewRepository.create({
       resource,
       reviewer: reviewerRecord,
@@ -117,7 +132,7 @@ export class ModerationService {
         approved ? 'resource_approved' : revisionRequested ? 'resource_revision_requested' : 'resource_rejected',
         approved ? 'Your resource was approved' : revisionRequested ? 'Changes requested for your resource' : 'Your resource was rejected',
         approved
-          ? `“${resource.title}” has been approved and is now available in the shared library.`
+          ? `“${resource.title}” has been approved and is now available in the shared library.${wisdomRewardAwarded ? ' You have also earned 10 Wisdom Points.' : ''}`
           : revisionRequested
             ? `“${resource.title}” needs revision before it can be approved. Reviewer feedback: ${dto.note?.trim()}`
             : `“${resource.title}” was rejected during moderation. Reviewer note: ${dto.note?.trim()}`,
