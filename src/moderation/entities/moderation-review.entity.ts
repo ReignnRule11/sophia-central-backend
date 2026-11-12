@@ -12,22 +12,22 @@ import { User } from '../../users/entities/user.entity';
 @Entity({ name: 'moderation_reviews' })
 export class ModerationReview {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @ManyToOne(() => Resource, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'resourceId' })
-  resource: Resource;
+  resource!: Resource;
 
   @ManyToOne(() => User, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reviewerId' })
-  reviewer: User;
+  reviewer!: User;
 
   @Column({ type: 'enum', enum: ResourceModerationStatus })
-  status: ResourceModerationStatus;
+  status!: ResourceModerationStatus;
 
   @Column({ type: 'text', nullable: true })
   note?: string;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 }
