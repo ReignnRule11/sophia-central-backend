@@ -17,6 +17,7 @@ export class ChatMessage {
  @Column({ type: 'uuid', nullable: true }) forwardedFromMessageId?: string | null;
  @Column({ type: 'boolean', default: false }) isDeleted!: boolean;
  @Column({ type: 'timestamp', nullable: true }) editedAt?: Date | null;
+ @Column({ type: 'timestamp', nullable: true }) expiresAt?: Date | null;
  @CreateDateColumn() createdAt!: Date;
  @UpdateDateColumn() updatedAt!: Date;
 }

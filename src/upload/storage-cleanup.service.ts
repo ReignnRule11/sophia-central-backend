@@ -50,6 +50,33 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
     await this.enqueueWithManager(this.dataSource.manager, reference, reason, delayMs);
   }
 
+  private async queueExpiredDirectMessages(): Promise<void> {
+    await this.dataSource.transaction(async manager => {
+      const expired = await manager.query(
+        `SELECT id, "voiceKey" FROM chat_messages
+         WHERE kind = 'direct' AND "expiresAt" IS NOT NULL AND "expiresAt" <= NOW()
+         ORDER BY "expiresAt" ASC, id ASC
+         LIMIT 100 FOR UPDATE SKIP LOCKED`,
+      ) as Array<{ id: string; voiceKey: string | null }>;
+      if (!expired.length) return;
+
+      for (const message of expired) {
+        if (message.voiceKey) {
+          await this.enqueueWithManager(manager, message.voiceKey, 'expired-private-dm-voice-message');
+        }
+      }
+
+      const ids = expired.map(message => message.id);
+      await manager.query(
+        `DELETE FROM chat_messages
+         WHERE id = ANY($1::uuid[]) AND kind = 'direct'
+           AND "expiresAt" IS NOT NULL AND "expiresAt" <= NOW()`,
+        [ids],
+      );
+      this.logger.log(`Permanently removed ${ids.length} expired private DM message(s).`);
+    });
+  }
+
   private async queueExpiredPendingUploads(): Promise<void> {
     await this.dataSource.transaction(async manager => {
       const stale = await manager.query(
@@ -186,6 +213,7 @@ export class StorageCleanupService implements OnModuleInit, OnModuleDestroy {
     if (this.running) return;
     this.running = true;
     try {
+      await this.queueExpiredDirectMessages();
       await this.queueExpiredPendingUploads();
       const jobs = await this.claimJobs();
       for (const job of jobs) {
