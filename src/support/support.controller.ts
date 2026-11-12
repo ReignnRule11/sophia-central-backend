@@ -5,19 +5,13 @@ import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User } from '../users/entities/user.entity';
 import { SupportService } from './support.service';
 import { CreateSupportRequestDto } from './dto/create-support-request.dto';
-import { SupportEmailService } from './support-email.service';
 
 @ApiTags('Support')
 @Controller('support-requests')
 @UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class SupportController {
-  constructor(private readonly support: SupportService, private readonly supportEmail: SupportEmailService) {}
-
-  @Get('email-status')
-  getEmailStatus() {
-    return this.supportEmail.getConfigurationStatus();
-  }
+  constructor(private readonly support: SupportService) {}
 
   @Post()
   create(@CurrentUser() user: User, @Body() dto: CreateSupportRequestDto) {
