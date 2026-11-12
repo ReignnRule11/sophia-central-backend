@@ -8,6 +8,8 @@ export class CreateResourceDto {
   @IsOptional() @IsString() course?: string;
   @IsOptional() @IsString() topic?: string;
   @IsOptional() @IsString() institution?: string;
+  @IsOptional() @IsString() @MaxLength(200) faculty?: string;
+  @IsOptional() @IsString() @MaxLength(200) department?: string;
   @IsOptional() @IsString() level?: string;
   @IsOptional() @IsBoolean() downloadRestricted?: boolean;
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(40, { each: true }) tags?: string[];

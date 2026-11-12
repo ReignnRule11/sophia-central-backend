@@ -38,12 +38,26 @@ export class CommunityResourcesService {
       .addSelect(['uploader.id', 'uploader.firstName', 'uploader.lastName', 'uploader.academicHandle'])
       .where('resource.moderationStatus = :status', { status: ResourceModerationStatus.APPROVED })
       .andWhere('resource.rightsConfirmed = true');
+    const departmentOnly = query.departmentOnly === '1' || query.departmentOnly === 'true';
     const filters: Array<[string, string]> = [
-      ['course', 'course'], ['topic', 'topic'], ['institution', 'institution'], ['level', 'level'],
+      ['course', 'course'], ['topic', 'topic'], ['institution', 'institution'],
+      ['faculty', 'faculty'], ['department', 'department'], ['level', 'level'],
     ];
+    if (departmentOnly && !['institution', 'faculty', 'department'].every((key) => query[key]?.trim())) {
+      throw new BadRequestException('Institution, faculty and department are required for department-scoped browsing.');
+    }
     for (const [parameter, column] of filters) {
       const value = query[parameter]?.trim();
-      if (value) qb.andWhere(`LOWER(resource.${column}) LIKE LOWER(:${parameter})`, { [parameter]: `%${value}%` });
+      if (!value) continue;
+      if (departmentOnly && ['institution', 'faculty', 'department'].includes(parameter)) {
+        const uploaderColumn = parameter;
+        qb.andWhere(
+          `(LOWER(resource.${column}) = LOWER(:${parameter}) OR (resource.${column} IS NULL AND LOWER(uploader.${uploaderColumn}) = LOWER(:${parameter})))`,
+          { [parameter]: value },
+        );
+      } else {
+        qb.andWhere(`LOWER(resource.${column}) LIKE LOWER(:${parameter})`, { [parameter]: `%${value}%` });
+      }
     }
     if (query.q?.trim()) {
       qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.course ILIKE :q OR resource.topic ILIKE :q)', { q: `%${query.q.trim()}%` });
