@@ -106,7 +106,7 @@ export class UsersService {
         if (user.role !== UserRole.REVIEWER) {
           throw new BadRequestException('This account does not currently have reviewer access');
         }
-        user.role = user.reviewerBaseRole ?? UserRole.STUDENT;
+        user.role = (user.reviewerBaseRole as UserRole | undefined) ?? UserRole.STUDENT;
         await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
         user.reviewerBaseRole = undefined;
         user.reviewerExpertise = [];
