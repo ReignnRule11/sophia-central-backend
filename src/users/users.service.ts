@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { randomInt } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -79,10 +79,13 @@ export class UsersService {
   }
 
   async findAll(): Promise<User[]> {
-    return this.usersRepository.find({
-      select: ['id', 'email', 'firstName', 'lastName', 'role', 'reviewerExpertise', 'authProvider', 'isVerified', 'isSuspended', 'suspensionReason', 'institution', 'createdAt', 'updatedAt'],
-      order: { createdAt: 'DESC' },
-    });
+    // The platform-owned moderator account is operational infrastructure, not a
+    // managed user. Never expose moderator-role accounts through user management.
+    return this.usersRepository.createQueryBuilder('user')
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.reviewerExpertise', 'user.authProvider', 'user.isVerified', 'user.isSuspended', 'user.suspensionReason', 'user.institution', 'user.createdAt', 'user.updatedAt'])
+      .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
+      .orderBy('user.createdAt', 'DESC')
+      .getMany();
   }
 
 
@@ -121,6 +124,9 @@ export class UsersService {
       const user = await manager.findOne(User, { where: { id } });
       if (!user) throw new NotFoundException('User not found');
       const updateData = { ...data };
+      if (user.role === UserRole.MODERATOR && updateData.isSuspended !== undefined) {
+        throw new ForbiddenException('The platform moderator account is protected from user-management status changes.');
+      }
       const institutionChanged = updateData.institution !== undefined && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase();
       const facultyChanged = updateData.faculty !== undefined && updateData.faculty.trim().toLocaleLowerCase() !== (user.faculty ?? '').trim().toLocaleLowerCase();
       const departmentChanged = updateData.department !== undefined && updateData.department.trim().toLocaleLowerCase() !== (user.department ?? '').trim().toLocaleLowerCase();
@@ -173,7 +179,11 @@ export class UsersService {
   }
 
   async remove(id: string): Promise<void> {
-    if (!await this.findOne(id)) throw new NotFoundException('User not found');
+    const user = await this.findOne(id);
+    if (!user) throw new NotFoundException('User not found');
+    if (user.role === UserRole.MODERATOR) {
+      throw new ForbiddenException('The platform moderator account cannot be deleted through user management.');
+    }
     await this.removeAccountData(id);
   }
 
