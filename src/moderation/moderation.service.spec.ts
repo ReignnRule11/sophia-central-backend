@@ -66,6 +66,7 @@ describe('ModerationService academic reviewer workflow', () => {
       id: 'resource-1',
       title: 'Research methods',
       moderationStatus: ResourceModerationStatus.PENDING,
+      isVerified: false,
       assignedReviewerId: 'reviewer-1',
       uploaderId: 'lecturer-1',
       uploader: { id: 'lecturer-1' },
