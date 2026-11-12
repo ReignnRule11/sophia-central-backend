@@ -16,7 +16,7 @@ export class UsersService {
   private async generateUniqueId(data: Partial<User>): Promise<string> {
     const institutionWords = (data.institution || 'Sophis Central')
       .normalize('NFKD')
-      .split(/\\s+/)
+      .split(/\s+/)
       .map((word) => word.replace(/[^a-z]/gi, '').toUpperCase())
       .filter((word) => word && !['OF', 'THE', 'AND', 'FOR', 'AT'].includes(word));
     const institutionCode = institutionWords.length > 1
