@@ -17,15 +17,18 @@ describe('ModerationService academic reviewer workflow', () => {
   };
   const userRepository = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
   const notificationsService = { createNotification: jest.fn().mockResolvedValue(undefined) };
+  const pointsService = { awardResourceApprovalReward: jest.fn().mockResolvedValue(true) };
   let service: ModerationService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    pointsService.awardResourceApprovalReward.mockResolvedValue(true);
     service = new ModerationService(
       resourceRepository as any,
       reviewRepository as any,
       userRepository as any,
       notificationsService as any,
+      pointsService as any,
     );
   });
 
@@ -91,6 +94,74 @@ describe('ModerationService academic reviewer workflow', () => {
     await expect(service.reviewResource('resource-1', {
       status: ResourceModerationStatus.APPROVED,
     }, reviewer)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
+
+  it('awards 10 Wisdom Points when a student contribution is approved', async () => {
+    const resource = {
+      id: 'resource-student-1',
+      title: 'Cell Biology Notes',
+      moderationStatus: ResourceModerationStatus.PENDING,
+      isVerified: false,
+      assignedReviewerId: null,
+      uploaderId: 'student-1',
+      uploader: { id: 'student-1', role: UserRole.STUDENT },
+    };
+    const reviewer = { id: 'moderator-1', role: UserRole.MODERATOR } as User;
+    resourceRepository.findOne.mockResolvedValue(resource);
+    userRepository.findOne.mockResolvedValue(reviewer);
+    resourceRepository.save.mockImplementation(async value => value);
+
+    await service.reviewResource('resource-student-1', {
+      status: ResourceModerationStatus.APPROVED,
+    }, reviewer);
+
+    expect(pointsService.awardResourceApprovalReward).toHaveBeenCalledWith(
+      'student-1',
+      'resource-student-1',
+      'Cell Biology Notes',
+    );
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'student-1',
+      'resource_approved',
+      'Your resource was approved',
+      '“Cell Biology Notes” has been approved and is now available in the shared library. You have also earned 10 Wisdom Points.',
+      '/library',
+    );
+  });
+
+  it('does not award student-contribution points for lecturer uploads', async () => {
+    const resource = {
+      id: 'resource-lecturer-1',
+      title: 'Lecture Slides',
+      moderationStatus: ResourceModerationStatus.PENDING,
+      isVerified: false,
+      assignedReviewerId: null,
+      uploaderId: 'lecturer-1',
+      uploader: { id: 'lecturer-1', role: UserRole.LECTURER },
+    };
+    const reviewer = { id: 'moderator-1', role: UserRole.MODERATOR } as User;
+    resourceRepository.findOne.mockResolvedValue(resource);
+    userRepository.findOne.mockResolvedValue(reviewer);
+    resourceRepository.save.mockImplementation(async value => value);
+    pointsService.awardResourceApprovalReward.mockResolvedValue(false);
+
+    await service.reviewResource('resource-lecturer-1', {
+      status: ResourceModerationStatus.APPROVED,
+    }, reviewer);
+
+    expect(pointsService.awardResourceApprovalReward).toHaveBeenCalledWith(
+      'lecturer-1',
+      'resource-lecturer-1',
+      'Lecture Slides',
+    );
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'lecturer-1',
+      'resource_approved',
+      'Your resource was approved',
+      '“Lecture Slides” has been approved and is now available in the shared library.',
+      '/library',
+    );
   });
 
   it('records a revision request and requires reviewer feedback', async () => {
