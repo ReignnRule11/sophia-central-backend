@@ -352,7 +352,7 @@ export class ChatService {
         const eligibleRecipient = await this.eligible(otherId, [UserRole.STUDENT, UserRole.LECTURER]);
         this.assertSameInstitution(sender, eligibleRecipient);
         await this.assertNotBlocked(sender.id, recipient.id);
-        const hasPriorMessages = await this.repo.exist({ where: { roomKey: room, kind: ChatKind.DIRECT } });
+        const hasPriorMessages = await this.repo.findOne({ where: { roomKey: room, kind: ChatKind.DIRECT } });
         retention = await this.ensureDirectRetention(
           room,
           [sender.id, eligibleRecipient.id],
@@ -432,7 +432,7 @@ export class ChatService {
       this.assertSameInstitution(sender, recipient);
       await this.assertNotBlocked(sender.id, recipient.id);
       roomKey = this.directKey(sender.id, recipient.id);
-      const hasPriorMessages = await this.repo.exist({ where: { roomKey, kind: ChatKind.DIRECT } });
+      const hasPriorMessages = await this.repo.findOne({ where: { roomKey, kind: ChatKind.DIRECT } });
       retention = await this.ensureDirectRetention(
         roomKey,
         [sender.id, recipient.id],
