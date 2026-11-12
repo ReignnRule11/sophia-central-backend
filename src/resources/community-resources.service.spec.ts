@@ -1,6 +1,7 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CommunityResourcesService } from './community-resources.service';
 import { ResourceLicense, ResourceModerationStatus, ResourceType } from './entities/resource.entity';
+import { UserRole } from '../users/entities/user.entity';
 
 describe('CommunityResourcesService', () => {
   const resourceRepository: any = {
@@ -32,7 +33,7 @@ describe('CommunityResourcesService', () => {
   });
 
   it('creates student/lecturer contributions as pending and records the rights declaration', async () => {
-    const uploader = { id: 'student-1' };
+    const uploader = { id: 'student-1', role: UserRole.STUDENT };
     userRepository.findOne.mockResolvedValue(uploader);
     const dto = {
       title: 'Calculus notes', type: ResourceType.LECTURE_NOTES,
