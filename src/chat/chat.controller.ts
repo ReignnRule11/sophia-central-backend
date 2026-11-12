@@ -2,6 +2,7 @@ import { Body, Controller, Delete, Get, Param, ParseUUIDPipe, Patch, Post, Query
 import { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ChatService } from './chat.service';
+import { ChatRetentionPeriod } from './entities/chat-conversation-retention.entity';
 import { CreateChatMessageDto, CreateVoiceUploadDto, EditChatMessageDto } from './dto/create-chat-message.dto';
 
 type AuthRequest = Request & { user: import('../users/entities/user.entity').User };
@@ -29,6 +30,15 @@ export class ChatController {
   @Post('direct/:userId/read')
   markDirectRead(@Req() request: AuthRequest, @Param('userId', ParseUUIDPipe) userId: string) {
     return this.chat.markDirectRead(request.user.id, userId);
+  }
+
+  @Patch('direct/:userId/retention')
+  updateDirectRetention(
+    @Req() request: AuthRequest,
+    @Param('userId', ParseUUIDPipe) userId: string,
+    @Body('retentionPeriod') retentionPeriod: ChatRetentionPeriod,
+  ) {
+    return this.chat.updateDirectRetention(request.user.id, userId, retentionPeriod);
   }
 
   @Get('blocks')
