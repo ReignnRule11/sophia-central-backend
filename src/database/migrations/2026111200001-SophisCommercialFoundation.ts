@@ -44,7 +44,7 @@ export class SophisCommercialFoundation2026111200001 implements MigrationInterfa
             FILTER (WHERE lower(words.word) NOT IN ('of', 'the', 'and', 'for', 'at')) AS words
           FROM regexp_split_to_table(
             coalesce(nullif(trim(users.institution), ''), 'Sophis Central'),
-            '\\s+'
+            '[[:space:]]+'
           ) WITH ORDINALITY AS words(word, ordinality)
         ) AS institution_words
         WHERE users."uniqueId" IS NULL
@@ -54,7 +54,8 @@ export class SophisCommercialFoundation2026111200001 implements MigrationInterfa
                        lpad(prepared.sequence_number::text, 6, '0')
       FROM prepared
       WHERE target.id = prepared.id
-    `);    await queryRunner.query(`ALTER TABLE users ALTER COLUMN "uniqueId" SET NOT NULL`);
+    `);
+    await queryRunner.query(`ALTER TABLE users ALTER COLUMN "uniqueId" SET NOT NULL`);
     await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_users_unique_id" ON users ("uniqueId")`);
 
     await queryRunner.query(`ALTER TABLE resources ADD COLUMN IF NOT EXISTS "pricingMode" varchar(16) NOT NULL DEFAULT 'free'`);
