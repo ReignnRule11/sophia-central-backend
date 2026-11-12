@@ -56,7 +56,19 @@ export class ModerationService {
       throw new BadRequestException('The selected reviewer has no recorded subject expertise');
     }
     resource.assignedReviewerId = reviewer.id;
-    return this.resourceRepository.save(resource);
+    const saved = await this.resourceRepository.save(resource);
+    try {
+      await this.notificationsService.createNotification(
+        reviewer.id,
+        'resource_review_assigned',
+        'A new academic resource was assigned to you',
+        `“${resource.title}” is ready for your academic review.`,
+        '/moderation',
+      );
+    } catch (error) {
+      this.logger.warn(`Resource ${resource.id} was assigned but the reviewer notification could not be created: ${String(error)}`);
+    }
+    return saved;
   }
 
   async reviewResource(id: string, dto: ReviewResourceDto, reviewer: User) {
@@ -113,6 +125,23 @@ export class ModerationService {
       );
     } catch (error) {
       this.logger.warn(`Could not create moderation notification for resource ${resource.id}: ${String(error)}`);
+    }
+
+    if (reviewer.role === UserRole.REVIEWER) {
+      try {
+        const moderators = await this.userRepository.find({
+          where: { role: UserRole.MODERATOR, isSuspended: false },
+        });
+        await Promise.all(moderators.map(moderator => this.notificationsService.createNotification(
+          moderator.id,
+          'resource_review_completed',
+          'An academic resource review was completed',
+          `A reviewer completed the review of “${resource.title}” with status: ${dto.status.replace(/_/g, ' ')}.`,
+          '/moderation',
+        )));
+      } catch (error) {
+        this.logger.warn(`Resource ${resource.id} was reviewed but moderator notifications could not be created: ${String(error)}`);
+      }
     }
 
     return savedReview;
