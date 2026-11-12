@@ -45,16 +45,16 @@ export class SupportService {
         moderator.id,
         'support_request_new',
         'New support request received',
-        `\${user.firstName || user.email} submitted “\${saved.subject}”.`,
+        `${user.firstName || user.email} submitted “${saved.subject}”.`,
         '/moderation/support',
       )));
     } catch (error) {
-      this.logger.warn(`Support request \${saved.id} was saved but moderator notifications could not be created: \${String(error)}`);
+      this.logger.warn(`Support request ${saved.id} was saved but moderator notifications could not be created: ${String(error)}`);
     }
     try {
       await this.supportEmail.notifyNewRequest(saved, user);
     } catch (error) {
-      this.logger.error(`Support request \${saved.id} was saved but support email delivery failed: \${String(error)}`);
+      this.logger.error(`Support request ${saved.id} was saved but support email delivery failed: ${String(error)}`);
     }
 
     return {
