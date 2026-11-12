@@ -15,7 +15,7 @@ describe('ModerationService academic reviewer workflow', () => {
     create: jest.fn((value) => value),
     save: jest.fn((value) => Promise.resolve({ id: 'review-1', ...value })),
   };
-  const userRepository = { findOne: jest.fn() };
+  const userRepository = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
   const notificationsService = { createNotification: jest.fn().mockResolvedValue(undefined) };
   let service: ModerationService;
 
@@ -55,6 +55,31 @@ describe('ModerationService academic reviewer workflow', () => {
     expect(resourceRepository.save).not.toHaveBeenCalled();
   });
 
+  it('notifies the assigned reviewer when a resource is assigned', async () => {
+    resourceRepository.findOne.mockResolvedValue({
+      id: 'resource-1',
+      title: 'Cell Biology',
+      moderationStatus: ResourceModerationStatus.PENDING,
+    });
+    userRepository.findOne.mockResolvedValue({
+      id: 'reviewer-1',
+      role: UserRole.REVIEWER,
+      isSuspended: false,
+      reviewerExpertise: ['Biology'],
+    });
+    resourceRepository.save.mockImplementation(async value => value);
+
+    await service.assignReviewer('resource-1', 'reviewer-1');
+
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'reviewer-1',
+      'resource_review_assigned',
+      'A new academic resource was assigned to you',
+      '“Cell Biology” is ready for your academic review.',
+      '/moderation',
+    );
+  });
+
   it('prevents a reviewer from deciding on an unassigned resource', async () => {
     resourceRepository.findOne.mockResolvedValue({
       id: 'resource-1',
@@ -81,6 +106,7 @@ describe('ModerationService academic reviewer workflow', () => {
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
     resourceRepository.findOne.mockResolvedValue(resource);
     userRepository.findOne.mockResolvedValue(reviewer);
+    userRepository.find.mockResolvedValue([{ id: 'moderator-1' }]);
     resourceRepository.save.mockImplementation(async (value) => value);
 
     const result = await service.reviewResource('resource-1', {
@@ -95,5 +121,12 @@ describe('ModerationService academic reviewer workflow', () => {
       note: 'Please add source references.',
     }));
     expect(result.status).toBe(ResourceModerationStatus.REVISION_REQUESTED);
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'moderator-1',
+      'resource_review_completed',
+      'An academic resource review was completed',
+      'A reviewer completed the review of “Research methods” with status: revision requested.',
+      '/moderation',
+    );
   });
 });
