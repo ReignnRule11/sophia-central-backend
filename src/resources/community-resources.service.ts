@@ -50,7 +50,11 @@ export class CommunityResourcesService {
       const value = query[parameter]?.trim();
       if (!value) continue;
       if (departmentOnly && ['institution', 'faculty', 'department'].includes(parameter)) {
-        qb.andWhere(`LOWER(resource.${column}) = LOWER(:${parameter})`, { [parameter]: value });
+        const uploaderColumn = parameter;
+        qb.andWhere(
+          `(LOWER(resource.${column}) = LOWER(:${parameter}) OR (resource.${column} IS NULL AND LOWER(uploader.${uploaderColumn}) = LOWER(:${parameter})))`,
+          { [parameter]: value },
+        );
       } else {
         qb.andWhere(`LOWER(resource.${column}) LIKE LOWER(:${parameter})`, { [parameter]: `%${value}%` });
       }
