@@ -237,6 +237,7 @@ export class ChatService {
         this.repo.createQueryBuilder('message')
           .where('message.roomKey = :roomKey', { roomKey })
           .andWhere('message.kind = :kind', { kind: ChatKind.DIRECT })
+          .andWhere('(message."expiresAt" IS NULL OR message."expiresAt" > NOW())')
           .andWhere(
             'NOT EXISTS (SELECT 1 FROM chat_message_user_hides hidden WHERE hidden."messageId" = message.id AND hidden."userId" = :viewerId)',
             { viewerId: id },
@@ -250,15 +251,14 @@ export class ChatService {
 
       const unreadCount = contact.isDeleted
         ? 0
-        : await this.repo.count({
-            where: {
-              roomKey,
-              kind: ChatKind.DIRECT,
-              senderId: contact.id,
-              isDeleted: false,
-              createdAt: MoreThan(readState?.lastReadAt ?? new Date(0)),
-            },
-          });
+        : await this.repo.createQueryBuilder('message')
+            .where('message.roomKey = :roomKey', { roomKey })
+            .andWhere('message.kind = :kind', { kind: ChatKind.DIRECT })
+            .andWhere('message.senderId = :senderId', { senderId: contact.id })
+            .andWhere('message.isDeleted = false')
+            .andWhere('message.createdAt > :lastReadAt', { lastReadAt: readState?.lastReadAt ?? new Date(0) })
+            .andWhere('(message."expiresAt" IS NULL OR message."expiresAt" > NOW())')
+            .getCount();
 
       const preview = latest.isDeleted
         ? 'This message was deleted'
