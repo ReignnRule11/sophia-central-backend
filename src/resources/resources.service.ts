@@ -59,7 +59,7 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to resources.');
     }
 
-    // Moderators and admins need platform-wide visibility for moderation and support.
+    // Reviewer, moderator and admin accounts need platform-wide visibility for moderation and support.
     // Students and lecturers see only approved resources in the shared library.
     const resources = await this.resourceRepository.find({
       ...([UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { where: { moderationStatus: ResourceModerationStatus.APPROVED } }),
@@ -94,7 +94,7 @@ export class ResourcesService {
   async findDownloadedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const entries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
+      where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
       relations: ['resource', 'resource.uploader'],
       order: { downloadedAt: 'DESC' },
     });
