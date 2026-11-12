@@ -10,6 +10,7 @@ describe('ChatService access and message rules', () => {
   let blocks: any;
   let reads: any;
   let messageHides: any;
+  let retentions: any;
   let users: any;
   let s3: any;
   let redis: any;
@@ -63,6 +64,23 @@ describe('ChatService access and message rules', () => {
         getRawMany: jest.fn(async () => []),
       })),
     };
+    const retentionInsert = {
+      insert: jest.fn().mockReturnThis(),
+      into: jest.fn().mockReturnThis(),
+      values: jest.fn().mockReturnThis(),
+      orIgnore: jest.fn().mockReturnThis(),
+      returning: jest.fn().mockReturnThis(),
+      execute: jest.fn(async () => ({ raw: [] })),
+    };
+    retentions = {
+      createQueryBuilder: jest.fn(() => retentionInsert),
+      findOne: jest.fn(async ({ where }) => ({
+        roomKey: where.roomKey,
+        retentionPeriod: '90_days',
+        updatedAt: new Date('2026-11-12T00:00:00.000Z'),
+      })),
+      save: jest.fn(async value => value),
+    };
     users = {
       findOne: jest.fn(async id => id === student.id ? { ...student } : null),
       findChatContacts: jest.fn(async () => []),
@@ -88,6 +106,7 @@ describe('ChatService access and message rules', () => {
       blocks,
       reads,
       messageHides,
+      retentions,
       users,
       s3,
       redis,
@@ -333,6 +352,35 @@ describe('ChatService access and message rules', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
+
+  it('initializes new private conversations with 90-day retention and notifies both participants once', async () => {
+    const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
+    users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === recipient.id ? recipient : null);
+    const retentionInsert = retentions.createQueryBuilder();
+    retentionInsert.execute.mockResolvedValueOnce({ raw: [{ roomKey: 'direct:student-1:student-2' }] });
+    const historyQuery = {
+      where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(), addOrderBy: jest.fn().mockReturnThis(),
+      take: jest.fn().mockReturnThis(), getMany: jest.fn(async () => []),
+    };
+    repo.createQueryBuilder.mockReturnValue(historyQuery);
+
+    const result = await service.history(student.id, 'direct', recipient.id);
+
+    expect(retentions.createQueryBuilder).toHaveBeenCalled();
+    expect(result.retentionPeriod).toBe('90_days');
+    expect(notifications.createNotification).toHaveBeenCalledTimes(2);
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      student.id, 'chat_retention', 'Disappearing messages enabled',
+      expect.stringContaining('90 days'), '/messages?userId=student-2',
+    );
+  });
+
+  it('rejects invalid private DM retention values', async () => {
+    await expect(service.updateDirectRetention(student.id, 'student-2', '30_days' as any))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(retentions.save).not.toHaveBeenCalled();
+  });
 
   it('rejects private DM history when either participant has blocked the other', async () => {
     const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
