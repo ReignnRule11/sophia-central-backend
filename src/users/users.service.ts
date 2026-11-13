@@ -231,7 +231,7 @@ export class UsersService {
     return { configured: Boolean(user.securityQuestionId), questionId: user.securityQuestionId ?? null };
   }
 
-  async setSecurityQuestion(id: string, password: string, questionId: string, answer: string) {
+  async setSecurityQuestion(id: string, password: string, questionId: string, answer: string, currentAnswer?: string) {
     const allowedQuestions = ['first_school', 'childhood_friend', 'first_pet', 'favorite_teacher', 'birth_city'];
     if (!allowedQuestions.includes(questionId)) throw new BadRequestException('Choose one of the available security questions.');
     const normalizedAnswer = this.normalizeSecurityAnswer(answer);
@@ -239,6 +239,9 @@ export class UsersService {
     const user = await this.getSensitiveAccount(id);
     if (!user.password || !(await bcrypt.compare(password, user.password))) {
       throw new UnauthorizedException('Your current password is incorrect.');
+    }
+    if (user.securityAnswerHash && (!currentAnswer || !(await bcrypt.compare(this.normalizeSecurityAnswer(currentAnswer), user.securityAnswerHash)))) {
+      throw new UnauthorizedException('Your current security answer is incorrect.');
     }
     user.securityQuestionId = questionId;
     user.securityAnswerHash = await bcrypt.hash(normalizedAnswer, 12);
