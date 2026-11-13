@@ -52,7 +52,11 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
           return;
         }
 
-        let wallet = await manager.findOne(PointWallet, {
+        // Preserve the existing student starter-credit behavior for accounts
+        // whose wallet has not yet been initialized.
+        await this.getOrCreateWallet(job.userId);
+
+        const wallet = await manager.findOne(PointWallet, {
           where: { userId: job.userId },
           lock: { mode: 'pessimistic_write' },
         });
