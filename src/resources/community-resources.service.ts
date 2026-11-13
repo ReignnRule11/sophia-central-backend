@@ -1,4 +1,4 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -114,13 +114,22 @@ export class CommunityResourcesService {
     };
   }
 
-  async getPublicFileUrl(id: string) {
+  async getPublicFileUrl(id: string, viewer: User) {
+    if ([UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(viewer.role) && !viewer.institutionId) {
+      throw new ForbiddenException('Complete your catalogue-backed institution setup before downloading academic materials.');
+    }
     const resource = await this.resources.findOne({
       where: { id, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true },
     });
     if (!resource?.fileUrl) throw new NotFoundException('Public resource file not found');
     const key = this.storage.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new NotFoundException('Public resource file not found');
+    await this.resources.manager.save(UserActivityEvent, this.resources.manager.create(UserActivityEvent, {
+      userId: viewer.id,
+      institutionId: viewer.institutionId ?? null,
+      eventType: 'file_access',
+      resourceId: resource.id,
+    }));
     const extension = key.split('.').pop();
     const filename = extension ? `${resource.title}.${extension}` : resource.title;
     const [url, metadata] = await Promise.all([
