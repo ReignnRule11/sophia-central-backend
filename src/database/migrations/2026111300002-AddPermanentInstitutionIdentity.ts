@@ -108,6 +108,7 @@ export class AddPermanentInstitutionIdentity2026111300002 implements MigrationIn
       WHERE u."institutionId" IS NULL
         AND u.institution IS NOT NULL
         AND lower(trim(u.institution)) = lower(trim(i.name))
+        AND (SELECT COUNT(*) FROM institutions i2 WHERE lower(trim(i2.name)) = lower(trim(i.name))) = 1
     `);
     await queryRunner.query(`
       UPDATE resources r
