@@ -5,6 +5,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { S3Service } from '../upload/s3.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { Resource, ResourceModerationStatus } from './entities/resource.entity';
+import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 
 @Injectable()
 export class CommunityResourcesService {
@@ -12,6 +13,7 @@ export class CommunityResourcesService {
     @InjectRepository(Resource) private readonly resources: Repository<Resource>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly storage: S3Service,
+    @InjectRepository(UserActivityEvent) private readonly activityRepository: Repository<UserActivityEvent>,
   ) {}
 
   async create(dto: CreateResourceDto, uploaderId: string): Promise<Resource> {
@@ -27,12 +29,15 @@ export class CommunityResourcesService {
       ...dto,
       uploader,
       uploaderId,
+      uploaderInstitutionId: uploader.institutionId ?? null,
       rightsConfirmed: true,
       rightsConfirmedAt: new Date(),
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
     });
-    return this.resources.save(resource);
+    const saved = await this.resources.save(resource);
+    await this.activityRepository.save(this.activityRepository.create({ userId: uploader.id, institutionId: uploader.institutionId ?? null, eventType: 'upload', resourceId: saved.id }));
+    return saved;
   }
 
   async findPublic(query: Record<string, string>) {
