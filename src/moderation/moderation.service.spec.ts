@@ -105,17 +105,23 @@ describe('ModerationService academic reviewer workflow', () => {
   });
 
 
+  it('does not allow a moderator to approve academic resources', async () => {
+    resourceRepository.findOne.mockResolvedValue({ id: 'resource-1', moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: 'reviewer-1', uploaderId: 'student-1' });
+    await expect(service.reviewResource('resource-1', { status: ResourceModerationStatus.APPROVED }, { id: 'moderator-1', role: UserRole.MODERATOR } as User))
+      .rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('awards 10 Wisdom Points when a student contribution is approved', async () => {
     const resource = {
       id: 'resource-student-1',
       title: 'Cell Biology Notes',
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
-      assignedReviewerId: null,
+      assignedReviewerId: 'reviewer-1',
       uploaderId: 'student-1',
       uploader: { id: 'student-1', role: UserRole.STUDENT },
     };
-    const reviewer = { id: 'moderator-1', role: UserRole.MODERATOR } as User;
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
     resourceRepository.findOne.mockResolvedValue(resource);
     userRepository.findOne.mockResolvedValue(reviewer);
     resourceRepository.save.mockImplementation(async value => value);
@@ -145,11 +151,12 @@ describe('ModerationService academic reviewer workflow', () => {
       title: 'Lecture Slides',
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
-      assignedReviewerId: null,
+      assignedReviewerId: 'reviewer-1',
       uploaderId: 'lecturer-1',
       uploader: { id: 'lecturer-1', role: UserRole.LECTURER },
     };
-    const reviewer = { id: 'moderator-1', role: UserRole.MODERATOR } as User;
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
+    resource.assignedReviewerId = reviewer.id;
     resourceRepository.findOne.mockResolvedValue(resource);
     userRepository.findOne.mockResolvedValue(reviewer);
     resourceRepository.save.mockImplementation(async value => value);
