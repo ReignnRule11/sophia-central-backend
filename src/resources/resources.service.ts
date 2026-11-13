@@ -42,6 +42,7 @@ export class ResourcesService {
       ...dto,
       uploader,
       uploaderId,
+      uploaderInstitutionId: uploader.institutionId ?? null,
       // Uploads always enter moderation; clients cannot publish directly.
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
@@ -138,7 +139,7 @@ export class ResourcesService {
     await this.savedResourceRepository.save(entry);
     stored.downloads = Number(stored.downloads || 0) + 1;
     await this.resourceRepository.save(stored);
-    await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, eventType: 'download', resourceId: id }));
+    await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, institutionId: viewer.institutionId ?? null, eventType: 'download', resourceId: id }));
     return { downloaded: true, resourceId: id };
   }
 
