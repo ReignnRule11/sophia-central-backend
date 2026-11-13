@@ -15,6 +15,7 @@ import { SocialLinksDto } from './social-links.dto';
 
 export class TeachingAssignmentDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(160)
   courseName!: string;
 
@@ -56,7 +57,9 @@ export class OnboardingDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayNotEmpty()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   @MaxLength(160, { each: true })
   coursesTaught?: string[];
 
