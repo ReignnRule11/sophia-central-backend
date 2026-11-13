@@ -1,4 +1,4 @@
-import { ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { AuthService } from './auth.service';
@@ -210,6 +210,46 @@ describe('AuthService', () => {
     }));
     expect(users.create).not.toHaveBeenCalled();
     expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('creates the permanent account only after required student onboarding is complete', async () => {
+    registrationTokens.open.mockReturnValue({
+      stage: 'pre-account', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
+      firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one',
+      role: UserRole.STUDENT, passwordHash: 'stored-password-hash',
+    });
+    users.findByEmail.mockResolvedValue(null);
+    users.findByAcademicHandle.mockResolvedValue(null);
+    users.create.mockImplementation(async (data) => ({ ...user, ...data, id: 'new-account-id' }) as never);
+    const response = await service.completePreAccountOnboarding('pre-account-token', {
+      institutionId: '00000000-0000-4000-8000-000000000001',
+      institution: 'Example University',
+      faculty: 'Faculty of Science',
+      department: 'Computer Science',
+      programme: 'B.Sc. Computer Science',
+      studyLevel: '300',
+    } as never);
+    expect(users.create).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'learner@example.com', academicHandle: 'learner.one', password: 'stored-password-hash',
+      emailVerified: true, isProfileComplete: true, accountStatus: 'active',
+      institutionId: '00000000-0000-4000-8000-000000000001',
+      faculty: 'Faculty of Science', department: 'Computer Science', studyLevel: '300',
+    }));
+    expect(response).toEqual(expect.objectContaining({ accessToken: 'signed-access-token' }));
+  });
+
+  it('rejects student onboarding without an academic level before creating an account', async () => {
+    registrationTokens.open.mockReturnValue({
+      stage: 'pre-account', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
+      firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one',
+      role: UserRole.STUDENT, passwordHash: 'stored-password-hash',
+    });
+    await expect(service.completePreAccountOnboarding('pre-account-token', {
+      institutionId: '00000000-0000-4000-8000-000000000001',
+      faculty: 'Faculty of Science', department: 'Computer Science',
+      programme: 'B.Sc. Computer Science',
+    } as never)).rejects.toBeInstanceOf(BadRequestException);
+    expect(users.create).not.toHaveBeenCalled();
   });
 
   it('confirms an unexpired verification token and marks the user email as verified', async () => {
