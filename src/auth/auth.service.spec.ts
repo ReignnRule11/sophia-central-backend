@@ -23,7 +23,7 @@ describe('AuthService', () => {
   };
 
   beforeEach(() => {
-    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), update: jest.fn(), findOne: jest.fn() };
+    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn() };
     jwt = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
     resetTokens = {
       delete: jest.fn().mockResolvedValue({ affected: 1 }), save: jest.fn().mockResolvedValue({}),
@@ -178,6 +178,23 @@ describe('AuthService', () => {
     await expect(service.login({ identifier: user.email, password: 'correct-horse-battery' }))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('fails closed when an email account has no explicit verified flag', async () => {
+    const password = await bcrypt.hash('correct-horse-battery', 4);
+    const legacyOrMalformedUser = { ...user, password, emailVerified: undefined };
+    users.findByEmail.mockResolvedValue(legacyOrMalformedUser as never);
+    await expect(service.login({ identifier: user.email, password: 'correct-horse-battery' }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('records the successful login timestamp before issuing a session', async () => {
+    const password = await bcrypt.hash('correct-horse-battery', 4);
+    users.findByEmail.mockResolvedValue({ ...user, password, emailVerified: true } as never);
+    await service.login({ identifier: user.email, password: 'correct-horse-battery' });
+    expect(users.update).toHaveBeenCalledWith(user.id, expect.objectContaining({ lastLoginAt: expect.any(Date) }));
+    expect(jwt.signAsync).toHaveBeenCalled();
   });
 
   it('allows sign-in with an academic handle for an email-verified account', async () => {
