@@ -195,6 +195,21 @@ export class UsersService {
   }
 
 
+
+  async reactivateDeactivatedAccount(id: string) {
+    const user = await this.findOne(id);
+    if (!user) throw new NotFoundException('User not found');
+    if (user.accountStatus !== 'deactivated') {
+      throw new BadRequestException('Only voluntarily deactivated accounts can be reactivated through this action.');
+    }
+    if (user.isSuspended) {
+      throw new ForbiddenException('This account also has a moderator-imposed suspension that must be resolved separately.');
+    }
+    user.accountStatus = 'active';
+    await this.usersRepository.save(user);
+    return { success: true, accountStatus: user.accountStatus };
+  }
+
   private normalizeSecurityAnswer(answer: string): string {
     return answer.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
   }
