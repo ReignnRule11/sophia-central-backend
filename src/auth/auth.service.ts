@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThanOrEqual, Repository } from 'typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -81,6 +81,7 @@ export class AuthService {
     };
     const token = randomBytes(32).toString('base64url');
     const tokenHash = createHash('sha256').update(token).digest('hex');
+    await this.pendingRegistrations.delete({ expiresAt: LessThanOrEqual(new Date()) });
     const existingPending = await this.pendingRegistrations.findOne({ where: { email } });
     const pending = this.pendingRegistrations.create({
       ...(existingPending ? { id: existingPending.id } : {}),
@@ -202,7 +203,7 @@ export class AuthService {
       await this.verificationTokens.delete({ id: tokenRecord.id });
       throw new UnauthorizedException('This verification link is invalid or has expired. Request a new link and try again.');
     }
-    if (!user.emailVerified) await this.usersService.update(user.id, { emailVerified: true });
+    if (!user.emailVerified) await this.usersService.update(user.id, { emailVerified: true, password: await bcrypt.hash(password, 12) });
     await this.verificationTokens.delete({ userId: user.id });
     if (tokenRecord.referralCode && user.role === UserRole.STUDENT) {
       try {
