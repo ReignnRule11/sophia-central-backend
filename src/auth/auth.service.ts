@@ -96,7 +96,7 @@ export class AuthService {
         : await this.usersService.findByAcademicHandle(identifier);
     const passwordMatches = user?.password ? await bcrypt.compare(dto.password, user.password) : false;
     if (!user || !passwordMatches) throw new UnauthorizedException('Invalid credentials');
-    if (user.authProvider === 'email' && user.emailVerified === false) {
+    if (user.authProvider === 'email' && user.emailVerified !== true) {
       throw new ForbiddenException('Please verify your email address before signing in. Open the verification page to resend your activation link.');
     }
     if (user.accountStatus === 'pending_deletion') {
@@ -106,6 +106,7 @@ export class AuthService {
     if (user.accountStatus === 'deactivated') {
       user = await this.usersService.update(user.id, { accountStatus: 'active' });
     }
+    user = await this.usersService.update(user.id, { lastLoginAt: new Date() });
     return this.buildAuthResponse(user);
   }
 
