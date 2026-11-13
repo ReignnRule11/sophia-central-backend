@@ -31,6 +31,11 @@ Recommended configuration:
 
 The job processes up to 100 due accounts per execution. If more than 100 are due, the next daily run continues processing. Increase the batch size only after checking database and storage-cleanup load.
 
+
+## Deleted-account recovery appeals
+
+The current implementation supports cancellation before the 30-day purge. It does not restore an account after permanent cleanup. Do not promise post-purge recovery until a separate encrypted recovery archive, limited retention window, identity-verification process and authorized restore workflow have been designed and implemented. The email appeal workflow is deferred to the support/notifications configuration phase.
+
 ## Operational email work deferred
 
 Deletion-request confirmation, the day-25 reminder, appeal acknowledgement, recovery decisions and support notifications should be connected during the dedicated support/notifications email configuration stage. Before enabling them, confirm the official support mailbox and verified sender identity. See `docs/SUPPORT_EMAIL_SETUP.md` for the existing Resend setup requirements. Do not place credentials in source control.
