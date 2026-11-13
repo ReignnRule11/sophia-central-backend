@@ -115,7 +115,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Set or update the account security question after password verification' })
   setSecurityQuestion(@CurrentUser() user: User, @Body() dto: SetSecurityQuestionDto) {
-    return this.usersService.setSecurityQuestion(user.id, dto.password, dto.questionId, dto.answer);
+    return this.usersService.setSecurityQuestion(user.id, dto.password, dto.questionId, dto.answer, dto.currentAnswer);
   }
 
   @Post('me/deactivate')
