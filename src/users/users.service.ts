@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
 import { randomInt } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -9,6 +9,7 @@ import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
     private readonly dataSource: DataSource,
@@ -315,10 +316,17 @@ export class UsersService {
       order: { deletionScheduledAt: 'ASC' },
     });
     let processed = 0;
+    let failed = 0;
     for (const account of dueAccounts) {
-      await this.removeAccountData(account.id);
-      processed += 1;
+      try {
+        await this.removeAccountData(account.id);
+        processed += 1;
+      } catch (error) {
+        failed += 1;
+        this.logger.error(`Permanent deletion failed for account ${account.id}: ${error instanceof Error ? error.message : 'unknown error'}`);
+      }
     }
+    if (failed > 0) throw new Error(`Account deletion cleanup completed with ${processed} successful and ${failed} failed account(s).`);
     return { processed };
   }
 
