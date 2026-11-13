@@ -143,6 +143,7 @@ export class UsersService {
       if (!user) throw new NotFoundException('User not found');
       const updateData = { ...data };
       if (updateData.institutionId !== undefined) {
+        if (!updateData.institutionId) throw new BadRequestException('Institution ID cannot be cleared.');
         if (user.institutionId && user.institutionId !== updateData.institutionId) {
           throw new ForbiddenException('Your original Institution ID is permanent. Additional institution memberships must be managed separately.');
         }
