@@ -25,10 +25,12 @@ export class ModerationService {
   ) {}
 
   async getQueue(viewer: User) {
+    if (![UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role)) {
+      throw new ForbiddenException('Only reviewers and admins can access the academic resource queue.');
+    }
     if (viewer.role === UserRole.REVIEWER && viewer.isSuspended) return [];
-    const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
     return this.resourceRepository.find({
-      where: isPlatformModerator
+      where: viewer.role === UserRole.ADMIN
         ? { moderationStatus: ResourceModerationStatus.PENDING }
         : { moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: viewer.id },
       relations: ['uploader', 'assignedReviewer'],
@@ -37,9 +39,12 @@ export class ModerationService {
   }
 
   async getHistory(viewer: User) {
-    const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
+    if (![UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role)) {
+      throw new ForbiddenException('Only reviewers and admins can access academic review history.');
+    }
+    if (viewer.role === UserRole.REVIEWER && viewer.isSuspended) return [];
     return this.moderationReviewRepository.find({
-      where: isPlatformModerator ? {} : { reviewer: { id: viewer.id } },
+      where: viewer.role === UserRole.ADMIN ? {} : { reviewer: { id: viewer.id } },
       relations: ['resource', 'resource.uploader', 'reviewer'],
       order: { createdAt: 'DESC' },
     });
@@ -83,10 +88,13 @@ export class ModerationService {
     if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
       throw new ConflictException('This resource is no longer awaiting review');
     }
-    if (reviewer.role === UserRole.REVIEWER && reviewer.isSuspended) {
+    if (reviewer.role !== UserRole.REVIEWER) {
+      throw new ForbiddenException('Only an assigned academic reviewer can approve, reject or request revisions.');
+    }
+    if (reviewer.isSuspended) {
       throw new ForbiddenException('Suspended reviewer accounts cannot access the review workflow');
     }
-    if (reviewer.role === UserRole.REVIEWER && resource.assignedReviewerId !== reviewer.id) {
+    if (resource.assignedReviewerId !== reviewer.id) {
       throw new ForbiddenException('This resource is not assigned to your reviewer account');
     }
     if (![ResourceModerationStatus.APPROVED, ResourceModerationStatus.REJECTED, ResourceModerationStatus.REVISION_REQUESTED].includes(dto.status)) {
