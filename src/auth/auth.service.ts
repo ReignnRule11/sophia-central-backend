@@ -18,7 +18,7 @@ import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
-import { RegistrationTokenService, RegistrationTokenPayload } from './registration-token.service';
+import { RegistrationTokenService, type RegistrationTokenPayload } from './registration-token.service';
 import { PasswordResetEmailService } from './password-reset-email.service';
 import { EmailVerificationEmailService } from './email-verification-email.service';
 import { UsersService } from '../users/users.service';
