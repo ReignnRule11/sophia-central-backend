@@ -36,9 +36,16 @@ export class CommunityResourcesService {
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
     });
-    const saved = await this.resources.save(resource);
-    await this.activityRepository.save(this.activityRepository.create({ userId: uploader.id, institutionId: uploader.institutionId ?? null, eventType: 'upload', resourceId: saved.id }));
-    return saved;
+    return this.resources.manager.transaction(async (manager) => {
+      const saved = await manager.save(Resource, resource);
+      await manager.save(UserActivityEvent, manager.create(UserActivityEvent, {
+        userId: uploader.id,
+        institutionId: uploader.institutionId ?? null,
+        eventType: 'upload',
+        resourceId: saved.id,
+      }));
+      return saved;
+    });
   }
 
   async findPublic(query: Record<string, string>) {
