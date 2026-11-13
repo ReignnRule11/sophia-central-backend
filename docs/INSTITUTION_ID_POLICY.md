@@ -41,7 +41,7 @@ The full identifier fits the existing 32-character account identifier column.
 
 - The public Institution ID can be used as a login identifier alongside email and academic handle. A password is still required.
 - The Institution ID is not a password, secret, bearer token, or second factor. Knowing it alone must never grant access.
-- Upload, download, and private file access continue to require an authenticated session and the existing role/resource ownership/permission checks.
+- Uploads, in-app downloads, downloaded-file access, and file downloads for otherwise-public/open-source resources require an authenticated account with a catalogue Institution ID. Public resource metadata remains browseable without an account.
 - Resource upload records retain the uploader's catalogue institution reference. Activity events record the acting user's institution reference for uploads, downloads and authenticated file access.
 - Downloaded-resource access remains account-scoped through the internal user UUID; the public Institution ID is not used as an authorization bypass.
 - Account deletion continues to anonymize retained approved-resource contributors. Do not copy the public Institution ID into retained resource attribution.
