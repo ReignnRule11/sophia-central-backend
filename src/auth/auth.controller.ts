@@ -92,6 +92,7 @@ export class AuthController {
   }
 
   @Post('onboarding/complete')
+  @UseGuards(CsrfGuard)
   @ApiOperation({ summary: 'Create a verified account after required academic onboarding is complete' })
   async completePreAccountOnboarding(@Body() dto: CompletePreAccountOnboardingDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.completePreAccountOnboarding(dto.preAccountToken, dto);
