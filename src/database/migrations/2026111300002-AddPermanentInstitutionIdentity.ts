@@ -55,8 +55,7 @@ export class AddPermanentInstitutionIdentity2026111300002 implements MigrationIn
             WHEN 'rufus giwa polytechnic' THEN 'RUGIPO'
             WHEN 'federal polytechnic oko' THEN 'FEDPOOKO'
             WHEN 'federal polytechnic ede' THEN 'FEDPOEDE'
-            WHEN 'ade yemi college of education' THEN 'ACEONDO'
-            WHEN 'adeleke college of education' THEN 'ADELEKE'
+            WHEN 'adeyemi college of education' THEN 'ACEONDO'
             WHEN 'alvan ikoku federal college of education' THEN 'AIFCE'
             ELSE NULL
           END;
