@@ -66,6 +66,7 @@ describe('AuthService', () => {
     referrals.processPendingReferralForUser.mockRejectedValue(new Error('temporary referral database failure'));
 
     await expect(service.completeOnboarding(user.id, {
+      institutionId: '00000000-0000-4000-8000-000000000001',
       institution: 'New University',
       faculty: 'School of Computing',
       department: 'Software Engineering',
