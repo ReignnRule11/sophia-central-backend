@@ -2,13 +2,21 @@ import { ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ModerationService } from './moderation.service';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
 import { User, UserRole } from '../users/entities/user.entity';
+import { ResourceRewardOutbox } from '../points/entities/resource-reward-outbox.entity';
 
 describe('ModerationService academic reviewer workflow', () => {
+  const transactionManager = {
+    create: jest.fn((_entity, value) => value),
+    save: jest.fn(async (entity, value) => entity === Resource ? value : { id: 'review-1', ...value }),
+  };
   const resourceRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn((value) => value),
+    manager: {
+      transaction: jest.fn(async callback => callback(transactionManager)),
+    },
   };
   const reviewRepository = {
     find: jest.fn(),
@@ -17,15 +25,18 @@ describe('ModerationService academic reviewer workflow', () => {
   };
   const userRepository = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
   const notificationsService = { createNotification: jest.fn().mockResolvedValue(undefined) };
+  const pointsService = { processResourceApprovalReward: jest.fn().mockResolvedValue(true) };
   let service: ModerationService;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    pointsService.processResourceApprovalReward.mockResolvedValue(true);
     service = new ModerationService(
       resourceRepository as any,
       reviewRepository as any,
       userRepository as any,
       notificationsService as any,
+      pointsService as any,
     );
   });
 
@@ -93,6 +104,71 @@ describe('ModerationService academic reviewer workflow', () => {
     }, reviewer)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+
+  it('awards 10 Wisdom Points when a student contribution is approved', async () => {
+    const resource = {
+      id: 'resource-student-1',
+      title: 'Cell Biology Notes',
+      moderationStatus: ResourceModerationStatus.PENDING,
+      isVerified: false,
+      assignedReviewerId: null,
+      uploaderId: 'student-1',
+      uploader: { id: 'student-1', role: UserRole.STUDENT },
+    };
+    const reviewer = { id: 'moderator-1', role: UserRole.MODERATOR } as User;
+    resourceRepository.findOne.mockResolvedValue(resource);
+    userRepository.findOne.mockResolvedValue(reviewer);
+    resourceRepository.save.mockImplementation(async value => value);
+
+    await service.reviewResource('resource-student-1', {
+      status: ResourceModerationStatus.APPROVED,
+    }, reviewer);
+
+    expect(pointsService.processResourceApprovalReward).toHaveBeenCalledWith('resource-student-1');
+    expect(resourceRepository.manager.transaction).toHaveBeenCalled();
+    expect(transactionManager.save).toHaveBeenCalledWith(
+      ResourceRewardOutbox,
+      expect.objectContaining({ resourceId: 'resource-student-1', userId: 'student-1' }),
+    );
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'student-1',
+      'resource_approved',
+      'Your resource was approved',
+      '“Cell Biology Notes” has been approved and is now available in the shared library. You have also earned 10 Wisdom Points.',
+      '/library',
+    );
+  });
+
+  it('does not award student-contribution points for lecturer uploads', async () => {
+    const resource = {
+      id: 'resource-lecturer-1',
+      title: 'Lecture Slides',
+      moderationStatus: ResourceModerationStatus.PENDING,
+      isVerified: false,
+      assignedReviewerId: null,
+      uploaderId: 'lecturer-1',
+      uploader: { id: 'lecturer-1', role: UserRole.LECTURER },
+    };
+    const reviewer = { id: 'moderator-1', role: UserRole.MODERATOR } as User;
+    resourceRepository.findOne.mockResolvedValue(resource);
+    userRepository.findOne.mockResolvedValue(reviewer);
+    resourceRepository.save.mockImplementation(async value => value);
+    pointsService.processResourceApprovalReward.mockResolvedValue(false);
+
+    await service.reviewResource('resource-lecturer-1', {
+      status: ResourceModerationStatus.APPROVED,
+    }, reviewer);
+
+    expect(pointsService.processResourceApprovalReward).not.toHaveBeenCalled();
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'lecturer-1',
+      'resource_approved',
+      'Your resource was approved',
+      '“Lecture Slides” has been approved and is now available in the shared library.',
+      '/library',
+    );
+  });
+
   it('records a revision request and requires reviewer feedback', async () => {
     const resource = {
       id: 'resource-1',
@@ -116,10 +192,7 @@ describe('ModerationService academic reviewer workflow', () => {
 
     expect(resource.moderationStatus).toBe(ResourceModerationStatus.REVISION_REQUESTED);
     expect(resource.isVerified).toBe(false);
-    expect(reviewRepository.save).toHaveBeenCalledWith(expect.objectContaining({
-      status: ResourceModerationStatus.REVISION_REQUESTED,
-      note: 'Please add source references.',
-    }));
+    expect(resourceRepository.manager.transaction).toHaveBeenCalled();
     expect(result.status).toBe(ResourceModerationStatus.REVISION_REQUESTED);
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'moderator-1',

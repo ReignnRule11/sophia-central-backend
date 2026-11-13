@@ -6,6 +6,8 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { ModerationReview } from './entities/moderation-review.entity';
 import { ReviewResourceDto } from './dto/review-resource.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { PointsService } from '../points/points.service';
+import { ResourceRewardOutbox } from '../points/entities/resource-reward-outbox.entity';
 
 @Injectable()
 export class ModerationService {
@@ -19,6 +21,7 @@ export class ModerationService {
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
     private readonly notificationsService: NotificationsService,
+    private readonly pointsService: PointsService,
   ) {}
 
   async getQueue(viewer: User) {
@@ -99,15 +102,45 @@ export class ModerationService {
     resource.moderationStatus = dto.status;
     resource.isVerified = dto.status === ResourceModerationStatus.APPROVED;
     resource.assignedReviewerId = null;
-    await this.resourceRepository.save(resource);
 
-    const review = this.moderationReviewRepository.create({
-      resource,
-      reviewer: reviewerRecord,
-      status: dto.status,
-      note: dto.note?.trim() || undefined,
+    // Commit approval, review history, and the reward instruction atomically.
+    // A process crash after this transaction cannot lose the student's reward.
+    const savedReview = await this.resourceRepository.manager.transaction(async manager => {
+      const savedResource = await manager.save(Resource, resource);
+      const review = manager.create(ModerationReview, {
+        resource: savedResource,
+        reviewer: reviewerRecord,
+        status: dto.status,
+        note: dto.note?.trim() || undefined,
+      });
+      const saved = await manager.save(ModerationReview, review);
+
+      if (
+        dto.status === ResourceModerationStatus.APPROVED &&
+        resource.uploader?.role === UserRole.STUDENT &&
+        !resource.uploader.isSuspended
+      ) {
+        await manager.save(ResourceRewardOutbox, manager.create(ResourceRewardOutbox, {
+          resourceId: resource.id,
+          userId: resource.uploaderId,
+        }));
+      }
+      return saved;
     });
-    const savedReview = await this.moderationReviewRepository.save(review);
+
+    let wisdomRewardAwarded = false;
+    if (
+      dto.status === ResourceModerationStatus.APPROVED &&
+      resource.uploader?.role === UserRole.STUDENT &&
+      !resource.uploader.isSuspended
+    ) {
+      try {
+        wisdomRewardAwarded = await this.pointsService.processResourceApprovalReward(resource.id);
+      } catch (error) {
+        // The outbox worker will retry this durable pending reward.
+        this.logger.error(`Resource ${resource.id} was approved; its Wisdom Points reward remains queued for retry: ${String(error)}`);
+      }
+    }
 
     try {
       const approved = dto.status === ResourceModerationStatus.APPROVED;
@@ -117,7 +150,7 @@ export class ModerationService {
         approved ? 'resource_approved' : revisionRequested ? 'resource_revision_requested' : 'resource_rejected',
         approved ? 'Your resource was approved' : revisionRequested ? 'Changes requested for your resource' : 'Your resource was rejected',
         approved
-          ? `“${resource.title}” has been approved and is now available in the shared library.`
+          ? `“${resource.title}” has been approved and is now available in the shared library.${wisdomRewardAwarded ? ' You have also earned 10 Wisdom Points.' : ''}`
           : revisionRequested
             ? `“${resource.title}” needs revision before it can be approved. Reviewer feedback: ${dto.note?.trim()}`
             : `“${resource.title}” was rejected during moderation. Reviewer note: ${dto.note?.trim()}`,
