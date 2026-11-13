@@ -27,6 +27,7 @@ export class TeachingAssignmentDto {
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   @MaxLength(80, { each: true })
   levels!: string[];
 }
