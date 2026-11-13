@@ -109,7 +109,6 @@ export class ModerationService {
         wisdomRewardAwarded = await this.pointsService.awardResourceApprovalReward(
           resource.uploaderId,
           resource.id,
-          resource.title,
         );
       } catch (error) {
         this.logger.error(`Resource ${resource.id} was approved, but its Wisdom Points reward could not be credited: ${String(error)}`);
