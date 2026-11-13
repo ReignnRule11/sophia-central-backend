@@ -243,7 +243,7 @@ describe('AuthService', () => {
 
   it('rejects student onboarding without an academic level before creating an account', async () => {
     registrationTokens.open.mockReturnValue({
-      stage: 'pre-account', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
+      stage: 'pre-account', jti: 'pre-account-jti', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
       firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one',
       role: UserRole.STUDENT, passwordHash: 'stored-password-hash',
     });
