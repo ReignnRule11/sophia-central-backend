@@ -13,6 +13,7 @@ import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
+import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
 import { User } from '../users/entities/user.entity';
@@ -69,6 +70,12 @@ export class AuthController {
     const result = await this.authService.login(dto);
     this.setSessionCookies(response, result.accessToken);
     return { user: result.user };
+  }
+
+  @Post('account-deletion/cancel')
+  @ApiOperation({ summary: 'Cancel a pending account deletion after password and security-answer verification' })
+  cancelAccountDeletion(@Body() dto: CancelAccountDeletionDto) {
+    return this.authService.cancelPendingAccountDeletion(dto);
   }
 
   @Post('password-reset/request')
