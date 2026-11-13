@@ -15,6 +15,7 @@ async function main() {
   let userId;
   let sessionId;
   let supportRequestId;
+  let approvedResourceId;
   try {
     const requiredTables = [
       'users', 'resources', 'institutions', 'faculties', 'departments',
@@ -31,6 +32,8 @@ async function main() {
     assert.equal(identityColumn.rowCount, 1, 'users.uniqueId should exist');
     const pricingColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'resources' AND column_name IN ('pricingMode', 'priceAmount', 'customPriceStatus', 'lastSubstantiveUpdateAt')");
     assert.equal(pricingColumns.rowCount, 4, 'resource pricing and substantive-update columns should exist');
+    const lifecycleColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name IN ('accountStatus', 'deletionRequestedAt', 'deletionScheduledAt', 'securityQuestionId', 'securityAnswerHash')");
+    assert.equal(lifecycleColumns.rowCount, 5, 'account lifecycle and security-question columns should exist');
 
     const applied = await client.query('SELECT name FROM migrations ORDER BY timestamp');
     const migrationNames = applied.rows.map((row) => row.name);
@@ -46,6 +49,7 @@ async function main() {
     assert.ok(migrationNames.includes('CreatePasswordResetTokens2026102600001'), 'password reset token migration should be applied');
     assert.ok(migrationNames.includes('CreateSupportRequests2026103100001'), 'support request migration should be applied');
     assert.ok(migrationNames.includes('SophisCommercialFoundation2026111200001'), 'Sophis commercial foundation migration should be applied');
+    assert.ok(migrationNames.includes('AddAccountLifecycle2026111300001'), 'account lifecycle migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
@@ -65,6 +69,13 @@ async function main() {
        VALUES ($1, $2, 'CI migration smoke session') RETURNING id`,
       [userId, resource.rows[0].id],
     );
+
+    const approvedResource = await client.query(
+      `INSERT INTO resources (title, type, "moderationStatus", "uploaderId")
+       VALUES ('CI approved shared resource', 'other', 'approved', $1) RETURNING id`,
+      [userId],
+    );
+    approvedResourceId = approvedResource.rows[0].id;
     sessionId = session.rows[0].id;
     const supportRequest = await client.query(
       `INSERT INTO support_requests (\"userId\", subject, category, description) VALUES ($1, 'CI support request', 'account', 'Migration smoke support request') RETURNING id`,
@@ -83,11 +94,16 @@ async function main() {
     );
     assert.ok(reset.rows[0].id, 'password reset token should be insertable');
 
+    // Remove the pending resource explicitly; approved shared content must survive account deletion.
+    await client.query('DELETE FROM resources WHERE id = $1', [resource.rows[0].id]);
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
     const supportRow = await client.query('SELECT id FROM support_requests WHERE id = $1', [supportRequestId]);
     assert.equal(supportRow.rowCount, 0, 'deleting a user should cascade-delete support requests');
     const resetToken = await client.query('SELECT id FROM password_reset_tokens WHERE id = $1', [reset.rows[0].id]);
     assert.equal(resetToken.rowCount, 0, 'deleting a user should cascade-delete password reset tokens');
+    const retainedResource = await client.query('SELECT id, "uploaderId" FROM resources WHERE id = $1', [approvedResourceId]);
+    assert.equal(retainedResource.rowCount, 1, 'approved shared resources should survive uploader account deletion');
+    assert.equal(retainedResource.rows[0].uploaderId, null, 'approved resource uploader identity should be anonymized');
     const detachedSession = await client.query('SELECT "resourceId" FROM ai_sessions WHERE id = $1', [sessionId]);
     assert.equal(detachedSession.rows[0].resourceId, null, 'resource deletion should null optional AI session reference');
     const message = await client.query('SELECT id FROM ai_messages WHERE "sessionId" = $1', [sessionId]);
@@ -96,6 +112,7 @@ async function main() {
     console.log('PostgreSQL migration smoke test passed: schema, migration history, CRUD, and FK behavior.');
   } finally {
     if (sessionId) await client.query('DELETE FROM ai_sessions WHERE id = $1', [sessionId]).catch(() => undefined);
+    if (approvedResourceId) await client.query('DELETE FROM resources WHERE id = $1', [approvedResourceId]).catch(() => undefined);
     if (userId) await client.query('DELETE FROM users WHERE id = $1', [userId]).catch(() => undefined);
     await client.end();
   }

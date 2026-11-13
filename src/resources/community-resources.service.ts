@@ -1,10 +1,11 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { S3Service } from '../upload/s3.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { Resource, ResourceModerationStatus } from './entities/resource.entity';
+import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 
 @Injectable()
 export class CommunityResourcesService {
@@ -23,16 +24,27 @@ export class CommunityResourcesService {
     if (![UserRole.STUDENT, UserRole.LECTURER].includes(uploader.role)) {
       throw new BadRequestException('Only students and lecturers can contribute resources.');
     }
+    if (!uploader.institutionId) throw new BadRequestException('Complete your catalogue-backed institution setup before uploading academic materials.');
     const resource = this.resources.create({
       ...dto,
       uploader,
       uploaderId,
+      uploaderInstitutionId: uploader.institutionId ?? null,
       rightsConfirmed: true,
       rightsConfirmedAt: new Date(),
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
     });
-    return this.resources.save(resource);
+    return this.resources.manager.transaction(async (manager) => {
+      const saved = await manager.save(Resource, resource);
+      await manager.save(UserActivityEvent, manager.create(UserActivityEvent, {
+        userId: uploader.id,
+        institutionId: uploader.institutionId ?? null,
+        eventType: 'upload',
+        resourceId: saved.id,
+      }));
+      return saved;
+    });
   }
 
   async findPublic(query: Record<string, string>) {
@@ -102,13 +114,22 @@ export class CommunityResourcesService {
     };
   }
 
-  async getPublicFileUrl(id: string) {
+  async getPublicFileUrl(id: string, viewer: User) {
+    if ([UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(viewer.role) && !viewer.institutionId) {
+      throw new ForbiddenException('Complete your catalogue-backed institution setup before downloading academic materials.');
+    }
     const resource = await this.resources.findOne({
       where: { id, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true },
     });
     if (!resource?.fileUrl) throw new NotFoundException('Public resource file not found');
     const key = this.storage.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new NotFoundException('Public resource file not found');
+    await this.resources.manager.save(UserActivityEvent, this.resources.manager.create(UserActivityEvent, {
+      userId: viewer.id,
+      institutionId: viewer.institutionId ?? null,
+      eventType: 'file_access',
+      resourceId: resource.id,
+    }));
     const extension = key.split('.').pop();
     const filename = extension ? `${resource.title}.${extension}` : resource.title;
     const [url, metadata] = await Promise.all([

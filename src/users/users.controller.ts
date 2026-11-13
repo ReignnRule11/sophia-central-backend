@@ -7,6 +7,7 @@ import {
   Get,
   Param,
   Patch,
+  Post,
   UseGuards,
   Res,
 } from '@nestjs/common';
@@ -14,11 +15,15 @@ import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CsrfGuard } from '../common/guards/csrf.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { UserRole, User } from './entities/user.entity';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
+import { SetSecurityQuestionDto } from './dto/set-security-question.dto';
+import { DeactivateAccountDto } from './dto/deactivate-account.dto';
+import { RequestAccountDeletionDto } from './dto/request-account-deletion.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -51,6 +56,15 @@ export class UsersController {
   @ApiOperation({ summary: 'Grant or revoke academic reviewer access; administrator approval is required' })
   setReviewerAccess(@Param('id') id: string, @Body() dto: SetReviewerAccessDto) {
     return this.usersService.setReviewerAccess(id, dto);
+  }
+
+  @Post(':id/reactivate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reactivate a voluntarily deactivated account without overriding moderator suspension' })
+  reactivateDeactivatedAccount(@Param('id') id: string) {
+    return this.usersService.reactivateDeactivatedAccount(id);
   }
 
   @Patch(':id/status')
@@ -88,21 +102,48 @@ export class UsersController {
     return this.usersService.update(id, dto);
   }
 
-  @Delete('me')
+  @Get('me/security-question')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Permanently delete the authenticated student or lecturer account and its records' })
-  async removeOwnAccount(@CurrentUser() user: User, @Res({ passthrough: true }) response: Response) {
-    if (![UserRole.STUDENT, UserRole.LECTURER].includes(user.role)) {
-      throw new ForbiddenException('Only student and lecturer accounts can be deleted from the profile page.');
-    }
-    await this.usersService.removeOwnAccount(user.id);
+  @ApiOperation({ summary: 'Get the current account security-question setup status' })
+  getSecurityQuestionStatus(@CurrentUser() user: User) {
+    return this.usersService.getSecurityQuestionStatus(user.id);
+  }
+
+  @Patch('me/security-question')
+  @UseGuards(JwtAuthGuard, CsrfGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Set or update the account security question after password verification' })
+  setSecurityQuestion(@CurrentUser() user: User, @Body() dto: SetSecurityQuestionDto) {
+    return this.usersService.setSecurityQuestion(user.id, dto.password, dto.questionId, dto.answer, dto.currentAnswer);
+  }
+
+  @Post('me/deactivate')
+  @UseGuards(JwtAuthGuard, CsrfGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Temporarily deactivate the authenticated account' })
+  async deactivateOwnAccount(@CurrentUser() user: User, @Body() dto: DeactivateAccountDto, @Res({ passthrough: true }) response: Response) {
+    const result = await this.usersService.deactivateOwnAccount(user.id, dto.password);
+    this.clearAuthCookies(response);
+    return { ...result, message: 'Your account has been deactivated. Sign in again when you are ready to reactivate it.' };
+  }
+
+  @Post('me/deletion-request')
+  @UseGuards(JwtAuthGuard, CsrfGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Schedule permanent account deletion after a 30-day grace period' })
+  async requestOwnAccountDeletion(@CurrentUser() user: User, @Body() dto: RequestAccountDeletionDto, @Res({ passthrough: true }) response: Response) {
+    const result = await this.usersService.requestOwnAccountDeletion(user.id, dto.password, dto.securityAnswer);
+    this.clearAuthCookies(response);
+    return { ...result, message: 'Your account is scheduled for permanent deletion in 30 days. You can cancel the request during the grace period.' };
+  }
+
+  private clearAuthCookies(response: Response) {
     const isProduction = process.env.NODE_ENV === 'production';
     const sameSite = (process.env.AUTH_COOKIE_SAME_SITE || (isProduction ? 'none' : 'lax')) as 'lax' | 'strict' | 'none';
     const cookieOptions = { httpOnly: true, secure: isProduction, sameSite, path: '/' } as const;
     response.clearCookie('sophia_access_token', cookieOptions);
     response.clearCookie('sophia_csrf_token', { ...cookieOptions, httpOnly: false });
-    return { success: true, message: 'Your account and associated personal data have been permanently deleted.' };
   }
 
   @Delete(':id')

@@ -1,4 +1,5 @@
 import {
+  BeforeInsert,
   Column,
   CreateDateColumn,
   Entity,
@@ -9,6 +10,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { Course } from '../../courses/entities/course.entity';
+import { generateInstitutionCode } from '../institution-code';
 
 export enum AcademicUnitType {
   FACULTY = 'faculty',
@@ -21,6 +23,9 @@ export enum InstitutionType {
   POLYTECHNIC = 'polytechnic',
   MONOTECHNIC = 'monotechnic',
   COLLEGE_OF_EDUCATION = 'college_of_education',
+  COLLEGE_OF_HEALTH_TECHNOLOGY = 'college_of_health_technology',
+  COLLEGE_OF_AGRICULTURE = 'college_of_agriculture',
+  OTHER_COLLEGE = 'other_college',
 }
 
 @Entity({ name: 'institutions' })
@@ -30,6 +35,9 @@ export class Institution {
 
   @Column()
   name!: string;
+
+  @Column({ type: 'varchar', length: 10, unique: true })
+  institutionCode!: string;
 
   @Column({ nullable: true })
   country?: string;
@@ -43,7 +51,7 @@ export class Institution {
   @Column({ type: 'varchar', default: InstitutionType.UNIVERSITY })
   institutionType!: InstitutionType;
 
-  @Column({ type: 'varchar', nullable: true })
+  @Column({ nullable: true })
   ownership?: string;
 
   @OneToMany(() => Faculty, (faculty) => faculty.institution)
@@ -51,6 +59,13 @@ export class Institution {
 
   @OneToMany(() => Course, (course) => course.institution)
   courses!: Course[];
+
+  @BeforeInsert()
+  assignInstitutionCode(): void {
+    if (!this.institutionCode) {
+      this.institutionCode = generateInstitutionCode(this.name, this.institutionType, this.id);
+    }
+  }
 
   @CreateDateColumn()
   createdAt!: Date;

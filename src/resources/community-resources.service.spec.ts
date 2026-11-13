@@ -11,6 +11,11 @@ describe('CommunityResourcesService', () => {
     findOne: jest.fn(),
   };
   const userRepository: any = { findOne: jest.fn() };
+  const transactionManager: any = {
+    create: jest.fn((_entity, value) => value),
+    save: jest.fn(async (_entity, value) => value),
+  };
+  resourceRepository.manager = { transaction: jest.fn(async (callback) => callback(transactionManager)) };
   const storage: any = {
     getKeyFromPublicUrl: jest.fn(),
     createPresignedDownloadUrl: jest.fn(),
@@ -33,7 +38,7 @@ describe('CommunityResourcesService', () => {
   });
 
   it('creates student/lecturer contributions as pending and records the rights declaration', async () => {
-    const uploader = { id: 'student-1', role: UserRole.STUDENT };
+    const uploader = { id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1' };
     userRepository.findOne.mockResolvedValue(uploader);
     const dto = {
       title: 'Calculus notes', type: ResourceType.LECTURE_NOTES,
@@ -59,7 +64,7 @@ describe('CommunityResourcesService', () => {
 
   it('does not issue a public file URL for an unapproved resource', async () => {
     resourceRepository.findOne.mockResolvedValue(null);
-    await expect(service.getPublicFileUrl('pending-id')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getPublicFileUrl('pending-id', { id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1' } as any)).rejects.toBeInstanceOf(NotFoundException);
     expect(storage.createPresignedDownloadUrl).not.toHaveBeenCalled();
   });
 });

@@ -33,6 +33,10 @@ async function bootstrap() {
   app.use('/auth/email-verification/confirm', authRateLimit(20));
   app.use('/auth/password-reset/request', authRateLimit(5));
   app.use('/auth/password-reset/confirm', authRateLimit(10));
+  app.use('/auth/account-deletion/cancel', authRateLimit(5));
+  app.use('/users/me/deletion-request', authRateLimit(5));
+  app.use('/users/me/deactivate', authRateLimit(5));
+  app.use('/users/me/security-question', authRateLimit(10));
 
   app.useGlobalGuards(new CsrfGuard());
 

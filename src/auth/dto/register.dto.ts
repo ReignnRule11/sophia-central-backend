@@ -1,12 +1,13 @@
 import {
   IsEmail,
-  IsEnum,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
   MaxLength,
   MinLength,
   Matches,
+  IsUUID,
   ValidateNested,
 } from 'class-validator';
 import { Type } from 'class-transformer';
@@ -37,8 +38,11 @@ export class RegisterDto {
   referralCode?: string;
 
   @IsOptional()
-  @IsEnum(UserRole, { message: 'Role must be student or lecturer' })
+  @IsIn([UserRole.STUDENT, UserRole.LECTURER], { message: 'Role must be student or lecturer' })
   role?: UserRole;
+
+  @IsUUID()
+  institutionId: string;
 
   @IsOptional()
   @IsString()

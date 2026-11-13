@@ -38,7 +38,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
   it('allows a student to inspect their own pending submission', async () => {
     resourceRepository.findOne.mockResolvedValue(resource());
     const result = await service.findOneForViewer('resource-1', {
-      id: 'student-owner', role: UserRole.STUDENT,
+      id: 'student-owner', role: UserRole.STUDENT, institutionId: 'institution-1',
     } as any, false);
 
     expect(result).toMatchObject({ id: 'resource-1', hasFile: true });
@@ -50,7 +50,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       moderationStatus: ResourceModerationStatus.REJECTED,
     }));
     const result = await service.findOneForViewer('resource-1', {
-      id: 'student-owner', role: UserRole.STUDENT,
+      id: 'student-owner', role: UserRole.STUDENT, institutionId: 'institution-1',
     } as any, false);
 
     expect(result.moderationStatus).toBe(ResourceModerationStatus.REJECTED);
@@ -60,7 +60,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
   it('does not expose another contributor\'s pending resource to a student', async () => {
     resourceRepository.findOne.mockResolvedValue(resource());
     await expect(service.findOneForViewer('resource-1', {
-      id: 'other-student', role: UserRole.STUDENT,
+      id: 'other-student', role: UserRole.STUDENT, institutionId: 'institution-1',
     } as any, false)).rejects.toBeInstanceOf(NotFoundException);
   });
 
@@ -102,7 +102,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     );
 
     await expect(downloadService.downloadForUser('resource-1', {
-      id: 'student-owner', role: UserRole.STUDENT,
+      id: 'student-owner', role: UserRole.STUDENT, institutionId: 'institution-1',
     } as any)).resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
 
     expect(savedRepository.save).toHaveBeenCalledWith(expect.objectContaining({
@@ -127,7 +127,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     );
 
     await expect(downloadService.downloadForUser('resource-1', {
-      id: 'other-student', role: UserRole.STUDENT,
+      id: 'other-student', role: UserRole.STUDENT, institutionId: 'institution-1',
     } as any)).rejects.toBeInstanceOf(NotFoundException);
     expect(savedRepository.save).not.toHaveBeenCalled();
   });
@@ -137,21 +137,21 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       moderationStatus: ResourceModerationStatus.APPROVED,
     }));
     await expect(service.findOneForViewer('resource-1', {
-      id: 'other-student', role: UserRole.STUDENT,
+      id: 'other-student', role: UserRole.STUDENT, institutionId: 'institution-1',
     } as any, false)).resolves.toMatchObject({ id: 'resource-1' });
   });
 
   it('allows a lecturer to inspect their own pending submission', async () => {
     resourceRepository.findOne.mockResolvedValue(resource());
     await expect(service.findOneForViewer('resource-1', {
-      id: 'student-owner', role: UserRole.LECTURER,
+      id: 'student-owner', role: UserRole.LECTURER, institutionId: 'institution-1',
     } as any, false)).resolves.toMatchObject({ id: 'resource-1' });
   });
 
   it('does not expose another lecturer\'s pending resource to a lecturer', async () => {
     resourceRepository.findOne.mockResolvedValue(resource());
     await expect(service.findOneForViewer('resource-1', {
-      id: 'other-lecturer', role: UserRole.LECTURER,
+      id: 'other-lecturer', role: UserRole.LECTURER, institutionId: 'institution-1',
     } as any, false)).rejects.toBeInstanceOf(NotFoundException);
   });
 

@@ -1,5 +1,6 @@
 import { Column, CreateDateColumn, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { User } from '../../users/entities/user.entity';
+import { Institution } from '../../institutions/entities/institution.entity';
 
 export enum ResourceModerationStatus { DRAFT='draft', PENDING='pending', REVISION_REQUESTED='revision_requested', APPROVED='approved', REJECTED='rejected', FLAGGED='flagged' }
 export enum ResourceType { LECTURE_NOTES='lecture_notes', PAST_QUESTION='past_question', RESEARCH_PAPER='research_paper', PROJECT='project', SLIDES='slides', OTHER='other' }
@@ -44,9 +45,14 @@ export class Resource {
   assignedReviewer?: User;
   @Column({ default: 0 }) views!: number;
   @Column({ default: 0 }) downloads!: number;
-  @Column() uploaderId!: string;
-  @ManyToOne(() => User, (user) => user.resources, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'uploaderId' }) uploader!: User;
+  @Column({ type: 'uuid', nullable: true }) uploaderId!: string | null;
+  @ManyToOne(() => User, (user) => user.resources, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'uploaderId' })
+  uploader?: User | null;
+  @Column({ type: 'uuid', nullable: true }) uploaderInstitutionId?: string | null;
+  @ManyToOne(() => Institution, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'uploaderInstitutionId' })
+  uploaderInstitution?: Institution | null;
   @CreateDateColumn() createdAt!: Date;
   @UpdateDateColumn() updatedAt!: Date;
 }

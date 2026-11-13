@@ -7,6 +7,7 @@ import {
   UploadedFile,
   UseGuards,
   Body,
+  ForbiddenException,
   ParseUUIDPipe,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -51,6 +52,7 @@ export class UploadController {
     @CurrentUser() user: User,
     @Body() dto: CreateFileUploadDto,
   ) {
+    if (!user.institutionId) throw new ForbiddenException('Complete your catalogue-backed institution setup before uploading academic materials.');
     return this.uploadService.getPresignedUrl(user.id, dto);
   }
 
@@ -63,6 +65,7 @@ export class UploadController {
     @CurrentUser() user: User,
     @Body() dto: CompleteFileUploadDto,
   ) {
+    if (!user.institutionId) throw new ForbiddenException('Complete your catalogue-backed institution setup before uploading academic materials.');
     return this.uploadService.completeUpload(user.id, dto);
   }
 

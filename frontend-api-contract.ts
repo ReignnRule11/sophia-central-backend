@@ -106,7 +106,7 @@ export interface Resource {
   isVerified: boolean;
   views: number;
   downloads: number;
-  uploaderId?: string;
+  uploaderId?: string | null;
   uploader?: Partial<User>;
   createdAt?: string;
   updatedAt?: string;

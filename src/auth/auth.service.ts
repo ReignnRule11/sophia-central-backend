@@ -64,6 +64,7 @@ export class AuthService {
       academicHandle,
       password: await bcrypt.hash(dto.password, 12),
       role,
+      institutionId: dto.institutionId,
       institution: dto.institution?.trim() || undefined,
       faculty: dto.faculty?.trim() || undefined,
       department: dto.department?.trim() || undefined,
@@ -87,16 +88,30 @@ export class AuthService {
   async login(dto: LoginDto) {
     const identifier = dto.identifier.trim();
     const looksLikeEmail = identifier.indexOf('@') > 0 && identifier.slice(identifier.lastIndexOf('@') + 1).includes('.');
-    const user = looksLikeEmail
+    const looksLikeInstitutionId = /^SC-/i.test(identifier);
+    let user = looksLikeEmail
       ? await this.usersService.findByEmail(identifier.toLowerCase())
-      : await this.usersService.findByAcademicHandle(identifier);
+      : looksLikeInstitutionId
+        ? await this.usersService.findByUniqueId(identifier)
+        : await this.usersService.findByAcademicHandle(identifier);
     const passwordMatches = user?.password ? await bcrypt.compare(dto.password, user.password) : false;
     if (!user || !passwordMatches) throw new UnauthorizedException('Invalid credentials');
     if (user.authProvider === 'email' && user.emailVerified === false) {
       throw new ForbiddenException('Please verify your email address before signing in. Open the verification page to resend your activation link.');
     }
+    if (user.accountStatus === 'pending_deletion') {
+      throw new ForbiddenException('This account has a pending deletion request. Cancel the request during the 30-day grace period before signing in.');
+    }
     if (user.isSuspended) throw new UnauthorizedException('This account is suspended. Contact Sophis Central support for assistance.');
+    if (user.accountStatus === 'deactivated') {
+      user = await this.usersService.update(user.id, { accountStatus: 'active' });
+    }
     return this.buildAuthResponse(user);
+  }
+
+
+  async cancelPendingAccountDeletion(dto: { email: string; password: string; securityAnswer: string }) {
+    return this.usersService.cancelPendingDeletion(dto.email, dto.password, dto.securityAnswer);
   }
 
   async resendEmailVerification(dto: { email: string }): Promise<{ message: string }> {
@@ -190,7 +205,7 @@ export class AuthService {
     const currentUser = await this.usersService.findOne(userId);
     if (!currentUser) throw new UnauthorizedException('User not found');
     const user = await this.usersService.update(userId, {
-      ...(!currentUser.isProfileComplete ? { institution: dto.institution } : {}),
+      ...(!currentUser.isProfileComplete ? { institutionId: dto.institutionId, institution: dto.institution } : {}),
       faculty: dto.faculty,
       department: dto.department,
       programme: dto.programme,

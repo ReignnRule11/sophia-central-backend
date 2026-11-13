@@ -14,10 +14,10 @@ import { CourseTopic } from './course-topic.entity';
 @Entity({ name: 'courses' })
 export class Course {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  title: string;
+  title!: string;
 
   @Column({ nullable: true })
   code?: string;
@@ -39,11 +39,11 @@ export class Course {
   institution?: Institution;
 
   @OneToMany(() => CourseTopic, (topic) => topic.course)
-  topics: CourseTopic[];
+  topics!: CourseTopic[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

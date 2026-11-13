@@ -20,8 +20,9 @@ export class ResourcesController {
   findPublic(@Query() query: Record<string, string>) { return this.communityResources.findPublic(query); }
 
   @Get('public/:id/file-url')
-  @ApiOperation({ summary: 'Get a temporary file URL for an approved public resource' })
-  getPublicFileUrl(@Param('id') id: string) { return this.communityResources.getPublicFileUrl(id); }
+  @UseGuards(JwtAuthGuard) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a temporary file URL for an approved public resource using an authenticated catalogue-linked account' })
+  getPublicFileUrl(@Param('id') id: string, @CurrentUser() user: User) { return this.communityResources.getPublicFileUrl(id, user); }
 
   @Get('public/:id')
   @ApiOperation({ summary: 'Read approved public resource metadata without an account' })
