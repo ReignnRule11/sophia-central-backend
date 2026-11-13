@@ -64,7 +64,7 @@ describe('CommunityResourcesService', () => {
 
   it('does not issue a public file URL for an unapproved resource', async () => {
     resourceRepository.findOne.mockResolvedValue(null);
-    await expect(service.getPublicFileUrl('pending-id')).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.getPublicFileUrl('pending-id', { id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1' } as any)).rejects.toBeInstanceOf(NotFoundException);
     expect(storage.createPresignedDownloadUrl).not.toHaveBeenCalled();
   });
 });
