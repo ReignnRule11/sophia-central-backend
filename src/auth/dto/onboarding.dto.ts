@@ -1,6 +1,7 @@
 import {
   ArrayNotEmpty,
   IsArray,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -18,6 +19,7 @@ export class TeachingAssignmentDto {
   courseName!: string;
 
   @IsString()
+  @IsNotEmpty()
   @MaxLength(80)
   courseCode!: string;
 
