@@ -1,9 +1,11 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcryptjs';
-import { randomInt } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
+import { Institution } from '../institutions/entities/institution.entity';
+import { generateInstitutionCode, institutionTypeCode } from '../institutions/institution-code';
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
 import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
 
@@ -12,36 +14,43 @@ export class UsersService {
   private readonly logger = new Logger(UsersService.name);
   constructor(
     @InjectRepository(User) private readonly usersRepository: Repository<User>,
+    @InjectRepository(Institution) private readonly institutionRepository: Repository<Institution>,
     private readonly dataSource: DataSource,
     private readonly storageCleanup: StorageCleanupService,
   ) {}
 
-  private async generateUniqueId(data: Partial<User>): Promise<string> {
-    const institutionWords = (data.institution || 'Sophis Central')
-      .normalize('NFKD')
-      .split(/\s+/)
-      .map((word) => word.replace(/[^a-z]/gi, '').toUpperCase())
-      .filter((word) => word && !['OF', 'THE', 'AND', 'FOR', 'AT'].includes(word));
-    const institutionCode = institutionWords.length > 1
-      ? `${institutionWords[0][0]}${institutionWords[institutionWords.length - 1][0]}`
-      : (institutionWords[0] || 'SC').slice(0, 2).padEnd(2, 'S');
-    const firstInitial = (data.firstName?.trim().charAt(0) || 'S').toUpperCase();
-    const lastInitial = (data.lastName?.trim().charAt(0) || 'C').toUpperCase();
-    const initials = `${firstInitial}${lastInitial}`;
-
-    // The database unique index is the final concurrency guard. Retry avoids
-    // ordinary random collisions before the insert reaches that constraint.
+  private async generateUniqueId(data: Partial<User>, institution?: Institution | null): Promise<string> {
+    const accountRole = data.role ?? UserRole.STUDENT;
+    const baseRole = accountRole === UserRole.REVIEWER ? data.reviewerBaseRole : accountRole;
+    const roleCode = baseRole === UserRole.LECTURER ? 'LEC'
+      : baseRole === UserRole.STUDENT ? 'STU'
+      : accountRole === UserRole.ADMIN ? 'ADM' : 'SYS';
+    if ([UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(accountRole) && !institution) {
+      throw new BadRequestException('Choose an institution from the Sophis Central catalogue before creating your account.');
+    }
+    const institutionPart = institution
+      ? `${institutionTypeCode(institution.institutionType)}-${institution.institutionCode || generateInstitutionCode(institution.name, institution.institutionType, institution.id)}`
+      : 'PLT';
+    const alphabet = '0123456789ABCDEFGHJKMNPQRSTVWXYZ';
     for (let attempt = 0; attempt < 20; attempt += 1) {
-      const sequence = String(randomInt(0, 1_000_000)).padStart(6, '0');
-      const candidate = `${institutionCode}-${initials}-${sequence}`;
+      const suffix = Array.from(randomBytes(10), (byte) => alphabet[byte & 31]).join('');
+      const candidate = `SC-${institutionPart}-${roleCode}-${suffix}`;
       if (!await this.usersRepository.exist({ where: { uniqueId: candidate } })) return candidate;
     }
-    throw new ConflictException('A unique Sophis Central ID could not be generated. Please retry registration.');
+    throw new ConflictException('A unique Sophis Central Institution ID could not be generated. Please retry registration.');
   }
 
   async create(data: Partial<User>): Promise<User> {
-    const uniqueId = await this.generateUniqueId(data);
-    return this.usersRepository.save(this.usersRepository.create({ ...data, uniqueId }));
+    const institution = data.institutionId
+      ? await this.institutionRepository.findOne({ where: { id: data.institutionId } })
+      : null;
+    if (data.institutionId && !institution) throw new BadRequestException('The selected institution is not in the approved Sophis Central catalogue.');
+    const uniqueId = await this.generateUniqueId(data, institution);
+    return this.usersRepository.save(this.usersRepository.create({
+      ...data,
+      ...(institution ? { institution: institution.name } : {}),
+      uniqueId,
+    }));
   }
 
   async findByEmail(email: string): Promise<User | null> {
