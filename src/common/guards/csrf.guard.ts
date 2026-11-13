@@ -14,7 +14,7 @@ export class CsrfGuard implements CanActivate {
     const request = context.switchToHttp().getRequest<Request>();
     if (['GET', 'HEAD', 'OPTIONS'].includes(request.method)) return true;
     // These endpoints are unauthenticated and do not rely on ambient session cookies.
-    if (['/auth/login', '/auth/signup', '/auth/csrf', '/auth/password-reset/request', '/auth/password-reset/confirm', '/auth/email-verification/confirm'].includes(request.path)) return true;
+    if (['/auth/login', '/auth/signup', '/auth/csrf', '/auth/password-reset/request', '/auth/password-reset/confirm', '/auth/email-verification/confirm', '/auth/account-deletion/cancel'].includes(request.path)) return true;
 
     const cookieToken = readCookie(request, 'sophia_csrf_token');
     const headerToken = request.header('X-CSRF-Token');
