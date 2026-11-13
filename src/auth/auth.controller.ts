@@ -61,7 +61,7 @@ export class AuthController {
   @Post('email-verification/confirm')
   @ApiOperation({ summary: 'Verify an email address using its single-use activation token' })
   confirmEmailVerification(@Body() dto: ConfirmEmailVerificationDto) {
-    return this.authService.confirmEmailVerification(dto.token);
+    return this.authService.confirmEmailVerification(dto.token, dto.password);
   }
 
   @Post('login')
