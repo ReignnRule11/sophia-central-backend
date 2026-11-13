@@ -64,6 +64,24 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     } as any, false)).rejects.toBeInstanceOf(NotFoundException);
   });
 
+  it('allows a moderator to download pending platform resources', async () => {
+    const pending = resource({ downloadRestricted: true });
+    resourceRepository.findOne.mockResolvedValueOnce(pending).mockResolvedValueOnce(pending);
+    const savedRepository: any = { findOne: jest.fn().mockResolvedValue(null), create: jest.fn((value) => value), save: jest.fn(async (value) => value) };
+    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, storageCleanup);
+    await expect(downloadService.downloadForUser('resource-1', { id: 'moderator-1', role: UserRole.MODERATOR } as any))
+      .resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
+    expect(savedRepository.save).toHaveBeenCalledWith(expect.objectContaining({ userId: 'moderator-1', resourceId: 'resource-1', downloadedAt: expect.any(Date) }));
+  });
+
+  it('does not allow an academic reviewer to download resources', async () => {
+    const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, storageCleanup);
+    await expect(downloadService.downloadForUser('resource-1', { id: 'reviewer-1', role: UserRole.REVIEWER } as any))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(resourceRepository.findOne).not.toHaveBeenCalled();
+  });
+
   it('allows a student to download their own pending contribution', async () => {
     const pending = resource();
     resourceRepository.findOne
@@ -142,6 +160,15 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     await expect(service.findOneForViewer('resource-1', {
       id: 'reviewer-1', role,
     } as any, false)).resolves.toMatchObject({ id: 'resource-1' });
+  });
+
+  it('allows only the assigned reviewer to inspect a pending submission', async () => {
+    resourceRepository.findOne.mockResolvedValue(resource({ assignedReviewerId: 'reviewer-1' }));
+    await expect(service.findOneForViewer('resource-1', { id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: false } as any, false))
+      .resolves.toMatchObject({ id: 'resource-1' });
+    resourceRepository.findOne.mockResolvedValue(resource({ assignedReviewerId: 'reviewer-2' }));
+    await expect(service.findOneForViewer('resource-1', { id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: false } as any, false))
+      .rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('rejects unsupported roles', async () => {
