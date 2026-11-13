@@ -220,8 +220,13 @@ export class ResourcesService {
     if (download) {
       resource.downloads = Number(resource.downloads || 0) + 1;
       await this.resourceRepository.save(resource);
-      await this.activityRepository.save(this.activityRepository.create({ userId: viewer.id, eventType: 'download', resourceId: resource.id }));
     }
+    await this.activityRepository.save(this.activityRepository.create({
+      userId: viewer.id,
+      institutionId: viewer.institutionId ?? null,
+      eventType: download ? 'download' : 'file_access',
+      resourceId: resource.id,
+    }));
     const extension = key.split('.').pop();
     const filename = extension ? `${resource.title}.${extension}` : resource.title;
     const [url, metadata] = await Promise.all([
