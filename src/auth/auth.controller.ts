@@ -13,6 +13,7 @@ import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
+import { CompletePreAccountOnboardingDto } from './dto/complete-pre-account-onboarding.dto';
 import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
@@ -88,6 +89,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Set a new password using a single-use reset token' })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @Post('onboarding/complete')
+  @ApiOperation({ summary: 'Create a verified account after required academic onboarding is complete' })
+  async completePreAccountOnboarding(@Body() dto: CompletePreAccountOnboardingDto, @Res({ passthrough: true }) response: Response) {
+    const result = await this.authService.completePreAccountOnboarding(dto.preAccountToken, dto);
+    this.setSessionCookies(response, result.accessToken);
+    return { user: result.user };
   }
 
   @Post('onboarding')
