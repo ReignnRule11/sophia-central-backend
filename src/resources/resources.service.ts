@@ -125,8 +125,8 @@ export class ResourcesService {
     }
     const resource = await this.findOneForViewer(id, viewer, false);
     const ownUpload = resource.uploaderId === viewer.id;
-    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownUpload) throw new NotFoundException('Approved resource not found');
-    if (resource.downloadRestricted && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new NotFoundException('Approved resource not found');
+    if (resource.downloadRestricted && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     // findOneForViewer deliberately strips private storage URLs from its response.
     // Re-read the entity server-side before checking attachment presence/updating counters.
     const stored = await this.resourceRepository.findOne({ where: { id } });
@@ -206,14 +206,14 @@ export class ResourcesService {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
       if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
     }
-    if (download && authorizedResource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (download && authorizedResource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
       if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
     }
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
-    if (download && resource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (download && resource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
     if (download) {
