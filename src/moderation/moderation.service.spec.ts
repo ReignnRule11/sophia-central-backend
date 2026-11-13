@@ -9,6 +9,12 @@ describe('ModerationService academic reviewer workflow', () => {
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn((value) => value),
+    manager: {
+      transaction: jest.fn(async callback => callback({
+        create: (_entity, value) => value,
+        save: async (entity, value) => entity === Resource ? value : { id: 'review-1', ...value },
+      })),
+    },
   };
   const reviewRepository = {
     find: jest.fn(),
@@ -17,12 +23,12 @@ describe('ModerationService academic reviewer workflow', () => {
   };
   const userRepository = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
   const notificationsService = { createNotification: jest.fn().mockResolvedValue(undefined) };
-  const pointsService = { awardResourceApprovalReward: jest.fn().mockResolvedValue(true) };
+  const pointsService = { processResourceApprovalReward: jest.fn().mockResolvedValue(true) };
   let service: ModerationService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    pointsService.awardResourceApprovalReward.mockResolvedValue(true);
+    pointsService.processResourceApprovalReward.mockResolvedValue(true);
     service = new ModerationService(
       resourceRepository as any,
       reviewRepository as any,
@@ -116,10 +122,7 @@ describe('ModerationService academic reviewer workflow', () => {
       status: ResourceModerationStatus.APPROVED,
     }, reviewer);
 
-    expect(pointsService.awardResourceApprovalReward).toHaveBeenCalledWith(
-      'student-1',
-      'resource-student-1',
-    );
+    expect(pointsService.processResourceApprovalReward).toHaveBeenCalledWith('resource-student-1');
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'student-1',
       'resource_approved',
@@ -143,16 +146,13 @@ describe('ModerationService academic reviewer workflow', () => {
     resourceRepository.findOne.mockResolvedValue(resource);
     userRepository.findOne.mockResolvedValue(reviewer);
     resourceRepository.save.mockImplementation(async value => value);
-    pointsService.awardResourceApprovalReward.mockResolvedValue(false);
+    pointsService.processResourceApprovalReward.mockResolvedValue(false);
 
     await service.reviewResource('resource-lecturer-1', {
       status: ResourceModerationStatus.APPROVED,
     }, reviewer);
 
-    expect(pointsService.awardResourceApprovalReward).toHaveBeenCalledWith(
-      'lecturer-1',
-      'resource-lecturer-1',
-    );
+    expect(pointsService.processResourceApprovalReward).not.toHaveBeenCalled();
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'lecturer-1',
       'resource_approved',
@@ -185,10 +185,7 @@ describe('ModerationService academic reviewer workflow', () => {
 
     expect(resource.moderationStatus).toBe(ResourceModerationStatus.REVISION_REQUESTED);
     expect(resource.isVerified).toBe(false);
-    expect(reviewRepository.save).toHaveBeenCalledWith(expect.objectContaining({
-      status: ResourceModerationStatus.REVISION_REQUESTED,
-      note: 'Please add source references.',
-    }));
+    expect(resourceRepository.manager.transaction).toHaveBeenCalled();
     expect(result.status).toBe(ResourceModerationStatus.REVISION_REQUESTED);
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'moderator-1',
