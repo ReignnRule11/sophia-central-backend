@@ -37,6 +37,7 @@ export class ResourcesService {
     if (![UserRole.STUDENT, UserRole.LECTURER].includes(uploader.role)) {
       throw new ForbiddenException('Only students and lecturers can contribute resources.');
     }
+    this.assertInstitutionIdentity(uploader);
 
     const resource = this.resourceRepository.create({
       ...dto,
@@ -71,6 +72,12 @@ export class ResourcesService {
     return resources.map((resource) => ({ ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }) as Resource);
   }
 
+  private assertInstitutionIdentity(viewer: User): void {
+    if ([UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && !viewer.institutionId) {
+      throw new ForbiddenException('Complete your catalogue-backed institution setup before uploading or downloading academic materials.');
+    }
+  }
+
   private assertCanSave(viewer: User): void {
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to personal resources.');
@@ -94,6 +101,7 @@ export class ResourcesService {
 
   async findDownloadedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
+    this.assertInstitutionIdentity(viewer);
     const entries = await this.savedResourceRepository.find({
       where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
       relations: ['resource', 'resource.uploader'],
@@ -121,6 +129,7 @@ export class ResourcesService {
 
   async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
     this.assertCanSave(viewer);
+    this.assertInstitutionIdentity(viewer);
     if (viewer.role === UserRole.REVIEWER) {
       throw new ForbiddenException('Academic reviewers can preview assigned resources but cannot download them.');
     }
@@ -199,6 +208,7 @@ export class ResourcesService {
   }
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string; filename: string; contentType?: string }> {
+    this.assertInstitutionIdentity(viewer);
     if (download && viewer.role === UserRole.REVIEWER) {
       throw new ForbiddenException('Academic reviewers can preview assigned resources but cannot download them.');
     }
