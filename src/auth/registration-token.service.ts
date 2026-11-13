@@ -1,16 +1,48 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, Logger, OnModuleDestroy, OnModuleInit, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:crypto';
+import { createClient, type RedisClientType } from 'redis';
 
 export type RegistrationTokenPayload = {
   stage: 'verify' | 'pre-account';
   expiresAt: number;
+  jti?: string;
   [key: string]: unknown;
 };
 
 @Injectable()
-export class RegistrationTokenService {
+export class RegistrationTokenService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(RegistrationTokenService.name);
+  private client: RedisClientType | null = null;
+
   constructor(private readonly config: ConfigService) {}
+
+  async onModuleInit(): Promise<void> {
+    const redisUrl = this.config.get<string>('REDIS_URL') || 'redis://localhost:6379';
+    this.client = createClient({ url: redisUrl });
+    this.client.on('error', (error) => this.logger.error(`Registration nonce Redis error: ${error.message}`));
+    await this.client.connect();
+  }
+
+  async onModuleDestroy(): Promise<void> {
+    if (this.client?.isOpen) await this.client.quit();
+  }
+
+  async claimOnce(jti: string, ttlSeconds: number): Promise<boolean> {
+    if (!jti || !this.client?.isReady) throw new ServiceUnavailableException('Registration verification is temporarily unavailable. Please try again.');
+    const nonceHash = createHash('sha256').update(jti).digest('hex');
+    const result = await this.client.set(`sophis:registration:consumed:${nonceHash}`, '1', {
+      NX: true,
+      EX: Math.max(1, ttlSeconds),
+    });
+    return result === 'OK';
+  }
+
+  async releaseClaim(jti: string): Promise<void> {
+    if (!jti || !this.client?.isReady) return;
+    const nonceHash = createHash('sha256').update(jti).digest('hex');
+    await this.client.del(`sophis:registration:consumed:${nonceHash}`);
+  }
 
   seal(payload: RegistrationTokenPayload): string {
     const key = this.key();
