@@ -9,7 +9,7 @@ export class DropPendingRegistrations2026111300004 implements MigrationInterface
     await queryRunner.query('DROP TABLE IF EXISTS "pending_registrations"');
   }
 
-  async down(queryRunner: QueryRunner): Promise<void> {
+  async down(_queryRunner: QueryRunner): Promise<void> {
     // Deliberately do not recreate a table that stores pre-account PII.
   }
 }
