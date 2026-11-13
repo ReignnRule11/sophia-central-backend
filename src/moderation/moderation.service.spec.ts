@@ -5,16 +5,17 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { ResourceRewardOutbox } from '../points/entities/resource-reward-outbox.entity';
 
 describe('ModerationService academic reviewer workflow', () => {
+  const transactionManager = {
+    create: jest.fn((_entity, value) => value),
+    save: jest.fn(async (entity, value) => entity === Resource ? value : { id: 'review-1', ...value }),
+  };
   const resourceRepository = {
     find: jest.fn(),
     findOne: jest.fn(),
     save: jest.fn(),
     create: jest.fn((value) => value),
     manager: {
-      transaction: jest.fn(async callback => callback({
-        create: (_entity, value) => value,
-        save: async (entity, value) => entity === Resource ? value : { id: 'review-1', ...value },
-      })),
+      transaction: jest.fn(async callback => callback(transactionManager)),
     },
   };
   const reviewRepository = {
@@ -125,7 +126,10 @@ describe('ModerationService academic reviewer workflow', () => {
 
     expect(pointsService.processResourceApprovalReward).toHaveBeenCalledWith('resource-student-1');
     expect(resourceRepository.manager.transaction).toHaveBeenCalled();
-    expect(resourceRepository.manager.transaction.mock.calls.length).toBeGreaterThan(0);
+    expect(transactionManager.save).toHaveBeenCalledWith(
+      ResourceRewardOutbox,
+      expect.objectContaining({ resourceId: 'resource-student-1', userId: 'student-1' }),
+    );
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'student-1',
       'resource_approved',
