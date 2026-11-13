@@ -20,6 +20,7 @@ export class AddPermanentInstitutionIdentity2026111300002 implements MigrationIn
       DECLARE candidate text;
       DECLARE suffix text;
       DECLARE type_prefix text;
+      DECLARE i integer;
       BEGIN
         FOR item IN SELECT id, name, "institutionType" FROM institutions ORDER BY name, id LOOP
           normalized := lower(regexp_replace(item.name, '[^a-zA-Z0-9]+', ' ', 'g'));
@@ -28,7 +29,7 @@ export class AddPermanentInstitutionIdentity2026111300002 implements MigrationIn
             WHEN 'university of lagos' THEN 'UNILAG'
             WHEN 'yaba college of technology' THEN 'YABATECH'
             WHEN 'federal college of education zaria' THEN 'FCEZARIA'
-            WHEN 'university of nigeria nsukka' THEN 'UNN'
+            WHEN 'university of nigeria nsukka' THEN 'UNNS'
             WHEN 'federal university of technology akure' THEN 'FUTA'
             ELSE NULL
           END;
