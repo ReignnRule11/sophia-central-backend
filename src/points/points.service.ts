@@ -1,6 +1,7 @@
-import { BadRequestException, ForbiddenException, Injectable } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { ResourceRewardOutbox, ResourceRewardStatus } from './entities/resource-reward-outbox.entity';
 import { PointWallet } from './entities/point-wallet.entity';
 import { PointTransaction, PointTransactionType } from './entities/point-transaction.entity';
 import { AwardPointsDto } from './dto/award-points.dto';
@@ -11,13 +12,110 @@ const STARTER_WISDOM_POINTS = 10;
 const STARTER_CREDIT_REASON = 'Sophis AI starter credits';
 
 @Injectable()
-export class PointsService {
+export class PointsService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(PointsService.name);
+  private rewardWorkerTimer: NodeJS.Timeout | null = null;
+  private rewardWorkerRunning = false;
   constructor(
     @InjectRepository(PointWallet) private readonly walletRepository: Repository<PointWallet>,
     @InjectRepository(PointTransaction) private readonly transactionRepository: Repository<PointTransaction>,
+    @InjectRepository(ResourceRewardOutbox) private readonly rewardOutboxRepository: Repository<ResourceRewardOutbox>,
     @InjectRepository(Referral) private readonly referralRepository: Repository<Referral>,
     @InjectRepository(User) private readonly userRepository: Repository<User>,
   ) {}
+
+  onModuleInit(): void {
+    void this.processPendingResourceRewards();
+    this.rewardWorkerTimer = setInterval(() => void this.processPendingResourceRewards(), 30_000);
+    this.rewardWorkerTimer.unref?.();
+  }
+
+  onModuleDestroy(): void {
+    if (this.rewardWorkerTimer) clearInterval(this.rewardWorkerTimer);
+  }
+
+  private async processOutboxEntry(outboxId: string): Promise<void> {
+    try {
+      await this.rewardOutboxRepository.manager.transaction(async manager => {
+        const job = await manager.findOne(ResourceRewardOutbox, {
+          where: { id: outboxId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!job || job.status !== ResourceRewardStatus.PENDING) return;
+
+        const user = await manager.findOne(User, { where: { id: job.userId } });
+        if (!user || user.role !== UserRole.STUDENT || user.isSuspended) {
+          job.status = ResourceRewardStatus.COMPLETED;
+          job.completedAt = new Date();
+          job.lastError = 'Account is no longer eligible for a contribution reward.';
+          await manager.save(ResourceRewardOutbox, job);
+          return;
+        }
+
+        let wallet = await manager.findOne(PointWallet, {
+          where: { userId: job.userId },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!wallet) {
+          throw new BadRequestException('Wisdom Points wallet is not initialized yet.');
+        }
+
+        const reason = `Approved resource contribution reward: ${job.resourceId}`;
+        const existing = await manager.findOne(PointTransaction, { where: { userId: job.userId, reason } });
+        if (!existing) {
+          wallet.balance += 10;
+          await manager.save(PointWallet, wallet);
+          await manager.save(PointTransaction, manager.create(PointTransaction, {
+            userId: job.userId,
+            type: PointTransactionType.EARNED,
+            amount: 10,
+            reason,
+          }));
+        }
+
+        job.status = ResourceRewardStatus.COMPLETED;
+        job.completedAt = new Date();
+        job.lastError = null;
+        await manager.save(ResourceRewardOutbox, job);
+      });
+    } catch (error) {
+      const job = await this.rewardOutboxRepository.findOne({ where: { id: outboxId } });
+      if (!job || job.status !== ResourceRewardStatus.PENDING) return;
+      const attempts = job.attempts + 1;
+      const delayMs = Math.min(6 * 60 * 60 * 1000, 30_000 * (2 ** Math.min(attempts - 1, 10)));
+      job.attempts = attempts;
+      job.nextAttemptAt = new Date(Date.now() + delayMs);
+      job.lastError = String(error).slice(0, 2000);
+      await this.rewardOutboxRepository.save(job);
+      this.logger.error(`Wisdom Points reward for resource ${job.resourceId} failed; retry ${attempts} scheduled.`, String(error));
+    }
+  }
+
+  async processPendingResourceRewards(): Promise<void> {
+    if (this.rewardWorkerRunning) return;
+    this.rewardWorkerRunning = true;
+    try {
+      const dueJobs = await this.rewardOutboxRepository.createQueryBuilder('job')
+        .where('job.status = :status', { status: ResourceRewardStatus.PENDING })
+        .andWhere('job."nextAttemptAt" <= :now', { now: new Date() })
+        .orderBy('job."createdAt"', 'ASC')
+        .take(25)
+        .getMany();
+      for (const job of dueJobs) await this.processOutboxEntry(job.id);
+    } catch (error) {
+      this.logger.error('Could not scan pending Wisdom Points rewards.', String(error));
+    } finally {
+      this.rewardWorkerRunning = false;
+    }
+  }
+
+  async processResourceApprovalReward(resourceId: string): Promise<boolean> {
+    const job = await this.rewardOutboxRepository.findOne({ where: { resourceId } });
+    if (job?.status === ResourceRewardStatus.PENDING) await this.processOutboxEntry(job.id);
+    return !!(await this.transactionRepository.findOne({
+      where: { reason: `Approved resource contribution reward: ${resourceId}` },
+    }));
+  }
 
   private async assertStudent(userId: string): Promise<void> {
     const user = await this.userRepository.findOne({ where: { id: userId } });
@@ -105,43 +203,6 @@ export class PointsService {
     }));
   }
 
-
-  /**
-   * Credits a student once for each approved resource contribution.
-   * The wallet row lock serializes concurrent approvals for the same student,
-   * while the resource-specific transaction reason makes retries idempotent.
-   */
-  async awardResourceApprovalReward(userId: string, resourceId: string): Promise<boolean> {
-    const eligibleUser = await this.userRepository.findOne({ where: { id: userId } });
-    if (!eligibleUser || eligibleUser.role !== UserRole.STUDENT || eligibleUser.isSuspended) return false;
-
-    await this.getOrCreateWallet(userId);
-    const reason = `Approved resource contribution reward: ${resourceId}`;
-
-    return this.walletRepository.manager.transaction(async manager => {
-      const user = await manager.findOne(User, { where: { id: userId } });
-      if (!user || user.role !== UserRole.STUDENT || user.isSuspended) return false;
-
-      const wallet = await manager.findOne(PointWallet, {
-        where: { userId },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!wallet) throw new BadRequestException('Wisdom Points wallet could not be initialized.');
-
-      const existingReward = await manager.findOne(PointTransaction, { where: { userId, reason } });
-      if (existingReward) return false;
-
-      wallet.balance += 10;
-      await manager.save(PointWallet, wallet);
-      await manager.save(PointTransaction, manager.create(PointTransaction, {
-        userId,
-        type: PointTransactionType.EARNED,
-        amount: 10,
-        reason,
-      }));
-      return true;
-    });
-  }
 
   async awardReferralReward(referrerId: string, referralId: string, amount: number): Promise<void> {
     // Reject ineligible owners before wallet initialization can grant starter points.
