@@ -61,7 +61,7 @@ export class AddPermanentInstitutionIdentity2026111300002 implements MigrationIn
           END IF;
 
           IF EXISTS (SELECT 1 FROM institutions other WHERE other."institutionCode" = candidate AND other.id <> item.id) THEN
-            candidate := left(candidate, 7) || upper(substr(md5(item.id::text), 1, 3));
+            candidate := left(candidate, 5) || upper(substr(md5(item.id::text), 1, 5));
           END IF;
           UPDATE institutions SET "institutionCode" = candidate WHERE id = item.id;
         END LOOP;
