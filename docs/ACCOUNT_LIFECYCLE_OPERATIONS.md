@@ -6,7 +6,7 @@
 - Deactivation is reversible and retains the account and its data.
 - Moderator suspension remains separate from user deactivation.
 - A user can cancel a pending deletion during the grace period by submitting their registered email, current password and configured security answer.
-- After the scheduled purge, restoration is not guaranteed. Shared academic records and conversation content are handled by the existing account-deletion retention rules.
+- After the scheduled purge, restoration is not guaranteed. Approved shared academic resources remain available with the uploader identity detached; non-approved drafts/submissions are removed. Shared conversation content is retained with the deleted sender anonymized.
 
 ## Account states
 
