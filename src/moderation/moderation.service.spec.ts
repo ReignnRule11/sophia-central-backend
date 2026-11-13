@@ -119,7 +119,6 @@ describe('ModerationService academic reviewer workflow', () => {
     expect(pointsService.awardResourceApprovalReward).toHaveBeenCalledWith(
       'student-1',
       'resource-student-1',
-      'Cell Biology Notes',
     );
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'student-1',
