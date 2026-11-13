@@ -70,7 +70,7 @@ export class AddPermanentInstitutionIdentity2026111300002 implements MigrationIn
 
     await queryRunner.query('ALTER TABLE "institutions" ALTER COLUMN "institutionCode" SET NOT NULL');
     await queryRunner.query('CREATE UNIQUE INDEX IF NOT EXISTS "UQ_institutions_institutionCode" ON "institutions" ("institutionCode")');
-    await queryRunner.query(`ALTER TABLE "institutions" ADD CONSTRAINT "CK_institutions_institutionCode_format" CHECK ("institutionCode" ~ '^[A-Z0-9]{4,10}
+    await queryRunner.query("ALTER TABLE \"institutions\" ADD CONSTRAINT \"CK_institutions_institutionCode_format\" CHECK (\"institutionCode\" ~ '^[A-Z0-9]{4,10}$')");
 
     // Attach legacy accounts only where their saved institution name exactly
     // matches one catalogue record. Ambiguous/unmatched records remain untouched
