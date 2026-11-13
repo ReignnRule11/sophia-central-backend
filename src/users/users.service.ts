@@ -142,6 +142,7 @@ export class UsersService {
         }
         const institution = await manager.findOne(Institution, { where: { id: updateData.institutionId } });
         if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
+        if (!user.institutionId) updateData.uniqueId = await this.generateUniqueId(user, institution);
         updateData.institution = institution.name;
       }
       if (updateData.institution !== undefined && user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {
