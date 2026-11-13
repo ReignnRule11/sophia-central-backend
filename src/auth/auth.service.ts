@@ -87,7 +87,7 @@ export class AuthService {
   async login(dto: LoginDto) {
     const identifier = dto.identifier.trim();
     const looksLikeEmail = identifier.indexOf('@') > 0 && identifier.slice(identifier.lastIndexOf('@') + 1).includes('.');
-    const user = looksLikeEmail
+    let user = looksLikeEmail
       ? await this.usersService.findByEmail(identifier.toLowerCase())
       : await this.usersService.findByAcademicHandle(identifier);
     const passwordMatches = user?.password ? await bcrypt.compare(dto.password, user.password) : false;
@@ -96,7 +96,18 @@ export class AuthService {
       throw new ForbiddenException('Please verify your email address before signing in. Open the verification page to resend your activation link.');
     }
     if (user.isSuspended) throw new UnauthorizedException('This account is suspended. Contact Sophis Central support for assistance.');
+    if (user.accountStatus === 'pending_deletion') {
+      throw new ForbiddenException('This account has a pending deletion request. Cancel the request during the 30-day grace period before signing in.');
+    }
+    if (user.accountStatus === 'deactivated') {
+      user = await this.usersService.update(user.id, { accountStatus: 'active' });
+    }
     return this.buildAuthResponse(user);
+  }
+
+
+  async cancelPendingAccountDeletion(dto: { email: string; password: string; securityAnswer: string }) {
+    return this.usersService.cancelPendingDeletion(dto.email, dto.password, dto.securityAnswer);
   }
 
   async resendEmailVerification(dto: { email: string }): Promise<{ message: string }> {
