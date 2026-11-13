@@ -7,7 +7,7 @@ const knownCodes: Record<string, string> = {
   'federal university of technology akure': 'FUTA',
 };
 
-export function institutionTypeCode(type: InstitutionType | string): string {
+export function institutionTypeCode(type: string): string {
   switch (type) {
     case 'university': return 'UNI';
     case 'polytechnic': return 'POL';
