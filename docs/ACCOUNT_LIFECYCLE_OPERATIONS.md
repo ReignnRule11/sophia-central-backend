@@ -2,7 +2,7 @@
 
 ## Policy
 
-- User-requested permanent deletion has a 30-day grace period.
+- User-requested permanent deletion has a 30-day grace period, calculated from the server's UTC timestamp.
 - Deactivation is reversible and retains the account and its data.
 - Moderator suspension remains separate from user deactivation.
 - A user can cancel a pending deletion during the grace period by submitting their registered email, current password and configured security answer.
