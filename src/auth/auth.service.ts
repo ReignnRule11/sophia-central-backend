@@ -27,7 +27,7 @@ import { ReferralService } from '../referral/referral.service';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
-const EMAIL_VERIFICATION_RESPONSE = 'If an unverified account exists for that email, a verification link will be sent.';
+const EMAIL_VERIFICATION_RESPONSE = 'If the registration can be verified, a verification link will be sent.';
 
 @Injectable()
 export class AuthService {
@@ -114,20 +114,25 @@ export class AuthService {
   async resendEmailVerification(dto: { email: string; firstName?: string; lastName?: string; academicHandle?: string; role?: UserRole; referralCode?: string }): Promise<{ message: string }> {
     // New registrations are stateless: the browser resubmits the original
     // registration fields when requesting another link. No pending PII is stored.
+    const email = dto.email.trim().toLowerCase();
     if (dto.firstName && dto.lastName && dto.academicHandle && dto.role) {
-      await this.register({
-        email: dto.email,
-        firstName: dto.firstName,
-        lastName: dto.lastName,
-        academicHandle: dto.academicHandle,
-        role: dto.role,
-        referralCode: dto.referralCode,
-      } as RegisterDto);
-      return { message: EMAIL_VERIFICATION_RESPONSE };
+      const existingAccount = await this.usersService.findByEmail(email);
+      if (!existingAccount) {
+        await this.register({
+          email,
+          firstName: dto.firstName,
+          lastName: dto.lastName,
+          academicHandle: dto.academicHandle,
+          role: dto.role,
+          referralCode: dto.referralCode,
+        } as RegisterDto);
+        return { message: EMAIL_VERIFICATION_RESPONSE };
+      }
+      // Fall through to the legacy-account resend path only for an already
+      // existing unverified account. Verified accounts remain non-enumerated.
     }
 
     // Compatibility for older, already-created but unverified accounts.
-    const email = dto.email.trim().toLowerCase();
     const user = await this.usersService.findByEmail(email);
     if (user && user.authProvider === 'email' && user.emailVerified !== true) {
       const latestToken = await this.verificationTokens.findOne({ where: { userId: user.id }, order: { createdAt: 'DESC' } });
