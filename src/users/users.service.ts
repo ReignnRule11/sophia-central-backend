@@ -186,12 +186,12 @@ export class UsersService {
     if (user.role === UserRole.MODERATOR) {
       throw new ForbiddenException('The platform moderator account cannot be deleted through user management.');
     }
-    await this.removeAccountData(id);
-  }
-
-  async removeOwnAccount(id: string): Promise<void> {
-    if (!await this.findOne(id)) throw new NotFoundException('User not found');
-    await this.removeAccountData(id);
+    if (user.accountStatus === 'pending_deletion') throw new ConflictException('A deletion request is already pending for this account.');
+    const requestedAt = new Date();
+    user.accountStatus = 'pending_deletion';
+    user.deletionRequestedAt = requestedAt;
+    user.deletionScheduledAt = new Date(requestedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await this.usersRepository.save(user);
   }
 
   private async removeAccountData(id: string): Promise<void> {
