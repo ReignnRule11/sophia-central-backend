@@ -29,8 +29,7 @@ const knownCodes: Record<string, string> = {
   'rufus giwa polytechnic': 'RUGIPO',
   'federal polytechnic oko': 'FEDPOOKO',
   'federal polytechnic ede': 'FEDPOEDE',
-  'ade yemi college of education': 'ACEONDO',
-  'adeleke college of education': 'ADELEKE',
+  'adeyemi college of education': 'ACEONDO',
   'alvan ikoku federal college of education': 'AIFCE',
 };
 
