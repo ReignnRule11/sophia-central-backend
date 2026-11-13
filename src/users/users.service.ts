@@ -83,7 +83,7 @@ export class UsersService {
     // The platform-owned moderator account is operational infrastructure, not a
     // managed user. Never expose moderator-role accounts through user management.
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.authProvider', 'user.isVerified', 'user.isSuspended', 'user.suspensionReason', 'user.institution', 'user.createdAt', 'user.updatedAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.authProvider', 'user.isVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.createdAt', 'user.updatedAt'])
       .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
       .orderBy('user.createdAt', 'DESC')
       .getMany();
