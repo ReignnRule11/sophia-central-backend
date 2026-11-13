@@ -206,6 +206,7 @@ describe('AuthService', () => {
   it('allows sign-in with an academic handle for an email-verified account', async () => {
     const password = await bcrypt.hash('correct-horse-battery', 4);
     users.findByAcademicHandle.mockResolvedValue({ ...user, emailVerified: true, academicHandle: 'learner.one', password } as never);
+    users.update.mockResolvedValue({ ...user, emailVerified: true, academicHandle: 'learner.one', lastLoginAt: new Date() } as never);
     const response = await service.login({ identifier: '@Learner.One', password: 'correct-horse-battery' });
     expect(users.findByAcademicHandle).toHaveBeenCalledWith('@Learner.One');
     expect(response.user).toHaveProperty('academicHandle', 'learner.one');
