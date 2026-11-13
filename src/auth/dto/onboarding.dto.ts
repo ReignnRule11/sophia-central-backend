@@ -1,6 +1,7 @@
 import {
   ArrayNotEmpty,
   IsArray,
+  IsNotEmpty,
   IsOptional,
   IsString,
   IsUUID,
@@ -14,17 +15,19 @@ import { SocialLinksDto } from './social-links.dto';
 
 export class TeachingAssignmentDto {
   @IsString()
+  @IsNotEmpty()
   @MaxLength(160)
   courseName!: string;
 
-  @IsOptional()
   @IsString()
+  @IsNotEmpty()
   @MaxLength(80)
-  courseCode?: string;
+  courseCode!: string;
 
   @IsArray()
   @ArrayNotEmpty()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   @MaxLength(80, { each: true })
   levels!: string[];
 }
@@ -55,7 +58,9 @@ export class OnboardingDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayNotEmpty()
   @IsString({ each: true })
+  @IsNotEmpty({ each: true })
   @MaxLength(160, { each: true })
   coursesTaught?: string[];
 

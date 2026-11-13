@@ -7,20 +7,20 @@ import { PasswordResetEmailService } from './password-reset-email.service';
 import { EmailVerificationEmailService } from './email-verification-email.service';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
-import { PendingRegistration } from './entities/pending-registration.entity';
 import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import type { JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ReferralModule } from '../referral/referral.module';
+import { RegistrationTokenService } from './registration-token.service';
 
 @Module({
   imports: [
     PassportModule,
     UsersModule,
     ReferralModule,
-    TypeOrmModule.forFeature([PasswordResetToken, EmailVerificationToken, PendingRegistration]),
+    TypeOrmModule.forFeature([PasswordResetToken, EmailVerificationToken]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -41,7 +41,7 @@ import { ReferralModule } from '../referral/referral.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PasswordResetEmailService, EmailVerificationEmailService],
+  providers: [AuthService, JwtStrategy, PasswordResetEmailService, EmailVerificationEmailService, RegistrationTokenService],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -37,12 +37,13 @@ Use the Resend template editor's variable syntax for the values above, and publi
 
 ## API flow
 
-- `POST /auth/signup`: creates an account, stores a hashed activation token, and sends the activation email. It does not issue an access token or authentication cookies.
-- `POST /auth/email-verification/confirm`: accepts `{ "token": "..." }`, verifies the email, and consumes the token.
-- `POST /auth/email-verification/resend`: accepts `{ "email": "..." }`; the response does not reveal whether the account exists. Resends are limited to one per minute per unverified account.
-- `POST /auth/login`: rejects email/password accounts until `emailVerified` is true.
+- `POST /auth/signup`: validates the basic registration fields and sends an email link containing an encrypted, 24-hour registration ticket. It does not create a user row or persist registration details.
+- `POST /auth/email-verification/confirm`: accepts the ticket and password, verifies mailbox ownership, and returns a short-lived encrypted pre-account token. It does not create a user row or issue a signed-in session.
+- `POST /auth/email-verification/resend`: accepts the original registration fields from the browser session and sends a replacement encrypted ticket. The response does not reveal whether an email already belongs to an account.
+- `POST /auth/onboarding/complete`: accepts the pre-account token and required academic profile. Only this endpoint creates the user row, permanent Institution ID, account creation timestamp, and signed-in session.
+- `POST /auth/login`: rejects email/password accounts until `emailVerified` is true. New accounts do not exist until onboarding is complete.
 
-Activation tokens are stored as SHA-256 hashes, expire after 24 hours, and are replaced when a new activation email is issued. Existing accounts are marked email-verified by the migration so current users are not locked out. The existing `isVerified` field remains separate and continues to represent the platform's existing account/academic verification state.
+New registration and pre-account tickets are encrypted with AES-256-GCM, expire after 24 hours, and are not stored in PostgreSQL. Only SHA-256 digests of random, single-use ticket nonces are kept in Redis until their expiry; no registration fields are stored there. The password hash is carried only inside the encrypted pre-account ticket until final onboarding. Existing legacy verification tokens for already-created accounts remain SHA-256 hashed and are consumed through the compatibility path. The existing `isVerified` field remains separate and continues to represent the platform's existing account/academic verification state.
 
 ## Deployment
 

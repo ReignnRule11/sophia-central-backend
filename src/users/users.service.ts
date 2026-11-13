@@ -102,7 +102,18 @@ export class UsersService {
     return this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
       .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
+      .orderBy('user.createdAt', 'DESC')
+      .getMany();
+  }
+
+  async findAllForManagement(): Promise<User[]> {
+    return this.usersRepository.createQueryBuilder('user')
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
+      .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
       .andWhere('user.emailVerified = true')
+      .andWhere('(user.role NOT IN (:...profileRoles) OR user.isProfileComplete = true)', {
+        profileRoles: [UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER],
+      })
       .orderBy('user.createdAt', 'DESC')
       .getMany();
   }

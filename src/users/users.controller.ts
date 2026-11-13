@@ -46,7 +46,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List account details for authorized moderation management' })
   managementList() {
-    return this.usersService.findAll();
+    return this.usersService.findAllForManagement();
   }
 
   @Patch(':id/reviewer-access')
