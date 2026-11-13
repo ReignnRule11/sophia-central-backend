@@ -39,6 +39,9 @@ export class AddPermanentInstitutionIdentity2026111300002 implements MigrationIn
               WHEN 'polytechnic' THEN 'POL'
               WHEN 'monotechnic' THEN 'MON'
               WHEN 'college_of_education' THEN 'COE'
+              WHEN 'college_of_health_technology' THEN 'CHT'
+              WHEN 'college_of_agriculture' THEN 'COA'
+              WHEN 'other_college' THEN 'COL'
               ELSE 'OTH'
             END;
             words := regexp_split_to_array(normalized, ' ');
@@ -103,6 +106,9 @@ export class AddPermanentInstitutionIdentity2026111300002 implements MigrationIn
           WHEN 'polytechnic' THEN 'POL'
           WHEN 'monotechnic' THEN 'MON'
           WHEN 'college_of_education' THEN 'COE'
+          WHEN 'college_of_health_technology' THEN 'CHT'
+          WHEN 'college_of_agriculture' THEN 'COA'
+          WHEN 'other_college' THEN 'COL'
           ELSE 'OTH'
         END || '-' || i."institutionCode" || '-' ||
         CASE WHEN u.role = 'lecturer' OR (u.role = 'reviewer' AND u."reviewerBaseRole" = 'lecturer') THEN 'LEC' ELSE 'STU' END ||
