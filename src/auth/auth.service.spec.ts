@@ -107,7 +107,7 @@ describe('AuthService', () => {
     pendingRegistrations.create.mockImplementation((data) => data);
     const response = await service.register({
       firstName: ' Learner ', lastName: ' One ', email: 'LEARNER@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
-      password: 'correct-horse-battery', academicHandle: 'learner.one',
+      academicHandle: 'learner.one',
     });
     const pending = pendingRegistrations.save.mock.calls[0][0];
     expect(pending.email).toBe('learner@example.com');
@@ -136,7 +136,7 @@ describe('AuthService', () => {
     };
     await service.register({
       firstName: 'Learner', lastName: 'One', email: 'learner@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
-      password: 'correct-horse-battery', institution: 'Example University', faculty: 'Science',
+      institution: 'Example University', faculty: 'Science',
       department: 'Computer Science', academicHandle: 'learner.one', socialHandle: 'learner.one', socialLinks,
     });
     expect(pendingRegistrations.save).toHaveBeenCalledWith(expect.objectContaining({
@@ -153,7 +153,7 @@ describe('AuthService', () => {
     users.findByAcademicHandle.mockResolvedValue(user as never);
     await expect(service.register({
       firstName: 'Another', lastName: 'Learner', email: 'another@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
-      password: 'correct-horse-battery', academicHandle: '@learner.one',
+      academicHandle: '@learner.one',
     })).rejects.toBeInstanceOf(ConflictException);
     expect(users.create).not.toHaveBeenCalled();
   });
@@ -162,7 +162,7 @@ describe('AuthService', () => {
     users.findByEmail.mockResolvedValue(user as never);
     await expect(service.register({
       firstName: 'Learner', lastName: 'One', email: 'learner@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
-      password: 'correct-horse-battery', academicHandle: 'learner.one',
+      academicHandle: 'learner.one',
     })).resolves.toEqual(expect.objectContaining({ emailSent: false }));
     expect(users.create).not.toHaveBeenCalled();
     expect(pendingRegistrations.save).not.toHaveBeenCalled();
