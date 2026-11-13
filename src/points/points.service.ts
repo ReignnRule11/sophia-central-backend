@@ -111,7 +111,7 @@ export class PointsService {
    * The wallet row lock serializes concurrent approvals for the same student,
    * while the resource-specific transaction reason makes retries idempotent.
    */
-  async awardResourceApprovalReward(userId: string, resourceId: string, resourceTitle: string): Promise<boolean> {
+  async awardResourceApprovalReward(userId: string, resourceId: string): Promise<boolean> {
     const eligibleUser = await this.userRepository.findOne({ where: { id: userId } });
     if (!eligibleUser || eligibleUser.role !== UserRole.STUDENT || eligibleUser.isSuspended) return false;
 
