@@ -14,7 +14,7 @@ describe('AuthService', () => {
   let jwt: jest.Mocked<Pick<JwtService, 'signAsync'>>;
   let resetTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock; createQueryBuilder: jest.Mock };
   let verificationTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock };
-  let registrationTokens: { seal: jest.Mock; open: jest.Mock };
+  let registrationTokens: { seal: jest.Mock; open: jest.Mock; claimOnce: jest.Mock; releaseClaim: jest.Mock };
   let resetEmail: jest.Mocked<Pick<PasswordResetEmailService, 'sendResetLink'>>;
   let verificationEmail: jest.Mocked<Pick<EmailVerificationEmailService, 'sendVerificationLink'>>;
   let referrals: { validateReferralCode: jest.Mock; redeemReferral: jest.Mock; processPendingReferralForUser: jest.Mock };
@@ -38,6 +38,8 @@ describe('AuthService', () => {
     registrationTokens = {
       seal: jest.fn().mockReturnValue('encrypted-registration-token'),
       open: jest.fn(),
+      claimOnce: jest.fn().mockResolvedValue(true),
+      releaseClaim: jest.fn().mockResolvedValue(undefined),
     };
     resetEmail = { sendResetLink: jest.fn().mockResolvedValue(undefined) };
     verificationEmail = { sendVerificationLink: jest.fn().mockResolvedValue(undefined) };
@@ -195,7 +197,7 @@ describe('AuthService', () => {
 
   it('verifies email and issues a pre-account token without creating a user', async () => {
     registrationTokens.open.mockReturnValue({
-      stage: 'verify', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
+      stage: 'verify', jti: 'verify-jti', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
       firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one', role: 'student',
     });
     users.findByEmail.mockResolvedValue(null);
@@ -215,7 +217,7 @@ describe('AuthService', () => {
 
   it('creates the permanent account only after required student onboarding is complete', async () => {
     registrationTokens.open.mockReturnValue({
-      stage: 'pre-account', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
+      stage: 'pre-account', jti: 'pre-account-jti', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
       firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one',
       role: UserRole.STUDENT, passwordHash: 'stored-password-hash',
     });
