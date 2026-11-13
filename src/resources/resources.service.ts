@@ -73,7 +73,7 @@ export class ResourcesService {
   }
 
   private assertInstitutionIdentity(viewer: User): void {
-    if ([UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && !viewer.institutionId) {
+    if ([UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(viewer.role) && !viewer.institutionId) {
       throw new ForbiddenException('Complete your catalogue-backed institution setup before uploading or downloading academic materials.');
     }
   }
