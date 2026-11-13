@@ -1,6 +1,8 @@
 import { Injectable, NotFoundException, ConflictException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { User } from '../users/entities/user.entity';
+import { generateInstitutionCode } from './institution-code';
 import { Institution, Faculty, Department } from './entities';
 import { InstitutionType } from './entities/institution.entity';
 import { CreateInstitutionDto } from './dto/create-institution.dto';
@@ -20,6 +22,7 @@ export class InstitutionsService {
     private readonly departmentRepository: Repository<Department>,
     @InjectRepository(AcademicCatalogueSubmission)
     private readonly submissionRepository: Repository<AcademicCatalogueSubmission>,
+    @InjectRepository(User) private readonly usersRepository: Repository<User>,
   ) {}
 
   async submit(dto: CreateAcademicCatalogueSubmissionDto, submittedBy: string) {
@@ -226,6 +229,11 @@ export class InstitutionsService {
 
   async update(id: string, dto: UpdateInstitutionDto): Promise<Institution> {
     const institution = await this.findOne(id);
+    if (dto.institutionType && dto.institutionType !== institution.institutionType) {
+      const hasAccounts = await this.usersRepository.exist({ where: { institutionId: id } });
+      if (hasAccounts) throw new ConflictException('Institution category is locked after an account receives an Institution ID.');
+      institution.institutionCode = generateInstitutionCode(institution.name, dto.institutionType, institution.id);
+    }
     Object.assign(institution, dto);
     return this.institutionRepository.save(institution);
   }
