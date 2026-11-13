@@ -44,9 +44,9 @@ export class Resource {
   assignedReviewer?: User;
   @Column({ default: 0 }) views!: number;
   @Column({ default: 0 }) downloads!: number;
-  @Column() uploaderId!: string;
-  @ManyToOne(() => User, (user) => user.resources, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'uploaderId' }) uploader!: User;
+  @Column({ type: 'uuid', nullable: true }) uploaderId!: string;
+  @ManyToOne(() => User, (user) => user.resources, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'uploaderId' }) uploader?: User | null;
   @CreateDateColumn() createdAt!: Date;
   @UpdateDateColumn() updatedAt!: Date;
 }
