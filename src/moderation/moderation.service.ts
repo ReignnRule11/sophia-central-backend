@@ -125,6 +125,7 @@ export class ModerationService {
 
       if (
         dto.status === ResourceModerationStatus.APPROVED &&
+        Boolean(resource.uploaderId) &&
         resource.uploader?.role === UserRole.STUDENT &&
         !resource.uploader.isSuspended
       ) {
@@ -139,6 +140,7 @@ export class ModerationService {
     let wisdomRewardAwarded = false;
     if (
       dto.status === ResourceModerationStatus.APPROVED &&
+      Boolean(resource.uploaderId) &&
       resource.uploader?.role === UserRole.STUDENT &&
       !resource.uploader.isSuspended
     ) {
@@ -150,7 +152,8 @@ export class ModerationService {
       }
     }
 
-    try {
+    if (resource.uploaderId) {
+      try {
       const approved = dto.status === ResourceModerationStatus.APPROVED;
       const revisionRequested = dto.status === ResourceModerationStatus.REVISION_REQUESTED;
       await this.notificationsService.createNotification(
@@ -166,6 +169,7 @@ export class ModerationService {
       );
     } catch (error) {
       this.logger.warn(`Could not create moderation notification for resource ${resource.id}: ${String(error)}`);
+      }
     }
 
     if (reviewer.role === UserRole.REVIEWER) {
