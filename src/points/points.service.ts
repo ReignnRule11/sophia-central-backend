@@ -116,7 +116,7 @@ export class PointsService {
     if (!eligibleUser || eligibleUser.role !== UserRole.STUDENT || eligibleUser.isSuspended) return false;
 
     await this.getOrCreateWallet(userId);
-    const reason = `Approved resource contribution: ${resourceTitle} (resource ${resourceId})`;
+    const reason = `Approved resource contribution reward: ${resourceId}`;
 
     return this.walletRepository.manager.transaction(async manager => {
       const user = await manager.findOne(User, { where: { id: userId } });
