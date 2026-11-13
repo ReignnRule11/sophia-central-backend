@@ -152,7 +152,7 @@ export class UsersService {
         if (!user.institutionId) updateData.uniqueId = await this.generateUniqueId(user, institution);
         updateData.institution = institution.name;
       }
-      if (updateData.institution !== undefined && user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {
+      if (updateData.institution !== undefined && user.institutionId && updateData.institutionId !== user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {
         throw new ForbiddenException('Your original institution is permanent and cannot be changed on this account.');
       }
       if (user.role === UserRole.MODERATOR && updateData.isSuspended !== undefined) {
