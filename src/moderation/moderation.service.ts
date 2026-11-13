@@ -125,7 +125,7 @@ export class ModerationService {
 
       if (
         dto.status === ResourceModerationStatus.APPROVED &&
-        Boolean(resource.uploaderId) &&
+        resource.uploaderId &&
         resource.uploader?.role === UserRole.STUDENT &&
         !resource.uploader.isSuspended
       ) {
