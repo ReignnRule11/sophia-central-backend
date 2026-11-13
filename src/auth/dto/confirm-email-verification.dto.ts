@@ -3,7 +3,7 @@ import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
 export class ConfirmEmailVerificationDto {
   @IsNotEmpty()
   @IsString()
-  @MaxLength(128)
+  @MaxLength(4096)
   token!: string;
 
   @IsNotEmpty()
