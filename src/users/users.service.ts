@@ -58,6 +58,12 @@ export class UsersService {
       .where('LOWER(user.email) = LOWER(:email)', { email: email.trim() }).getOne();
   }
 
+  async findByUniqueId(uniqueId: string): Promise<User | null> {
+    const normalized = uniqueId.trim().toUpperCase();
+    return this.usersRepository.createQueryBuilder('user').addSelect('user.password')
+      .where('UPPER(user.uniqueId) = :uniqueId', { uniqueId: normalized }).getOne();
+  }
+
   async findByAcademicHandle(handle: string): Promise<User | null> {
     const normalized = handle.trim().replace(/^@/, '').toLowerCase();
     return this.usersRepository.createQueryBuilder('user').addSelect('user.password')
