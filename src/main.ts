@@ -31,6 +31,7 @@ async function bootstrap() {
   app.use('/auth/signup', authRateLimit(5));
   app.use('/auth/email-verification/resend', authRateLimit(5));
   app.use('/auth/email-verification/confirm', authRateLimit(20));
+  app.use('/auth/onboarding/complete', authRateLimit(10));
   app.use('/auth/password-reset/request', authRateLimit(5));
   app.use('/auth/password-reset/confirm', authRateLimit(10));
   app.use('/auth/account-deletion/cancel', authRateLimit(5));
