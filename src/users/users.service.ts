@@ -73,6 +73,7 @@ export class UsersService {
       .andWhere('LOWER(TRIM(user.institution)) = LOWER(TRIM(:institution))', { institution })
       .andWhere('user.role IN (:...roles)', { roles: [UserRole.STUDENT, UserRole.LECTURER] })
       .andWhere('user.isSuspended = false')
+      .andWhere("user.accountStatus = 'active'")
       .andWhere('user.academicHandle IS NOT NULL');
     const normalizedSearch = search?.trim().replace(/^@+/, '').toLowerCase();
     if (normalizedSearch) query.andWhere('LOWER(user.academicHandle) LIKE :search', { search: `%${normalizedSearch}%` });
