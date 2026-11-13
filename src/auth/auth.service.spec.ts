@@ -218,6 +218,32 @@ describe('AuthService', () => {
       .rejects.toBeInstanceOf(UnauthorizedException);
   });
 
+  it('creates the user only after the mailbox token is confirmed and the owner sets a password', async () => {
+    const token = 'new-registration-token';
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    pendingRegistrations.findOne.mockResolvedValue({
+      id: 'pending-1',
+      email: 'learner@example.com',
+      registrationData: {
+        email: 'learner@example.com', firstName: 'Learner', lastName: 'One',
+        academicHandle: 'learner.one', role: 'student', institutionId: '00000000-0000-4000-8000-000000000001',
+        authProvider: 'email', emailVerified: true,
+      },
+      tokenHash,
+      expiresAt: new Date(Date.now() + 60_000),
+      referralCode: null,
+    });
+    users.findByEmail.mockResolvedValue(null);
+    users.create.mockImplementation(async (data) => ({ ...user, ...data }) as never);
+    await expect(service.confirmEmailVerification(token, 'owner-chosen-password')).resolves.toEqual({
+      message: 'Your email has been verified and your account created. You can now sign in to Sophis Central.',
+    });
+    const created = users.create.mock.calls[0][0];
+    expect(created.emailVerified).toBe(true);
+    expect(await bcrypt.compare('owner-chosen-password', created.password!)).toBe(true);
+    expect(pendingRegistrations.delete).toHaveBeenCalledWith({ id: 'pending-1' });
+  });
+
   it('confirms an unexpired verification token and marks the user email as verified', async () => {
     verificationTokens.findOne.mockResolvedValue({
       id: 'token-1', userId: user.id, tokenHash: 'hash',
@@ -233,7 +259,26 @@ describe('AuthService', () => {
     await expect(service.confirmEmailVerification(token, 'correct-horse-battery')).resolves.toEqual({
       message: 'Your email has been verified. You can now sign in to Sophis Central.',
     });
-    expect(users.update).toHaveBeenCalledWith(user.id, { emailVerified: true });
+    expect(users.update).toHaveBeenCalledWith(user.id, expect.objectContaining({ emailVerified: true, password: expect.any(String) }));
+    expect(verificationTokens.delete).toHaveBeenCalledWith({ userId: user.id });
+  });
+});
+
+    verificationTokens.findOne.mockResolvedValue({
+      id: 'token-1', userId: user.id, tokenHash: 'hash',
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    users.findOne.mockResolvedValue({ ...user } as never);
+    users.update.mockResolvedValue({ ...user, emailVerified: true } as never);
+    const token = 'sample-verification-token';
+    const expectedHash = createHash('sha256').update(token).digest('hex');
+    verificationTokens.findOne.mockResolvedValue({
+      id: 'token-1', userId: user.id, tokenHash: expectedHash, expiresAt: new Date(Date.now() + 60_000),
+    });
+    await expect(service.confirmEmailVerification(token, 'correct-horse-battery')).resolves.toEqual({
+      message: 'Your email has been verified. You can now sign in to Sophis Central.',
+    });
+    expect(users.update).toHaveBeenCalledWith(user.id, expect.objectContaining({ emailVerified: true, password: expect.any(String) }));
     expect(verificationTokens.delete).toHaveBeenCalledWith({ userId: user.id });
   });
 });
