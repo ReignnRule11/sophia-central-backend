@@ -13,7 +13,6 @@ export class CommunityResourcesService {
     @InjectRepository(Resource) private readonly resources: Repository<Resource>,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly storage: S3Service,
-    @InjectRepository(UserActivityEvent) private readonly activityRepository: Repository<UserActivityEvent>,
   ) {}
 
   async create(dto: CreateResourceDto, uploaderId: string): Promise<Resource> {
