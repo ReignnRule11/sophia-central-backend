@@ -330,7 +330,7 @@ export class UsersService {
       await this.storageCleanup.enqueueWithManager(manager, profileRows[0]?.profileImage, 'account-deleted-profile-image');
 
       const resourceFiles = await manager.query(
-        'SELECT "fileUrl" FROM resources WHERE "uploaderId"::text = $1::text AND "fileUrl" IS NOT NULL',
+        'SELECT "fileUrl" FROM resources WHERE "uploaderId"::text = $1::text AND "moderationStatus" <> \'approved\' AND "fileUrl" IS NOT NULL',
         [id],
       );
       for (const row of resourceFiles) {
@@ -346,14 +346,14 @@ export class UsersService {
       }
 
       const legacyFiles = await manager.query(
-        'SELECT legacy.s3_key FROM resource_files legacy JOIN resources resource ON resource.id = legacy.resource_id WHERE resource."uploaderId"::text = $1::text',
+        'SELECT legacy.s3_key FROM resource_files legacy JOIN resources resource ON resource.id = legacy.resource_id WHERE resource."uploaderId"::text = $1::text AND resource."moderationStatus" <> \'approved\'',
         [id],
       );
       for (const row of legacyFiles) {
         await this.storageCleanup.enqueueWithManager(manager, row.s3_key, 'account-deleted-legacy-resource-file');
       }
       await manager.query(
-        'DELETE FROM resource_files WHERE resource_id IN (SELECT id FROM resources WHERE "uploaderId"::text = $1::text)',
+        'DELETE FROM resource_files WHERE resource_id IN (SELECT id FROM resources WHERE "uploaderId"::text = $1::text AND "moderationStatus" <> \'approved\')',
         [id],
       );
 
@@ -396,6 +396,9 @@ export class UsersService {
         );
       }
 
+      // Keep approved shared academic contributions while anonymizing their uploader.
+      await manager.query('UPDATE resources SET "uploaderId" = NULL WHERE "uploaderId" = $1::uuid AND "moderationStatus" = \'approved\'', [id]);
+
       // Release reviewer assignments before deleting the user to preserve resource records.
       await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [id]);
 
@@ -411,7 +414,7 @@ export class UsersService {
       await manager.query('DELETE FROM referrals WHERE "referrerId" = $1::uuid', [id]);
       await manager.query('DELETE FROM ai_sessions WHERE "userId" = $1::text', [id]);
       await manager.query('DELETE FROM support_requests WHERE "userId" = $1::uuid', [id]);
-      await manager.query('DELETE FROM resources WHERE "uploaderId" = $1::uuid', [id]);
+      await manager.query('DELETE FROM resources WHERE "uploaderId" = $1::uuid AND "moderationStatus" <> \'approved\'', [id]);
       await manager.query('DELETE FROM ai_usage_logs WHERE user_id = $1::uuid', [id]);
       await manager.query('DELETE FROM users WHERE id = $1::uuid', [id]);
     });
