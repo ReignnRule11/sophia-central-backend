@@ -1,6 +1,7 @@
 import {
   IsEmail,
   IsEnum,
+  IsIn,
   IsNotEmpty,
   IsOptional,
   IsString,
@@ -38,7 +39,7 @@ export class RegisterDto {
   referralCode?: string;
 
   @IsOptional()
-  @IsEnum(UserRole, { message: 'Role must be student or lecturer' })
+  @IsIn([UserRole.STUDENT, UserRole.LECTURER], { message: 'Role must be student or lecturer' })
   role?: UserRole;
 
   @IsUUID()
