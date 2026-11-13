@@ -9,7 +9,10 @@ export class UserActivityEvent {
   userId!: string;
 
   @Column({ type: 'varchar', length: 32 })
-  eventType!: 'search' | 'view' | 'download' | 'study';
+  eventType!: 'search' | 'view' | 'download' | 'study' | 'upload';
+
+  @Column({ type: 'uuid', nullable: true })
+  institutionId?: string | null;
 
   @Column({ type: 'uuid', nullable: true })
   resourceId?: string | null;
