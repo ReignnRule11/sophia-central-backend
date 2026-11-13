@@ -485,28 +485,6 @@ export class ChatService {
     }));
     this.publishRoom(roomKey);
 
-    if (dto.kind === 'direct' && dto.recipientId) {
-      const preview = forwardedMessage
-        ? forwardedMessage.contentType === ChatContentType.TEXT ? (forwardedMessage.text ?? 'Forwarded message').slice(0, 140) : forwardedMessage.contentType === ChatContentType.VOICE ? 'Forwarded a voice message' : 'Forwarded a sticker'
-        : hasText
-          ? dto.text!.trim().slice(0, 140)
-          : hasVoice
-            ? 'Sent a voice message'
-            : 'Sent a sticker';
-
-      try {
-        await this.notifications.createNotification(
-          dto.recipientId,
-          'chat_message',
-          `New message from @${sender.academicHandle}`,
-          preview,
-          `/messages?userId=${encodeURIComponent(sender.id)}`,
-        );
-      } catch {
-        // A notification failure must not undo or fail a successfully stored chat message.
-      }
-    }
-
     return this.present(message, id);
   }
 
