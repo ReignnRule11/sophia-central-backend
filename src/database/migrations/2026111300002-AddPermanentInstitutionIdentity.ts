@@ -149,9 +149,11 @@ export class AddPermanentInstitutionIdentity2026111300002 implements MigrationIn
     await queryRunner.query('ALTER TABLE "resources" ADD CONSTRAINT "FK_resources_uploader_institution" FOREIGN KEY ("uploaderInstitutionId") REFERENCES "institutions"("id") ON DELETE SET NULL');
     await queryRunner.query('CREATE INDEX IF NOT EXISTS "IDX_users_institutionId" ON "users" ("institutionId")');
     await queryRunner.query('CREATE INDEX IF NOT EXISTS "IDX_resources_uploaderInstitutionId" ON "resources" ("uploaderInstitutionId")');
+    await queryRunner.query('CREATE INDEX IF NOT EXISTS "IDX_user_activity_events_institutionId" ON "user_activity_events" ("institutionId")');
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query('DROP INDEX IF EXISTS "IDX_user_activity_events_institutionId"');
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_resources_uploaderInstitutionId"');
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_users_institutionId"');
     await queryRunner.query('ALTER TABLE "resources" DROP CONSTRAINT IF EXISTS "FK_resources_uploader_institution"');
