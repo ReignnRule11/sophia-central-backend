@@ -42,7 +42,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     const user = await this.usersService.findOne(payload.sub);
     if (!user || user.isSuspended || user.accountStatus !== 'active') return null;
     // Email/password accounts must have completed mailbox verification before any JWT-protected route.
-    if (user.authProvider === 'email' && user.emailVerified !== true) return null;
+    if (user.emailVerified !== true) return null;
     return user;
   }
 }
