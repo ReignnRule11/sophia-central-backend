@@ -64,6 +64,7 @@ export class AuthService {
     // pending-registration row is created before onboarding is completed.
     const token = this.registrationTokens.seal({
       stage: 'verify',
+      jti: randomBytes(32).toString('hex'),
       expiresAt: Date.now() + EMAIL_VERIFICATION_TTL_MS,
       email,
       firstName: dto.firstName.trim(),
@@ -151,16 +152,22 @@ export class AuthService {
       const firstName = String(registration.firstName || '').trim();
       const lastName = String(registration.lastName || '').trim();
       const role = registration.role as UserRole;
-      if (!email || !academicHandle || !firstName || !lastName || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
+      if (!email || !academicHandle || !firstName || !lastName || !registration.jti || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
         throw new UnauthorizedException('This verification link is invalid or has expired. Please restart registration.');
       }
       if (await this.usersService.findByEmail(email)) throw new ConflictException('An account already exists for this email. Sign in instead.');
       if (await this.usersService.findByAcademicHandle(academicHandle)) throw new ConflictException('Academic handle already exists. Please restart registration with another handle.');
 
       const passwordHash = await bcrypt.hash(password, 12);
+      const claimed = await this.registrationTokens.claimOnce(
+        registration.jti,
+        Math.ceil((registration.expiresAt - Date.now()) / 1000),
+      );
+      if (!claimed) throw new UnauthorizedException('This verification link has already been used. Request a new link.');
       const onboardingToken = this.registrationTokens.seal({
         ...registration,
         stage: 'pre-account',
+        jti: randomBytes(32).toString('hex'),
         passwordHash,
         expiresAt: Date.now() + EMAIL_VERIFICATION_TTL_MS,
       });
@@ -198,7 +205,7 @@ export class AuthService {
     const academicHandle = String(registration.academicHandle || '').trim().replace(/^@+/, '').toLowerCase();
     const role = registration.role as UserRole;
     const passwordHash = String(registration.passwordHash || '');
-    if (!email || !academicHandle || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
+    if (!email || !academicHandle || !passwordHash || !registration.jti || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
       throw new UnauthorizedException('Your pre-account session is invalid. Please restart registration.');
     }
     if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
@@ -213,7 +220,14 @@ export class AuthService {
     if (await this.usersService.findByEmail(email)) throw new ConflictException('An account already exists for this email. Sign in instead.');
     if (await this.usersService.findByAcademicHandle(academicHandle)) throw new ConflictException('Academic handle already exists. Please contact support.');
 
-    const user = await this.usersService.create({
+    const claimed = await this.registrationTokens.claimOnce(
+      registration.jti,
+      Math.ceil((registration.expiresAt - Date.now()) / 1000),
+    );
+    if (!claimed) throw new UnauthorizedException('This onboarding session has already been used or expired.');
+    let user: User;
+    try {
+      user = await this.usersService.create({
       email,
       firstName: String(registration.firstName),
       lastName: String(registration.lastName),
@@ -237,6 +251,10 @@ export class AuthService {
       socialHandle: dto.socialHandle?.trim(),
       socialLinks: dto.socialLinks,
     });
+    } catch (error) {
+      await this.registrationTokens.releaseClaim(registration.jti);
+      throw error;
+    }
 
     const referralCode = typeof registration.referralCode === 'string' ? registration.referralCode : undefined;
     if (referralCode && role === UserRole.STUDENT) {
