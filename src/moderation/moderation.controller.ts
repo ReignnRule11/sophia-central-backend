@@ -34,7 +34,7 @@ export class ModerationController {
   }
 
   @Get('support-email-status')
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @Roles(UserRole.MODERATOR)
   getSupportEmailStatus() {
     return this.supportEmail.getConfigurationStatus();
   }
@@ -46,7 +46,7 @@ export class ModerationController {
   }
 
   @Patch('support-requests/:id/conclude')
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @Roles(UserRole.MODERATOR)
   concludeSupportRequest(
     @Param('id') id: string,
     @Body() dto: ConcludeSupportRequestDto,
