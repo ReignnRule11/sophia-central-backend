@@ -136,6 +136,17 @@ export class UsersService {
       const user = await manager.findOne(User, { where: { id } });
       if (!user) throw new NotFoundException('User not found');
       const updateData = { ...data };
+      if (updateData.institutionId !== undefined) {
+        if (user.institutionId && user.institutionId !== updateData.institutionId) {
+          throw new ForbiddenException('Your original Institution ID is permanent. Additional institution memberships must be managed separately.');
+        }
+        const institution = await manager.findOne(Institution, { where: { id: updateData.institutionId } });
+        if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
+        updateData.institution = institution.name;
+      }
+      if (updateData.institution !== undefined && user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {
+        throw new ForbiddenException('Your original institution is permanent and cannot be changed on this account.');
+      }
       if (user.role === UserRole.MODERATOR && updateData.isSuspended !== undefined) {
         throw new ForbiddenException('The platform moderator account is protected from user-management status changes.');
       }
