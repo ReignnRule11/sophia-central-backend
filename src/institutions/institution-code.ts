@@ -1,6 +1,4 @@
 import { createHash } from 'node:crypto';
-import { InstitutionType } from './entities/institution.entity';
-
 const knownCodes: Record<string, string> = {
   'university of lagos': 'UNILAG',
   'yaba college of technology': 'YABATECH',
@@ -11,10 +9,10 @@ const knownCodes: Record<string, string> = {
 
 export function institutionTypeCode(type: InstitutionType | string): string {
   switch (type) {
-    case InstitutionType.UNIVERSITY: return 'UNI';
-    case InstitutionType.POLYTECHNIC: return 'POL';
-    case InstitutionType.MONOTECHNIC: return 'MON';
-    case InstitutionType.COLLEGE_OF_EDUCATION: return 'COE';
+    case 'university': return 'UNI';
+    case 'polytechnic': return 'POL';
+    case 'monotechnic': return 'MON';
+    case 'college_of_education': return 'COE';
     default: return 'OTH';
   }
 }
