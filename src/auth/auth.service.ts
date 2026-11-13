@@ -202,7 +202,7 @@ export class AuthService {
     const currentUser = await this.usersService.findOne(userId);
     if (!currentUser) throw new UnauthorizedException('User not found');
     const user = await this.usersService.update(userId, {
-      ...(!currentUser.isProfileComplete ? { institution: dto.institution } : {}),
+      ...(!currentUser.isProfileComplete ? { institutionId: dto.institutionId, institution: dto.institution } : {}),
       faculty: dto.faculty,
       department: dto.department,
       programme: dto.programme,
