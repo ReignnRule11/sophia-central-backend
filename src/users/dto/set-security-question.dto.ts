@@ -1,4 +1,4 @@
-import { IsString, MaxLength, MinLength } from 'class-validator';
+import { IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 
 export class SetSecurityQuestionDto {
   @IsString()
@@ -15,4 +15,9 @@ export class SetSecurityQuestionDto {
   @MinLength(3)
   @MaxLength(128)
   answer!: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(128)
+  currentAnswer?: string;
 }
