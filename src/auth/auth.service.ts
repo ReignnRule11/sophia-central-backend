@@ -134,7 +134,7 @@ export class AuthService {
   async resendEmailVerification(dto: { email: string }): Promise<{ message: string }> {
     const email = dto.email.trim().toLowerCase();
     const pending = await this.pendingRegistrations.findOne({ where: { email } });
-    if (pending && pending.expiresAt.getTime() > Date.now()) {
+    if (pending) {
       const sentRecently = Date.now() - pending.updatedAt.getTime() < 60_000;
       if (!sentRecently) {
         const token = randomBytes(32).toString('base64url');
