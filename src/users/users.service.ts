@@ -268,6 +268,9 @@ export class UsersService {
         );
       }
 
+      // Release reviewer assignments before deleting the user to preserve resource records.
+      await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [id]);
+
       // Preserve shared chat content while anonymizing the deleted account's identity.
       await manager.query('UPDATE chat_messages SET "senderId" = NULL, "senderHandle" = \'Deleted user\' WHERE "senderId" = $1::uuid', [id]);
       await manager.query('DELETE FROM user_activity_events WHERE "userId" = $1::text OR "resourceId" IN (SELECT id FROM resources WHERE "uploaderId"::text = $1::text)', [id]);
