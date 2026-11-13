@@ -27,7 +27,7 @@ describe('UsersService academic profile updates', () => {
     dataSource = {
       transaction: jest.fn(async callback => callback(manager)),
     };
-    service = new UsersService({} as Repository<User>, dataSource as DataSource, {} as any);
+    service = new UsersService({} as Repository<User>, {} as Repository<any>, dataSource as DataSource, {} as any);
   });
 
   it('allows manually entered academic units and departments for an approved institution', async () => {
