@@ -58,6 +58,15 @@ export class UsersController {
     return this.usersService.setReviewerAccess(id, dto);
   }
 
+  @Post(':id/reactivate')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN, UserRole.MODERATOR)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Reactivate a voluntarily deactivated account without overriding moderator suspension' })
+  reactivateDeactivatedAccount(@Param('id') id: string) {
+    return this.usersService.reactivateDeactivatedAccount(id);
+  }
+
   @Patch(':id/status')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
