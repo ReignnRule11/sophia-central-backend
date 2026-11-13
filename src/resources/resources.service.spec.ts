@@ -38,7 +38,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
   it('allows a student to inspect their own pending submission', async () => {
     resourceRepository.findOne.mockResolvedValue(resource());
     const result = await service.findOneForViewer('resource-1', {
-      id: 'student-owner', role: UserRole.STUDENT, institutionId: 'institution-1', institutionId: 'institution-1',
+      id: 'student-owner', role: UserRole.STUDENT, institutionId: 'institution-1',
     } as any, false);
 
     expect(result).toMatchObject({ id: 'resource-1', hasFile: true });
@@ -144,7 +144,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
   it('allows a lecturer to inspect their own pending submission', async () => {
     resourceRepository.findOne.mockResolvedValue(resource());
     await expect(service.findOneForViewer('resource-1', {
-      id: 'student-owner', role: UserRole.LECTURER, institutionId: 'institution-1', institutionId: 'institution-1',
+      id: 'student-owner', role: UserRole.LECTURER, institutionId: 'institution-1',
     } as any, false)).resolves.toMatchObject({ id: 'resource-1' });
   });
 
