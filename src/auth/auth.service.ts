@@ -291,6 +291,15 @@ export class AuthService {
   async completeOnboarding(userId: string, dto: OnboardingDto) {
     const currentUser = await this.usersService.findOne(userId);
     if (!currentUser) throw new UnauthorizedException('User not found');
+    if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
+      throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
+    }
+    if (currentUser.role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !dto.programme?.trim())) {
+      throw new BadRequestException('Your current academic level and programme are required.');
+    }
+    if (currentUser.role === UserRole.LECTURER && (!dto.teachingAssignments?.length || !dto.coursesTaught?.length)) {
+      throw new BadRequestException('Add at least one course taught, including its course code and academic level.');
+    }
     const user = await this.usersService.update(userId, {
       ...(!currentUser.isProfileComplete ? { institutionId: dto.institutionId, institution: dto.institution } : {}),
       faculty: dto.faculty,
