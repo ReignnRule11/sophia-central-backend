@@ -13,6 +13,7 @@ describe('AuthService', () => {
   let jwt: jest.Mocked<Pick<JwtService, 'signAsync'>>;
   let resetTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock; createQueryBuilder: jest.Mock };
   let verificationTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock };
+  let pendingRegistrations: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock };
   let resetEmail: jest.Mocked<Pick<PasswordResetEmailService, 'sendResetLink'>>;
   let verificationEmail: jest.Mocked<Pick<EmailVerificationEmailService, 'sendVerificationLink'>>;
   let referrals: { validateReferralCode: jest.Mock; redeemReferral: jest.Mock; processPendingReferralForUser: jest.Mock };
@@ -23,7 +24,7 @@ describe('AuthService', () => {
   };
 
   beforeEach(() => {
-    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), update: jest.fn(), findOne: jest.fn() };
+    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn() };
     jwt = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
     resetTokens = {
       delete: jest.fn().mockResolvedValue({ affected: 1 }), save: jest.fn().mockResolvedValue({}),
@@ -31,6 +32,10 @@ describe('AuthService', () => {
     };
     verificationTokens = {
       delete: jest.fn().mockResolvedValue({ affected: 1 }), save: jest.fn().mockResolvedValue({}),
+      create: jest.fn((data) => data), findOne: jest.fn(),
+    };
+    pendingRegistrations = {
+      delete: jest.fn().mockResolvedValue({ affected: 1 }), save: jest.fn().mockImplementation(async (data) => ({ ...data, updatedAt: new Date() })),
       create: jest.fn((data) => data), findOne: jest.fn(),
     };
     resetEmail = { sendResetLink: jest.fn().mockResolvedValue(undefined) };
@@ -45,6 +50,7 @@ describe('AuthService', () => {
       jwt as unknown as JwtService,
       resetTokens as never,
       verificationTokens as never,
+      pendingRegistrations as never,
       resetEmail as unknown as PasswordResetEmailService,
       verificationEmail as unknown as EmailVerificationEmailService,
       referrals as never,
@@ -94,53 +100,52 @@ describe('AuthService', () => {
     expect(resetEmail.sendResetLink).toHaveBeenCalledWith(user.email, expect.stringMatching(/^[A-Za-z0-9_-]{43}$/), user.firstName);
   });
 
-  it('creates an unverified account, sends an activation email, and does not issue a session', async () => {
+  it('stages registration without creating a user or storing the submitted password', async () => {
     users.findByEmail.mockResolvedValue(null);
     users.findByAcademicHandle.mockResolvedValue(null);
-    users.create.mockImplementation(async (data) => ({ ...user, ...data }) as never);
+    pendingRegistrations.findOne.mockResolvedValue(null);
+    pendingRegistrations.create.mockImplementation((data) => data);
     const response = await service.register({
       firstName: ' Learner ', lastName: ' One ', email: 'LEARNER@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
-      password: 'correct-horse-battery', academicHandle: 'learner.one',
+      academicHandle: 'learner.one',
     });
-    const saved = users.create.mock.calls[0][0];
-    expect(saved.email).toBe('learner@example.com');
-    expect(saved.emailVerified).toBe(false);
-    expect(saved.password).not.toBe('correct-horse-battery');
-    expect(await bcrypt.compare('correct-horse-battery', saved.password!)).toBe(true);
+    const pending = pendingRegistrations.save.mock.calls[0][0];
+    expect(pending.email).toBe('learner@example.com');
+    expect(pending.registrationData.emailVerified).toBe(true);
+    expect(pending.registrationData.password).toBeUndefined();
+    expect(pending.registrationData.firstName).toBe('Learner');
+    expect(pending.tokenHash).toMatch(/^[a-f0-9]{64}$/);
     expect(response.emailSent).toBe(true);
-    expect(response.user).not.toHaveProperty('password');
-    expect(response).not.toHaveProperty('accessToken');
+    expect(response).not.toHaveProperty('user');
+    expect(users.create).not.toHaveBeenCalled();
     expect(jwt.signAsync).not.toHaveBeenCalled();
-    expect(verificationTokens.save).toHaveBeenCalledWith(expect.objectContaining({
-      userId: user.id, tokenHash: expect.stringMatching(/^[a-f0-9]{64}$/), expiresAt: expect.any(Date),
-    }));
     expect(verificationEmail.sendVerificationLink).toHaveBeenCalledWith(
-      user.email, expect.stringMatching(/^[A-Za-z0-9_-]{43}$/), user.firstName,
+      'learner@example.com', expect.stringMatching(/^[A-Za-z0-9_-]{43}$/), 'Learner',
     );
   });
 
-  it('preserves academic and social profile fields during registration', async () => {
+  it('preserves academic and social profile fields in pending registration data', async () => {
     users.findByEmail.mockResolvedValue(null);
     users.findByAcademicHandle.mockResolvedValue(null);
-    users.create.mockImplementation(async (data) => ({ ...user, ...data }) as never);
+    pendingRegistrations.findOne.mockResolvedValue(null);
+    pendingRegistrations.create.mockImplementation((data) => data);
     const socialLinks = {
       linkedin: 'https://www.linkedin.com/in/learner-one',
       instagram: 'https://www.instagram.com/learner.one',
       twitter: 'https://x.com/learner_one',
     };
-    const response = await service.register({
+    await service.register({
       firstName: 'Learner', lastName: 'One', email: 'learner@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
-      password: 'correct-horse-battery', institution: 'Example University', faculty: 'Science',
+      institution: 'Example University', faculty: 'Science',
       department: 'Computer Science', academicHandle: 'learner.one', socialHandle: 'learner.one', socialLinks,
     });
-    expect(users.create).toHaveBeenCalledWith(expect.objectContaining({
-      institution: 'Example University', faculty: 'Science', department: 'Computer Science',
-      academicHandle: 'learner.one', socialHandle: 'learner.one', socialLinks,
+    expect(pendingRegistrations.save).toHaveBeenCalledWith(expect.objectContaining({
+      registrationData: expect.objectContaining({
+        institution: 'Example University', faculty: 'Science', department: 'Computer Science',
+        academicHandle: 'learner.one', socialHandle: 'learner.one', socialLinks,
+      }),
     }));
-    expect(response.user).toEqual(expect.objectContaining({
-      institution: 'Example University', faculty: 'Science', department: 'Computer Science',
-      socialHandle: 'learner.one', socialLinks,
-    }));
+    expect(users.create).not.toHaveBeenCalled();
   });
 
   it('rejects duplicate academic handle registration', async () => {
@@ -148,18 +153,19 @@ describe('AuthService', () => {
     users.findByAcademicHandle.mockResolvedValue(user as never);
     await expect(service.register({
       firstName: 'Another', lastName: 'Learner', email: 'another@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
-      password: 'correct-horse-battery', academicHandle: '@learner.one',
+      academicHandle: '@learner.one',
     })).rejects.toBeInstanceOf(ConflictException);
     expect(users.create).not.toHaveBeenCalled();
   });
 
-  it('rejects duplicate email registration', async () => {
+  it('does not disclose whether an email already belongs to an account', async () => {
     users.findByEmail.mockResolvedValue(user as never);
     await expect(service.register({
       firstName: 'Learner', lastName: 'One', email: 'learner@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
-      password: 'correct-horse-battery', academicHandle: 'learner.one',
-    })).rejects.toBeInstanceOf(ConflictException);
+      academicHandle: 'learner.one',
+    })).resolves.toEqual(expect.objectContaining({ emailSent: false }));
     expect(users.create).not.toHaveBeenCalled();
+    expect(pendingRegistrations.save).not.toHaveBeenCalled();
   });
 
   it('allows sign-in with a permanent Institution ID and password', async () => {
@@ -180,9 +186,27 @@ describe('AuthService', () => {
     expect(jwt.signAsync).not.toHaveBeenCalled();
   });
 
+  it('fails closed when an email account has no explicit verified flag', async () => {
+    const password = await bcrypt.hash('correct-horse-battery', 4);
+    const legacyOrMalformedUser = { ...user, password, emailVerified: undefined };
+    users.findByEmail.mockResolvedValue(legacyOrMalformedUser as never);
+    await expect(service.login({ identifier: user.email, password: 'correct-horse-battery' }))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('records the successful login timestamp before issuing a session', async () => {
+    const password = await bcrypt.hash('correct-horse-battery', 4);
+    users.findByEmail.mockResolvedValue({ ...user, password, emailVerified: true } as never);
+    await service.login({ identifier: user.email, password: 'correct-horse-battery' });
+    expect(users.update).toHaveBeenCalledWith(user.id, expect.objectContaining({ lastLoginAt: expect.any(Date) }));
+    expect(jwt.signAsync).toHaveBeenCalled();
+  });
+
   it('allows sign-in with an academic handle for an email-verified account', async () => {
     const password = await bcrypt.hash('correct-horse-battery', 4);
     users.findByAcademicHandle.mockResolvedValue({ ...user, emailVerified: true, academicHandle: 'learner.one', password } as never);
+    users.update.mockResolvedValue({ ...user, emailVerified: true, academicHandle: 'learner.one', lastLoginAt: new Date() } as never);
     const response = await service.login({ identifier: '@Learner.One', password: 'correct-horse-battery' });
     expect(users.findByAcademicHandle).toHaveBeenCalledWith('@Learner.One');
     expect(response.user).toHaveProperty('academicHandle', 'learner.one');
@@ -193,6 +217,32 @@ describe('AuthService', () => {
     users.findByEmail.mockResolvedValue(null);
     await expect(service.login({ identifier: 'missing@example.com', password: 'not-the-password' }))
       .rejects.toBeInstanceOf(UnauthorizedException);
+  });
+
+  it('creates the user only after the mailbox token is confirmed and the owner sets a password', async () => {
+    const token = 'new-registration-token';
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    pendingRegistrations.findOne.mockResolvedValue({
+      id: 'pending-1',
+      email: 'learner@example.com',
+      registrationData: {
+        email: 'learner@example.com', firstName: 'Learner', lastName: 'One',
+        academicHandle: 'learner.one', role: 'student', institutionId: '00000000-0000-4000-8000-000000000001',
+        authProvider: 'email', emailVerified: true,
+      },
+      tokenHash,
+      expiresAt: new Date(Date.now() + 60_000),
+      referralCode: null,
+    });
+    users.findByEmail.mockResolvedValue(null);
+    users.create.mockImplementation(async (data) => ({ ...user, ...data }) as never);
+    await expect(service.confirmEmailVerification(token, 'owner-chosen-password')).resolves.toEqual({
+      message: 'Your email has been verified and your account created. You can now sign in to Sophis Central.',
+    });
+    const created = users.create.mock.calls[0][0];
+    expect(created.emailVerified).toBe(true);
+    expect(await bcrypt.compare('owner-chosen-password', created.password!)).toBe(true);
+    expect(pendingRegistrations.delete).toHaveBeenCalledWith({ id: 'pending-1' });
   });
 
   it('confirms an unexpired verification token and marks the user email as verified', async () => {
@@ -207,10 +257,10 @@ describe('AuthService', () => {
     verificationTokens.findOne.mockResolvedValue({
       id: 'token-1', userId: user.id, tokenHash: expectedHash, expiresAt: new Date(Date.now() + 60_000),
     });
-    await expect(service.confirmEmailVerification(token)).resolves.toEqual({
+    await expect(service.confirmEmailVerification(token, 'correct-horse-battery')).resolves.toEqual({
       message: 'Your email has been verified. You can now sign in to Sophis Central.',
     });
-    expect(users.update).toHaveBeenCalledWith(user.id, { emailVerified: true });
+    expect(users.update).toHaveBeenCalledWith(user.id, expect.objectContaining({ emailVerified: true, password: expect.any(String) }));
     expect(verificationTokens.delete).toHaveBeenCalledWith({ userId: user.id });
   });
 });

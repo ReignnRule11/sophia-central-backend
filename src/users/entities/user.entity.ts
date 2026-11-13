@@ -120,6 +120,9 @@ export class User {
   @Column({ default: false })
   emailVerified!: boolean;
 
+  @Column({ type: 'timestamptz', nullable: true })
+  lastLoginAt?: Date | null;
+
   @Column({ default: false })
   isSuspended!: boolean;
 

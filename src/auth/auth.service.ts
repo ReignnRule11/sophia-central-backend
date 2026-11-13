@@ -6,7 +6,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { LessThanOrEqual, Repository } from 'typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -17,6 +17,7 @@ import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
+import { PendingRegistration } from './entities/pending-registration.entity';
 import { PasswordResetEmailService } from './password-reset-email.service';
 import { EmailVerificationEmailService } from './email-verification-email.service';
 import { UsersService } from '../users/users.service';
@@ -38,6 +39,8 @@ export class AuthService {
     private readonly resetTokens: Repository<PasswordResetToken>,
     @InjectRepository(EmailVerificationToken)
     private readonly verificationTokens: Repository<EmailVerificationToken>,
+    @InjectRepository(PendingRegistration)
+    private readonly pendingRegistrations: Repository<PendingRegistration>,
     private readonly resetEmail: PasswordResetEmailService,
     private readonly verificationEmail: EmailVerificationEmailService,
     private readonly referralService: ReferralService,
@@ -45,10 +48,13 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
-    const existing = await this.usersService.findByEmail(email);
-    if (existing) throw new ConflictException('User with this email already exists');
-
     const academicHandle = dto.academicHandle.trim().replace(/^@/, '').toLowerCase();
+    const existingUser = await this.usersService.findByEmail(email);
+    if (existingUser) {
+      // Do not create or alter a real account for an unverified registration attempt.
+      return { emailSent: false, message: 'If this address can be registered, a verification link will be sent. Check your inbox.' };
+    }
+
     const existingHandle = await this.usersService.findByAcademicHandle(academicHandle);
     if (existingHandle) throw new ConflictException('Academic handle already exists');
 
@@ -57,12 +63,11 @@ export class AuthService {
       await this.referralService.validateReferralCode(dto.referralCode, email);
     }
 
-    const user = await this.usersService.create({
+    const registrationData = {
       email,
       firstName: dto.firstName.trim(),
       lastName: dto.lastName.trim(),
       academicHandle,
-      password: await bcrypt.hash(dto.password, 12),
       role,
       institutionId: dto.institutionId,
       institution: dto.institution?.trim() || undefined,
@@ -70,19 +75,31 @@ export class AuthService {
       department: dto.department?.trim() || undefined,
       socialHandle: dto.socialHandle,
       socialLinks: dto.socialLinks,
-      authProvider: 'email',
+      authProvider: 'email' as const,
       isVerified: false,
-      emailVerified: false,
-    });
-
-    const emailSent = await this.issueEmailVerification(user, dto.referralCode && role === UserRole.STUDENT ? dto.referralCode : undefined);
-    return {
-      user: this.toSafeUser(user),
-      emailSent,
-      message: emailSent
-        ? 'Account created. Check your inbox and verify your email before signing in.'
-        : 'Your account was created, but the verification email could not be sent. Request a new verification link before signing in.',
+      emailVerified: true,
     };
+    const token = randomBytes(32).toString('base64url');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    await this.pendingRegistrations.delete({ expiresAt: LessThanOrEqual(new Date()) });
+    const existingPending = await this.pendingRegistrations.findOne({ where: { email } });
+    const pending = this.pendingRegistrations.create({
+      ...(existingPending ? { id: existingPending.id } : {}),
+      email,
+      registrationData,
+      tokenHash,
+      expiresAt: new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS),
+      referralCode: dto.referralCode && role === UserRole.STUDENT ? dto.referralCode : null,
+    });
+    await this.pendingRegistrations.save(pending);
+
+    try {
+      await this.verificationEmail.sendVerificationLink(email, token, registrationData.firstName);
+      return { emailSent: true, message: 'Check your inbox. Verify your email, then set your password to finish creating your account.' };
+    } catch (error) {
+      this.logger.error(`Registration verification email could not be sent: ${error instanceof Error ? error.message : 'unknown error'}`);
+      return { emailSent: false, message: 'Your registration request is saved temporarily. Request a new verification link before continuing.' };
+    }
   }
 
   async login(dto: LoginDto) {
@@ -96,7 +113,7 @@ export class AuthService {
         : await this.usersService.findByAcademicHandle(identifier);
     const passwordMatches = user?.password ? await bcrypt.compare(dto.password, user.password) : false;
     if (!user || !passwordMatches) throw new UnauthorizedException('Invalid credentials');
-    if (user.authProvider === 'email' && user.emailVerified === false) {
+    if (user.emailVerified !== true) {
       throw new ForbiddenException('Please verify your email address before signing in. Open the verification page to resend your activation link.');
     }
     if (user.accountStatus === 'pending_deletion') {
@@ -106,6 +123,7 @@ export class AuthService {
     if (user.accountStatus === 'deactivated') {
       user = await this.usersService.update(user.id, { accountStatus: 'active' });
     }
+    user = await this.usersService.update(user.id, { lastLoginAt: new Date() });
     return this.buildAuthResponse(user);
   }
 
@@ -116,8 +134,26 @@ export class AuthService {
 
   async resendEmailVerification(dto: { email: string }): Promise<{ message: string }> {
     const email = dto.email.trim().toLowerCase();
+    const pending = await this.pendingRegistrations.findOne({ where: { email } });
+    if (pending) {
+      const sentRecently = Date.now() - pending.updatedAt.getTime() < 60_000;
+      if (!sentRecently) {
+        const token = randomBytes(32).toString('base64url');
+        pending.tokenHash = createHash('sha256').update(token).digest('hex');
+        pending.expiresAt = new Date(Date.now() + EMAIL_VERIFICATION_TTL_MS);
+        await this.pendingRegistrations.save(pending);
+        const firstName = typeof pending.registrationData.firstName === 'string' ? pending.registrationData.firstName : undefined;
+        try {
+          await this.verificationEmail.sendVerificationLink(email, token, firstName);
+        } catch (error) {
+          this.logger.warn(`Pending registration verification resend failed: ${error instanceof Error ? error.message : 'unknown error'}`);
+        }
+      }
+      return { message: EMAIL_VERIFICATION_RESPONSE };
+    }
+
     const user = await this.usersService.findByEmail(email);
-    if (user && user.authProvider === 'email' && user.emailVerified === false) {
+    if (user && user.authProvider === 'email' && user.emailVerified !== true) {
       const latestToken = await this.verificationTokens.findOne({ where: { userId: user.id }, order: { createdAt: 'DESC' } });
       const sentRecently = latestToken && Date.now() - latestToken.createdAt.getTime() < 60_000;
       if (!sentRecently) await this.issueEmailVerification(user, latestToken?.referralCode);
@@ -125,26 +161,50 @@ export class AuthService {
     return { message: EMAIL_VERIFICATION_RESPONSE };
   }
 
-  async confirmEmailVerification(token: string): Promise<{ message: string }> {
+  async confirmEmailVerification(token: string, password: string): Promise<{ message: string }> {
     const tokenHash = createHash('sha256').update(token).digest('hex');
-    const tokenRecord = await this.verificationTokens.findOne({ where: { tokenHash } });
-    if (!tokenRecord || tokenRecord.expiresAt.getTime() <= Date.now()) {
-      // Keep an expired record until resend so any pending referral code can be carried forward.
-      throw new UnauthorizedException('This verification link is invalid or has expired. Request a new link and try again.');
+    const pending = await this.pendingRegistrations.findOne({ where: { tokenHash } });
+    if (pending) {
+      if (pending.expiresAt.getTime() <= Date.now()) {
+        throw new UnauthorizedException('This verification link is invalid or has expired. Request a new link and try again.');
+      }
+      const existing = await this.usersService.findByEmail(pending.email);
+      if (existing) {
+        await this.pendingRegistrations.delete({ id: pending.id });
+        if (existing.emailVerified === true) return { message: 'This email address is already verified. You can sign in.' };
+        throw new ConflictException('An account already exists for this email. Contact support to complete verification.');
+      }
+      const user = await this.usersService.create({
+        ...(pending.registrationData as Partial<User>),
+        email: pending.email,
+        password: await bcrypt.hash(password, 12),
+        authProvider: 'email',
+        emailVerified: true,
+      });
+      await this.pendingRegistrations.delete({ id: pending.id });
+
+      if (pending.referralCode && user.role === UserRole.STUDENT) {
+        try {
+          await this.referralService.redeemReferral(pending.referralCode, user);
+        } catch (error) {
+          this.logger.warn(`Referral attribution could not be completed after email verification for user ${user.id}: ${error instanceof Error ? error.message : 'unknown error'}`);
+        }
+      }
+      return { message: 'Your email has been verified and your account created. You can now sign in to Sophis Central.' };
     }
 
+    // Compatibility path for accounts created before pending-registration staging.
+    const tokenRecord = await this.verificationTokens.findOne({ where: { tokenHash } });
+    if (!tokenRecord || tokenRecord.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('This verification link is invalid or has expired. Request a new link and try again.');
+    }
     const user = await this.usersService.findOne(tokenRecord.userId);
     if (!user || user.authProvider !== 'email') {
       await this.verificationTokens.delete({ id: tokenRecord.id });
       throw new UnauthorizedException('This verification link is invalid or has expired. Request a new link and try again.');
     }
-
-    if (!user.emailVerified) {
-      await this.usersService.update(user.id, { emailVerified: true });
-    }
+    if (!user.emailVerified) await this.usersService.update(user.id, { emailVerified: true, password: await bcrypt.hash(password, 12) });
     await this.verificationTokens.delete({ userId: user.id });
-
-    // Referral rewards are only attributed after the referred email has been verified.
     if (tokenRecord.referralCode && user.role === UserRole.STUDENT) {
       try {
         await this.referralService.redeemReferral(tokenRecord.referralCode, user);
@@ -152,7 +212,6 @@ export class AuthService {
         this.logger.warn(`Referral attribution could not be completed after email verification for user ${user.id}: ${error instanceof Error ? error.message : 'unknown error'}`);
       }
     }
-
     return { message: 'Your email has been verified. You can now sign in to Sophis Central.' };
   }
 
