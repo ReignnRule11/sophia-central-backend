@@ -5,7 +5,13 @@ import { UsersService } from '../users/users.service';
 async function main() {
   const app = await NestFactory.createApplicationContext(AppModule, { logger: ['error', 'warn'] });
   try {
-    const result = await app.get(UsersService).purgeDueAccountDeletions();
+    const usersService = app.get(UsersService);
+    if (process.argv.includes('--dry-run')) {
+      const preview = await usersService.previewDueAccountDeletions();
+      console.log(`Account deletion dry run only. Eligible accounts: ${preview.eligible}; batch limit: ${preview.batchLimit}; additional eligible accounts remain for later runs: ${preview.hasMore ? 'yes' : 'no'}. No accounts or files were changed.`);
+      return;
+    }
+    const result = await usersService.purgeDueAccountDeletions();
     console.log(`Account deletion cleanup completed. Accounts permanently deleted: ${result.processed}`);
   } finally {
     await app.close();
