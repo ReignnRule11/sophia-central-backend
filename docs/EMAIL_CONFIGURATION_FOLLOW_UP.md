@@ -26,6 +26,7 @@ Use this checklist when the support mailbox and notification email work is sched
 - Deletion-request confirmation with the exact scheduled purge date and cancellation instructions.
 - Reminder around day 25 of the 30-day grace period.
 - Deletion-cancellation confirmation.
+- Verified security-question reset process for users who forget their answer.
 - User deactivation and reactivation notices where appropriate.
 - Moderator suspension/reactivation notices.
 - Recovery-appeal acknowledgement, verification request and final decision.
