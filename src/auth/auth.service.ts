@@ -64,6 +64,7 @@ export class AuthService {
       academicHandle,
       password: await bcrypt.hash(dto.password, 12),
       role,
+      institutionId: dto.institutionId,
       institution: dto.institution?.trim() || undefined,
       faculty: dto.faculty?.trim() || undefined,
       department: dto.department?.trim() || undefined,
