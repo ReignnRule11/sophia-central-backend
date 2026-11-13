@@ -17,10 +17,9 @@ export class TeachingAssignmentDto {
   @MaxLength(160)
   courseName!: string;
 
-  @IsOptional()
   @IsString()
   @MaxLength(80)
-  courseCode?: string;
+  courseCode!: string;
 
   @IsArray()
   @ArrayNotEmpty()
