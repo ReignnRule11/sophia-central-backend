@@ -2,6 +2,7 @@ import { ConflictException, ForbiddenException, UnauthorizedException } from '@n
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { AuthService } from './auth.service';
+import { UserRole } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordResetEmailService } from './password-reset-email.service';
@@ -105,7 +106,7 @@ describe('AuthService', () => {
     users.findByAcademicHandle.mockResolvedValue(null);
     const response = await service.register({
       firstName: ' Learner ', lastName: ' One ', email: 'LEARNER@example.com',
-      academicHandle: 'learner.one', role: 'student',
+      academicHandle: 'learner.one', role: UserRole.STUDENT,
     });
     expect(registrationTokens.seal).toHaveBeenCalledWith(expect.objectContaining({
       stage: 'verify', email: 'learner@example.com', firstName: 'Learner',
