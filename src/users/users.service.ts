@@ -196,7 +196,7 @@ export class UsersService {
 
 
   private normalizeSecurityAnswer(answer: string): string {
-    return answer.normalize('NFKC').trim().replace(/\\s+/g, ' ').toLocaleLowerCase('en-US');
+    return answer.normalize('NFKC').trim().replace(/\s+/g, ' ').toLocaleLowerCase('en-US');
   }
 
   private async getSensitiveAccount(id: string): Promise<User> {
