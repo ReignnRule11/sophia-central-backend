@@ -162,6 +162,16 @@ describe('AuthService', () => {
     expect(users.create).not.toHaveBeenCalled();
   });
 
+  it('allows sign-in with a permanent Institution ID and password', async () => {
+    const password = await bcrypt.hash('correct-horse-battery', 4);
+    const institutionId = 'SC-UNI-UNILAG-STU-7K4M9Q2D8X';
+    users.findByUniqueId.mockResolvedValue({ ...user, uniqueId: institutionId, password, emailVerified: true } as never);
+    await expect(service.login({ identifier: institutionId.toLowerCase(), password: 'correct-horse-battery' }))
+      .resolves.toEqual(expect.objectContaining({ accessToken: 'signed-access-token' }));
+    expect(users.findByUniqueId).toHaveBeenCalledWith(institutionId.toLowerCase());
+    expect(jwt.signAsync).toHaveBeenCalled();
+  });
+
   it('blocks password login until the email has been verified', async () => {
     const password = await bcrypt.hash('correct-horse-battery', 4);
     users.findByEmail.mockResolvedValue({ ...user, password, emailVerified: false } as never);
