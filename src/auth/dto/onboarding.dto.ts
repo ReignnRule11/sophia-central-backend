@@ -3,6 +3,7 @@ import {
   IsArray,
   IsOptional,
   IsString,
+  IsUUID,
   MaxLength,
   MinLength,
   Matches,
@@ -29,6 +30,9 @@ export class TeachingAssignmentDto {
 }
 
 export class OnboardingDto {
+  @IsUUID()
+  institutionId!: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(160)
