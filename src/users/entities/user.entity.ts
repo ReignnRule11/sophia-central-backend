@@ -2,11 +2,14 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinColumn,
+  ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { Resource } from '../../resources/entities/resource.entity';
+import { Institution } from '../../institutions/entities/institution.entity';
 
 export enum UserRole {
   STUDENT = 'student',
@@ -44,6 +47,13 @@ export class User {
   @Column({ type: 'varchar', length: 32, unique: true })
   uniqueId!: string;
 
+  @Column({ type: 'uuid', nullable: true })
+  institutionId?: string | null;
+
+  @ManyToOne(() => Institution, { nullable: true, onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'institutionId' })
+  institutionRecord?: Institution | null;
+
   @Column({ unique: true, type: 'varchar', length: 320 })
   email!: string;
 
@@ -71,8 +81,6 @@ export class User {
   @Column({ type: 'varchar', default: UserRole.STUDENT })
   role!: UserRole;
 
-  // Reviewer access is explicitly granted by an administrator. The previous
-  // student/lecturer role is retained so access can be revoked safely.
   @Column({ type: 'jsonb', nullable: true })
   reviewerExpertise?: string[];
 
@@ -106,7 +114,6 @@ export class User {
   @Column({ nullable: true, type: 'text' })
   bio?: string;
 
-  // Identity/academic verification is separate from email ownership verification.
   @Column({ default: false })
   isVerified!: boolean;
 
@@ -119,7 +126,6 @@ export class User {
   @Column({ type: 'text', nullable: true })
   suspensionReason?: string;
 
-  // User-controlled lifecycle state is separate from moderator-imposed suspension.
   @Column({ type: 'varchar', length: 24, default: 'active' })
   accountStatus!: 'active' | 'deactivated' | 'pending_deletion';
 
