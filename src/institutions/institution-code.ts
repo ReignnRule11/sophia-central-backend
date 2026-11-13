@@ -5,7 +5,7 @@ const knownCodes: Record<string, string> = {
   'university of lagos': 'UNILAG',
   'yaba college of technology': 'YABATECH',
   'federal college of education zaria': 'FCEZARIA',
-  'university of nigeria nsukka': 'UNN',
+  'university of nigeria nsukka': 'UNNS',
   'federal university of technology akure': 'FUTA',
 };
 
