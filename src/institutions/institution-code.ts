@@ -13,6 +13,9 @@ export function institutionTypeCode(type: string): string {
     case 'polytechnic': return 'POL';
     case 'monotechnic': return 'MON';
     case 'college_of_education': return 'COE';
+    case 'college_of_health_technology': return 'CHT';
+    case 'college_of_agriculture': return 'COA';
+    case 'other_college': return 'COL';
     default: return 'OTH';
   }
 }
