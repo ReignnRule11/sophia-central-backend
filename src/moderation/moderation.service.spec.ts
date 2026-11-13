@@ -2,6 +2,7 @@ import { ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ModerationService } from './moderation.service';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
 import { User, UserRole } from '../users/entities/user.entity';
+import { ResourceRewardOutbox } from '../points/entities/resource-reward-outbox.entity';
 
 describe('ModerationService academic reviewer workflow', () => {
   const resourceRepository = {
@@ -123,6 +124,8 @@ describe('ModerationService academic reviewer workflow', () => {
     }, reviewer);
 
     expect(pointsService.processResourceApprovalReward).toHaveBeenCalledWith('resource-student-1');
+    expect(resourceRepository.manager.transaction).toHaveBeenCalled();
+    expect(resourceRepository.manager.transaction.mock.calls.length).toBeGreaterThan(0);
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'student-1',
       'resource_approved',
