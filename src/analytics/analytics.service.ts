@@ -55,8 +55,8 @@ export class AnalyticsService {
   async getActivityAnalytics(role: UserRole) {
     if (![UserRole.STUDENT, UserRole.LECTURER].includes(role)) throw new BadRequestException('Analytics role must be student or lecturer.');
     const events = await this.activityRepository.createQueryBuilder('event')
-      .innerJoin(User, 'activityUser', 'activityUser.id::text = event."userId"')
-      .where('activityUser.role = :role', { role })
+      .innerJoin(User, 'activityUser', '"activityUser"."id"::text = event."userId"')
+      .where('"activityUser"."role" = :role', { role })
       .orderBy('event.createdAt', 'DESC')
       .getMany();
 
