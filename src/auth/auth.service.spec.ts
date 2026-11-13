@@ -263,22 +263,3 @@ describe('AuthService', () => {
     expect(verificationTokens.delete).toHaveBeenCalledWith({ userId: user.id });
   });
 });
-
-    verificationTokens.findOne.mockResolvedValue({
-      id: 'token-1', userId: user.id, tokenHash: 'hash',
-      expiresAt: new Date(Date.now() + 60_000),
-    });
-    users.findOne.mockResolvedValue({ ...user } as never);
-    users.update.mockResolvedValue({ ...user, emailVerified: true } as never);
-    const token = 'sample-verification-token';
-    const expectedHash = createHash('sha256').update(token).digest('hex');
-    verificationTokens.findOne.mockResolvedValue({
-      id: 'token-1', userId: user.id, tokenHash: expectedHash, expiresAt: new Date(Date.now() + 60_000),
-    });
-    await expect(service.confirmEmailVerification(token, 'correct-horse-battery')).resolves.toEqual({
-      message: 'Your email has been verified. You can now sign in to Sophis Central.',
-    });
-    expect(users.update).toHaveBeenCalledWith(user.id, expect.objectContaining({ emailVerified: true, password: expect.any(String) }));
-    expect(verificationTokens.delete).toHaveBeenCalledWith({ userId: user.id });
-  });
-});
