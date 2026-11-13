@@ -194,6 +194,119 @@ export class UsersService {
     await this.usersRepository.save(user);
   }
 
+
+  private normalizeSecurityAnswer(answer: string): string {
+    return answer.normalize('NFKC').trim().replace(/\\s+/g, ' ').toLocaleLowerCase('en-US');
+  }
+
+  private async getSensitiveAccount(id: string): Promise<User> {
+    const user = await this.usersRepository.createQueryBuilder('user')
+      .addSelect('user.password')
+      .addSelect('user.securityAnswerHash')
+      .where('user.id = :id', { id })
+      .getOne();
+    if (!user) throw new NotFoundException('User not found');
+    return user;
+  }
+
+  async getSecurityQuestionStatus(id: string) {
+    const user = await this.usersRepository.findOne({ where: { id }, select: ['id', 'securityQuestionId'] });
+    if (!user) throw new NotFoundException('User not found');
+    return { configured: Boolean(user.securityQuestionId), questionId: user.securityQuestionId ?? null };
+  }
+
+  async setSecurityQuestion(id: string, password: string, questionId: string, answer: string) {
+    const allowedQuestions = ['first_school', 'childhood_friend', 'first_pet', 'favorite_teacher', 'birth_city'];
+    if (!allowedQuestions.includes(questionId)) throw new BadRequestException('Choose one of the available security questions.');
+    const normalizedAnswer = this.normalizeSecurityAnswer(answer);
+    if (normalizedAnswer.length < 3) throw new BadRequestException('Your answer must contain at least 3 characters.');
+    const user = await this.getSensitiveAccount(id);
+    if (!user.password || !(await bcrypt.compare(password, user.password))) {
+      throw new UnauthorizedException('Your current password is incorrect.');
+    }
+    user.securityQuestionId = questionId;
+    user.securityAnswerHash = await bcrypt.hash(normalizedAnswer, 12);
+    await this.usersRepository.save(user);
+    return { success: true, configured: true, questionId };
+  }
+
+  async deactivateOwnAccount(id: string, password: string) {
+    const user = await this.getSensitiveAccount(id);
+    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
+      throw new ForbiddenException('This account type cannot be deactivated from its own settings.');
+    }
+    if (!user.password || !(await bcrypt.compare(password, user.password))) {
+      throw new UnauthorizedException('Your current password is incorrect.');
+    }
+    if (user.accountStatus === 'pending_deletion') {
+      throw new ConflictException('This account already has a pending deletion request.');
+    }
+    user.accountStatus = 'deactivated';
+    await this.usersRepository.save(user);
+    return { success: true, accountStatus: user.accountStatus };
+  }
+
+  async requestOwnAccountDeletion(id: string, password: string, securityAnswer: string) {
+    const user = await this.getSensitiveAccount(id);
+    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
+      throw new ForbiddenException('This account type cannot be deleted from its own settings.');
+    }
+    if (!user.password || !(await bcrypt.compare(password, user.password))) {
+      throw new UnauthorizedException('Your current password is incorrect.');
+    }
+    if (!user.securityQuestionId || !user.securityAnswerHash) {
+      throw new BadRequestException('Set up your account security question before requesting deletion.');
+    }
+    if (!(await bcrypt.compare(this.normalizeSecurityAnswer(securityAnswer), user.securityAnswerHash))) {
+      throw new UnauthorizedException('The security answer is incorrect.');
+    }
+    if (user.accountStatus === 'pending_deletion') {
+      throw new ConflictException('A deletion request is already pending for this account.');
+    }
+    const requestedAt = new Date();
+    user.accountStatus = 'pending_deletion';
+    user.deletionRequestedAt = requestedAt;
+    user.deletionScheduledAt = new Date(requestedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
+    await this.usersRepository.save(user);
+    return { success: true, accountStatus: user.accountStatus, deletionRequestedAt: user.deletionRequestedAt, deletionScheduledAt: user.deletionScheduledAt, gracePeriodDays: 30 };
+  }
+
+  async cancelPendingDeletion(email: string, password: string, securityAnswer: string) {
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.usersRepository.createQueryBuilder('user')
+      .addSelect('user.password')
+      .addSelect('user.securityAnswerHash')
+      .where('LOWER(user.email) = :email', { email: normalizedEmail })
+      .getOne();
+    if (!user || user.accountStatus !== 'pending_deletion' || !user.deletionScheduledAt || user.deletionScheduledAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('The account could not be restored with the supplied details.');
+    }
+    if (!user.password || !(await bcrypt.compare(password, user.password)) || !user.securityAnswerHash ||
+      !(await bcrypt.compare(this.normalizeSecurityAnswer(securityAnswer), user.securityAnswerHash))) {
+      throw new UnauthorizedException('The account could not be restored with the supplied details.');
+    }
+    user.accountStatus = 'active';
+    user.deletionRequestedAt = undefined;
+    user.deletionScheduledAt = undefined;
+    await this.usersRepository.save(user);
+    return { success: true, message: 'Your deletion request has been cancelled. You can now sign in.' };
+  }
+
+  async purgeDueAccountDeletions(): Promise<{ processed: number }> {
+    const dueAccounts = await this.usersRepository.find({
+      where: { accountStatus: 'pending_deletion', deletionScheduledAt: LessThanOrEqual(new Date()) },
+      select: ['id'],
+      take: 100,
+      order: { deletionScheduledAt: 'ASC' },
+    });
+    let processed = 0;
+    for (const account of dueAccounts) {
+      await this.removeAccountData(account.id);
+      processed += 1;
+    }
+    return { processed };
+  }
+
   private async removeAccountData(id: string): Promise<void> {
     await this.dataSource.transaction(async manager => {
       // Queue owned objects in the same transaction as the account-data deletion.
