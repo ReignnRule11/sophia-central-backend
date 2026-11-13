@@ -36,6 +36,15 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
 
   private async processOutboxEntry(outboxId: string): Promise<void> {
     try {
+      // Initialize a missing student wallet before opening the outbox transaction.
+      // This avoids nested database transactions while a row lock is held.
+      const candidate = await this.rewardOutboxRepository.findOne({ where: { id: outboxId } });
+      if (!candidate || candidate.status !== ResourceRewardStatus.PENDING) return;
+      const candidateUser = await this.userRepository.findOne({ where: { id: candidate.userId } });
+      if (candidateUser?.role === UserRole.STUDENT && !candidateUser.isSuspended) {
+        await this.getOrCreateWallet(candidate.userId);
+      }
+
       await this.rewardOutboxRepository.manager.transaction(async manager => {
         const job = await manager.findOne(ResourceRewardOutbox, {
           where: { id: outboxId },
@@ -51,10 +60,6 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
           await manager.save(ResourceRewardOutbox, job);
           return;
         }
-
-        // Preserve the existing student starter-credit behavior for accounts
-        // whose wallet has not yet been initialized.
-        await this.getOrCreateWallet(job.userId);
 
         const wallet = await manager.findOne(PointWallet, {
           where: { userId: job.userId },
