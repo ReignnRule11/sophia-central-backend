@@ -23,7 +23,7 @@ export class AddAccountLifecycle2026111300001 implements MigrationInterface {
           FROM pg_constraint
           WHERE conrelid = 'resources'::regclass
             AND contype = 'f'
-            AND conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid = 'resources'::regclass AND attname = 'uploaderId')]
+            AND (SELECT attname FROM pg_attribute WHERE attrelid = conrelid AND attnum = conkey[1]) = 'uploaderId'
         LOOP
           EXECUTE format('ALTER TABLE resources DROP CONSTRAINT %I', fk.conname);
         END LOOP;
