@@ -28,10 +28,6 @@ export class RegisterDto {
   @IsEmail()
   email: string;
 
-  @IsNotEmpty()
-  @MinLength(8)
-  password: string;
-
   @IsOptional()
   @IsString()
   @MaxLength(32)
