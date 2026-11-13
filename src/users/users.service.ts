@@ -142,6 +142,9 @@ export class UsersService {
       const user = await manager.findOne(User, { where: { id } });
       if (!user) throw new NotFoundException('User not found');
       const updateData = { ...data };
+      if ([UserRole.STUDENT, UserRole.LECTURER].includes(user.role) && updateData.institution !== undefined && !user.institutionId && !updateData.institutionId) {
+        throw new BadRequestException('Select your institution from the approved catalogue to receive your permanent Institution ID.');
+      }
       if (updateData.institutionId !== undefined) {
         if (!updateData.institutionId) throw new BadRequestException('Institution ID cannot be cleared.');
         if (user.institutionId && user.institutionId !== updateData.institutionId) {
