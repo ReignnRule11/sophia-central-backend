@@ -25,6 +25,7 @@ export class CommunityResourcesService {
     if (![UserRole.STUDENT, UserRole.LECTURER].includes(uploader.role)) {
       throw new BadRequestException('Only students and lecturers can contribute resources.');
     }
+    if (!uploader.institutionId) throw new BadRequestException('Complete your catalogue-backed institution setup before uploading academic materials.');
     const resource = this.resources.create({
       ...dto,
       uploader,
