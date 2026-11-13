@@ -51,18 +51,18 @@ export class ResourcesService {
   }
 
   /**
-   * The shared library is approved-only for every role.
-   * Lecturer-owned submissions and moderator decisions use their separate history endpoints.
+   * Students and lecturers browse approved resources only. Moderators and admins have
+   * platform-wide visibility for resource oversight; reviewers use assigned review access.
    */
   async findVisibleTo(viewer: User): Promise<Resource[]> {
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to resources.');
     }
 
-    // Reviewer, moderator and admin accounts need platform-wide visibility for moderation and support.
-    // Students and lecturers see only approved resources in the shared library.
+    // Only moderators and admins receive platform-wide resource visibility.
+    // Reviewers use the assigned-review queue; their shared library remains approved-only.
     const resources = await this.resourceRepository.find({
-      ...([UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { where: { moderationStatus: ResourceModerationStatus.APPROVED } }),
+      ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { where: { moderationStatus: ResourceModerationStatus.APPROVED } }),
       relations: ['uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -79,7 +79,7 @@ export class ResourcesService {
   async findSavedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const savedEntries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, isSaved: true, ...( [UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
+      where: { userId: viewer.id, isSaved: true, ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
       relations: ['resource', 'resource.uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -94,7 +94,7 @@ export class ResourcesService {
   async findDownloadedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const entries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
+      where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
       relations: ['resource', 'resource.uploader'],
       order: { downloadedAt: 'DESC' },
     });
@@ -104,7 +104,7 @@ export class ResourcesService {
   async saveForUser(id: string, viewer: User): Promise<{ saved: true; resourceId: string }> {
     this.assertCanSave(viewer);
     const resource = await this.findOneForViewer(id, viewer, false);
-    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && ![UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role) && !(viewer.role === UserRole.LECTURER && resource.uploaderId === viewer.id)) {
+    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && !(viewer.role === UserRole.LECTURER && resource.uploaderId === viewer.id)) {
       throw new NotFoundException('Approved resource not found');
     }
 
@@ -120,8 +120,8 @@ export class ResourcesService {
 
   async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
     this.assertCanSave(viewer);
-    if ([UserRole.MODERATOR, UserRole.REVIEWER, UserRole.ADMIN].includes(viewer.role)) {
-      throw new ForbiddenException('Moderation accounts can preview and save resources, but cannot download them.');
+    if (viewer.role === UserRole.REVIEWER) {
+      throw new ForbiddenException('Academic reviewers can preview assigned resources but cannot download them.');
     }
     const resource = await this.findOneForViewer(id, viewer, false);
     const ownUpload = resource.uploaderId === viewer.id;
@@ -174,15 +174,15 @@ export class ResourcesService {
       throw new ForbiddenException('You do not have access to this resource.');
     }
 
-    const isPlatformModerator = [UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
+    const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
     const isAssignedReviewer = viewer.role === UserRole.REVIEWER && !viewer.isSuspended && resource.assignedReviewerId === viewer.id;
-    const isReviewer = isPlatformModerator || isAssignedReviewer;
+    const hasModerationAccess = isPlatformModerator || isAssignedReviewer;
     const isUploader = resource.uploaderId === viewer.id;
 
     // Contributors may inspect their own submissions (including pending/rejected
     // moderation states). Other students/lecturers must only see approved items.
-    // Reviewers retain platform-wide access for moderation and support.
-    if (!isReviewer && !isUploader &&
+    // Reviewers may inspect only resources assigned to them; moderators/admins have platform oversight.
+    if (!hasModerationAccess && !isUploader &&
         resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
       // Do not disclose whether another contributor's private resource exists.
       throw new NotFoundException('Resource not found');
@@ -198,8 +198,8 @@ export class ResourcesService {
   }
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string; filename: string; contentType?: string }> {
-    if (download && [UserRole.MODERATOR, UserRole.REVIEWER, UserRole.ADMIN].includes(viewer.role)) {
-      throw new ForbiddenException('Moderation accounts can preview resources but cannot download them.');
+    if (download && viewer.role === UserRole.REVIEWER) {
+      throw new ForbiddenException('Academic reviewers can preview assigned resources but cannot download them.');
     }
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
     if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
