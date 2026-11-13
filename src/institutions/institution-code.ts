@@ -20,9 +20,9 @@ export function institutionTypeCode(type: string): string {
   }
 }
 
-export function generateInstitutionCode(name: string, type: InstitutionType | string, id = ''): string {
-  const normalized = name.normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '')
-    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\\s+/g, ' ');
+export function generateInstitutionCode(name: string, type: string, id = ''): string {
+  const normalized = name.normalize('NFKD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim().replace(/\s+/g, ' ');
   const known = knownCodes[normalized];
   if (known) return known;
 
