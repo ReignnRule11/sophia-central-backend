@@ -43,7 +43,7 @@ Use the Resend template editor's variable syntax for the values above, and publi
 - `POST /auth/onboarding/complete`: accepts the pre-account token and required academic profile. Only this endpoint creates the user row, permanent Institution ID, account creation timestamp, and signed-in session.
 - `POST /auth/login`: rejects email/password accounts until `emailVerified` is true. New accounts do not exist until onboarding is complete.
 
-Activation tokens are stored as SHA-256 hashes, expire after 24 hours, and are replaced when a new activation email is issued. Existing accounts are marked email-verified by the migration so current users are not locked out. The existing `isVerified` field remains separate and continues to represent the platform's existing account/academic verification state.
+New registration and pre-account tickets are encrypted with AES-256-GCM, expire after 24 hours, and are not stored in PostgreSQL. The password hash is carried only inside the encrypted pre-account ticket until final onboarding. Existing legacy verification tokens for already-created accounts remain SHA-256 hashed and are consumed through the compatibility path. The existing `isVerified` field remains separate and continues to represent the platform's existing account/academic verification state.
 
 ## Deployment
 
