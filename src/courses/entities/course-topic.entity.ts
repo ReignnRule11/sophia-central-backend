@@ -11,20 +11,20 @@ import { Course } from './course.entity';
 @Entity({ name: 'course_topics' })
 export class CourseTopic {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  title: string;
+  title!: string;
 
   @Column({ type: 'text', nullable: true })
   description?: string;
 
   @ManyToOne(() => Course, (course) => course.topics, { onDelete: 'CASCADE' })
-  course: Course;
+  course!: Course;
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }
