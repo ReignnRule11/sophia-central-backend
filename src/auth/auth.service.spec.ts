@@ -9,7 +9,7 @@ import { EmailVerificationEmailService } from './email-verification-email.servic
 
 describe('AuthService', () => {
   let service: AuthService;
-  let users: jest.Mocked<Pick<UsersService, 'findByEmail' | 'findByAcademicHandle' | 'create' | 'update' | 'findOne'>>;
+  let users: jest.Mocked<Pick<UsersService, 'findByEmail' | 'findByAcademicHandle' | 'findByUniqueId' | 'create' | 'update' | 'findOne'>>;
   let jwt: jest.Mocked<Pick<JwtService, 'signAsync'>>;
   let resetTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock; createQueryBuilder: jest.Mock };
   let verificationTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock };
@@ -23,7 +23,7 @@ describe('AuthService', () => {
   };
 
   beforeEach(() => {
-    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), create: jest.fn(), update: jest.fn(), findOne: jest.fn() };
+    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), update: jest.fn(), findOne: jest.fn() };
     jwt = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
     resetTokens = {
       delete: jest.fn().mockResolvedValue({ affected: 1 }), save: jest.fn().mockResolvedValue({}),
@@ -99,7 +99,7 @@ describe('AuthService', () => {
     users.findByAcademicHandle.mockResolvedValue(null);
     users.create.mockImplementation(async (data) => ({ ...user, ...data }) as never);
     const response = await service.register({
-      firstName: ' Learner ', lastName: ' One ', email: 'LEARNER@example.com',
+      firstName: ' Learner ', lastName: ' One ', email: 'LEARNER@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
       password: 'correct-horse-battery', academicHandle: 'learner.one',
     });
     const saved = users.create.mock.calls[0][0];
@@ -129,7 +129,7 @@ describe('AuthService', () => {
       twitter: 'https://x.com/learner_one',
     };
     const response = await service.register({
-      firstName: 'Learner', lastName: 'One', email: 'learner@example.com',
+      firstName: 'Learner', lastName: 'One', email: 'learner@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
       password: 'correct-horse-battery', institution: 'Example University', faculty: 'Science',
       department: 'Computer Science', academicHandle: 'learner.one', socialHandle: 'learner.one', socialLinks,
     });
@@ -147,7 +147,7 @@ describe('AuthService', () => {
     users.findByEmail.mockResolvedValue(null);
     users.findByAcademicHandle.mockResolvedValue(user as never);
     await expect(service.register({
-      firstName: 'Another', lastName: 'Learner', email: 'another@example.com',
+      firstName: 'Another', lastName: 'Learner', email: 'another@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
       password: 'correct-horse-battery', academicHandle: '@learner.one',
     })).rejects.toBeInstanceOf(ConflictException);
     expect(users.create).not.toHaveBeenCalled();
@@ -156,7 +156,7 @@ describe('AuthService', () => {
   it('rejects duplicate email registration', async () => {
     users.findByEmail.mockResolvedValue(user as never);
     await expect(service.register({
-      firstName: 'Learner', lastName: 'One', email: 'learner@example.com',
+      firstName: 'Learner', lastName: 'One', email: 'learner@example.com', institutionId: '00000000-0000-4000-8000-000000000001',
       password: 'correct-horse-battery', academicHandle: 'learner.one',
     })).rejects.toBeInstanceOf(ConflictException);
     expect(users.create).not.toHaveBeenCalled();
