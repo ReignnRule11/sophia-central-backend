@@ -117,12 +117,11 @@ describe('ModerationService academic reviewer workflow', () => {
       title: 'Cell Biology Notes',
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
-      assignedReviewerId: null,
+      assignedReviewerId: 'reviewer-1',
       uploaderId: 'student-1',
       uploader: { id: 'student-1', role: UserRole.STUDENT },
     };
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
-    resource.assignedReviewerId = reviewer.id;
     resourceRepository.findOne.mockResolvedValue(resource);
     userRepository.findOne.mockResolvedValue(reviewer);
     resourceRepository.save.mockImplementation(async value => value);
@@ -152,7 +151,7 @@ describe('ModerationService academic reviewer workflow', () => {
       title: 'Lecture Slides',
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
-      assignedReviewerId: null,
+      assignedReviewerId: 'reviewer-1',
       uploaderId: 'lecturer-1',
       uploader: { id: 'lecturer-1', role: UserRole.LECTURER },
     };
