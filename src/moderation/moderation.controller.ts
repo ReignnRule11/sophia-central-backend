@@ -22,13 +22,13 @@ export class ModerationController {
   constructor(private readonly moderationService: ModerationService, private readonly supportService: SupportService, private readonly supportEmail: SupportEmailService) {}
 
   @Get('queue')
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER)
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   getQueue(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getQueue(request.user);
   }
 
   @Get('history')
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER)
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   getHistory(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getHistory(request.user);
   }
@@ -56,13 +56,13 @@ export class ModerationController {
   }
 
   @Patch('resources/:id/assign-reviewer')
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  @Roles(UserRole.ADMIN)
   assignReviewer(@Param('id') id: string, @Body() dto: AssignReviewerDto) {
     return this.moderationService.assignReviewer(id, dto.reviewerId);
   }
 
   @Patch('resources/:id/review')
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN, UserRole.REVIEWER)
+  @Roles(UserRole.REVIEWER)
   reviewResource(
     @Param('id') id: string,
     @Body() dto: ReviewResourceDto,
