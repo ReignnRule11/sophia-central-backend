@@ -15,7 +15,7 @@ export class AddAccountLifecycle2026111300001 implements MigrationInterface {
     // Approved academic contributions are shared platform content. Detach their
     // uploader identity instead of cascading their deletion with the user row.
     await queryRunner.query(`
-      DO $
+      DO $block$
       DECLARE fk record;
       BEGIN
         FOR fk IN
@@ -27,7 +27,7 @@ export class AddAccountLifecycle2026111300001 implements MigrationInterface {
         LOOP
           EXECUTE format('ALTER TABLE resources DROP CONSTRAINT %I', fk.conname);
         END LOOP;
-      END $;
+      END $block$;
     `);
     await queryRunner.query('ALTER TABLE "resources" ALTER COLUMN "uploaderId" DROP NOT NULL');
     await queryRunner.query('ALTER TABLE "resources" ADD CONSTRAINT "FK_resources_uploader_anonymize" FOREIGN KEY ("uploaderId") REFERENCES "users"("id") ON DELETE SET NULL');
@@ -41,12 +41,12 @@ export class AddAccountLifecycle2026111300001 implements MigrationInterface {
 
   async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
-      DO $
+      DO $block$
       BEGIN
         IF EXISTS (SELECT 1 FROM resources WHERE "uploaderId" IS NULL) THEN
           RAISE EXCEPTION 'Cannot roll back uploader anonymization while approved resources have null uploaderId values.';
         END IF;
-      END $;
+      END $block$;
     `);
     await queryRunner.query('ALTER TABLE "resources" DROP CONSTRAINT IF EXISTS "FK_resources_uploader_anonymize"');
     await queryRunner.query('ALTER TABLE "resources" ALTER COLUMN "uploaderId" SET NOT NULL');
