@@ -95,10 +95,10 @@ export class AuthService {
     if (user.authProvider === 'email' && user.emailVerified === false) {
       throw new ForbiddenException('Please verify your email address before signing in. Open the verification page to resend your activation link.');
     }
-    if (user.isSuspended) throw new UnauthorizedException('This account is suspended. Contact Sophis Central support for assistance.');
     if (user.accountStatus === 'pending_deletion') {
       throw new ForbiddenException('This account has a pending deletion request. Cancel the request during the 30-day grace period before signing in.');
     }
+    if (user.isSuspended) throw new UnauthorizedException('This account is suspended. Contact Sophis Central support for assistance.');
     if (user.accountStatus === 'deactivated') {
       user = await this.usersService.update(user.id, { accountStatus: 'active' });
     }
