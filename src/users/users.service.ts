@@ -311,6 +311,14 @@ export class UsersService {
     return { success: true, message: 'Your deletion request has been cancelled. You can now sign in.' };
   }
 
+  async previewDueAccountDeletions(): Promise<{ eligible: number; batchLimit: number; hasMore: boolean }> {
+    const eligible = await this.usersRepository.count({
+      where: { accountStatus: 'pending_deletion', deletionScheduledAt: LessThanOrEqual(new Date()) },
+    });
+    const batchLimit = 100;
+    return { eligible, batchLimit, hasMore: eligible > batchLimit };
+  }
+
   async purgeDueAccountDeletions(): Promise<{ processed: number }> {
     const dueAccounts = await this.usersRepository.find({
       where: { accountStatus: 'pending_deletion', deletionScheduledAt: LessThanOrEqual(new Date()) },
