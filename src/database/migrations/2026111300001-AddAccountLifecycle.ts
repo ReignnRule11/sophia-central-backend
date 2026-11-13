@@ -12,6 +12,26 @@ export class AddAccountLifecycle2026111300001 implements MigrationInterface {
         ADD COLUMN IF NOT EXISTS "securityQuestionId" varchar(48) NULL,
         ADD COLUMN IF NOT EXISTS "securityAnswerHash" text NULL
     `);
+    // Approved academic contributions are shared platform content. Detach their
+    // uploader identity instead of cascading their deletion with the user row.
+    await queryRunner.query(`
+      DO $
+      DECLARE fk record;
+      BEGIN
+        FOR fk IN
+          SELECT conname
+          FROM pg_constraint
+          WHERE conrelid = 'resources'::regclass
+            AND contype = 'f'
+            AND conkey = ARRAY[(SELECT attnum FROM pg_attribute WHERE attrelid = 'resources'::regclass AND attname = 'uploaderId')]
+        LOOP
+          EXECUTE format('ALTER TABLE resources DROP CONSTRAINT %I', fk.conname);
+        END LOOP;
+      END $;
+    `);
+    await queryRunner.query('ALTER TABLE "resources" ALTER COLUMN "uploaderId" DROP NOT NULL');
+    await queryRunner.query('ALTER TABLE "resources" ADD CONSTRAINT "FK_resources_uploader_anonymize" FOREIGN KEY ("uploaderId") REFERENCES "users"("id") ON DELETE SET NULL');
+
     await queryRunner.query(`
       CREATE INDEX IF NOT EXISTS "IDX_users_account_deletion_due"
       ON "users" ("deletionScheduledAt")
@@ -20,6 +40,17 @@ export class AddAccountLifecycle2026111300001 implements MigrationInterface {
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
+      DO $
+      BEGIN
+        IF EXISTS (SELECT 1 FROM resources WHERE "uploaderId" IS NULL) THEN
+          RAISE EXCEPTION 'Cannot roll back uploader anonymization while approved resources have null uploaderId values.';
+        END IF;
+      END $;
+    `);
+    await queryRunner.query('ALTER TABLE "resources" DROP CONSTRAINT IF EXISTS "FK_resources_uploader_anonymize"');
+    await queryRunner.query('ALTER TABLE "resources" ALTER COLUMN "uploaderId" SET NOT NULL');
+    await queryRunner.query('ALTER TABLE "resources" ADD CONSTRAINT "FK_resources_uploader_restore" FOREIGN KEY ("uploaderId") REFERENCES "users"("id") ON DELETE CASCADE');
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_users_account_deletion_due"');
     await queryRunner.query(`
       ALTER TABLE "users"
