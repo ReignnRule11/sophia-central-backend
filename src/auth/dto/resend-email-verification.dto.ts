@@ -1,4 +1,5 @@
-import { IsEmail } from 'class-validator';
+import { IsEmail, IsIn, IsNotEmpty, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { UserRole } from '../../users/entities/user.entity';
 
 export class ResendEmailVerificationDto {
   @IsEmail()
