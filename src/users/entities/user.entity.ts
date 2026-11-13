@@ -119,6 +119,22 @@ export class User {
   @Column({ type: 'text', nullable: true })
   suspensionReason?: string;
 
+  // User-controlled lifecycle state is separate from moderator-imposed suspension.
+  @Column({ type: 'varchar', length: 24, default: 'active' })
+  accountStatus!: 'active' | 'deactivated' | 'pending_deletion';
+
+  @Column({ type: 'timestamptz', nullable: true })
+  deletionRequestedAt?: Date;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  deletionScheduledAt?: Date;
+
+  @Column({ type: 'varchar', length: 48, nullable: true })
+  securityQuestionId?: string;
+
+  @Column({ type: 'text', nullable: true, select: false })
+  securityAnswerHash?: string;
+
   @Column({ default: false })
   isProfileComplete!: boolean;
 
