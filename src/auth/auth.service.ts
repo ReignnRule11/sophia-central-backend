@@ -88,9 +88,12 @@ export class AuthService {
   async login(dto: LoginDto) {
     const identifier = dto.identifier.trim();
     const looksLikeEmail = identifier.indexOf('@') > 0 && identifier.slice(identifier.lastIndexOf('@') + 1).includes('.');
+    const looksLikeInstitutionId = /^SC-/i.test(identifier);
     let user = looksLikeEmail
       ? await this.usersService.findByEmail(identifier.toLowerCase())
-      : await this.usersService.findByAcademicHandle(identifier);
+      : looksLikeInstitutionId
+        ? await this.usersService.findByUniqueId(identifier)
+        : await this.usersService.findByAcademicHandle(identifier);
     const passwordMatches = user?.password ? await bcrypt.compare(dto.password, user.password) : false;
     if (!user || !passwordMatches) throw new UnauthorizedException('Invalid credentials');
     if (user.authProvider === 'email' && user.emailVerified === false) {
