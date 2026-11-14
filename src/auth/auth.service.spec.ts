@@ -227,6 +227,31 @@ describe('AuthService', () => {
     expect(jwt.signAsync).not.toHaveBeenCalled();
   });
 
+  it('saves partial onboarding progress inside the encrypted registration draft', async () => {
+    const draft = {
+      email: user.email,
+      academicHandle: 'learner.one',
+      encryptedPayload: 'old-encrypted-draft',
+      expiresAt: new Date(Date.now() + 60_000),
+    };
+    registrationTokens.open
+      .mockReturnValueOnce({ stage: 'pre-account', email: user.email, jti: 'resume-jti', expiresAt: Date.now() + 60_000 })
+      .mockReturnValueOnce({ stage: 'pre-account-draft', email: user.email, firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one', role: UserRole.STUDENT, expiresAt: Date.now() + 60_000 });
+    registrationDrafts.findOne.mockResolvedValue(draft);
+    registrationTokens.seal.mockReturnValue('updated-encrypted-draft');
+
+    await expect(service.savePreAccountProgress('resume-token', { step: 2, facultySearch: 'Faculty of Science', ignored: 'not persisted' }))
+      .resolves.toEqual({ saved: true });
+
+    expect(registrationTokens.seal).toHaveBeenCalledWith(expect.objectContaining({
+      stage: 'pre-account-draft',
+      onboardingProgress: { step: 2, facultySearch: 'Faculty of Science' },
+    }));
+    expect(registrationDrafts.save).toHaveBeenCalledWith(expect.objectContaining({
+      email: user.email, encryptedPayload: 'updated-encrypted-draft',
+    }));
+  });
+
   it('reports academic handle availability and rejects an existing handle', async () => {
     users.findByAcademicHandle.mockResolvedValue(null);
     registrationDrafts.findOne.mockResolvedValue(null);
