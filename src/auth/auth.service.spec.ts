@@ -215,7 +215,7 @@ describe('AuthService', () => {
     users.findByAcademicHandle.mockResolvedValue(null);
     registrationTokens.seal.mockReturnValue('pre-account-token');
     await expect(service.confirmEmailVerification('encrypted-verification-token', 'owner-chosen-password')).resolves.toEqual({
-      message: 'Your email has been verified. Complete your academic profile to create your Sophis Central account.',
+      message: 'Your email has been verified. Your pre-account is saved. Complete your academic profile now or sign in later to resume.',
       onboardingToken: 'pre-account-token',
       preAccount: { email: 'learner@example.com', firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one', role: 'student' },
     });
@@ -225,6 +225,34 @@ describe('AuthService', () => {
     }));
     expect(users.create).not.toHaveBeenCalled();
     expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('authenticates a saved pre-account by email and returns a resumable onboarding token', async () => {
+    const password = await bcrypt.hash('correct-horse-battery', 4);
+    preAccounts.findOne.mockResolvedValue({ email: user.email, password });
+    registrationDrafts.findOne.mockResolvedValue({
+      email: user.email,
+      academicHandle: 'learner.one',
+      encryptedPayload: 'encrypted-draft',
+      expiresAt: new Date(Date.now() + 60_000),
+    });
+    registrationTokens.open.mockReturnValue({
+      stage: 'pre-account-draft',
+      expiresAt: Date.now() + 60_000,
+      email: user.email,
+      firstName: 'Learner',
+      lastName: 'One',
+      academicHandle: 'learner.one',
+      role: UserRole.STUDENT,
+    });
+    const response = await service.login({ identifier: user.email, password: 'correct-horse-battery' });
+    expect(response).toEqual(expect.objectContaining({
+      preAccountRequired: true,
+      onboardingToken: expect.any(String),
+      preAccount: expect.objectContaining({ email: user.email, academicHandle: 'learner.one', role: UserRole.STUDENT }),
+    }));
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+    expect(users.create).not.toHaveBeenCalled();
   });
 
   it('creates the permanent account only after required student onboarding is complete', async () => {
@@ -255,17 +283,18 @@ describe('AuthService', () => {
   });
 
   it('rejects student onboarding without an academic level before creating an account', async () => {
-    registrationTokens.open.mockReturnValue({
-      stage: 'pre-account', jti: 'pre-account-jti', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
-      firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one',
-      role: UserRole.STUDENT, passwordHash: 'stored-password-hash',
-    });
+    registrationTokens.open
+      .mockReturnValueOnce({ stage: 'pre-account', jti: 'pre-account-jti', expiresAt: Date.now() + 60_000, email: 'learner@example.com' })
+      .mockReturnValueOnce({ stage: 'pre-account-draft', expiresAt: Date.now() + 60_000, email: 'learner@example.com', firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one', role: UserRole.STUDENT });
+    preAccounts.findOne.mockResolvedValue({ email: 'learner@example.com', password: 'stored-password-hash' });
+    registrationDrafts.findOne.mockResolvedValue({ email: 'learner@example.com', encryptedPayload: 'encrypted-draft', expiresAt: new Date(Date.now() + 60_000) });
     await expect(service.completePreAccountOnboarding('pre-account-token', {
       institutionId: '00000000-0000-4000-8000-000000000001',
       faculty: 'Faculty of Science', department: 'Computer Science',
       programme: 'B.Sc. Computer Science',
     } as never)).rejects.toBeInstanceOf(BadRequestException);
     expect(users.create).not.toHaveBeenCalled();
+    expect(users.createWithManager).not.toHaveBeenCalled();
   });
 
   it('confirms an unexpired verification token and marks the user email as verified', async () => {
