@@ -51,7 +51,7 @@ export class UpdateUserDto {
   @IsOptional()
   @IsString()
   @MaxLength(160)
-  programme?: string;
+  program?: string;
 
   @IsOptional()
   @IsArray()

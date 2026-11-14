@@ -25,7 +25,7 @@ The onboarding/profile model supports academic details used by the student workf
 - Institution
 - Faculty
 - Department
-- Programme
+- Program
 - Study level
 - Bio and social profile fields where supported
 
@@ -36,7 +36,7 @@ The onboarding/profile model supports lecturer academic details, including:
 - Department
 - Courses taught
 
-Programme and lecturer courses-taught persistence are backed by the migration and service/DTO updates introduced for the wireframe-alignment work. Apply pending migrations before deploying code that depends on these fields.
+Program and lecturer courses-taught persistence are backed by the migration and service/DTO updates introduced for the wireframe-alignment work. Apply pending migrations before deploying code that depends on these fields.
 
 ### Academic resources and moderation
 The backend supports the API boundary used by the frontend's resource library, upload, and moderation workflows. The expected product flow is:

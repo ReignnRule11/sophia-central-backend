@@ -77,7 +77,7 @@ describe('ReferralService hybrid reward eligibility', () => {
       id: 'event-1', referrerId: 'referrer-1', rewardStatus: 'pending',
       referredUser: {
         id: 'student-2', role: UserRole.STUDENT, emailVerified: true, isProfileComplete: true,
-        isSuspended: false, institution: 'University B', faculty: 'Science', department: 'Biology', programme: 'B.Sc. Biology',
+        isSuspended: false, institution: 'University B', faculty: 'Science', department: 'Biology', program: 'B.Sc. Biology',
       },
       referrer: { id: 'referrer-1', role: UserRole.STUDENT, isSuspended: false, institution: 'University A' },
     });
@@ -91,7 +91,7 @@ describe('ReferralService hybrid reward eligibility', () => {
       referredUser: {
         id: 'student-3', role: UserRole.STUDENT, emailVerified: true, isProfileComplete: true,
         isSuspended: false, institution: 'New Institution', faculty: 'School of Computing',
-        department: 'Software Engineering', programme: 'B.Sc. Software Engineering',
+        department: 'Software Engineering', program: 'B.Sc. Software Engineering',
       },
       referrer: { id: 'referrer-1', role: UserRole.STUDENT, isSuspended: false },
     };
@@ -104,7 +104,7 @@ describe('ReferralService hybrid reward eligibility', () => {
     expect(points.awardReferralReward).not.toHaveBeenCalled();
   });
 
-  it('keeps a verified referral pending until the referred student supplies a programme', async () => {
+  it('keeps a verified referral pending until the referred student supplies a program', async () => {
     const event = {
       id: 'event-1', rewardStatus: 'pending', referrerId: 'referrer-1',
       referredUser: {
@@ -125,7 +125,7 @@ describe('ReferralService hybrid reward eligibility', () => {
       id: 'event-1', rewardStatus: 'pending', referrerId: 'referrer-1',
       referredUser: {
         id: 'student-2', role: UserRole.STUDENT, emailVerified: true, isProfileComplete: true,
-        isSuspended: true, institution: 'University B', faculty: 'Science', department: 'Biology', programme: 'B.Sc. Biology',
+        isSuspended: true, institution: 'University B', faculty: 'Science', department: 'Biology', program: 'B.Sc. Biology',
       },
       referrer: { id: 'referrer-1', role: UserRole.STUDENT, isSuspended: false },
     };
