@@ -58,12 +58,26 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const academicHandle = dto.academicHandle.trim().replace(/^@/, '').toLowerCase();
     const existingUser = await this.usersService.findByEmail(email);
-    const existingPreAccount = await this.preAccounts.findOne({ where: { email } });
-    if (existingUser || existingPreAccount) {
+    let existingPreAccount = await this.preAccounts.findOne({ where: { email } });
+    const existingDraft = await this.registrationDrafts.findOne({ where: { email } });
+    if (existingDraft && existingDraft.expiresAt.getTime() <= Date.now()) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(PreAccount).delete({ email });
+        await manager.getRepository(RegistrationDraft).delete({ email });
+      });
+      existingPreAccount = null;
+    }
+    if (existingUser || existingPreAccount || (existingDraft && existingDraft.expiresAt.getTime() > Date.now())) {
       return { emailSent: false, message: 'If this address can be registered, a verification link will be sent. Check your inbox.' };
     }
     const existingHandle = await this.usersService.findByAcademicHandle(academicHandle);
     const reservedHandle = await this.registrationDrafts.findOne({ where: { academicHandle } });
+    if (reservedHandle && reservedHandle.expiresAt.getTime() <= Date.now()) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(PreAccount).delete({ email: reservedHandle.email });
+        await manager.getRepository(RegistrationDraft).delete({ email: reservedHandle.email });
+      });
+    }
     if (existingHandle || (reservedHandle && reservedHandle.expiresAt.getTime() > Date.now())) throw new ConflictException('Academic handle taken');
 
     const role = dto.role ?? UserRole.STUDENT;
@@ -362,6 +376,12 @@ export class AuthService {
       this.usersService.findByAcademicHandle(normalized),
       this.registrationDrafts.findOne({ where: { academicHandle: normalized } }),
     ]);
+    if (draft && draft.expiresAt.getTime() <= Date.now()) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(PreAccount).delete({ email: draft.email });
+        await manager.getRepository(RegistrationDraft).delete({ email: draft.email });
+      });
+    }
     const available = !user && (!draft || draft.expiresAt.getTime() <= Date.now());
     return { available, message: available ? 'Academic handle available' : 'Academic handle taken' };
   }
