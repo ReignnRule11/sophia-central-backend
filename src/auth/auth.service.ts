@@ -317,7 +317,7 @@ export class AuthService {
       throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
     }
     if (role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !dto.program?.trim())) {
-      throw new BadRequestException('Your current academic level and programme are required.');
+      throw new BadRequestException('Your current academic level and program are required.');
     }
     if (role === UserRole.LECTURER && (!dto.teachingAssignments?.length || !dto.coursesTaught?.length)) {
       throw new BadRequestException('Add at least one course taught, including its course code and academic level.');
@@ -482,7 +482,7 @@ export class AuthService {
       throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
     }
     if (currentUser.role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !dto.program?.trim())) {
-      throw new BadRequestException('Your current academic level and programme are required.');
+      throw new BadRequestException('Your current academic level and program are required.');
     }
     if (currentUser.role === UserRole.LECTURER && (!dto.teachingAssignments?.length || !dto.coursesTaught?.length)) {
       throw new BadRequestException('Add at least one course taught, including its course code and academic level.');
