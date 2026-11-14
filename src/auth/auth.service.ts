@@ -316,7 +316,7 @@ export class AuthService {
     if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
       throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
     }
-    if (role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !(dto.program ?? dto.program)?.trim())) {
+    if (role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !(dto.program)?.trim())) {
       throw new BadRequestException('Your current academic level and program are required.');
     }
     if (role === UserRole.LECTURER && (!dto.teachingAssignments?.length || !dto.coursesTaught?.length)) {
@@ -349,7 +349,7 @@ export class AuthService {
           institution: dto.institution,
           faculty: dto.faculty?.trim() ?? '',
           department: dto.department?.trim() ?? '',
-          program: (dto.program ?? dto.program)?.trim(),
+          program: (dto.program)?.trim(),
           studyLevel: dto.studyLevel?.trim(),
           coursesTaught: dto.coursesTaught,
           teachingAssignments: dto.teachingAssignments,
@@ -397,7 +397,7 @@ export class AuthService {
     const allowedKeys = [
       'step', 'institutionId', 'institutionType', 'institutionManual', 'institutionSearch',
       'facultyId', 'facultySearch', 'facultyManual', 'department', 'departmentSearch',
-      'departmentManual', 'program', 'program', 'studyLevel', 'teachingAssignments',
+      'departmentManual', 'program', 'studyLevel', 'teachingAssignments',
       'courseTitleInput', 'courseCodeInput', 'courseLevelInput',
     ];
     const safeProgress = Object.fromEntries(
@@ -491,7 +491,7 @@ export class AuthService {
       ...(!currentUser.isProfileComplete ? { institutionId: dto.institutionId, institution: dto.institution } : {}),
       faculty: dto.faculty,
       department: dto.department,
-      program: dto.program ?? dto.program,
+      program: dto.program,
       coursesTaught: dto.coursesTaught,
       teachingAssignments: dto.teachingAssignments,
       studyLevel: dto.studyLevel,
