@@ -196,8 +196,8 @@ describe('AuthService', () => {
     users.update.mockResolvedValue({ ...user, emailVerified: true, academicHandle: 'learner.one', lastLoginAt: new Date() } as never);
     const response = await service.login({ identifier: '@Learner.One', password: 'correct-horse-battery' });
     expect(users.findByAcademicHandle).toHaveBeenCalledWith('@Learner.One');
-    expect(response.user).toHaveProperty('academicHandle', 'learner.one');
-    expect(response.user).not.toHaveProperty('password');
+    expect('user' in response && response.user).toHaveProperty('academicHandle', 'learner.one');
+    expect('user' in response && response.user).not.toHaveProperty('password');
   });
 
   it('returns the same authentication error for unknown email or wrong password', async () => {
