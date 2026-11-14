@@ -177,8 +177,8 @@ describe('ChatService access and message rules', () => {
 
 
 
-  it('keeps programme out of Student Group Chat membership', async () => {
-    users.findOne.mockResolvedValue({ ...student, programme: 'B.Sc. Biochemistry' });
+  it('keeps program out of Student Group Chat membership', async () => {
+    users.findOne.mockResolvedValue({ ...student, program: 'B.Sc. Biochemistry' });
     const qb = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
