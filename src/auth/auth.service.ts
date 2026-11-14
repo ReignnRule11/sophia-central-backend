@@ -146,6 +146,9 @@ export class AuthService {
           lastName: String(metadata.lastName || ''),
           academicHandle: String(metadata.academicHandle || ''),
           role: metadata.role as UserRole,
+          progress: metadata.onboardingProgress && typeof metadata.onboardingProgress === 'object'
+            ? metadata.onboardingProgress as Record<string, unknown>
+            : {},
         },
       };
     }
@@ -373,6 +376,40 @@ export class AuthService {
     // Transactional user creation generates the permanent Institution ID and
     // the database CreateDateColumn records account creation at this exact stage.
     return this.buildAuthResponse(user);
+  }
+
+  async savePreAccountProgress(token: string, progress: Record<string, unknown>): Promise<{ saved: true }> {
+    const registration = this.registrationTokens.open(token);
+    if (registration.stage !== 'pre-account') throw new UnauthorizedException('Sign in again to continue onboarding.');
+    const email = String(registration.email || '').trim().toLowerCase();
+    if (!email) throw new UnauthorizedException('Your pre-account session is invalid. Please sign in again.');
+    const draft = await this.registrationDrafts.findOne({ where: { email } });
+    if (!draft || draft.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('Your pre-account has expired. Please sign in again.');
+    }
+    const metadata = this.registrationTokens.open(draft.encryptedPayload);
+    if (metadata.stage !== 'pre-account-draft' || String(metadata.email).toLowerCase() !== email) {
+      throw new UnauthorizedException('Your saved onboarding details could not be verified.');
+    }
+    const serialized = JSON.stringify(progress ?? {});
+    if (serialized.length > 20000) throw new BadRequestException('Your onboarding progress is too large to save.');
+    const allowedKeys = [
+      'step', 'institutionId', 'institutionType', 'institutionManual', 'institutionSearch',
+      'facultyId', 'facultySearch', 'facultyManual', 'department', 'departmentSearch',
+      'departmentManual', 'programme', 'studyLevel', 'teachingAssignments',
+      'courseTitleInput', 'courseCodeInput', 'courseLevelInput',
+    ];
+    const safeProgress = Object.fromEntries(
+      allowedKeys.filter((key) => Object.prototype.hasOwnProperty.call(progress ?? {}, key))
+        .map((key) => [key, progress[key]]),
+    );
+    draft.encryptedPayload = this.registrationTokens.seal({
+      ...metadata,
+      onboardingProgress: safeProgress,
+      expiresAt: draft.expiresAt.getTime(),
+    });
+    await this.registrationDrafts.save(draft);
+    return { saved: true };
   }
 
   async checkAcademicHandleAvailability(handle: string): Promise<{ available: boolean; message: string }> {
