@@ -100,7 +100,7 @@ export class User {
   faculty?: string;
 
   @Column({ nullable: true })
-  programme?: string;
+  program?: string;
 
   @Column({ type: 'jsonb', nullable: true })
   coursesTaught?: string[];
