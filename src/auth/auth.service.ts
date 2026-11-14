@@ -247,7 +247,7 @@ export class AuthService {
         });
       } catch (error) {
         await this.registrationTokens.releaseClaim(registration.jti);
-        if ((error as { code?: string })?.code === '23505') {
+        if (((error as { code?: string; driverError?: { code?: string } })?.driverError?.code ?? (error as { code?: string })?.code) === '23505') {
           throw new ConflictException('Academic handle taken or an account already exists for this email.');
         }
         throw error;
@@ -343,8 +343,8 @@ export class AuthService {
           accountStatus: 'active',
           institutionId: dto.institutionId,
           institution: dto.institution,
-          faculty: dto.faculty.trim(),
-          department: dto.department.trim(),
+          faculty: dto.faculty?.trim() ?? '',
+          department: dto.department?.trim() ?? '',
           programme: dto.programme?.trim(),
           studyLevel: dto.studyLevel?.trim(),
           coursesTaught: dto.coursesTaught,
