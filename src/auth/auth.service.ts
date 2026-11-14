@@ -362,7 +362,7 @@ export class AuthService {
       });
     } catch (error) {
       await this.registrationTokens.releaseClaim(registration.jti);
-      if ((error as { code?: string })?.code === '23505') {
+      if (((error as { code?: string; driverError?: { code?: string } })?.driverError?.code ?? (error as { code?: string })?.code) === '23505') {
         throw new ConflictException('Academic handle taken or an account already exists for this email.');
       }
       throw error;
