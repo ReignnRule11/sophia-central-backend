@@ -3,6 +3,8 @@ import * as bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { AuthService } from './auth.service';
 import { UserRole } from '../users/entities/user.entity';
+import { PreAccount } from './entities/pre-account.entity';
+import { RegistrationDraft } from './entities/registration-draft.entity';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordResetEmailService } from './password-reset-email.service';
@@ -10,10 +12,13 @@ import { EmailVerificationEmailService } from './email-verification-email.servic
 
 describe('AuthService', () => {
   let service: AuthService;
-  let users: jest.Mocked<Pick<UsersService, 'findByEmail' | 'findByAcademicHandle' | 'findByUniqueId' | 'create' | 'update' | 'findOne'>>;
+  let users: jest.Mocked<Pick<UsersService, 'findByEmail' | 'findByAcademicHandle' | 'findByUniqueId' | 'create' | 'createWithManager' | 'update' | 'findOne'>>;
   let jwt: jest.Mocked<Pick<JwtService, 'signAsync'>>;
   let resetTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock; createQueryBuilder: jest.Mock };
   let verificationTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock };
+  let preAccounts: { findOne: jest.Mock; save: jest.Mock; delete: jest.Mock };
+  let registrationDrafts: { findOne: jest.Mock; save: jest.Mock; delete: jest.Mock };
+  let dataSource: { transaction: jest.Mock };
   let registrationTokens: { seal: jest.Mock; open: jest.Mock; claimOnce: jest.Mock; releaseClaim: jest.Mock };
   let resetEmail: jest.Mocked<Pick<PasswordResetEmailService, 'sendResetLink'>>;
   let verificationEmail: jest.Mocked<Pick<EmailVerificationEmailService, 'sendVerificationLink'>>;
@@ -25,7 +30,7 @@ describe('AuthService', () => {
   };
 
   beforeEach(() => {
-    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn() };
+    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), createWithManager: jest.fn().mockResolvedValue({ ...user, id: 'new-account-id' }), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn() };
     jwt = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
     resetTokens = {
       delete: jest.fn().mockResolvedValue({ affected: 1 }), save: jest.fn().mockResolvedValue({}),
@@ -35,6 +40,9 @@ describe('AuthService', () => {
       delete: jest.fn().mockResolvedValue({ affected: 1 }), save: jest.fn().mockResolvedValue({}),
       create: jest.fn((data) => data), findOne: jest.fn(),
     };
+    preAccounts = { findOne: jest.fn().mockResolvedValue(null), save: jest.fn().mockResolvedValue({}), delete: jest.fn().mockResolvedValue({ affected: 1 }) };
+    registrationDrafts = { findOne: jest.fn().mockResolvedValue(null), save: jest.fn().mockResolvedValue({}), delete: jest.fn().mockResolvedValue({ affected: 1 }) };
+    dataSource = { transaction: jest.fn(async (callback) => callback({ getRepository: (entity) => entity === PreAccount ? preAccounts : registrationDrafts } as never)) };
     registrationTokens = {
       seal: jest.fn().mockReturnValue('encrypted-registration-token'),
       open: jest.fn(),
@@ -53,6 +61,9 @@ describe('AuthService', () => {
       jwt as unknown as JwtService,
       resetTokens as never,
       verificationTokens as never,
+      preAccounts as never,
+      registrationDrafts as never,
+      dataSource as never,
       registrationTokens as never,
       resetEmail as unknown as PasswordResetEmailService,
       verificationEmail as unknown as EmailVerificationEmailService,
@@ -208,22 +219,22 @@ describe('AuthService', () => {
       onboardingToken: 'pre-account-token',
       preAccount: { email: 'learner@example.com', firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one', role: 'student' },
     });
-    expect(registrationTokens.seal).toHaveBeenCalledWith(expect.objectContaining({
-      stage: 'pre-account', passwordHash: expect.any(String), email: 'learner@example.com',
+    expect(preAccounts.save).toHaveBeenCalledWith(expect.objectContaining({ email: 'learner@example.com', password: expect.any(String) }));
+    expect(registrationDrafts.save).toHaveBeenCalledWith(expect.objectContaining({
+      email: 'learner@example.com', academicHandle: 'learner.one', encryptedPayload: expect.any(String), expiresAt: expect.any(Date),
     }));
     expect(users.create).not.toHaveBeenCalled();
     expect(jwt.signAsync).not.toHaveBeenCalled();
   });
 
   it('creates the permanent account only after required student onboarding is complete', async () => {
-    registrationTokens.open.mockReturnValue({
-      stage: 'pre-account', jti: 'pre-account-jti', expiresAt: Date.now() + 60_000, email: 'learner@example.com',
-      firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one',
-      role: UserRole.STUDENT, passwordHash: 'stored-password-hash',
-    });
+    registrationTokens.open
+      .mockReturnValueOnce({ stage: 'pre-account', jti: 'pre-account-jti', expiresAt: Date.now() + 60_000, email: 'learner@example.com' })
+      .mockReturnValueOnce({ stage: 'pre-account-draft', expiresAt: Date.now() + 60_000, email: 'learner@example.com', firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one', role: UserRole.STUDENT });
+    preAccounts.findOne.mockResolvedValue({ email: 'learner@example.com', password: 'stored-password-hash' });
+    registrationDrafts.findOne.mockResolvedValue({ email: 'learner@example.com', academicHandle: 'learner.one', encryptedPayload: 'encrypted-draft', expiresAt: new Date(Date.now() + 60_000) });
     users.findByEmail.mockResolvedValue(null);
     users.findByAcademicHandle.mockResolvedValue(null);
-    users.create.mockImplementation(async (data) => ({ ...user, ...data, id: 'new-account-id' }) as never);
     const response = await service.completePreAccountOnboarding('pre-account-token', {
       institutionId: '00000000-0000-4000-8000-000000000001',
       institution: 'Example University',
@@ -232,12 +243,14 @@ describe('AuthService', () => {
       programme: 'B.Sc. Computer Science',
       studyLevel: '300',
     } as never);
-    expect(users.create).toHaveBeenCalledWith(expect.objectContaining({
+    expect(users.createWithManager).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       email: 'learner@example.com', academicHandle: 'learner.one', password: 'stored-password-hash',
       emailVerified: true, isProfileComplete: true, accountStatus: 'active',
       institutionId: '00000000-0000-4000-8000-000000000001',
       faculty: 'Faculty of Science', department: 'Computer Science', studyLevel: '300',
     }));
+    expect(preAccounts.delete).toHaveBeenCalledWith({ email: 'learner@example.com' });
+    expect(registrationDrafts.delete).toHaveBeenCalledWith({ email: 'learner@example.com' });
     expect(response).toEqual(expect.objectContaining({ accessToken: 'signed-access-token' }));
   });
 
