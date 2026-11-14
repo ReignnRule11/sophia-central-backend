@@ -82,7 +82,7 @@ describe('AuthService', () => {
       institution: 'New University',
       faculty: 'School of Computing',
       department: 'Software Engineering',
-      programme: 'B.Sc. Software Engineering',
+      program: 'B.Sc. Software Engineering',
       studyLevel: '300',
     } as never)).resolves.toEqual({
       accessToken: 'signed-access-token',
@@ -304,7 +304,7 @@ describe('AuthService', () => {
       institution: 'Example University',
       faculty: 'Faculty of Science',
       department: 'Computer Science',
-      programme: 'B.Sc. Computer Science',
+      program: 'B.Sc. Computer Science',
       studyLevel: '300',
     } as never);
     expect(users.createWithManager).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
@@ -327,7 +327,7 @@ describe('AuthService', () => {
     await expect(service.completePreAccountOnboarding('pre-account-token', {
       institutionId: '00000000-0000-4000-8000-000000000001',
       faculty: 'Faculty of Science', department: 'Computer Science',
-      programme: 'B.Sc. Computer Science',
+      program: 'B.Sc. Computer Science',
     } as never)).rejects.toBeInstanceOf(BadRequestException);
     expect(users.create).not.toHaveBeenCalled();
     expect(users.createWithManager).not.toHaveBeenCalled();
