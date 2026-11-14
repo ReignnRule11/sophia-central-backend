@@ -55,6 +55,13 @@ export class UsersService {
   }
 
   async createWithManager(manager: EntityManager, data: Partial<User>): Promise<User> {
+    if (data.academicHandle && data.email) {
+      const reserved = await manager.query(
+        'SELECT email FROM registration_drafts WHERE LOWER("academicHandle") = $1 AND email <> $2 LIMIT 1',
+        [data.academicHandle.trim().replace(/^@+/, '').toLowerCase(), data.email.trim().toLowerCase()],
+      );
+      if (reserved.length) throw new ConflictException('Academic handle taken');
+    }
     const institution = data.institutionId
       ? await manager.getRepository(Institution).findOne({ where: { id: data.institutionId } })
       : null;
@@ -210,7 +217,11 @@ export class UsersService {
       if (updateData.academicHandle !== undefined) {
         const normalized = updateData.academicHandle.trim().replace(/^@+/, '').toLowerCase();
         const existing = await manager.createQueryBuilder(User, 'user').where('LOWER(user.academicHandle) = :handle', { handle: normalized }).andWhere('user.id != :id', { id }).getOne();
-        if (existing) throw new ConflictException('Academic handle already exists');
+        const reserved = await manager.query(
+          'SELECT email FROM registration_drafts WHERE LOWER("academicHandle") = $1 AND email <> $2 LIMIT 1',
+          [normalized, user.email.toLowerCase()],
+        );
+        if (existing || reserved.length) throw new ConflictException('Academic handle taken');
         updateData.academicHandle = normalized;
       }
       if (updateData.isSuspended === true && user.role === UserRole.REVIEWER) {
