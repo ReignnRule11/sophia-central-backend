@@ -7,6 +7,8 @@ import { PasswordResetEmailService } from './password-reset-email.service';
 import { EmailVerificationEmailService } from './email-verification-email.service';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
+import { PreAccount } from './entities/pre-account.entity';
+import { RegistrationDraft } from './entities/registration-draft.entity';
 import { UsersModule } from '../users/users.module';
 import { JwtModule } from '@nestjs/jwt';
 import type { JwtModuleOptions } from '@nestjs/jwt';
@@ -20,7 +22,7 @@ import { RegistrationTokenService } from './registration-token.service';
     PassportModule,
     UsersModule,
     ReferralModule,
-    TypeOrmModule.forFeature([PasswordResetToken, EmailVerificationToken]),
+    TypeOrmModule.forFeature([PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
