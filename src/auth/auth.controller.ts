@@ -14,6 +14,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { CompletePreAccountOnboardingDto } from './dto/complete-pre-account-onboarding.dto';
+import { SavePreAccountProgressDto } from './dto/save-pre-account-progress.dto';
 import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
@@ -96,6 +97,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Set a new password using a single-use reset token' })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @Post('onboarding/progress')
+  @UseGuards(CsrfGuard)
+  @ApiOperation({ summary: 'Save encrypted onboarding progress for a verified pre-account' })
+  savePreAccountProgress(@Body() dto: SavePreAccountProgressDto) {
+    return this.authService.savePreAccountProgress(dto.preAccountToken, dto.progress);
   }
 
   @Post('onboarding/complete')
