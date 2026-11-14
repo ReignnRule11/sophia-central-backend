@@ -316,8 +316,8 @@ export class AuthService {
     if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
       throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
     }
-    if (role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !dto.programme?.trim())) {
-      throw new BadRequestException('Your current academic level and programme are required.');
+    if (role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !(dto.program ?? dto.programme)?.trim())) {
+      throw new BadRequestException('Your current academic level and program are required.');
     }
     if (role === UserRole.LECTURER && (!dto.teachingAssignments?.length || !dto.coursesTaught?.length)) {
       throw new BadRequestException('Add at least one course taught, including its course code and academic level.');
@@ -349,7 +349,7 @@ export class AuthService {
           institution: dto.institution,
           faculty: dto.faculty?.trim() ?? '',
           department: dto.department?.trim() ?? '',
-          programme: dto.programme?.trim(),
+          programme: (dto.program ?? dto.programme)?.trim(),
           studyLevel: dto.studyLevel?.trim(),
           coursesTaught: dto.coursesTaught,
           teachingAssignments: dto.teachingAssignments,
@@ -397,7 +397,7 @@ export class AuthService {
     const allowedKeys = [
       'step', 'institutionId', 'institutionType', 'institutionManual', 'institutionSearch',
       'facultyId', 'facultySearch', 'facultyManual', 'department', 'departmentSearch',
-      'departmentManual', 'programme', 'studyLevel', 'teachingAssignments',
+      'departmentManual', 'program', 'programme', 'studyLevel', 'teachingAssignments',
       'courseTitleInput', 'courseCodeInput', 'courseLevelInput',
     ];
     const safeProgress = Object.fromEntries(
@@ -481,8 +481,8 @@ export class AuthService {
     if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
       throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
     }
-    if (currentUser.role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !dto.programme?.trim())) {
-      throw new BadRequestException('Your current academic level and programme are required.');
+    if (currentUser.role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !dto.program?.trim())) {
+      throw new BadRequestException('Your current academic level and program are required.');
     }
     if (currentUser.role === UserRole.LECTURER && (!dto.teachingAssignments?.length || !dto.coursesTaught?.length)) {
       throw new BadRequestException('Add at least one course taught, including its course code and academic level.');
@@ -491,7 +491,7 @@ export class AuthService {
       ...(!currentUser.isProfileComplete ? { institutionId: dto.institutionId, institution: dto.institution } : {}),
       faculty: dto.faculty,
       department: dto.department,
-      programme: dto.programme,
+      programme: dto.program ?? dto.programme,
       coursesTaught: dto.coursesTaught,
       teachingAssignments: dto.teachingAssignments,
       studyLevel: dto.studyLevel,
