@@ -29,7 +29,7 @@ import { ReferralService } from '../referral/referral.service';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
-const PRE_ACCOUNT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+const PRE_ACCOUNT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const EMAIL_VERIFICATION_RESPONSE = 'If the registration can be verified, a verification link will be sent.';
 
 @Injectable()
