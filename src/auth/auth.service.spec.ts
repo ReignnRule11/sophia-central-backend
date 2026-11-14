@@ -42,7 +42,7 @@ describe('AuthService', () => {
     };
     preAccounts = { findOne: jest.fn().mockResolvedValue(null), save: jest.fn().mockResolvedValue({}), delete: jest.fn().mockResolvedValue({ affected: 1 }) };
     registrationDrafts = { findOne: jest.fn().mockResolvedValue(null), save: jest.fn().mockResolvedValue({}), delete: jest.fn().mockResolvedValue({ affected: 1 }) };
-    dataSource = { transaction: jest.fn(async (callback) => callback({ getRepository: (entity) => entity === PreAccount ? preAccounts : registrationDrafts } as never)) };
+    dataSource = { transaction: jest.fn(async (callback: (manager: any) => Promise<any>) => callback({ getRepository: (entity: unknown) => entity === PreAccount ? preAccounts : registrationDrafts })) };
     registrationTokens = {
       seal: jest.fn().mockReturnValue('encrypted-registration-token'),
       open: jest.fn(),
@@ -225,6 +225,18 @@ describe('AuthService', () => {
     }));
     expect(users.create).not.toHaveBeenCalled();
     expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('reports academic handle availability and rejects an existing handle', async () => {
+    users.findByAcademicHandle.mockResolvedValue(null);
+    registrationDrafts.findOne.mockResolvedValue(null);
+    await expect(service.checkAcademicHandleAvailability('new.handle')).resolves.toEqual({
+      available: true, message: 'Academic handle available',
+    });
+    users.findByAcademicHandle.mockResolvedValue(user as never);
+    await expect(service.checkAcademicHandleAvailability('learner.one')).resolves.toEqual({
+      available: false, message: 'Academic handle taken',
+    });
   });
 
   it('authenticates a saved pre-account by email and returns a resumable onboarding token', async () => {
