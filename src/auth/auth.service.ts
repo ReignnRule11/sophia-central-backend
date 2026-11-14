@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { createHash, randomBytes } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
@@ -18,6 +18,8 @@ import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { PasswordResetToken } from './entities/password-reset-token.entity';
 import { EmailVerificationToken } from './entities/email-verification-token.entity';
+import { PreAccount } from './entities/pre-account.entity';
+import { RegistrationDraft } from './entities/registration-draft.entity';
 import { RegistrationTokenService, type RegistrationTokenPayload } from './registration-token.service';
 import { PasswordResetEmailService } from './password-reset-email.service';
 import { EmailVerificationEmailService } from './email-verification-email.service';
@@ -27,6 +29,8 @@ import { ReferralService } from '../referral/referral.service';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
+// Give verified users 30 days to resume and finish onboarding before cleanup.
+const PRE_ACCOUNT_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const EMAIL_VERIFICATION_RESPONSE = 'If the registration can be verified, a verification link will be sent.';
 
 @Injectable()
@@ -40,6 +44,11 @@ export class AuthService {
     private readonly resetTokens: Repository<PasswordResetToken>,
     @InjectRepository(EmailVerificationToken)
     private readonly verificationTokens: Repository<EmailVerificationToken>,
+    @InjectRepository(PreAccount)
+    private readonly preAccounts: Repository<PreAccount>,
+    @InjectRepository(RegistrationDraft)
+    private readonly registrationDrafts: Repository<RegistrationDraft>,
+    private readonly dataSource: DataSource,
     private readonly registrationTokens: RegistrationTokenService,
     private readonly resetEmail: PasswordResetEmailService,
     private readonly verificationEmail: EmailVerificationEmailService,
@@ -50,11 +59,27 @@ export class AuthService {
     const email = dto.email.trim().toLowerCase();
     const academicHandle = dto.academicHandle.trim().replace(/^@/, '').toLowerCase();
     const existingUser = await this.usersService.findByEmail(email);
-    if (existingUser) {
+    let existingPreAccount = await this.preAccounts.findOne({ where: { email } });
+    const existingDraft = await this.registrationDrafts.findOne({ where: { email } });
+    if (existingDraft && existingDraft.expiresAt.getTime() <= Date.now()) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(PreAccount).delete({ email });
+        await manager.getRepository(RegistrationDraft).delete({ email });
+      });
+      existingPreAccount = null;
+    }
+    if (existingUser || existingPreAccount || (existingDraft && existingDraft.expiresAt.getTime() > Date.now())) {
       return { emailSent: false, message: 'If this address can be registered, a verification link will be sent. Check your inbox.' };
     }
     const existingHandle = await this.usersService.findByAcademicHandle(academicHandle);
-    if (existingHandle) throw new ConflictException('Academic handle already exists');
+    const reservedHandle = await this.registrationDrafts.findOne({ where: { academicHandle } });
+    if (reservedHandle && reservedHandle.expiresAt.getTime() <= Date.now()) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(PreAccount).delete({ email: reservedHandle.email });
+        await manager.getRepository(RegistrationDraft).delete({ email: reservedHandle.email });
+      });
+    }
+    if (existingHandle || (reservedHandle && reservedHandle.expiresAt.getTime() > Date.now())) throw new ConflictException('Academic handle taken');
 
     const role = dto.role ?? UserRole.STUDENT;
     const referralCode = role === UserRole.STUDENT ? dto.referralCode?.trim() || undefined : undefined;
@@ -91,6 +116,44 @@ export class AuthService {
       : looksLikeInstitutionId
         ? await this.usersService.findByUniqueId(identifier)
         : await this.usersService.findByAcademicHandle(identifier);
+
+    if (!user && looksLikeEmail) {
+      const email = identifier.toLowerCase();
+      const preAccount = await this.preAccounts.findOne({ where: { email } });
+      const draft = await this.registrationDrafts.findOne({ where: { email } });
+      const passwordMatches = preAccount?.password ? await bcrypt.compare(dto.password, preAccount.password) : false;
+      if (!preAccount || !draft || !passwordMatches || draft.expiresAt.getTime() <= Date.now()) {
+        if (draft && draft.expiresAt.getTime() <= Date.now()) {
+          await this.preAccounts.delete({ email });
+          await this.registrationDrafts.delete({ email });
+        }
+        throw new UnauthorizedException('Invalid credentials');
+      }
+      const metadata = this.registrationTokens.open(draft.encryptedPayload);
+      if (metadata.stage !== 'pre-account-draft' || String(metadata.email).toLowerCase() !== email) {
+        throw new UnauthorizedException('This onboarding record is invalid. Please contact support.');
+      }
+      return {
+        preAccountRequired: true as const,
+        onboardingToken: this.registrationTokens.seal({
+          stage: 'pre-account',
+          email,
+          jti: randomBytes(32).toString('hex'),
+          expiresAt: draft.expiresAt.getTime(),
+        }),
+        preAccount: {
+          email,
+          firstName: String(metadata.firstName || ''),
+          lastName: String(metadata.lastName || ''),
+          academicHandle: String(metadata.academicHandle || ''),
+          role: metadata.role as UserRole,
+          progress: metadata.onboardingProgress && typeof metadata.onboardingProgress === 'object'
+            ? metadata.onboardingProgress as Record<string, unknown>
+            : {},
+        },
+      };
+    }
+
     const passwordMatches = user?.password ? await bcrypt.compare(dto.password, user.password) : false;
     if (!user || !passwordMatches) throw new UnauthorizedException('Invalid credentials');
     if (user.emailVerified !== true) {
@@ -156,7 +219,12 @@ export class AuthService {
         throw new UnauthorizedException('This verification link is invalid or has expired. Please restart registration.');
       }
       if (await this.usersService.findByEmail(email)) throw new ConflictException('An account already exists for this email. Sign in instead.');
-      if (await this.usersService.findByAcademicHandle(academicHandle)) throw new ConflictException('Academic handle already exists. Please restart registration with another handle.');
+      if (await this.preAccounts.findOne({ where: { email } })) throw new ConflictException('A pre-account already exists for this email. Sign in to continue onboarding.');
+      const existingHandle = await this.usersService.findByAcademicHandle(academicHandle);
+      const reservedHandle = await this.registrationDrafts.findOne({ where: { academicHandle } });
+      if (existingHandle || (reservedHandle && reservedHandle.expiresAt.getTime() > Date.now())) {
+        throw new ConflictException('Academic handle taken. Please restart registration with another handle.');
+      }
 
       const passwordHash = await bcrypt.hash(password, 12);
       const claimed = await this.registrationTokens.claimOnce(
@@ -164,15 +232,38 @@ export class AuthService {
         Math.ceil((registration.expiresAt - Date.now()) / 1000),
       );
       if (!claimed) throw new UnauthorizedException('This verification link has already been used. Request a new link.');
+
+      const expiresAt = new Date(Date.now() + PRE_ACCOUNT_TTL_MS);
+      try {
+        await this.dataSource.transaction(async (manager) => {
+          await manager.getRepository(PreAccount).save({ email, password: passwordHash });
+          await manager.getRepository(RegistrationDraft).save({
+            email,
+            academicHandle,
+            encryptedPayload: this.registrationTokens.seal({
+              ...registration,
+              stage: 'pre-account-draft',
+              jti: undefined,
+              expiresAt: expiresAt.getTime(),
+            }),
+            expiresAt,
+          });
+        });
+      } catch (error) {
+        await this.registrationTokens.releaseClaim(registration.jti);
+        if (((error as { code?: string; driverError?: { code?: string } })?.driverError?.code ?? (error as { code?: string })?.code) === '23505') {
+          throw new ConflictException('Academic handle taken or an account already exists for this email.');
+        }
+        throw error;
+      }
       const onboardingToken = this.registrationTokens.seal({
-        ...registration,
         stage: 'pre-account',
+        email,
         jti: randomBytes(32).toString('hex'),
-        passwordHash,
-        expiresAt: Date.now() + EMAIL_VERIFICATION_TTL_MS,
+        expiresAt: expiresAt.getTime(),
       });
       return {
-        message: 'Your email has been verified. Complete your academic profile to create your Sophis Central account.',
+        message: 'Your email has been verified. Your pre-account is saved. Complete your academic profile now or sign in later to resume.',
         onboardingToken,
         preAccount: { email, firstName, lastName, academicHandle, role },
       };
@@ -202,11 +293,25 @@ export class AuthService {
     const registration = this.registrationTokens.open(token);
     if (registration.stage !== 'pre-account') throw new UnauthorizedException('Complete email verification before onboarding.');
     const email = String(registration.email || '').trim().toLowerCase();
-    const academicHandle = String(registration.academicHandle || '').trim().replace(/^@+/, '').toLowerCase();
-    const role = registration.role as UserRole;
-    const passwordHash = String(registration.passwordHash || '');
-    if (!email || !academicHandle || !passwordHash || !registration.jti || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
-      throw new UnauthorizedException('Your pre-account session is invalid. Please restart registration.');
+    if (!email || !registration.jti) throw new UnauthorizedException('Your pre-account session is invalid. Please sign in again.');
+    const [preAccount, draft] = await Promise.all([
+      this.preAccounts.findOne({ where: { email } }),
+      this.registrationDrafts.findOne({ where: { email } }),
+    ]);
+    if (!preAccount || !draft || draft.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('Your pre-account has expired. Please restart registration.');
+    }
+    const metadata = this.registrationTokens.open(draft.encryptedPayload);
+    if (metadata.stage !== 'pre-account-draft' || String(metadata.email).toLowerCase() !== email) {
+      throw new UnauthorizedException('Your saved onboarding details could not be verified.');
+    }
+    const academicHandle = String(metadata.academicHandle || '').trim().replace(/^@+/, '').toLowerCase();
+    const firstName = String(metadata.firstName || '').trim();
+    const lastName = String(metadata.lastName || '').trim();
+    const role = metadata.role as UserRole;
+    const passwordHash = preAccount.password;
+    if (!academicHandle || !firstName || !lastName || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
+      throw new UnauthorizedException('Your pre-account details are incomplete. Please contact support.');
     }
     if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
       throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
@@ -218,7 +323,7 @@ export class AuthService {
       throw new BadRequestException('Add at least one course taught, including its course code and academic level.');
     }
     if (await this.usersService.findByEmail(email)) throw new ConflictException('An account already exists for this email. Sign in instead.');
-    if (await this.usersService.findByAcademicHandle(academicHandle)) throw new ConflictException('Academic handle already exists. Please contact support.');
+    if (await this.usersService.findByAcademicHandle(academicHandle)) throw new ConflictException('Academic handle taken. Please contact support to update your saved handle.');
 
     const claimed = await this.registrationTokens.claimOnce(
       registration.jti,
@@ -227,43 +332,102 @@ export class AuthService {
     if (!claimed) throw new UnauthorizedException('This onboarding session has already been used or expired.');
     let user: User;
     try {
-      user = await this.usersService.create({
-        email,
-        firstName: String(registration.firstName),
-        lastName: String(registration.lastName),
-        academicHandle,
-        role,
-        password: passwordHash,
-        authProvider: 'email',
-        emailVerified: true,
-        isVerified: false,
-        isProfileComplete: true,
-        accountStatus: 'active',
-        institutionId: dto.institutionId,
-        institution: dto.institution,
-        faculty: dto.faculty.trim(),
-        department: dto.department.trim(),
-        programme: dto.programme?.trim(),
-        studyLevel: dto.studyLevel?.trim(),
-        coursesTaught: dto.coursesTaught,
-        teachingAssignments: dto.teachingAssignments,
-        bio: dto.bio?.trim(),
-        socialHandle: dto.socialHandle?.trim(),
-        socialLinks: dto.socialLinks,
+      user = await this.dataSource.transaction(async (manager) => {
+        const created = await this.usersService.createWithManager(manager, {
+          email,
+          firstName,
+          lastName,
+          academicHandle,
+          role,
+          password: passwordHash,
+          authProvider: 'email',
+          emailVerified: true,
+          isVerified: false,
+          isProfileComplete: true,
+          accountStatus: 'active',
+          institutionId: dto.institutionId,
+          institution: dto.institution,
+          faculty: dto.faculty?.trim() ?? '',
+          department: dto.department?.trim() ?? '',
+          programme: dto.programme?.trim(),
+          studyLevel: dto.studyLevel?.trim(),
+          coursesTaught: dto.coursesTaught,
+          teachingAssignments: dto.teachingAssignments,
+          bio: dto.bio?.trim(),
+          socialHandle: dto.socialHandle?.trim(),
+          socialLinks: dto.socialLinks,
+        });
+        await manager.getRepository(PreAccount).delete({ email });
+        await manager.getRepository(RegistrationDraft).delete({ email });
+        return created;
       });
     } catch (error) {
       await this.registrationTokens.releaseClaim(registration.jti);
+      if (((error as { code?: string; driverError?: { code?: string } })?.driverError?.code ?? (error as { code?: string })?.code) === '23505') {
+        throw new ConflictException('Academic handle taken or an account already exists for this email.');
+      }
       throw error;
     }
 
-    const referralCode = typeof registration.referralCode === 'string' ? registration.referralCode : undefined;
+    const referralCode = typeof metadata.referralCode === 'string' ? metadata.referralCode : undefined;
     if (referralCode && role === UserRole.STUDENT) {
       try { await this.referralService.redeemReferral(referralCode, user); }
       catch (error) { this.logger.warn(`Referral attribution could not be completed after onboarding for user ${user.id}: ${error instanceof Error ? error.message : 'unknown error'}`); }
     }
-    // UsersService.create generates the permanent Institution ID and the
-    // database CreateDateColumn records account creation at this exact stage.
+    // Transactional user creation generates the permanent Institution ID and
+    // the database CreateDateColumn records account creation at this exact stage.
     return this.buildAuthResponse(user);
+  }
+
+  async savePreAccountProgress(token: string, progress: Record<string, unknown>): Promise<{ saved: true }> {
+    const registration = this.registrationTokens.open(token);
+    if (registration.stage !== 'pre-account') throw new UnauthorizedException('Sign in again to continue onboarding.');
+    const email = String(registration.email || '').trim().toLowerCase();
+    if (!email) throw new UnauthorizedException('Your pre-account session is invalid. Please sign in again.');
+    const draft = await this.registrationDrafts.findOne({ where: { email } });
+    if (!draft || draft.expiresAt.getTime() <= Date.now()) {
+      throw new UnauthorizedException('Your pre-account has expired. Please sign in again.');
+    }
+    const metadata = this.registrationTokens.open(draft.encryptedPayload);
+    if (metadata.stage !== 'pre-account-draft' || String(metadata.email).toLowerCase() !== email) {
+      throw new UnauthorizedException('Your saved onboarding details could not be verified.');
+    }
+    const serialized = JSON.stringify(progress ?? {});
+    if (serialized.length > 20000) throw new BadRequestException('Your onboarding progress is too large to save.');
+    const allowedKeys = [
+      'step', 'institutionId', 'institutionType', 'institutionManual', 'institutionSearch',
+      'facultyId', 'facultySearch', 'facultyManual', 'department', 'departmentSearch',
+      'departmentManual', 'programme', 'studyLevel', 'teachingAssignments',
+      'courseTitleInput', 'courseCodeInput', 'courseLevelInput',
+    ];
+    const safeProgress = Object.fromEntries(
+      allowedKeys.filter((key) => Object.prototype.hasOwnProperty.call(progress ?? {}, key))
+        .map((key) => [key, progress[key]]),
+    );
+    draft.encryptedPayload = this.registrationTokens.seal({
+      ...metadata,
+      onboardingProgress: safeProgress,
+      expiresAt: draft.expiresAt.getTime(),
+    });
+    await this.registrationDrafts.save(draft);
+    return { saved: true };
+  }
+
+  async checkAcademicHandleAvailability(handle: string): Promise<{ available: boolean; message: string }> {
+    const normalized = handle.trim().replace(/^@+/, '').toLowerCase();
+    if (!/^[a-zA-Z0-9._]{3,30}$/.test(normalized)) return { available: false, message: 'Enter a valid academic handle.' };
+    const [user, draft] = await Promise.all([
+      this.usersService.findByAcademicHandle(normalized),
+      this.registrationDrafts.findOne({ where: { academicHandle: normalized } }),
+    ]);
+    if (draft && draft.expiresAt.getTime() <= Date.now()) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(PreAccount).delete({ email: draft.email });
+        await manager.getRepository(RegistrationDraft).delete({ email: draft.email });
+      });
+    }
+    const available = !user && (!draft || draft.expiresAt.getTime() <= Date.now());
+    return { available, message: available ? 'Academic handle available' : 'Academic handle taken' };
   }
 
   async requestPasswordReset(dto: RequestPasswordResetDto): Promise<{ message: string }> {

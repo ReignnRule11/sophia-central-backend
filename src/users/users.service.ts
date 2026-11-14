@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Injectable,
 import * as bcrypt from 'bcryptjs';
 import { randomBytes } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, LessThanOrEqual, Repository } from 'typeorm';
+import { DataSource, EntityManager, LessThanOrEqual, Repository } from 'typeorm';
 import { User, UserRole } from './entities/user.entity';
 import { Institution } from '../institutions/entities/institution.entity';
 import { generateInstitutionCode, institutionTypeCode } from '../institutions/institution-code';
@@ -19,7 +19,8 @@ export class UsersService {
     private readonly storageCleanup: StorageCleanupService,
   ) {}
 
-  private async generateUniqueId(data: Partial<User>, institution?: Institution | null): Promise<string> {
+  private async generateUniqueId(data: Partial<User>, institution?: Institution | null, manager?: EntityManager): Promise<string> {
+    const usersRepository = manager ? manager.getRepository(User) : this.usersRepository;
     const accountRole = data.role ?? UserRole.STUDENT;
     const baseRole = accountRole === UserRole.REVIEWER ? data.reviewerBaseRole : accountRole;
     const roleCode = baseRole === UserRole.LECTURER ? 'LEC'
@@ -35,7 +36,7 @@ export class UsersService {
     for (let attempt = 0; attempt < 20; attempt += 1) {
       const suffix = Array.from(randomBytes(10), (byte) => alphabet[byte & 31]).join('');
       const candidate = `SC-${institutionPart}-${roleCode}-${suffix}`;
-      if (!await this.usersRepository.exist({ where: { uniqueId: candidate } })) return candidate;
+      if (!await usersRepository.exist({ where: { uniqueId: candidate } })) return candidate;
     }
     throw new ConflictException('A unique Sophis Central Institution ID could not be generated. Please retry registration.');
   }
@@ -47,6 +48,26 @@ export class UsersService {
     if (data.institutionId && !institution) throw new BadRequestException('The selected institution is not in the approved Sophis Central catalogue.');
     const uniqueId = await this.generateUniqueId(data, institution);
     return this.usersRepository.save(this.usersRepository.create({
+      ...data,
+      ...(institution ? { institution: institution.name } : {}),
+      uniqueId,
+    }));
+  }
+
+  async createWithManager(manager: EntityManager, data: Partial<User>): Promise<User> {
+    if (data.academicHandle && data.email) {
+      const reserved = await manager.query(
+        'SELECT email FROM registration_drafts WHERE LOWER("academicHandle") = $1 AND email <> $2 LIMIT 1',
+        [data.academicHandle.trim().replace(/^@+/, '').toLowerCase(), data.email.trim().toLowerCase()],
+      );
+      if (reserved.length) throw new ConflictException('Academic handle taken');
+    }
+    const institution = data.institutionId
+      ? await manager.getRepository(Institution).findOne({ where: { id: data.institutionId } })
+      : null;
+    if (data.institutionId && !institution) throw new BadRequestException('The selected institution is not in the approved Sophis Central catalogue.');
+    const uniqueId = await this.generateUniqueId(data, institution, manager);
+    return manager.getRepository(User).save(manager.getRepository(User).create({
       ...data,
       ...(institution ? { institution: institution.name } : {}),
       uniqueId,
@@ -196,7 +217,11 @@ export class UsersService {
       if (updateData.academicHandle !== undefined) {
         const normalized = updateData.academicHandle.trim().replace(/^@+/, '').toLowerCase();
         const existing = await manager.createQueryBuilder(User, 'user').where('LOWER(user.academicHandle) = :handle', { handle: normalized }).andWhere('user.id != :id', { id }).getOne();
-        if (existing) throw new ConflictException('Academic handle already exists');
+        const reserved = await manager.query(
+          'SELECT email FROM registration_drafts WHERE LOWER("academicHandle") = $1 AND email <> $2 LIMIT 1',
+          [normalized, user.email.toLowerCase()],
+        );
+        if (existing || reserved.length) throw new ConflictException('Academic handle taken');
         updateData.academicHandle = normalized;
       }
       if (updateData.isSuspended === true && user.role === UserRole.REVIEWER) {

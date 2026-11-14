@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, NotImplementedException, Post, Req, Res, UseGuards,
+  Body, Controller, Get, NotImplementedException, Post, Query, Req, Res, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { randomBytes } from 'node:crypto';
@@ -14,6 +14,7 @@ import { ResetPasswordDto } from './dto/reset-password.dto';
 import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto';
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { CompletePreAccountOnboardingDto } from './dto/complete-pre-account-onboarding.dto';
+import { SavePreAccountProgressDto } from './dto/save-pre-account-progress.dto';
 import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
@@ -47,6 +48,12 @@ export class AuthController {
     return { csrfToken: token };
   }
 
+  @Get('academic-handle/availability')
+  @ApiOperation({ summary: 'Check whether an academic handle is available for registration' })
+  academicHandleAvailability(@Query('handle') handle = '') {
+    return this.authService.checkAcademicHandleAvailability(handle);
+  }
+
   @Post('signup')
   @ApiOperation({ summary: 'Create an account and send an email activation link; no session is created yet' })
   signup(@Body() dto: RegisterDto) {
@@ -69,6 +76,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Authenticate with verified email and password' })
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.login(dto);
+    if (!('accessToken' in result)) return result;
     this.setSessionCookies(response, result.accessToken);
     return { user: result.user };
   }
@@ -89,6 +97,13 @@ export class AuthController {
   @ApiOperation({ summary: 'Set a new password using a single-use reset token' })
   resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto);
+  }
+
+  @Post('onboarding/progress')
+  @UseGuards(CsrfGuard)
+  @ApiOperation({ summary: 'Save encrypted onboarding progress for a verified pre-account' })
+  savePreAccountProgress(@Body() dto: SavePreAccountProgressDto) {
+    return this.authService.savePreAccountProgress(dto.preAccountToken, dto.progress);
   }
 
   @Post('onboarding/complete')
