@@ -1,5 +1,5 @@
 import {
-  Body, Controller, Get, NotImplementedException, Post, Req, Res, UseGuards,
+  Body, Controller, Get, NotImplementedException, Post, Query, Req, Res, UseGuards,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { randomBytes } from 'node:crypto';
@@ -47,6 +47,12 @@ export class AuthController {
     return { csrfToken: token };
   }
 
+  @Get('academic-handle/availability')
+  @ApiOperation({ summary: 'Check whether an academic handle is available for registration' })
+  academicHandleAvailability(@Query('handle') handle = '') {
+    return this.authService.checkAcademicHandleAvailability(handle);
+  }
+
   @Post('signup')
   @ApiOperation({ summary: 'Create an account and send an email activation link; no session is created yet' })
   signup(@Body() dto: RegisterDto) {
@@ -69,6 +75,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Authenticate with verified email and password' })
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.login(dto);
+    if ('preAccountRequired' in result && result.preAccountRequired) return result;
     this.setSessionCookies(response, result.accessToken);
     return { user: result.user };
   }
