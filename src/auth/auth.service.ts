@@ -349,7 +349,7 @@ export class AuthService {
           institution: dto.institution,
           faculty: dto.faculty?.trim() ?? '',
           department: dto.department?.trim() ?? '',
-          program: dto.program.trim(),
+          program: dto.program?.trim() ?? '',
           studyLevel: dto.studyLevel?.trim(),
           coursesTaught: dto.coursesTaught,
           teachingAssignments: dto.teachingAssignments,
