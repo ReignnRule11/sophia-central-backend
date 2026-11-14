@@ -75,7 +75,7 @@ export class AuthController {
   @ApiOperation({ summary: 'Authenticate with verified email and password' })
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.login(dto);
-    if ('preAccountRequired' in result && result.preAccountRequired) return result;
+    if (!('accessToken' in result)) return result;
     this.setSessionCookies(response, result.accessToken);
     return { user: result.user };
   }
