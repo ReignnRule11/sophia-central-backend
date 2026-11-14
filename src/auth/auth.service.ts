@@ -247,6 +247,9 @@ export class AuthService {
         });
       } catch (error) {
         await this.registrationTokens.releaseClaim(registration.jti);
+        if ((error as { code?: string })?.code === '23505') {
+          throw new ConflictException('Academic handle taken or an account already exists for this email.');
+        }
         throw error;
       }
       const onboardingToken = this.registrationTokens.seal({
@@ -356,6 +359,9 @@ export class AuthService {
       });
     } catch (error) {
       await this.registrationTokens.releaseClaim(registration.jti);
+      if ((error as { code?: string })?.code === '23505') {
+        throw new ConflictException('Academic handle taken or an account already exists for this email.');
+      }
       throw error;
     }
 
@@ -364,8 +370,8 @@ export class AuthService {
       try { await this.referralService.redeemReferral(referralCode, user); }
       catch (error) { this.logger.warn(`Referral attribution could not be completed after onboarding for user ${user.id}: ${error instanceof Error ? error.message : 'unknown error'}`); }
     }
-    // UsersService.create generates the permanent Institution ID and the
-    // database CreateDateColumn records account creation at this exact stage.
+    // Transactional user creation generates the permanent Institution ID and
+    // the database CreateDateColumn records account creation at this exact stage.
     return this.buildAuthResponse(user);
   }
 
