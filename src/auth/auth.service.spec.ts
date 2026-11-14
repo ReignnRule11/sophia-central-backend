@@ -4,7 +4,6 @@ import { createHash } from 'node:crypto';
 import { AuthService } from './auth.service';
 import { UserRole } from '../users/entities/user.entity';
 import { PreAccount } from './entities/pre-account.entity';
-import { RegistrationDraft } from './entities/registration-draft.entity';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordResetEmailService } from './password-reset-email.service';
