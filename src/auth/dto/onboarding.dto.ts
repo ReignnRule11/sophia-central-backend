@@ -56,6 +56,12 @@ export class OnboardingDto {
   @MaxLength(160)
   program?: string;
 
+  /** @deprecated Accepts requests from frontend versions that still send `programme`. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(160)
+  programme?: string;
+
   @IsOptional()
   @IsArray()
   @ArrayNotEmpty()
