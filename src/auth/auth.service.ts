@@ -316,7 +316,7 @@ export class AuthService {
     if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
       throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
     }
-    if (role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !(dto.program)?.trim())) {
+    if (role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !dto.program?.trim())) {
       throw new BadRequestException('Your current academic level and program are required.');
     }
     if (role === UserRole.LECTURER && (!dto.teachingAssignments?.length || !dto.coursesTaught?.length)) {
@@ -349,7 +349,7 @@ export class AuthService {
           institution: dto.institution,
           faculty: dto.faculty?.trim() ?? '',
           department: dto.department?.trim() ?? '',
-          program: (dto.program)?.trim(),
+          program: dto.program.trim(),
           studyLevel: dto.studyLevel?.trim(),
           coursesTaught: dto.coursesTaught,
           teachingAssignments: dto.teachingAssignments,
