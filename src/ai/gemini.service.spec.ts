@@ -78,9 +78,10 @@ describe('GeminiService', () => {
 
     const service = new GeminiService();
     const generation = service.generateText('Explain a topic');
+    const rejection = expect(generation).rejects.toBeInstanceOf(ServiceUnavailableException);
     await jest.advanceTimersByTimeAsync(3_000);
 
-    await expect(generation).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await rejection;
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(console.error).toHaveBeenCalledWith(
       'Gemini generation failed',
@@ -101,9 +102,10 @@ describe('GeminiService', () => {
 
     const service = new GeminiService();
     const generation = service.generateText('Explain a topic');
+    const rejection = expect(generation).rejects.toBeInstanceOf(ServiceUnavailableException);
     await jest.advanceTimersByTimeAsync(35_000);
 
-    await expect(generation).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await rejection;
     expect(console.error).toHaveBeenCalledWith(
       'Gemini generation timed out',
       expect.objectContaining({ attempts: 1, timeoutMs: 100_000 }),
