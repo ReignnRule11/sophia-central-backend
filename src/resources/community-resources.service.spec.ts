@@ -57,7 +57,7 @@ describe('CommunityResourcesService', () => {
     resourceRepository.findOne.mockResolvedValue(null);
     await expect(service.findPublicOne('private-id')).rejects.toBeInstanceOf(NotFoundException);
     expect(resourceRepository.findOne).toHaveBeenCalledWith({
-      where: [{ id: 'private-id', origin: ResourceOrigin.OPEN_SOURCE, rightsConfirmed: true }, { id: 'private-id', moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true }],
+      where: { id: 'private-id', origin: ResourceOrigin.COMMUNITY_UPLOAD, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true },
       relations: ['uploader'],
     });
   });
