@@ -11,7 +11,7 @@ export interface PreparedAiPrompt {
 }
 
 /**
- * Conservative preflight estimate only. Provider-reported usage is the source
+ * Approximate preflight estimate only. Provider-reported usage is the source
  * of truth because each model family can use a different tokenizer/chat format.
  */
 export function estimatePromptTokens(text: string): number {
