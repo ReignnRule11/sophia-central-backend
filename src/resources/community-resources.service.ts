@@ -120,7 +120,7 @@ export class CommunityResourcesService {
       throw new ForbiddenException('Complete your catalogue-backed institution setup before downloading academic materials.');
     }
     const resource = await this.resources.findOne({
-      where: { id, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true },
+      where: [{ id, origin: ResourceOrigin.OPEN_SOURCE, rightsConfirmed: true }, { id, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true }],
     });
     if (!resource?.fileUrl) throw new NotFoundException('Public resource file not found');
     const key = this.storage.getKeyFromPublicUrl(resource.fileUrl);
