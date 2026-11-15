@@ -73,18 +73,49 @@ export class OpenSourceResearchService {
     private readonly storage: S3Service,
   ) {}
 
-  async search(query: string) {
+  async search(query: string, pageInput = '1', perPageInput = '12') {
     const term = query?.trim();
     if (!term || term.length < 2 || term.length > 160) {
       throw new BadRequestException('Enter a research title, topic, author or DOI (2–160 characters).');
     }
+    const page = Math.min(100, Math.max(1, Number.parseInt(pageInput, 10) || 1));
+    const perPage = Math.min(50, Math.max(1, Number.parseInt(perPageInput, 10) || 12));
     const url = new URL(`${OPENALEX_API}/works`);
     url.searchParams.set('search', term);
-    url.searchParams.set('per-page', '12');
+    url.searchParams.set('page', String(page));
+    url.searchParams.set('per-page', String(perPage));
     url.searchParams.set('filter', 'open_access.is_oa:true');
     url.searchParams.set('select', 'id,doi,title,publication_year,type,authorships,best_oa_location,primary_location,open_access');
     const response = await this.openAlexGet<OpenAlexSearchResponse>(url.toString());
-    return (response.results ?? []).map((work) => this.toSearchResult(work));
+    const results = (response.results ?? []).map((work) => this.toSearchResult(work));
+    return { results, page, perPage, hasMore: results.length === perPage };
+  }
+
+  async importMany(identifiers: string[]) {
+    const results: Array<{ identifier: string; status: 'imported' | 'duplicate' | 'failed'; result?: unknown; error?: string }> = [];
+    for (const identifier of identifiers) {
+      try {
+        const result = await this.import(identifier);
+        results.push({
+          identifier,
+          status: result.duplicate ? 'duplicate' : 'imported',
+          result,
+        });
+      } catch (error) {
+        results.push({
+          identifier,
+          status: 'failed',
+          error: error instanceof Error ? error.message.slice(0, 300) : 'Import failed. Please retry this item.',
+        });
+      }
+    }
+    return {
+      requested: identifiers.length,
+      imported: results.filter((item) => item.status === 'imported').length,
+      duplicates: results.filter((item) => item.status === 'duplicate').length,
+      failed: results.filter((item) => item.status === 'failed').length,
+      results,
+    };
   }
 
   async import(identifier: string) {
