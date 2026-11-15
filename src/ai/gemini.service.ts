@@ -134,10 +134,17 @@ export class GeminiService {
           // Reading the body is part of the attempt and must obey its timeout too.
           responseBody = await response.text();
         } catch (error) {
-          if (attemptTimedOut || overallTimedOut) {
-            throw new DOMException('Gemini request timed out', 'TimeoutError');
+          if (overallTimedOut) {
+            throw new DOMException('Gemini overall request deadline exceeded', 'TimeoutError');
           }
-          throw error;
+          if (!attemptTimedOut) {
+            throw error;
+          }
+          // A single stalled attempt is transient: retry it within the shared
+          // deadline, just like HTTP 503. The final attempt still fails normally.
+          response = undefined;
+          responseBody = '';
+          providerStatus = undefined;
         } finally {
           attemptDurationsMs.push(Date.now() - attemptStartedAt);
           clearTimeout(attemptTimer);
@@ -147,7 +154,18 @@ export class GeminiService {
           );
         }
 
-        if (response.status !== 503 || attempt >= retryDelaysMs.length) {
+        const shouldRetryTimeout = attemptTimedOut;
+        const shouldRetryUnavailable = !shouldRetryTimeout && response?.status === 503;
+        if (!shouldRetryTimeout && !shouldRetryUnavailable) {
+          if (!response) {
+            throw new DOMException('Gemini request timed out', 'TimeoutError');
+          }
+          break;
+        }
+        if (attempt >= retryDelaysMs.length) {
+          if (shouldRetryTimeout) {
+            throw new DOMException('Gemini request timed out after all attempts', 'TimeoutError');
+          }
           break;
         }
 
@@ -155,14 +173,23 @@ export class GeminiService {
         const remainingAfterResponseMs = overallDeadlineAt - Date.now();
         if (remainingAfterResponseMs <= delayMs) {
           console.warn(
-            `Gemini returned HTTP 503 for model "${model}", but the overall deadline leaves insufficient time for another attempt.`,
+            `Gemini could not retry model "${model}" because the overall deadline leaves insufficient time for another attempt.`,
           );
+          if (shouldRetryTimeout) {
+            throw new DOMException('Gemini request timed out before retry budget was exhausted', 'TimeoutError');
+          }
           break;
         }
 
-        console.warn(
-          `Gemini returned HTTP 503 for model "${model}". Retrying in ${delayMs}ms (attempt ${attempt + 2}/3).`,
-        );
+        if (shouldRetryTimeout) {
+          console.warn(
+            `Gemini attempt timed out for model "${model}". Retrying in ${delayMs}ms (attempt ${attempt + 2}/3).`,
+          );
+        } else {
+          console.warn(
+            `Gemini returned HTTP 503 for model "${model}". Retrying in ${delayMs}ms (attempt ${attempt + 2}/3).`,
+          );
+        }
 
         // Make the backoff interruptible so the overall deadline also bounds waits.
         await new Promise<void>((resolve, reject) => {
@@ -253,6 +280,8 @@ export class GeminiService {
           historyTurns: history.length,
           inputCharacters: inputCharacterCount,
           timeoutMs: this.overallTimeoutMs,
+          overallTimeoutMs: this.overallTimeoutMs,
+          perAttemptTimeoutMs: this.perAttemptTimeoutMs,
         });
       } else {
         console.error('Gemini generation failed', {
