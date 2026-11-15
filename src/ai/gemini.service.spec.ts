@@ -89,9 +89,39 @@ describe('GeminiService', () => {
     );
   });
 
-  it('aborts a stalled individual attempt before the overall deadline', async () => {
+  it('retries a stalled attempt and succeeds when the next attempt responds', async () => {
     jest.useFakeTimers();
-    jest.spyOn(global, 'fetch').mockImplementation(
+    const fetchMock = jest
+      .spyOn(global, 'fetch')
+      .mockImplementationOnce(
+        (_input: RequestInfo | URL, init?: RequestInit) =>
+          new Promise((_resolve, reject) => {
+            init?.signal?.addEventListener('abort', () => {
+              reject(new DOMException('Request aborted', 'AbortError'));
+            });
+          }),
+      )
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: async () => JSON.stringify({ status: 'completed', output_text: 'Recovered.' }),
+      } as Response);
+
+    const service = new GeminiService();
+    const generation = service.generateText('Explain a topic');
+    const result = expect(generation).resolves.toBe('Recovered.');
+    await jest.advanceTimersByTimeAsync(36_000);
+
+    await result;
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(console.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Gemini attempt timed out'),
+    );
+  });
+
+  it('stops retrying stalled attempts at the shared overall deadline', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest.spyOn(global, 'fetch').mockImplementation(
       (_input: RequestInfo | URL, init?: RequestInit) =>
         new Promise((_resolve, reject) => {
           init?.signal?.addEventListener('abort', () => {
@@ -103,12 +133,18 @@ describe('GeminiService', () => {
     const service = new GeminiService();
     const generation = service.generateText('Explain a topic');
     const rejection = expect(generation).rejects.toBeInstanceOf(ServiceUnavailableException);
-    await jest.advanceTimersByTimeAsync(35_000);
+    await jest.advanceTimersByTimeAsync(100_000);
 
     await rejection;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(console.error).toHaveBeenCalledWith(
       'Gemini generation timed out',
-      expect.objectContaining({ attempts: 1, timeoutMs: 100_000 }),
+      expect.objectContaining({
+        attempts: 3,
+        timeoutMs: 100_000,
+        overallTimeoutMs: 100_000,
+        perAttemptTimeoutMs: 35_000,
+      }),
     );
   });
 
