@@ -146,7 +146,7 @@ export class AiService {
       throw new NotFoundException('Resource not found or not verified');
     }
 
-    const summary = await this.geminiService.generateText(
+    const summary = await this.aiProviderService.generateText(
       'Create a useful study summary of the academic resource described in the supplied metadata. Organize it into overview, key points, important concepts, and suggested study takeaways. Clearly state when the supplied metadata is insufficient to summarize the actual document.',
       [
         `Title: ${resource.title}`,
