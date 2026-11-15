@@ -47,4 +47,13 @@ describe('Sophis AI token budgeting', () => {
     expect(prepared.context.length).toBeLessThan(longContext.length);
     expect(prepared.estimatedInputTokens).toBeLessThanOrEqual(prepared.maxInputTokens);
   });
+
+  it('rejects a latest question that cannot fit with the required system instruction', () => {
+    process.env.SOPHIS_AI_MAX_INPUT_TOKENS = '1024';
+    expect(() => prepareAiPrompt({
+      systemInstruction: 'You are Sophis. Answer accurately.',
+      prompt: 'Please analyze this: '.repeat(2_000),
+    })).toThrow(BadRequestException);
+  });
+
 });
