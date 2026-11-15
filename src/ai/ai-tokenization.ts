@@ -8,6 +8,7 @@ export interface PreparedAiPrompt {
   maxInputTokens: number;
   droppedHistoryTurns: number;
   contextTruncated: boolean;
+  maxInputCharacters?: number;
 }
 
 /**
@@ -41,6 +42,7 @@ export function prepareAiPrompt(input: {
   context?: string;
   history?: AiConversationTurn[];
   prompt: string;
+  maxInputCharacters?: number;
 }): PreparedAiPrompt {
   const maxInputTokens = getInputBudget();
   const requiredTokens = estimatePromptTokens(`${input.systemInstruction}\n${input.prompt}`) + 8;
@@ -61,19 +63,24 @@ export function prepareAiPrompt(input: {
       ...history.map((turn) => turn.content),
       input.prompt,
     ].join('\n')) + history.length * 4 + 8;
+  const countCharacters = () =>
+    [context, ...history.map((turn) => turn.content), input.prompt].join('\n\n').length + 240;
+  const exceedsBudget = () =>
+    count() > maxInputTokens ||
+    (input.maxInputCharacters !== undefined && countCharacters() > input.maxInputCharacters);
 
   // Keep the system instruction and latest student request intact. Remove the
   // oldest context turns first, then shorten optional resource metadata.
-  while (history.length > 0 && count() > maxInputTokens) history.shift();
+  while (history.length > 0 && exceedsBudget()) history.shift();
 
-  if (count() > maxInputTokens && context) {
+  if (exceedsBudget() && context) {
     const characters = Array.from(context);
     let low = 0;
     let high = characters.length;
     while (low < high) {
       const middle = Math.ceil((low + high) / 2);
       context = characters.slice(0, middle).join('');
-      if (count() <= maxInputTokens) low = middle;
+      if (!exceedsBudget()) low = middle;
       else high = middle - 1;
     }
     context = characters.slice(0, low).join('');
@@ -86,5 +93,6 @@ export function prepareAiPrompt(input: {
     maxInputTokens,
     droppedHistoryTurns: (input.history || []).slice(-12).length - history.length,
     contextTruncated: context.length < originalContextLength,
+    maxInputCharacters: input.maxInputCharacters,
   };
 }
