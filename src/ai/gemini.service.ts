@@ -273,7 +273,7 @@ export class GeminiService {
         historyTurns: prepared.history.length,
         inputCharacters: inputCharacterCount,
         estimatedInputTokens: prepared.estimatedInputTokens,
-        tokenEstimateMethod: 'conservative_unicode_heuristic',
+        tokenEstimateMethod: 'unicode_aware_heuristic',
         inputTokenBudget: prepared.maxInputTokens,
         droppedHistoryTurns: prepared.droppedHistoryTurns,
         contextTruncated: prepared.contextTruncated,
