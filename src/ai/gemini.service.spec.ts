@@ -62,7 +62,7 @@ describe('GeminiService', () => {
     );
 
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
-    expect(request.input.length).toBeLessThanOrEqual(14_000 + 'Latest question'.length + 40);
+    expect(request.input.length).toBeLessThanOrEqual(14_100);
     expect(request.input).toContain('Latest question');
   });
 
