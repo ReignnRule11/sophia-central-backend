@@ -110,10 +110,13 @@ export class GroqService {
           });
           providerStatus = response.status;
           responseBody = await response.text();
-        } catch (error) {
+        } catch {
           if (overallTimedOut) throw new Error('Groq overall deadline exceeded');
+          // Treat network failures and stalled response-body reads as transient.
+          response = undefined;
+          responseBody = '';
           if (!attemptTimedOut) {
-            console.warn('Groq request failed before receiving a response.', {
+            console.warn('Groq request failed before receiving a complete response.', {
               durationMs: Date.now() - startedAt,
               attempts,
             });
