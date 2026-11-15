@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiSession } from './entities/ai-session.entity';
@@ -25,6 +25,98 @@ export class AiService {
     private readonly pointsService: PointsService,
     private readonly aiProviderService: AiProviderService,
   ) {}
+
+
+  async editUserMessage(userId: string, sessionId: string, messageId: string, nextQuestion: string) {
+    const question = nextQuestion.trim();
+    if (!question) throw new BadRequestException('A question cannot be empty.');
+
+    const session = await this.sessionRepository.findOne({ where: { id: sessionId, userId } });
+    if (!session) throw new ForbiddenException('AI conversation not found or unauthorized.');
+
+    const messages = await this.messageRepository.find({
+      where: { sessionId },
+      order: { createdAt: 'ASC', id: 'ASC' },
+    });
+    const targetIndex = messages.findIndex((message) => message.id === messageId);
+    const target = messages[targetIndex];
+    if (!target || target.role !== 'user') {
+      throw new ForbiddenException('You can only edit your own question.');
+    }
+
+    const balance = await this.pointsService.getBalance(userId);
+    if (balance < this.AI_USAGE_COST) {
+      return {
+        error: 'Insufficient Wisdom Points',
+        required: this.AI_USAGE_COST,
+        balance,
+      };
+    }
+
+    const resource = session.resourceId
+      ? await this.resourceRepository.findOne({
+          where: [
+            { id: session.resourceId, isVerified: true },
+            { id: session.resourceId, moderationStatus: ResourceModerationStatus.APPROVED },
+          ],
+        })
+      : null;
+    const context = resource
+      ? [
+          'The student is asking about this approved Sophis Central academic resource.',
+          `Title: ${resource.title}`,
+          `Description: ${resource.description || 'No description provided'}`,
+          `Type: ${resource.type}`,
+          `Course: ${resource.course || 'N/A'}`,
+          `Topic: ${resource.topic || 'N/A'}`,
+          `Institution: ${resource.institution || 'N/A'}`,
+          `Level: ${resource.level || 'N/A'}`,
+          `Tags: ${resource.tags?.join(', ') || 'None'}`,
+          'Only resource metadata is available; the actual uploaded file contents have not been extracted. Do not claim to have read the file.',
+        ].join('\\n')
+      : 'No specific resource metadata was provided. Answer the student question directly using your academic knowledge.';
+
+    const history = messages
+      .slice(0, targetIndex)
+      .filter((message) => message.role === 'user' || message.role === 'assistant')
+      .map((message) => ({
+        role: message.role as 'user' | 'assistant',
+        content: message.content,
+      }));
+
+    // Generate first. If the provider fails, the saved conversation remains untouched.
+    const aiResponse = await this.aiProviderService.generateText(question, context, history);
+
+    target.content = question;
+    await this.messageRepository.save(target);
+
+    const laterMessages = messages.slice(targetIndex + 1);
+    if (laterMessages.length) await this.messageRepository.remove(laterMessages);
+
+    const assistantMessage = await this.messageRepository.save(this.messageRepository.create({
+      sessionId,
+      role: 'assistant',
+      content: aiResponse,
+    }));
+
+    if (targetIndex === 0) session.title = `Chat about ${question.substring(0, 50)}...`;
+    await this.sessionRepository.save(session);
+
+    await this.pointsService.awardPoints({
+      userId,
+      amount: -this.AI_USAGE_COST,
+      reason: `AI tutor question edited - resource: ${session.resourceId || 'general'}`,
+    });
+
+    return {
+      sessionId,
+      userMessageId: target.id,
+      userMessage: target.content,
+      assistantMessage: assistantMessage.content,
+      pointsUsed: this.AI_USAGE_COST,
+      balanceRemaining: balance - this.AI_USAGE_COST,
+    };
+  }
 
   async processQuestion(userId: string, dto: AskQuestionDto) {
     const question = dto.question.trim();
@@ -101,7 +193,7 @@ export class AiService {
       session = await this.sessionRepository.save(session);
     }
 
-    await this.messageRepository.save(this.messageRepository.create({
+    const savedUserMessage = await this.messageRepository.save(this.messageRepository.create({
       sessionId: session.id,
       role: 'user',
       content: question,
@@ -121,6 +213,7 @@ export class AiService {
 
     return {
       sessionId: session.id,
+      userMessageId: savedUserMessage.id,
       userMessage: question,
       assistantMessage: aiResponse,
       pointsUsed: this.AI_USAGE_COST,
