@@ -162,7 +162,7 @@ export class GroqService {
             historyTurns: prepared.history.length,
             inputCharacters,
             estimatedInputTokens: prepared.estimatedInputTokens,
-            tokenEstimateMethod: 'conservative_unicode_heuristic',
+            tokenEstimateMethod: 'unicode_aware_heuristic',
             inputTokenBudget: prepared.maxInputTokens,
             droppedHistoryTurns: prepared.droppedHistoryTurns,
             contextTruncated: prepared.contextTruncated,
