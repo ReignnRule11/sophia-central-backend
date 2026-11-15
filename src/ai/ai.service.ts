@@ -7,7 +7,7 @@ import { Resource, ResourceModerationStatus } from '../resources/entities/resour
 import { AskQuestionDto } from './dto/ask-question.dto';
 import { SummarizeResourceDto } from './dto/summarize-resource.dto';
 import { PointsService } from '../points/points.service';
-import { GeminiService } from './gemini.service';
+import { AiProviderService } from './ai-provider.service';
 
 @Injectable()
 export class AiService {
@@ -23,7 +23,7 @@ export class AiService {
     @InjectRepository(Resource)
     private readonly resourceRepository: Repository<Resource>,
     private readonly pointsService: PointsService,
-    private readonly geminiService: GeminiService,
+    private readonly aiProviderService: AiProviderService,
   ) {}
 
   async processQuestion(userId: string, dto: AskQuestionDto) {
@@ -90,7 +90,7 @@ export class AiService {
       : [];
 
     // Generate before persisting messages or charging points. Provider failures are not billable.
-    const aiResponse = await this.geminiService.generateText(question, context, history);
+    const aiResponse = await this.aiProviderService.generateText(question, context, history);
 
     if (!session) {
       session = this.sessionRepository.create({
@@ -146,7 +146,7 @@ export class AiService {
       throw new NotFoundException('Resource not found or not verified');
     }
 
-    const summary = await this.geminiService.generateText(
+    const summary = await this.aiProviderService.generateText(
       'Create a useful study summary of the academic resource described in the supplied metadata. Organize it into overview, key points, important concepts, and suggested study takeaways. Clearly state when the supplied metadata is insufficient to summarize the actual document.',
       [
         `Title: ${resource.title}`,
