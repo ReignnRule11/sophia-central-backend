@@ -62,7 +62,7 @@ export class AiService {
 
     const context = resource
       ? [
-          'The student is asking about this approved Sophia Central academic resource.',
+          'The student is asking about this approved Sophis Central academic resource.',
           `Title: ${resource.title}`,
           `Description: ${resource.description || 'No description provided'}`,
           `Type: ${resource.type}`,
