@@ -27,6 +27,8 @@ export class GeminiService {
   // The stable Gemini Developer API Interactions endpoint. Google also exposes
   // a v1beta endpoint; /v1 is supported and must not be downgraded blindly.
   private readonly endpoint = 'https://generativelanguage.googleapis.com/v1/interactions';
+  private readonly overallTimeoutMs = 100_000;
+  private readonly perAttemptTimeoutMs = 35_000;
 
   async generateText(
     prompt: string,
@@ -63,6 +65,14 @@ export class GeminiService {
     let attemptCount = 0;
     let providerStatus: number | undefined;
     let inputCharacterCount = 0;
+    const attemptDurationsMs: number[] = [];
+    const overallController = new AbortController();
+    const overallDeadlineAt = generationStartedAt + this.overallTimeoutMs;
+    let overallTimedOut = false;
+    const overallTimer = setTimeout(() => {
+      overallTimedOut = true;
+      overallController.abort();
+    }, this.overallTimeoutMs);
 
     try {
       const requestBody = JSON.stringify({
@@ -82,41 +92,103 @@ export class GeminiService {
 
       inputCharacterCount = input.length;
 
-      // Gemini can return 503 while a model is temporarily overloaded. Retry
-      // only that transient status, with bounded backoff and one overall deadline.
-      const requestDeadline = AbortSignal.timeout(100_000);
+      // One deadline covers all attempts, backoff waits, and response-body reads.
+      // Each attempt is capped so a stalled provider call cannot consume the full
+      // budget before the remaining retry opportunities are considered.
       const retryDelaysMs = [1_000, 2_000];
-      let response: Response;
+      let response: Response | undefined;
+      let responseBody = '';
 
       for (let attempt = 0; ; attempt += 1) {
-        attemptCount += 1;
-        response = await fetch(this.endpoint, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'x-goog-api-key': apiKey,
-          },
-          body: requestBody,
-          signal: requestDeadline,
-        });
+        const remainingMs = overallDeadlineAt - Date.now();
+        if (remainingMs <= 0 || overallController.signal.aborted) {
+          overallTimedOut = true;
+          throw new DOMException('Gemini overall request deadline exceeded', 'TimeoutError');
+        }
 
-        providerStatus = response.status;
+        attemptCount += 1;
+        const attemptController = new AbortController();
+        let attemptTimedOut = false;
+        const abortAttemptForOverallDeadline = () => attemptController.abort();
+        overallController.signal.addEventListener('abort', abortAttemptForOverallDeadline, {
+          once: true,
+        });
+        const attemptTimeoutMs = Math.min(this.perAttemptTimeoutMs, remainingMs);
+        const attemptTimer = setTimeout(() => {
+          attemptTimedOut = true;
+          attemptController.abort();
+        }, attemptTimeoutMs);
+        const attemptStartedAt = Date.now();
+
+        try {
+          response = await fetch(this.endpoint, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'x-goog-api-key': apiKey,
+            },
+            body: requestBody,
+            signal: attemptController.signal,
+          });
+          providerStatus = response.status;
+          // Reading the body is part of the attempt and must obey its timeout too.
+          responseBody = await response.text();
+        } catch (error) {
+          if (attemptTimedOut || overallTimedOut) {
+            throw new DOMException('Gemini request timed out', 'TimeoutError');
+          }
+          throw error;
+        } finally {
+          attemptDurationsMs.push(Date.now() - attemptStartedAt);
+          clearTimeout(attemptTimer);
+          overallController.signal.removeEventListener(
+            'abort',
+            abortAttemptForOverallDeadline,
+          );
+        }
+
         if (response.status !== 503 || attempt >= retryDelaysMs.length) {
           break;
         }
 
         const delayMs = retryDelaysMs[attempt];
+        const remainingAfterResponseMs = overallDeadlineAt - Date.now();
+        if (remainingAfterResponseMs <= delayMs) {
+          console.warn(
+            `Gemini returned HTTP 503 for model "${model}", but the overall deadline leaves insufficient time for another attempt.`,
+          );
+          break;
+        }
+
         console.warn(
           `Gemini returned HTTP 503 for model "${model}". Retrying in ${delayMs}ms (attempt ${attempt + 2}/3).`,
         );
-        await new Promise((resolve) => setTimeout(resolve, delayMs));
+
+        // Make the backoff interruptible so the overall deadline also bounds waits.
+        await new Promise<void>((resolve, reject) => {
+          const retryTimer = setTimeout(() => {
+            overallController.signal.removeEventListener('abort', abortRetry);
+            resolve();
+          }, delayMs);
+          const abortRetry = () => {
+            clearTimeout(retryTimer);
+            overallController.signal.removeEventListener('abort', abortRetry);
+            overallTimedOut = true;
+            reject(new DOMException('Gemini overall request deadline exceeded', 'TimeoutError'));
+          };
+          overallController.signal.addEventListener('abort', abortRetry, { once: true });
+        });
       }
 
-      const responseBody = await response.text();
-      let result: GeminiInteractionResponse | undefined;
+      if (!response) {
+        throw new Error('Gemini did not return a response');
+      }
 
+      let result: GeminiInteractionResponse | undefined;
       try {
-        result = responseBody ? (JSON.parse(responseBody) as GeminiInteractionResponse) : undefined;
+        result = responseBody
+          ? (JSON.parse(responseBody) as GeminiInteractionResponse)
+          : undefined;
       } catch {
         throw new Error(
           `Gemini returned non-JSON data (HTTP ${response.status}): ${responseBody.slice(0, 500)}`,
@@ -159,6 +231,7 @@ export class GeminiService {
         model,
         durationMs: Date.now() - generationStartedAt,
         attempts: attemptCount,
+        attemptDurationsMs,
         providerStatus,
         historyTurns: history.length,
         inputCharacters: inputCharacterCount,
@@ -167,20 +240,26 @@ export class GeminiService {
       return text;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown provider error';
-      if (error instanceof DOMException && error.name === 'TimeoutError') {
+      if (
+        overallTimedOut ||
+        (error instanceof DOMException && error.name === 'TimeoutError')
+      ) {
         console.error('Gemini generation timed out', {
           model,
           durationMs: Date.now() - generationStartedAt,
           attempts: attemptCount,
+          attemptDurationsMs,
           providerStatus,
           historyTurns: history.length,
           inputCharacters: inputCharacterCount,
+          timeoutMs: this.overallTimeoutMs,
         });
       } else {
         console.error('Gemini generation failed', {
           model,
           durationMs: Date.now() - generationStartedAt,
           attempts: attemptCount,
+          attemptDurationsMs,
           providerStatus,
           historyTurns: history.length,
           inputCharacters: inputCharacterCount,
@@ -190,6 +269,8 @@ export class GeminiService {
       throw new ServiceUnavailableException(
         'Sophis AI could not generate a response right now. Please try again shortly. No Wisdom Points were deducted.',
       );
+    } finally {
+      clearTimeout(overallTimer);
     }
   }
 }

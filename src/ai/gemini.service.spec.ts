@@ -14,6 +14,7 @@ describe('GeminiService', () => {
   });
 
   afterEach(() => {
+    jest.useRealTimers();
     jest.restoreAllMocks();
     if (originalApiKey === undefined) delete process.env.GEMINI_API_KEY;
     else process.env.GEMINI_API_KEY = originalApiKey;
@@ -64,6 +65,51 @@ describe('GeminiService', () => {
     const request = JSON.parse(String(fetchMock.mock.calls[0][1]?.body));
     expect(request.input.length).toBeLessThanOrEqual(14_100);
     expect(request.input).toContain('Latest question');
+  });
+
+  it('retries HTTP 503 at most twice within the shared deadline', async () => {
+    jest.useFakeTimers();
+    const fetchMock = jest.spyOn(global, 'fetch').mockResolvedValue({
+      ok: false,
+      status: 503,
+      statusText: 'Service Unavailable',
+      text: async () => JSON.stringify({ error: { message: 'Model overloaded' } }),
+    } as Response);
+
+    const service = new GeminiService();
+    const generation = service.generateText('Explain a topic');
+    const rejection = expect(generation).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await jest.advanceTimersByTimeAsync(3_000);
+
+    await rejection;
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(console.error).toHaveBeenCalledWith(
+      'Gemini generation failed',
+      expect.objectContaining({ attempts: 3, providerStatus: 503 }),
+    );
+  });
+
+  it('aborts a stalled individual attempt before the overall deadline', async () => {
+    jest.useFakeTimers();
+    jest.spyOn(global, 'fetch').mockImplementation(
+      (_input: RequestInfo | URL, init?: RequestInit) =>
+        new Promise((_resolve, reject) => {
+          init?.signal?.addEventListener('abort', () => {
+            reject(new DOMException('Request aborted', 'AbortError'));
+          });
+        }),
+    );
+
+    const service = new GeminiService();
+    const generation = service.generateText('Explain a topic');
+    const rejection = expect(generation).rejects.toBeInstanceOf(ServiceUnavailableException);
+    await jest.advanceTimersByTimeAsync(35_000);
+
+    await rejection;
+    expect(console.error).toHaveBeenCalledWith(
+      'Gemini generation timed out',
+      expect.objectContaining({ attempts: 1, timeoutMs: 100_000 }),
+    );
   });
 
   it('returns a non-billable service error when Gemini fails', async () => {
