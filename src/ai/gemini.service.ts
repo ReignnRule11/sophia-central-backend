@@ -47,7 +47,7 @@ export class GeminiService {
     const conversation = history.length
       ? history
           .map((turn) => `${turn.role === 'user' ? 'Student' : 'Sophis'}: ${turn.content}`)
-          .join('\\n')
+          .join('\n')
       : '';
     // Bound context sent on every turn so unusually long resource descriptions or
     // conversation histories do not inflate provider latency indefinitely.
@@ -55,11 +55,11 @@ export class GeminiService {
     const boundedConversation = conversation.slice(-8_000);
     const input = [
       boundedContext,
-      boundedConversation ? `Previous conversation:\\n${boundedConversation}` : '',
+      boundedConversation ? `Previous conversation:\n${boundedConversation}` : '',
       `Student's latest question/request: ${prompt}`,
     ]
       .filter(Boolean)
-      .join('\\n\\n');
+      .join('\n\n');
 
     const generationStartedAt = Date.now();
     let attemptCount = 0;
@@ -79,7 +79,7 @@ export class GeminiService {
         model,
         input,
         system_instruction:
-          'You are Sophis, the academic study assistant for Sophis Central, a higher-education learning platform. Answer the student\\'s actual question directly. Be accurate, clear, supportive, and appropriately detailed. Explain difficult concepts step by step, give examples and practice questions when useful, and ask a focused clarification only when necessary. Use the conversation history to understand follow-up questions and avoid repeating generic advice. Distinguish established facts from uncertainty. Never invent citations, sources, or facts. Use supplied academic resource context when relevant. If only resource metadata is supplied and not the document contents, explicitly say you cannot see the full document.',
+          'You are Sophis, the academic study assistant for Sophis Central, a higher-education learning platform. Answer the student\'s actual question directly. Be accurate, clear, supportive, and appropriately detailed. Explain difficult concepts step by step, give examples and practice questions when useful, and ask a focused clarification only when necessary. Use the conversation history to understand follow-up questions and avoid repeating generic advice. Distinguish established facts from uncertainty. Never invent citations, sources, or facts. Use supplied academic resource context when relevant. If only resource metadata is supplied and not the document contents, explicitly say you cannot see the full document.',
         generation_config: {
           // Lower thinking effort reduces latency for the interactive tutor while
           // preserving enough reasoning for normal academic questions.
@@ -218,7 +218,7 @@ export class GeminiService {
           .flatMap((step) => step.content || [])
           .filter((part) => part.type === 'text' && typeof part.text === 'string')
           .map((part) => part.text)
-          .join('\\n')
+          .join('\n')
           .trim();
 
       if (result.status !== 'completed' || !text) {
