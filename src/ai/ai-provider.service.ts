@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { GeminiService } from './gemini.service';
 import { GroqService, AiConversationTurn } from './groq.service';
 
@@ -16,7 +16,8 @@ export class AiProviderService {
   ): Promise<string> {
     try {
       return await this.groqService.generateText(prompt, context, history);
-    } catch {
+    } catch (error) {
+      if (error instanceof BadRequestException) throw error;
       console.warn('Primary AI provider Groq failed; attempting Gemini fallback.');
     }
 
