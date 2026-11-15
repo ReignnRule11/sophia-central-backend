@@ -1,4 +1,4 @@
-import { ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { AiProviderService } from './ai-provider.service';
 import { GroqService } from './groq.service';
 import { GeminiService } from './gemini.service';
@@ -39,4 +39,13 @@ describe('AiProviderService', () => {
       ServiceUnavailableException,
     );
   });
+
+  it('does not send invalid oversized prompts to the fallback provider', async () => {
+    const validationError = new BadRequestException('Question exceeds the AI input budget.');
+    (groq.generateText as jest.Mock).mockRejectedValue(validationError);
+
+    await expect(service.generateText('Question')).rejects.toBe(validationError);
+    expect(gemini.generateText).not.toHaveBeenCalled();
+  });
+
 });
