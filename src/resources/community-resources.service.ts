@@ -51,7 +51,7 @@ export class CommunityResourcesService {
     const qb = this.resources.createQueryBuilder('resource')
       .leftJoin('resource.uploader', 'uploader')
       .addSelect(['uploader.id', 'uploader.firstName', 'uploader.lastName', 'uploader.academicHandle'])
-      .where('(resource.origin = :openSource OR resource.moderationStatus = :status)', { openSource: ResourceOrigin.OPEN_SOURCE, status: ResourceModerationStatus.APPROVED })
+      .where('resource.origin = :origin AND resource.moderationStatus = :status', { origin: ResourceOrigin.COMMUNITY_UPLOAD, status: ResourceModerationStatus.APPROVED })
       .andWhere('resource.rightsConfirmed = true');
     const departmentOnly = query.departmentOnly === '1' || query.departmentOnly === 'true';
     const filters: Array<[string, string]> = [
@@ -77,7 +77,6 @@ export class CommunityResourcesService {
     if (query.q?.trim()) {
       qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.course ILIKE :q OR resource.topic ILIKE :q)', { q: `%${query.q.trim()}%` });
     }
-    if (query.origin && Object.values(ResourceOrigin).includes(query.origin as ResourceOrigin)) qb.andWhere('resource.origin = :origin', { origin: query.origin });
     if (query.type) qb.andWhere('resource.type = :type', { type: query.type });
     if (query.license) qb.andWhere('resource.license = :license', { license: query.license });
     const page = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
@@ -100,7 +99,7 @@ export class CommunityResourcesService {
 
   async findPublicOne(id: string) {
     const resource = await this.resources.findOne({
-      where: [{ id, origin: ResourceOrigin.OPEN_SOURCE, rightsConfirmed: true }, { id, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true }],
+      where: { id, origin: ResourceOrigin.COMMUNITY_UPLOAD, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true },
       relations: ['uploader'],
     });
     if (!resource) throw new NotFoundException('Public resource not found');
@@ -120,7 +119,7 @@ export class CommunityResourcesService {
       throw new ForbiddenException('Complete your catalogue-backed institution setup before downloading academic materials.');
     }
     const resource = await this.resources.findOne({
-      where: [{ id, origin: ResourceOrigin.OPEN_SOURCE, rightsConfirmed: true }, { id, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true }],
+      where: { id, origin: ResourceOrigin.COMMUNITY_UPLOAD, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true },
     });
     if (!resource?.fileUrl) throw new NotFoundException('Public resource file not found');
     const key = this.storage.getKeyFromPublicUrl(resource.fileUrl);
