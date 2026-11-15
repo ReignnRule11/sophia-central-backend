@@ -17,7 +17,7 @@ describe('Sophis AI token budgeting', () => {
     process.env.SOPHIS_AI_MAX_INPUT_TOKENS = '1024';
     const history = Array.from({ length: 12 }, (_, index) => ({
       role: index % 2 === 0 ? 'user' as const : 'assistant' as const,
-      content: `Older conversation turn ${index}: ${'background context '.repeat(500)}`,
+      content: `Older conversation turn ${index}: ${'background context '.repeat(60)}`,
     }));
 
     const prepared = prepareAiPrompt({
