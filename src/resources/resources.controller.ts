@@ -9,11 +9,27 @@ import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
 import { ResourcesService } from './resources.service';
 import { CommunityResourcesService } from './community-resources.service';
+import { OpenSourceResearchService } from './open-source-research.service';
+import { ImportOpenSourceResearchDto } from './dto/import-open-source-research.dto';
 
 @ApiTags('Resources')
 @Controller('resources')
 export class ResourcesController {
-  constructor(private readonly resourcesService: ResourcesService, private readonly communityResources: CommunityResourcesService) {}
+  constructor(
+    private readonly resourcesService: ResourcesService,
+    private readonly communityResources: CommunityResourcesService,
+    private readonly openSourceResearch: OpenSourceResearchService,
+  ) {}
+
+  @Get('open-source/search')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN, UserRole.MODERATOR) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Search OpenAlex for open-access research to add to the General Library' })
+  searchOpenSourceResearch(@Query('q') query: string) { return this.openSourceResearch.search(query); }
+
+  @Post('open-source/import')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN, UserRole.MODERATOR) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Import research metadata and legally redistributable full text into the General Library' })
+  importOpenSourceResearch(@Body() dto: ImportOpenSourceResearchDto) { return this.openSourceResearch.import(dto.identifier); }
 
   @Get('public')
   @ApiOperation({ summary: 'Browse approved public academic resources without an account' })
