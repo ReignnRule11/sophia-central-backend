@@ -62,7 +62,7 @@ export class AiService {
 
     const context = resource
       ? [
-          'The student is asking about this approved Sophia Central academic resource.',
+          'The student is asking about this approved Sophis Central academic resource.',
           `Title: ${resource.title}`,
           `Description: ${resource.description || 'No description provided'}`,
           `Type: ${resource.type}`,
@@ -72,7 +72,7 @@ export class AiService {
           `Level: ${resource.level || 'N/A'}`,
           `Tags: ${resource.tags?.join(', ') || 'None'}`,
           'Only resource metadata is available; the actual uploaded file contents have not been extracted. Do not claim to have read the file.',
-        ].join('\\n')
+        ].join('\n')
       : 'No specific resource metadata was provided. Answer the student question directly using your academic knowledge.';
 
     const history = session
@@ -156,7 +156,7 @@ export class AiService {
         `Topic: ${resource.topic || 'N/A'}`,
         `Level: ${resource.level || 'N/A'}`,
         'Important: The actual uploaded file contents are not currently extracted or supplied. Do not imply that you have read the full file.',
-      ].join('\\n'),
+      ].join('\n'),
     );
 
     await this.pointsService.awardPoints({
