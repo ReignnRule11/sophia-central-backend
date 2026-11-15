@@ -11,6 +11,7 @@ import { ResourcesService } from './resources.service';
 import { CommunityResourcesService } from './community-resources.service';
 import { OpenSourceResearchService } from './open-source-research.service';
 import { ImportOpenSourceResearchDto } from './dto/import-open-source-research.dto';
+import { BulkImportOpenSourceResearchDto } from './dto/bulk-import-open-source-research.dto';
 
 @ApiTags('Resources')
 @Controller('resources')
@@ -24,7 +25,18 @@ export class ResourcesController {
   @Get('open-source/search')
   @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN, UserRole.MODERATOR) @ApiBearerAuth()
   @ApiOperation({ summary: 'Search OpenAlex for open-access research to add to the General Library' })
-  searchOpenSourceResearch(@Query('q') query: string) { return this.openSourceResearch.search(query); }
+  searchOpenSourceResearch(
+    @Query('q') query: string,
+    @Query('page') page = '1',
+    @Query('perPage') perPage = '12',
+  ) { return this.openSourceResearch.search(query, page, perPage); }
+
+  @Post('open-source/import/bulk')
+  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN, UserRole.MODERATOR) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Import a controlled batch of up to 20 research works with per-item licence checks and a result report' })
+  bulkImportOpenSourceResearch(@Body() dto: BulkImportOpenSourceResearchDto) {
+    return this.openSourceResearch.importMany(dto.identifiers);
+  }
 
   @Post('open-source/import')
   @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN, UserRole.MODERATOR) @ApiBearerAuth()
