@@ -58,6 +58,7 @@ export class GeminiService {
       context,
       history,
       prompt,
+      maxInputCharacters: 13_800,
     });
     const conversation = prepared.history
       .map((turn) => `${turn.role === 'user' ? 'STUDENT' : 'SOPHIS'} MESSAGE:\n${turn.content}`)
@@ -275,6 +276,7 @@ export class GeminiService {
         estimatedInputTokens: prepared.estimatedInputTokens,
         tokenEstimateMethod: 'unicode_aware_heuristic',
         inputTokenBudget: prepared.maxInputTokens,
+        maxInputCharacters: prepared.maxInputCharacters ?? null,
         droppedHistoryTurns: prepared.droppedHistoryTurns,
         contextTruncated: prepared.contextTruncated,
         actualInputTokens: result.usage?.total_input_tokens ?? null,
