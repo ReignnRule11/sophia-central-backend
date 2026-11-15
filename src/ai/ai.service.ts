@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { AiSession } from './entities/ai-session.entity';
@@ -29,7 +29,7 @@ export class AiService {
 
   async editUserMessage(userId: string, sessionId: string, messageId: string, nextQuestion: string) {
     const question = nextQuestion.trim();
-    if (!question) throw new ForbiddenException('A question cannot be empty.');
+    if (!question) throw new BadRequestException('A question cannot be empty.');
 
     const session = await this.sessionRepository.findOne({ where: { id: sessionId, userId } });
     if (!session) throw new ForbiddenException('AI conversation not found or unauthorized.');
