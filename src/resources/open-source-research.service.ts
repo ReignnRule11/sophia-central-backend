@@ -372,6 +372,8 @@ export class OpenSourceResearchService {
       description: resource.description ?? null,
       type: resource.type,
       origin: resource.origin,
+      faculty: resource.faculty ?? null,
+      department: resource.department ?? null,
       sourceUrl: resource.sourceUrl,
       license: resource.license ?? null,
       attribution: resource.attribution ?? null,
