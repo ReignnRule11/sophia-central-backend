@@ -41,7 +41,7 @@ export class GeminiService {
       );
     }
 
-    const model = process.env.GEMINI_MODEL?.trim() || 'gemini-3.7-flash';
+    const model = process.env.GEMINI_MODEL?.trim() || 'gemini-3.8-flash';
     const conversation = history.length
       ? history
           .map((turn) => `${turn.role === 'user' ? 'Student' : 'Sophis'}: ${turn.content}`)
@@ -68,13 +68,16 @@ export class GeminiService {
           system_instruction:
             'You are Sophis, the academic study assistant for Sophis Central, a higher-education learning platform. Answer the student\'s actual question directly. Be accurate, clear, supportive, and appropriately detailed. Explain difficult concepts step by step, give examples and practice questions when useful, and ask a focused clarification only when necessary. Use the conversation history to understand follow-up questions and avoid repeating generic advice. Distinguish established facts from uncertainty. Never invent citations, sources, or facts. Use supplied academic resource context when relevant. If only resource metadata is supplied and not the document contents, explicitly say you cannot see the full document.',
           generation_config: {
-            temperature: 0.2,
+            // Lower thinking effort reduces latency for the interactive tutor while
+            // preserving enough reasoning for normal academic questions.
+            thinking_level: 'low',
             max_output_tokens: 2048,
           },
           // Keep student prompts and context out of Gemini's stored interaction history.
           store: false,
         }),
-        signal: AbortSignal.timeout(30_000),
+        // Keep the provider deadline below the Vercel external-rewrite ceiling (120s).
+        signal: AbortSignal.timeout(100_000),
       });
 
       const responseBody = await response.text();
@@ -123,7 +126,11 @@ export class GeminiService {
       return text;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown provider error';
-      console.error('Gemini generation failed:', message);
+      if (error instanceof DOMException && error.name === 'TimeoutError') {
+        console.error(`Gemini generation timed out after 100 seconds for model "${model}".`);
+      } else {
+        console.error('Gemini generation failed:', message);
+      }
       throw new ServiceUnavailableException(
         'Sophis AI could not generate a response right now. Please try again shortly. No Wisdom Points were deducted.',
       );
