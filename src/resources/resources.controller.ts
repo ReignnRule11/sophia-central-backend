@@ -22,6 +22,20 @@ export class ResourcesController {
     private readonly openSourceResearch: OpenSourceResearchService,
   ) {}
 
+
+  @Get('open-source-library')
+  @ApiOperation({ summary: 'Browse only centrally imported open-source research materials' })
+  listOpenSourceLibrary(@Query() query: Record<string, string>) { return this.openSourceResearch.listPublic(query); }
+
+  @Get('open-source-library/:id/file-url')
+  @UseGuards(JwtAuthGuard) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get a temporary file URL only for licensed open-source research full text' })
+  getOpenSourceFileUrl(@Param('id') id: string, @CurrentUser() user: User) { return this.openSourceResearch.getPublicFileUrl(id, user); }
+
+  @Get('open-source-library/:id')
+  @ApiOperation({ summary: 'Read metadata for one imported open-source research item' })
+  findOpenSourceOne(@Param('id') id: string) { return this.openSourceResearch.findPublicOne(id); }
+
   @Get('open-source/search')
   @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN, UserRole.MODERATOR) @ApiBearerAuth()
   @ApiOperation({ summary: 'Search OpenAlex for open-access research to add to the General Library' })
