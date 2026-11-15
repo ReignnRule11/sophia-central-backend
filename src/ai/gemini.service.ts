@@ -56,29 +56,48 @@ export class GeminiService {
       .join('\n\n');
 
     try {
-      const response = await fetch(this.endpoint, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'x-goog-api-key': apiKey,
+      const requestBody = JSON.stringify({
+        model,
+        input,
+        system_instruction:
+          'You are Sophis, the academic study assistant for Sophis Central, a higher-education learning platform. Answer the student\'s actual question directly. Be accurate, clear, supportive, and appropriately detailed. Explain difficult concepts step by step, give examples and practice questions when useful, and ask a focused clarification only when necessary. Use the conversation history to understand follow-up questions and avoid repeating generic advice. Distinguish established facts from uncertainty. Never invent citations, sources, or facts. Use supplied academic resource context when relevant. If only resource metadata is supplied and not the document contents, explicitly say you cannot see the full document.',
+        generation_config: {
+          // Lower thinking effort reduces latency for the interactive tutor while
+          // preserving enough reasoning for normal academic questions.
+          thinking_level: 'low',
+          max_output_tokens: 2048,
         },
-        body: JSON.stringify({
-          model,
-          input,
-          system_instruction:
-            'You are Sophis, the academic study assistant for Sophis Central, a higher-education learning platform. Answer the student\'s actual question directly. Be accurate, clear, supportive, and appropriately detailed. Explain difficult concepts step by step, give examples and practice questions when useful, and ask a focused clarification only when necessary. Use the conversation history to understand follow-up questions and avoid repeating generic advice. Distinguish established facts from uncertainty. Never invent citations, sources, or facts. Use supplied academic resource context when relevant. If only resource metadata is supplied and not the document contents, explicitly say you cannot see the full document.',
-          generation_config: {
-            // Lower thinking effort reduces latency for the interactive tutor while
-            // preserving enough reasoning for normal academic questions.
-            thinking_level: 'low',
-            max_output_tokens: 2048,
-          },
-          // Keep student prompts and context out of Gemini's stored interaction history.
-          store: false,
-        }),
-        // Keep the provider deadline below the Vercel external-rewrite ceiling (120s).
-        signal: AbortSignal.timeout(100_000),
+        // Keep student prompts and context out of Gemini's stored interaction history.
+        store: false,
       });
+
+      // Gemini can return 503 while a model is temporarily overloaded. Retry
+      // only that transient status, with bounded backoff and one overall deadline.
+      const requestDeadline = AbortSignal.timeout(100_000);
+      const retryDelaysMs = [1_000, 2_000];
+      let response: Response;
+
+      for (let attempt = 0; ; attempt += 1) {
+        response = await fetch(this.endpoint, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-goog-api-key': apiKey,
+          },
+          body: requestBody,
+          signal: requestDeadline,
+        });
+
+        if (response.status !== 503 || attempt >= retryDelaysMs.length) {
+          break;
+        }
+
+        const delayMs = retryDelaysMs[attempt];
+        console.warn(
+          `Gemini returned HTTP 503 for model "${model}". Retrying in ${delayMs}ms (attempt ${attempt + 2}/3).`,
+        );
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+      }
 
       const responseBody = await response.text();
       let result: GeminiInteractionResponse | undefined;
