@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { prepareAiPrompt, estimatePromptTokens } from './ai-tokenization';
 
 describe('Sophis AI token budgeting', () => {
