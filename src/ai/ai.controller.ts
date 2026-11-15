@@ -1,4 +1,4 @@
-import { Controller, Post, Get, Param, Body, UseGuards, ForbiddenException } from '@nestjs/common';
+import { Controller, Post, Get, Param, Body, UseGuards, ForbiddenException, Patch } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
@@ -35,7 +35,7 @@ export class AiController {
     return this.aiService.summarizeResource(user.id, dto);
   }
 
-  @Post('sessions/:sessionId/messages/:messageId/edit')
+  @Patch('sessions/:sessionId/messages/:messageId')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Edit a previous Sophis AI question and regenerate its answer (students only)' })
