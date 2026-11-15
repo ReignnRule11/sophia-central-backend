@@ -159,8 +159,17 @@ export class GroqService {
             attempts,
             attemptDurationsMs,
             providerStatus,
-            historyTurns: history.length,
+            historyTurns: prepared.history.length,
             inputCharacters,
+            estimatedInputTokens: prepared.estimatedInputTokens,
+            tokenEstimateMethod: 'conservative_unicode_heuristic',
+            inputTokenBudget: prepared.maxInputTokens,
+            droppedHistoryTurns: prepared.droppedHistoryTurns,
+            contextTruncated: prepared.contextTruncated,
+            actualInputTokens: payload.usage?.prompt_tokens ?? null,
+            actualOutputTokens: payload.usage?.completion_tokens ?? null,
+            actualTotalTokens: payload.usage?.total_tokens ?? null,
+            cachedInputTokens: payload.usage?.prompt_tokens_details?.cached_tokens ?? null,
             outputCharacters: answer.length,
           });
           return answer;
