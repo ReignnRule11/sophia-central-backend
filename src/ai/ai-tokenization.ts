@@ -1,4 +1,4 @@
-import { AiConversationTurn } from './groq.service';
+import type { AiConversationTurn } from './groq.service';
 
 export interface PreparedAiPrompt {
   context: string;
