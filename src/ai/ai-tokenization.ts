@@ -32,7 +32,7 @@ export function estimatePromptTokens(text: string): number {
 
 function getInputBudget(): number {
   const configured = Number.parseInt(process.env.SOPHIS_AI_MAX_INPUT_TOKENS || '', 10);
-  if (!Number.isFinite(configured)) return 12_000;
+  if (!Number.isFinite(configured)) return 8_000;
   return Math.min(64_000, Math.max(1_024, configured));
 }
 
