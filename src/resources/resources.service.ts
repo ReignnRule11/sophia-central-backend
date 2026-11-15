@@ -9,7 +9,7 @@ import { IsNull, Not, Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { UpdateResourceDto } from './dto/update-resource.dto';
-import { Resource, ResourceModerationStatus } from './entities/resource.entity';
+import { Resource, ResourceModerationStatus, ResourceOrigin } from './entities/resource.entity';
 import { SavedResource } from './entities/saved-resource.entity';
 import { S3Service } from '../upload/s3.service';
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
@@ -64,7 +64,7 @@ export class ResourcesService {
     // Only moderators and admins receive platform-wide resource visibility.
     // Reviewers use the assigned-review queue; their shared library remains approved-only.
     const resources = await this.resourceRepository.find({
-      ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { where: { moderationStatus: ResourceModerationStatus.APPROVED } }),
+      where: { origin: ResourceOrigin.COMMUNITY_UPLOAD, ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { moderationStatus: ResourceModerationStatus.APPROVED }) },
       relations: ['uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -174,7 +174,7 @@ export class ResourcesService {
 
   async findOneForViewer(id: string, viewer: User, trackView = true): Promise<Resource> {
     const resource = await this.resourceRepository.findOne({
-      where: { id },
+      where: { id, origin: ResourceOrigin.COMMUNITY_UPLOAD },
       relations: ['uploader'],
     });
 
