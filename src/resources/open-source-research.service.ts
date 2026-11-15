@@ -26,6 +26,9 @@ const REDISTRIBUTABLE_LICENSES: Record<string, ResourceLicense> = {
   'cc-by-sa-4.0': ResourceLicense.CC_BY_SA_4_0,
   'cc0': ResourceLicense.CC0_1_0,
   'cc0-1.0': ResourceLicense.CC0_1_0,
+  'https://creativecommons.org/licenses/by/4.0/': ResourceLicense.CC_BY_4_0,
+  'https://creativecommons.org/licenses/by-sa/4.0/': ResourceLicense.CC_BY_SA_4_0,
+  'https://creativecommons.org/publicdomain/zero/1.0/': ResourceLicense.CC0_1_0,
 };
 const APPROVED_REPOSITORY_HOSTS = [
   'arxiv.org',
