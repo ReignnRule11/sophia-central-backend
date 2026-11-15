@@ -81,6 +81,7 @@ export class OpenSourceResearchService {
     const url = new URL(`${OPENALEX_API}/works`);
     url.searchParams.set('search', term);
     url.searchParams.set('per-page', '12');
+    url.searchParams.set('filter', 'open_access.is_oa:true');
     url.searchParams.set('select', 'id,doi,title,publication_year,type,authorships,best_oa_location,primary_location,open_access');
     const response = await this.openAlexGet<OpenAlexSearchResponse>(url.toString());
     return (response.results ?? []).map((work) => this.toSearchResult(work));
@@ -107,6 +108,9 @@ export class OpenSourceResearchService {
       throw error;
     }
     if (!work?.id || !work.title?.trim()) throw new NotFoundException('OpenAlex could not find that research work.');
+    if (work.open_access?.is_oa !== true) {
+      throw new BadRequestException('This work is not identified as open access by OpenAlex and cannot be imported into the General Library.');
+    }
 
     const canonicalDoi = work.doi?.trim() || (doi ? `https://doi.org/${doi}` : null);
     const sourceUrl = canonicalDoi || work.best_oa_location?.landing_page_url ||
