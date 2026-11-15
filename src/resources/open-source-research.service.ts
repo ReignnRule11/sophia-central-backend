@@ -97,7 +97,7 @@ export class OpenSourceResearchService {
     }
 
     const endpoint = doi
-      ? `${OPENALEX_API}/works/https://doi.org/${encodeURIComponent(doi)}`
+      ? `${OPENALEX_API}/works/https://doi.org/${doi}`
       : `${OPENALEX_API}/works/${openAlexId}`;
     let work: OpenAlexWork;
     try {
