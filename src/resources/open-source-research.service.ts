@@ -103,7 +103,7 @@ export class OpenSourceResearchService {
 
   async getPublicFileUrl(id: string, viewer: User) {
     const resource = await this.resources.findOne({ where: { id, origin: ResourceOrigin.OPEN_SOURCE, rightsConfirmed: true } });
-    if (!resource?.fileUrl || !resource.license) throw new NotFoundException('A redistributable full-text file is not available for this research item. Open the original source instead.');
+    if (!resource?.fileUrl || !resource.license || ![ResourceLicense.CC_BY_4_0, ResourceLicense.CC_BY_SA_4_0, ResourceLicense.CC0_1_0].includes(resource.license)) throw new NotFoundException('A redistributable full-text file is not available for this research item. Open the original source instead.');
     const key = this.storage.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new NotFoundException('Open-source research file not found.');
     await this.resources.manager.save(UserActivityEvent, this.resources.manager.create(UserActivityEvent, {
