@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import type { AiConversationTurn } from './groq.service';
 
 export interface PreparedAiPrompt {
@@ -42,6 +43,13 @@ export function prepareAiPrompt(input: {
   prompt: string;
 }): PreparedAiPrompt {
   const maxInputTokens = getInputBudget();
+  const requiredTokens = estimatePromptTokens(`${input.systemInstruction}\n${input.prompt}`) + 8;
+  if (requiredTokens > maxInputTokens) {
+    throw new BadRequestException(
+      'This question is too long for the current AI input budget. Please shorten the question and try again.',
+    );
+  }
+
   const history = [...(input.history || []).slice(-12)];
   let context = (input.context || '').trim();
   const originalContextLength = context.length;
