@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ResourcesService } from './resources.service';
-import { ResourceModerationStatus } from './entities/resource.entity';
+import { ResourceModerationStatus, ResourceOrigin } from './entities/resource.entity';
 import { UserRole } from '../users/entities/user.entity';
 
 describe('ResourcesService.findOneForViewer authorization', () => {
@@ -43,6 +43,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
 
     expect(result).toMatchObject({ id: 'resource-1', hasFile: true });
     expect(result.fileUrl).toBeUndefined();
+    expect(resourceRepository.findOne).toHaveBeenCalledWith({ where: { id: 'resource-1', origin: ResourceOrigin.COMMUNITY_UPLOAD }, relations: ['uploader'] });
   });
 
   it('allows a student to inspect their own rejected submission and its file metadata', async () => {
