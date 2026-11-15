@@ -47,13 +47,22 @@ export class GeminiService {
           .map((turn) => `${turn.role === 'user' ? 'Student' : 'Sophis'}: ${turn.content}`)
           .join('\n')
       : '';
+    // Bound context sent on every turn so unusually long resource descriptions or
+    // conversation histories do not inflate provider latency indefinitely.
+    const boundedContext = (context || '').slice(0, 6_000);
+    const boundedConversation = conversation.slice(-8_000);
     const input = [
-      context || '',
-      conversation ? `Previous conversation:\n${conversation}` : '',
+      boundedContext,
+      boundedConversation ? `Previous conversation:\n${boundedConversation}` : '',
       `Student's latest question/request: ${prompt}`,
     ]
       .filter(Boolean)
       .join('\n\n');
+
+    const generationStartedAt = Date.now();
+    let attemptCount = 0;
+    let providerStatus: number | undefined;
+    let inputCharacterCount = 0;
 
     try {
       const requestBody = JSON.stringify({
@@ -71,6 +80,8 @@ export class GeminiService {
         store: false,
       });
 
+      inputCharacterCount = input.length;
+
       // Gemini can return 503 while a model is temporarily overloaded. Retry
       // only that transient status, with bounded backoff and one overall deadline.
       const requestDeadline = AbortSignal.timeout(100_000);
@@ -78,6 +89,7 @@ export class GeminiService {
       let response: Response;
 
       for (let attempt = 0; ; attempt += 1) {
+        attemptCount += 1;
         response = await fetch(this.endpoint, {
           method: 'POST',
           headers: {
@@ -88,6 +100,7 @@ export class GeminiService {
           signal: requestDeadline,
         });
 
+        providerStatus = response.status;
         if (response.status !== 503 || attempt >= retryDelaysMs.length) {
           break;
         }
@@ -142,13 +155,37 @@ export class GeminiService {
         );
       }
 
+      console.info('Gemini generation completed', {
+        model,
+        durationMs: Date.now() - generationStartedAt,
+        attempts: attemptCount,
+        providerStatus,
+        historyTurns: history.length,
+        inputCharacters: inputCharacterCount,
+        outputCharacters: text.length,
+      });
       return text;
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Unknown provider error';
       if (error instanceof DOMException && error.name === 'TimeoutError') {
-        console.error(`Gemini generation timed out after 100 seconds for model "${model}".`);
+        console.error('Gemini generation timed out', {
+          model,
+          durationMs: Date.now() - generationStartedAt,
+          attempts: attemptCount,
+          providerStatus,
+          historyTurns: history.length,
+          inputCharacters: inputCharacterCount,
+        });
       } else {
-        console.error('Gemini generation failed:', message);
+        console.error('Gemini generation failed', {
+          model,
+          durationMs: Date.now() - generationStartedAt,
+          attempts: attemptCount,
+          providerStatus,
+          historyTurns: history.length,
+          inputCharacters: inputCharacterCount,
+          error: message,
+        });
       }
       throw new ServiceUnavailableException(
         'Sophis AI could not generate a response right now. Please try again shortly. No Wisdom Points were deducted.',
