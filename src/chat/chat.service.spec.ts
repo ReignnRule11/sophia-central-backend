@@ -536,6 +536,23 @@ describe('ChatService access and message rules', () => {
     expect(result).toEqual({ success: true, lastReadAt: existingLaterCursor });
     expect(redis.publishRoom).not.toHaveBeenCalled();
   });
+  it('publishes a room refresh only when a read cursor advances', async () => {
+    const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
+    const previousCursor = new Date('2026-11-06T10:00:00.000Z');
+    const nextCursor = new Date('2026-11-06T10:30:00.000Z');
+    users.findOne.mockImplementation(async id =>
+      id === student.id ? { ...student } : id === recipient.id ? recipient : null,
+    );
+    reads.findOne.mockResolvedValueOnce({ lastReadAt: previousCursor });
+    repo.findOne.mockResolvedValue({ roomKey: 'direct:student-1:student-2', createdAt: nextCursor });
+    reads.query.mockResolvedValueOnce([{ lastReadAt: nextCursor }]);
+
+    await service.markDirectRead(student.id, recipient.id);
+
+    expect(redis.publishRoom).toHaveBeenCalledTimes(1);
+    expect(redis.publishRoom).toHaveBeenCalledWith('direct:student-1:student-2');
+  });
+
   it('rejects private DM history with a user from another institution', async () => {
     const outside = { ...student, id: 'student-outside', academicHandle: 'outside', institution: 'Different University' };
     users.findOne.mockImplementation(async id => id === student.id ? { ...student } : id === outside.id ? outside : null);
