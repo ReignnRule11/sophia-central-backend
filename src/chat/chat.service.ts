@@ -324,6 +324,8 @@ export class ChatService {
       roomKey,
       lastReadAt,
     }));
+    // Notify both participants so the inbox badge and sender-side Seen state refresh immediately.
+    this.publishRoom(roomKey);
 
     return { success: true, lastReadAt };
   }
@@ -382,17 +384,30 @@ export class ChatService {
     }
     const rows = await query.orderBy('message.createdAt', 'DESC').addOrderBy('message.id', 'DESC').take(limit + 1).getMany();
     const hasMore = rows.length > limit;
-    const [items, hiddenRows] = await Promise.all([
-      Promise.all(rows.slice(0, limit).reverse().map(message => this.present(message, id))),
+    const visibleRows = rows.slice(0, limit).reverse();
+    const [items, hiddenRows, otherParticipantReadState] = await Promise.all([
+      Promise.all(visibleRows.map(message => this.present(message, id))),
       this.messageHides.createQueryBuilder('hidden')
         .innerJoin(ChatMessage, 'message', 'message.id = hidden."messageId"')
         .where('hidden."userId" = :viewerId', { viewerId: id })
         .andWhere('message."roomKey" = :room', { room })
         .select('hidden."messageId"', 'messageId')
         .getRawMany<{ messageId: string }>(),
+      kind === 'direct' && otherId
+        ? this.reads.findOne({ where: { userId: otherId, roomKey: room } })
+        : Promise.resolve(null),
     ]);
+    const messagesWithReadState = items.map((item, index) => ({
+      ...item,
+      isRead: Boolean(
+        kind === 'direct' &&
+        visibleRows[index].senderId === id &&
+        otherParticipantReadState?.lastReadAt &&
+        otherParticipantReadState.lastReadAt >= visibleRows[index].createdAt,
+      ),
+    }));
     return {
-      items,
+      items: messagesWithReadState,
       hasMore,
       nextBefore: hasMore ? rows[limit - 1]?.id : null,
       hiddenMessageIds: hiddenRows.map(row => row.messageId),
