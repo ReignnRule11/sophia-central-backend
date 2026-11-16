@@ -83,8 +83,11 @@ export class OpenSourceResearchService {
       const value = query[field]?.trim();
       if (value) qb.andWhere(`LOWER(resource.${field}) = LOWER(:${field})`, { [field]: value });
     }
+    if (query.course?.trim()) qb.andWhere('(resource.course ILIKE :course OR resource.title ILIKE :course OR resource.description ILIKE :course OR resource.attribution ILIKE :course OR resource.department ILIKE :course)', { course: `%${query.course.trim()}%` });
+    if (query.topic?.trim()) qb.andWhere('(resource.topic ILIKE :topic OR resource.title ILIKE :topic OR resource.description ILIKE :topic OR resource.attribution ILIKE :topic OR resource.department ILIKE :topic)', { topic: `%${query.topic.trim()}%` });
+    if (query.author?.trim()) qb.andWhere('resource.attribution ILIKE :author', { author: `%${query.author.trim()}%` });
     if (query.q?.trim()) {
-      qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.attribution ILIKE :q OR resource.department ILIKE :q)', { q: `%${query.q.trim()}%` });
+      qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.attribution ILIKE :q OR resource.department ILIKE :q OR resource.sourceUrl ILIKE :q)', { q: `%${query.q.trim()}%` });
     }
     const page = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
     const limit = Math.min(50, Math.max(1, Number.parseInt(query.limit || '20', 10) || 20));
@@ -374,6 +377,8 @@ export class OpenSourceResearchService {
       origin: resource.origin,
       faculty: resource.faculty ?? null,
       department: resource.department ?? null,
+      course: resource.course ?? null,
+      topic: resource.topic ?? null,
       sourceUrl: resource.sourceUrl,
       license: resource.license ?? null,
       attribution: resource.attribution ?? null,
