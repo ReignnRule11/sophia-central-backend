@@ -16,6 +16,8 @@ import {
   ResourceType,
 } from './entities/resource.entity';
 import { S3Service } from '../upload/s3.service';
+import { User } from '../users/entities/user.entity';
+import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 
 const OPENALEX_API = 'https://api.openalex.org';
 const MAX_PDF_BYTES = 20 * 1024 * 1024;
@@ -72,6 +74,49 @@ export class OpenSourceResearchService {
     @InjectRepository(Resource) private readonly resources: Repository<Resource>,
     private readonly storage: S3Service,
   ) {}
+
+
+  async listPublic(query: Record<string, string>) {
+    const qb = this.resources.createQueryBuilder('resource')
+      .where('resource.origin = :origin AND resource.rightsConfirmed = true', { origin: ResourceOrigin.OPEN_SOURCE });
+    for (const field of ['department', 'faculty', 'type', 'license'] as const) {
+      const value = query[field]?.trim();
+      if (value) qb.andWhere(`LOWER(resource.${field}) = LOWER(:${field})`, { [field]: value });
+    }
+    if (query.q?.trim()) {
+      qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.attribution ILIKE :q OR resource.department ILIKE :q)', { q: `%${query.q.trim()}%` });
+    }
+    const page = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(query.limit || '20', 10) || 20));
+    const [items, total] = await qb.orderBy('resource.createdAt', 'DESC').skip((page - 1) * limit).take(limit).getManyAndCount();
+    return {
+      items: items.map((item) => this.publicShape(item)),
+      page, limit, total, totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  async findPublicOne(id: string) {
+    const resource = await this.resources.findOne({ where: { id, origin: ResourceOrigin.OPEN_SOURCE, rightsConfirmed: true } });
+    if (!resource) throw new NotFoundException('Open-source research material not found.');
+    return { ...this.publicShape(resource), sourceUrl: resource.sourceUrl, attribution: resource.attribution, license: resource.license ?? null };
+  }
+
+  async getPublicFileUrl(id: string, viewer: User) {
+    const resource = await this.resources.findOne({ where: { id, origin: ResourceOrigin.OPEN_SOURCE, rightsConfirmed: true } });
+    if (!resource?.fileUrl || !resource.license || ![ResourceLicense.CC_BY_4_0, ResourceLicense.CC_BY_SA_4_0, ResourceLicense.CC0_1_0].includes(resource.license)) throw new NotFoundException('A redistributable full-text file is not available for this research item. Open the original source instead.');
+    const key = this.storage.getKeyFromPublicUrl(resource.fileUrl);
+    if (!key) throw new NotFoundException('Open-source research file not found.');
+    await this.resources.manager.save(UserActivityEvent, this.resources.manager.create(UserActivityEvent, {
+      userId: viewer.id, institutionId: viewer.institutionId ?? null, eventType: 'file_access', resourceId: resource.id,
+    }));
+    const extension = key.split('.').pop();
+    const filename = extension ? `${resource.title}.${extension}` : resource.title;
+    const [url, metadata] = await Promise.all([
+      this.storage.createPresignedDownloadUrl(key, filename, 'inline'),
+      this.storage.getObjectMetadata(key),
+    ]);
+    return { url, filename, contentType: metadata?.contentType, license: resource.license, attribution: resource.attribution };
+  }
 
   async search(query: string, pageInput = '1', perPageInput = '12') {
     const term = query?.trim();
@@ -327,6 +372,8 @@ export class OpenSourceResearchService {
       description: resource.description ?? null,
       type: resource.type,
       origin: resource.origin,
+      faculty: resource.faculty ?? null,
+      department: resource.department ?? null,
       sourceUrl: resource.sourceUrl,
       license: resource.license ?? null,
       attribution: resource.attribution ?? null,
