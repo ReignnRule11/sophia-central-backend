@@ -315,19 +315,28 @@ export class ChatService {
       where: { roomKey, kind: ChatKind.DIRECT },
       order: { createdAt: 'DESC' },
     });
-    const readState = await this.reads.findOne({ where: { userId: id, roomKey } });
     const lastReadAt = latest?.createdAt ?? new Date();
 
-    await this.reads.save(this.reads.create({
-      ...(readState ?? {}),
-      userId: id,
-      roomKey,
-      lastReadAt,
-    }));
+    // Read cursors are monotonic. Concurrent tabs/devices can mark the same
+    // conversation read out of order; never let an older request move the
+    // persisted cursor backwards and make already-read messages unread again.
+    const persistedRows = await this.reads.query(
+      `INSERT INTO "chat_conversation_reads" ("userId", "roomKey", "lastReadAt", "updatedAt")
+       VALUES ($1, $2, $3, NOW())
+       ON CONFLICT ("userId", "roomKey")
+       DO UPDATE SET
+         "lastReadAt" = GREATEST("chat_conversation_reads"."lastReadAt", EXCLUDED."lastReadAt"),
+         "updatedAt" = NOW()
+       RETURNING "lastReadAt"`,
+      [id, roomKey, lastReadAt],
+    );
+    const effectiveLastReadAt = persistedRows?.[0]?.lastReadAt
+      ? new Date(persistedRows[0].lastReadAt)
+      : lastReadAt;
     // Notify both participants so the inbox badge and sender-side Seen state refresh immediately.
     this.publishRoom(roomKey);
 
-    return { success: true, lastReadAt };
+    return { success: true, lastReadAt: effectiveLastReadAt };
   }
 
   async createVoiceUpload(id: string, dto: CreateVoiceUploadDto) {
