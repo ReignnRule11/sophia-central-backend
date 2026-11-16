@@ -311,10 +311,13 @@ export class ChatService {
       if (!previousMessage) throw new ForbiddenException('This conversation is unavailable.');
     }
 
-    const latest = await this.repo.findOne({
-      where: { roomKey, kind: ChatKind.DIRECT },
-      order: { createdAt: 'DESC' },
-    });
+    const [latest, previousReadState] = await Promise.all([
+      this.repo.findOne({
+        where: { roomKey, kind: ChatKind.DIRECT },
+        order: { createdAt: 'DESC' },
+      }),
+      this.reads.findOne({ where: { userId: id, roomKey } }),
+    ]);
     const lastReadAt = latest?.createdAt ?? new Date();
 
     // Read cursors are monotonic. Concurrent tabs/devices can mark the same
@@ -333,8 +336,16 @@ export class ChatService {
     const effectiveLastReadAt = persistedRows?.[0]?.lastReadAt
       ? new Date(persistedRows[0].lastReadAt)
       : lastReadAt;
-    // Notify both participants so the inbox badge and sender-side Seen state refresh immediately.
-    this.publishRoom(roomKey);
+
+    // The chat page refreshes history after every room event. Publishing on an
+    // unchanged read cursor would create a read -> event -> history -> read loop.
+    // Publish only when this request actually advances the recipient's cursor.
+    const previousLastReadAt = previousReadState?.lastReadAt
+      ? new Date(previousReadState.lastReadAt)
+      : null;
+    if (!previousLastReadAt || effectiveLastReadAt.getTime() > previousLastReadAt.getTime()) {
+      this.publishRoom(roomKey);
+    }
 
     return { success: true, lastReadAt: effectiveLastReadAt };
   }
