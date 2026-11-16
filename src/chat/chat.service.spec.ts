@@ -50,6 +50,7 @@ describe('ChatService access and message rules', () => {
     reads = {
       findOne: jest.fn(async () => null),
       save: jest.fn(async value => value),
+      query: jest.fn(async () => []),
       create: jest.fn(value => value),
     };
     messageHides = {
@@ -525,11 +526,10 @@ describe('ChatService access and message rules', () => {
 
     const result = await service.markDirectRead(student.id, recipient.id);
 
-    expect(reads.save).toHaveBeenCalledWith(expect.objectContaining({
-      userId: student.id,
-      roomKey: 'direct:student-1:student-2',
-      lastReadAt: createdAt,
-    }));
+    expect(reads.query).toHaveBeenCalledWith(
+      expect.stringContaining('GREATEST("chat_conversation_reads"."lastReadAt", EXCLUDED."lastReadAt")'),
+      [student.id, 'direct:student-1:student-2', createdAt],
+    );
     expect(result).toEqual({ success: true, lastReadAt: createdAt });
   });
   it('rejects private DM history with a user from another institution', async () => {
