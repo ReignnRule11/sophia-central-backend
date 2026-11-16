@@ -77,6 +77,9 @@ export class CommunityResourcesService {
     if (query.q?.trim()) {
       qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.course ILIKE :q OR resource.topic ILIKE :q)', { q: `%${query.q.trim()}%` });
     }
+    if (query.author?.trim()) {
+      qb.andWhere('(resource.attribution ILIKE :author OR uploader.firstName ILIKE :author OR uploader.lastName ILIKE :author OR uploader.academicHandle ILIKE :author)', { author: `%${query.author.trim()}%` });
+    }
     if (query.type) qb.andWhere('resource.type = :type', { type: query.type });
     if (query.license) qb.andWhere('resource.license = :license', { license: query.license });
     const page = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
