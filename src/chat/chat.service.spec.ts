@@ -522,7 +522,9 @@ describe('ChatService access and message rules', () => {
       id === student.id ? { ...student } : id === recipient.id ? recipient : null,
     );
     const createdAt = new Date('2026-11-06T10:30:00.000Z');
+    const existingLaterCursor = new Date('2026-11-06T11:00:00.000Z');
     repo.findOne.mockResolvedValue({ roomKey: 'direct:student-1:student-2', createdAt });
+    reads.query.mockResolvedValueOnce([{ lastReadAt: existingLaterCursor }]);
 
     const result = await service.markDirectRead(student.id, recipient.id);
 
@@ -530,7 +532,7 @@ describe('ChatService access and message rules', () => {
       expect.stringContaining('GREATEST("chat_conversation_reads"."lastReadAt", EXCLUDED."lastReadAt")'),
       [student.id, 'direct:student-1:student-2', createdAt],
     );
-    expect(result).toEqual({ success: true, lastReadAt: createdAt });
+    expect(result).toEqual({ success: true, lastReadAt: existingLaterCursor });
   });
   it('rejects private DM history with a user from another institution', async () => {
     const outside = { ...student, id: 'student-outside', academicHandle: 'outside', institution: 'Different University' };
