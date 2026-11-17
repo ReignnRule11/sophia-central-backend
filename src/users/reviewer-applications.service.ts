@@ -11,6 +11,7 @@ import { ReviewerApplicationDecisionDto } from './dto/reviewer-application-decis
 export class ReviewerApplicationsService {
   constructor(
     @InjectRepository(ReviewerApplication) private readonly applications: Repository<ReviewerApplication>,
+    @InjectRepository(ReviewerApplicationDecision) private readonly decisions: Repository<ReviewerApplicationDecision>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -77,6 +78,16 @@ export class ReviewerApplicationsService {
     return this.applications.find({
       where: status ? { status: status as ReviewerApplicationStatus } : {},
       relations: ['user', 'decidedBy'],
+      order: { createdAt: 'ASC' },
+    });
+  }
+
+  async decisionHistory(applicationId: string) {
+    const application = await this.applications.findOne({ where: { id: applicationId }, select: ['id'] });
+    if (!application) throw new NotFoundException('Reviewer application not found.');
+    return this.decisions.find({
+      where: { applicationId },
+      relations: ['actor'],
       order: { createdAt: 'ASC' },
     });
   }
