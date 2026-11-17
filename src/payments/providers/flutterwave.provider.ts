@@ -57,7 +57,7 @@ export class FlutterwaveProvider implements PaymentProvider {
   }
 
   async verify(reference: string): Promise<VerifiedPayment> {
-    const query = new URLSearchParams({ tx_ref: reference, page: '1' });
+    const query = new URLSearchParams({ from: '2010-01-01', to: new Date().toISOString().slice(0, 10), tx_ref: reference, page: '1' });
     const rows = await this.request(`/transactions?${query.toString()}`);
     if (!Array.isArray(rows)) throw new ServiceUnavailableException('Flutterwave returned an invalid transaction lookup.');
     const row = rows.find((item: any) => String(item.tx_ref || '') === reference);
