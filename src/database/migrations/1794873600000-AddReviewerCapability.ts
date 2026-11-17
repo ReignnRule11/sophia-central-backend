@@ -4,6 +4,11 @@ export class AddReviewerCapability1794873600000 implements MigrationInterface {
   name = 'AddReviewerCapability1794873600000';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // The entity models role as varchar, but older fresh-schema migrations
+    // created a PostgreSQL enum that omitted the reviewer value. Normalize the
+    // column to the entity's string representation before reviewer accounts
+    // or future account types need to be persisted.
+    await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" TYPE varchar(32) USING "role"::text`);
     await queryRunner.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "hasReviewerAccess" boolean NOT NULL DEFAULT false`);
 
     // Preserve the legacy role representation during this backend-first
