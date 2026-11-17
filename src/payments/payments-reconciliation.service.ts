@@ -30,11 +30,11 @@ export class PaymentsReconciliationService {
     const provider = this.providers.defaultProvider();
     try {
       const [providerTransactions, providerRefunds] = await Promise.all([
-        this.provider.listTransactions({ from: start.toISOString(), to: end.toISOString() }),
-        this.provider.listRefunds({ from: start.toISOString(), to: end.toISOString() }),
+        provider.listTransactions({ from: start.toISOString(), to: end.toISOString() }),
+        provider.listRefunds({ from: start.toISOString(), to: end.toISOString() }),
       ]);
       const localPayments = await this.payments.createQueryBuilder('payment')
-        .where('payment.provider = :provider', { provider: this.provider.name })
+        .where('payment.provider = :provider', { provider: provider.name })
         .andWhere('payment.createdAt >= :start AND payment.createdAt < :end', { start, end }).getMany();
       const localRefunds = await this.refunds.createQueryBuilder('refund')
         .innerJoin(PaymentTransaction, 'payment', 'payment.id = refund.paymentId')
@@ -99,7 +99,7 @@ export class PaymentsReconciliationService {
       }
 
       const run = await this.runs.save(this.runs.create({
-        provider: this.provider.name, periodStart: start, periodEnd: end, status: 'completed',
+        provider: provider.name, periodStart: start, periodEnd: end, status: 'completed',
         providerTransactions: providerTransactions.length, localPayments: localPayments.length,
         providerRefunds: providerRefunds.length, localRefunds: localRefunds.length,
         discrepancies, initiatedByUserId: user.id,
