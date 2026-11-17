@@ -221,7 +221,7 @@ export class FlutterwaveProvider implements PaymentProvider {
     let payload: any;
     try { payload = JSON.parse(_rawBody.toString('utf8')); } catch { throw new UnauthorizedException('Invalid Flutterwave webhook payload.'); }
     const data = payload?.data || payload?.transfer || {};
-    const reference = data.tx_ref || data.reference || data.refund_reference;
+    const reference = data.tx_ref || data.reference || data.refund_reference || (String(payload?.event || '').startsWith('refund.') && data.id ? String(data.id) : null);
     if (typeof reference !== 'string' || !reference) return null;
     return { reference, event: String(payload?.event || payload?.['event.type'] || ''), data };
   }
