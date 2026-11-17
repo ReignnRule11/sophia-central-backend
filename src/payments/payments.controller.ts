@@ -20,8 +20,8 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Initialize a server-priced payment checkout' })
-  initialize(@CurrentUser() user: User, @Body() dto: InitializePaymentDto) {
-    return this.payments.initialize(user, dto);
+  initialize(@CurrentUser() user: User, @Body() dto: InitializePaymentDto, @Headers('idempotency-key') idempotencyKey?: string) {
+    return this.payments.initialize(user, dto, idempotencyKey);
   }
 
   @Get('verify/:reference')

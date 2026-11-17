@@ -32,7 +32,7 @@ export class PaymentsService {
     private readonly lecturerPayouts: LecturerPayoutsService,
   ) {}
 
-  private async getPrice(user: User, dto: InitializePaymentDto): Promise<{ amountNaira: number; points: number | null; resourceId: string | null }> {
+  private async getPrice(user: User, dto: InitializePaymentDto, allowPending = false): Promise<{ amountNaira: number; points: number | null; resourceId: string | null }> {
     if (user.role !== UserRole.STUDENT || user.isSuspended || user.accountStatus !== 'active') {
       throw new ForbiddenException('Only active student accounts can initiate purchases.');
     }
@@ -65,24 +65,33 @@ export class PaymentsService {
     }
     if (resource.uploaderId === user.id) throw new ForbiddenException('You cannot purchase your own resource.');
     const existing = await this.purchases.findOne({ where: { userId: user.id, resourceId: resource.id } });
-    if (existing) throw new ConflictException('You already own this resource.');
-    const pending = await this.payments.findOne({ where: { userId: user.id, resourceId: resource.id, status: PaymentStatus.PENDING } });
+    if (existing && !allowPending) throw new ConflictException('You already own this resource.');
+    const pending = allowPending ? null : await this.payments.findOne({ where: { userId: user.id, resourceId: resource.id, status: PaymentStatus.PENDING } });
     if (pending) throw new ConflictException('A checkout for this resource is already pending. Verify its payment status before starting another checkout.');
     return { amountNaira: resource.priceAmount, points: null, resourceId: resource.id };
   }
 
-  async initialize(user: User, dto: InitializePaymentDto) {
-    const price = await this.getPrice(user, dto);
+  async initialize(user: User, dto: InitializePaymentDto, idempotencyKey?: string) {
+    const key = idempotencyKey?.trim();
+    if (key && (key.length < 8 || key.length > 128 || !/^[A-Za-z0-9._:-]+$/.test(key))) {
+      throw new BadRequestException('Idempotency-Key must be 8–128 characters and contain only letters, numbers, dots, underscores, colons or hyphens.');
+    }
+    const price = await this.getPrice(user, dto, Boolean(key));
+    if (key) {
+      const existing = await this.payments.findOne({ where: { userId: user.id, idempotencyKey: key } });
+      if (existing) return this.replayCheckout(existing, dto, price);
+    }
     const callbackUrl = this.config.get<string>('PAYMENT_CALLBACK_URL');
     if (!callbackUrl || !/^https:\/\//i.test(callbackUrl)) {
       throw new ServiceUnavailableException('A secure PAYMENT_CALLBACK_URL must be configured before checkout.');
     }
     const provider = this.providers.defaultProvider();
     const reference = `SOPHIS-${Date.now()}-${randomBytes(8).toString('hex')}`;
-    const payment = await this.payments.save(this.payments.create({
+    let payment = this.payments.create({
       provider: provider.name,
       reference,
       userId: user.id,
+      idempotencyKey: key || null,
       purpose: dto.purpose,
       status: PaymentStatus.PENDING,
       amountMinor: String(price.amountNaira * 100),
@@ -93,7 +102,16 @@ export class PaymentsService {
       providerTransactionId: null,
       providerMetadata: null,
       paidAt: null,
-    }));
+    });
+    try {
+      payment = await this.payments.save(payment);
+    } catch (error: any) {
+      if (key && error?.code === '23505') {
+        const existing = await this.payments.findOne({ where: { userId: user.id, idempotencyKey: key } });
+        if (existing) return this.replayCheckout(existing, dto, price);
+      }
+      throw error;
+    }
     try {
       const initialized = await provider.initialize({
         email: user.email,
@@ -112,6 +130,15 @@ export class PaymentsService {
       // accepted the transaction. Reconciliation must verify before retrying.
       throw error;
     }
+  }
+
+  private replayCheckout(payment: PaymentTransaction, dto: InitializePaymentDto, price: { amountNaira: number; points: number | null; resourceId: string | null }) {
+    if (payment.purpose !== dto.purpose || payment.resourceId !== price.resourceId ||
+        payment.points !== price.points || BigInt(payment.amountMinor) !== BigInt(price.amountNaira * 100)) {
+      throw new ConflictException('This Idempotency-Key was already used for a different checkout request.');
+    }
+    return { reference: payment.reference, provider: payment.provider, checkoutUrl: payment.checkoutUrl,
+      amountMinor: payment.amountMinor, currency: payment.currency, status: payment.status, replayed: true };
   }
 
   async verifyForUser(user: User, reference: string) {
