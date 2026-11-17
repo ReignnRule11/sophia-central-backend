@@ -23,11 +23,7 @@ export class ReviewerApplicationsService {
       throw new ConflictException('Academic Reviewer access is already active on this account.');
     }
     if (!dto.policyAccepted) throw new BadRequestException('You must accept the Academic Reviewer policy before submitting.');
-    const pending = await this.applications.findOne({
-      where: { userId: user.id, status: ReviewerApplicationStatus.SUBMITTED },
-      order: { createdAt: 'DESC' },
-    });
-    if (pending) throw new ConflictException('You already have a submitted reviewer application awaiting review.');
+
     const latest = await this.applications.findOne({ where: { userId: user.id }, order: { createdAt: 'DESC' } });
     if (latest && [ReviewerApplicationStatus.SUBMITTED, ReviewerApplicationStatus.UNDER_REVIEW].includes(latest.status)) {
       throw new ConflictException('Your existing reviewer application is being processed. Check its status before submitting again.');
@@ -38,33 +34,36 @@ export class ReviewerApplicationsService {
     if ([ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED].includes(latest?.status as ReviewerApplicationStatus)) {
       throw new ConflictException('Reviewer access is suspended or revoked. Contact an administrator for a formal access review.');
     }
+
     const institution = dto.institution?.trim() || user.institution?.trim() || null;
     const faculty = dto.faculty?.trim() || user.faculty?.trim() || null;
     const department = dto.department?.trim() || user.department?.trim() || null;
     if (user.role !== UserRole.REVIEWER && (!institution || !faculty || !department)) {
       throw new BadRequestException('Your existing Student or Lecturer academic affiliation must be complete before applying.');
     }
+
     const application = this.applications.create({
       userId: user.id,
       status: ReviewerApplicationStatus.SUBMITTED,
-      qualifications: [...new Set(dto.qualifications.map(v => v.trim()).filter(Boolean))],
-      expertiseAreas: [...new Set(dto.expertiseAreas.map(v => v.trim()).filter(Boolean))],
+      qualifications: [...new Set(dto.qualifications.map(value => value.trim()).filter(Boolean))],
+      expertiseAreas: [...new Set(dto.expertiseAreas.map(value => value.trim()).filter(Boolean))],
       institution,
       faculty,
       department,
-      academicLevels: [...new Set(dto.academicLevels.map(v => v.trim()).filter(Boolean))],
+      academicLevels: [...new Set(dto.academicLevels.map(value => value.trim()).filter(Boolean))],
       reviewExperience: dto.reviewExperience.trim(),
-      supportingDocuments: dto.supportingDocuments?.map(v => v.trim()).filter(Boolean),
+      supportingDocuments: dto.supportingDocuments?.map(value => value.trim()).filter(Boolean),
       conflictDeclaration: dto.conflictDeclaration.trim(),
       policyAccepted: true,
     });
+
     try {
       return await this.dataSource.transaction(async manager => {
-      const saved = await manager.save(ReviewerApplication, application);
-      user.reviewerStatus = 'submitted';
-      await manager.save(User, user);
-      return saved;
-    })
+        const saved = await manager.save(ReviewerApplication, application);
+        user.reviewerStatus = 'submitted';
+        await manager.save(User, user);
+        return saved;
+      });
     } catch (error) {
       const databaseError = error as { code?: string; driverError?: { code?: string; constraint?: string } };
       const code = databaseError.driverError?.code ?? databaseError.code;
@@ -73,7 +72,7 @@ export class ReviewerApplicationsService {
         throw new ConflictException('You already have an active reviewer application. Check its status before submitting again.');
       }
       throw error;
-    };
+    }
   }
 
   async mine(user: User) {
