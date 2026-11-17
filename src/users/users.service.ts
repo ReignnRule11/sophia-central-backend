@@ -197,9 +197,7 @@ export class UsersService {
       if (!user) throw new NotFoundException('User not found');
 
       if (dto.enabled) {
-        if (user.role !== UserRole.REVIEWER) {
-          throw new ConflictException('Student and Lecturer reviewer access must be granted by approving a submitted reviewer application.');
-        }
+        throw new ConflictException('Reviewer access is granted only through an approved Academic Reviewer application. Use the application decision workflow instead of a direct access toggle.');
         const expertiseAreas = [...new Set((dto.expertiseAreas ?? []).map(area => area.trim()).filter(Boolean))];
         if (expertiseAreas.length === 0) {
           throw new BadRequestException('At least one verified subject expertise area is required');
