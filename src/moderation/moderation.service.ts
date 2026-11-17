@@ -228,6 +228,13 @@ export class ModerationService {
     }
     if (resource.uploaderId === reviewer.id) throw new BadRequestException('A reviewer cannot be assigned to review their own uploaded resource.');
     if (resource.contributorUserIds?.includes(reviewer.id)) throw new BadRequestException('A reviewer cannot be assigned to review material they co-authored or contributed to.');
+    const acceptedAppeal = await this.appealRepository.findOne({
+      where: { resourceId: resource.id, status: 'accepted' },
+      order: { createdAt: 'DESC' },
+    });
+    if (acceptedAppeal?.originalReviewerId === reviewer.id) {
+      throw new BadRequestException('An accepted appeal must be reassessed by a different reviewer from the original decision.');
+    }
     const approvedExpertise = Array.isArray(reviewer.reviewerExpertise) ? reviewer.reviewerExpertise : [];
     const resourceExpertise = [resource.title, resource.course, resource.topic, resource.type, ...(resource.tags ?? [])]
       .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
