@@ -65,6 +65,10 @@ describe('ReviewerApplicationsService', () => {
       department: null,
       policyAccepted: true,
     });
+    expect(manager.findOne).toHaveBeenNthCalledWith(1, User, expect.objectContaining({
+      where: { id: user.id },
+      lock: { mode: 'pessimistic_write' },
+    }));
     expect(user.reviewerStatus).toBe('submitted');
     expect(manager.save).toHaveBeenCalledWith(User, user);
   });
@@ -144,6 +148,10 @@ describe('ReviewerApplicationsService', () => {
       reviewerExpertise: ['Biology'],
       reviewerAcademicLevels: ['Undergraduate'],
     });
+    expect(manager.findOne).toHaveBeenNthCalledWith(2, ReviewerApplication, expect.objectContaining({
+      where: { userId: user.id },
+      order: { createdAt: 'DESC' },
+    }));
     expect(manager.save).toHaveBeenCalledWith(User, user);
   });
 });
