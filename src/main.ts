@@ -18,7 +18,7 @@ const authRateLimit = (max: number) =>
   });
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   // Configure Express proxy trust and application security before
   // registering any rate-limiting middleware.
