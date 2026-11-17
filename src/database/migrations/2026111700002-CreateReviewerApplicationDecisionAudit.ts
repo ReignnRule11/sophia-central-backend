@@ -17,10 +17,11 @@ export class CreateReviewerApplicationDecisionAudit2026111700002 implements Migr
     `);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_reviewer_application_decisions_application_created" ON "reviewer_application_decisions" ("applicationId", "createdAt")`);
     await queryRunner.query(`
-      CREATE OR REPLACE FUNCTION prevent_immutable_audit_mutation() RETURNS trigger AS $ 
+      CREATE OR REPLACE FUNCTION prevent_immutable_audit_mutation() RETURNS trigger AS $
       BEGIN
         RAISE EXCEPTION 'Audit records are append-only and cannot be updated or deleted';
-      END; $ LANGUAGE plpgsql
+      END;
+      $ LANGUAGE plpgsql
     `);
     await queryRunner.query(`
       CREATE TRIGGER "TRG_reviewer_application_decisions_immutable"
