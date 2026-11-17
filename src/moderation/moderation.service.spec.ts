@@ -16,6 +16,7 @@ describe('ModerationService academic reviewer workflow', () => {
     create: jest.fn((value) => value),
     manager: {
       transaction: jest.fn(async callback => callback(transactionManager)),
+      query: jest.fn().mockResolvedValue([{ declaration: 'no_conflict' }]),
     },
   };
   const reviewRepository = {
@@ -70,6 +71,8 @@ describe('ModerationService academic reviewer workflow', () => {
     resourceRepository.findOne.mockResolvedValue({
       id: 'resource-1',
       title: 'Cell Biology',
+      course: 'Biology',
+      level: '300 level',
       moderationStatus: ResourceModerationStatus.PENDING,
     });
     userRepository.findOne.mockResolvedValue({
@@ -77,6 +80,7 @@ describe('ModerationService academic reviewer workflow', () => {
       role: UserRole.REVIEWER,
       isSuspended: false,
       reviewerExpertise: ['Biology'],
+      reviewerAcademicLevels: ['300 level'],
     });
     resourceRepository.save.mockImplementation(async value => value);
 
@@ -118,6 +122,7 @@ describe('ModerationService academic reviewer workflow', () => {
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
       assignedReviewerId: 'reviewer-1',
+      reviewAssignmentId: 'assignment-1',
       uploaderId: 'student-1',
       uploader: { id: 'student-1', role: UserRole.STUDENT },
     };
@@ -152,6 +157,7 @@ describe('ModerationService academic reviewer workflow', () => {
       moderationStatus: ResourceModerationStatus.PENDING,
       isVerified: false,
       assignedReviewerId: 'reviewer-1',
+      reviewAssignmentId: 'assignment-1',
       uploaderId: 'lecturer-1',
       uploader: { id: 'lecturer-1', role: UserRole.LECTURER },
     };
