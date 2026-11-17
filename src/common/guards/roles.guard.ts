@@ -19,6 +19,14 @@ export class RolesGuard implements CanActivate {
     }
 
     const { user } = context.switchToHttp().getRequest();
-    return requiredRoles.includes(user.role);
+    if (!user) return false;
+
+    // REVIEWER is a capability, not an exclusive primary account role.
+    // Other privileged roles continue to use their existing role checks.
+    return requiredRoles.some((requiredRole) =>
+      requiredRole === 'reviewer'
+        ? user.hasReviewerAccess === true
+        : requiredRole === user.role,
+    );
   }
 }
