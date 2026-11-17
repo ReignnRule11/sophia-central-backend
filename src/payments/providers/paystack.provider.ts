@@ -108,6 +108,43 @@ export class PaystackProvider implements PaymentProvider {
     throw new ServiceUnavailableException('Paystack refund reconciliation exceeded the 10,000-record safety limit.');
   }
 
+
+  async resolveBankAccount(accountNumber: string, bankCode: string) {
+    const query = new URLSearchParams({ account_number: accountNumber, bank_code: bankCode });
+    const data = await this.request(`/bank/resolve?${query.toString()}`, { method: 'GET' });
+    if (!data?.account_name || !data?.account_number) throw new ServiceUnavailableException('Paystack could not verify the bank account.');
+    const banks = await this.request(`/bank?currency=NGN&perPage=100`, { method: 'GET' });
+    const bank = Array.isArray(banks) ? banks.find((item: any) => String(item.code) === bankCode) : null;
+    return { accountName: String(data.account_name), bankName: String(bank?.name || 'Bank'), accountNumber: String(data.account_number), bankCode };
+  }
+
+  async createTransferRecipient(input: { name: string; accountNumber: string; bankCode: string }) {
+    const data = await this.request('/transferrecipient', { method: 'POST', body: JSON.stringify({
+      type: 'nuban', name: input.name, account_number: input.accountNumber, bank_code: input.bankCode, currency: 'NGN',
+    }) });
+    if (!data?.recipient_code || !data?.details?.account_number) throw new ServiceUnavailableException('Paystack returned an invalid transfer recipient.');
+    return { recipientCode: String(data.recipient_code), accountName: String(data.details.account_name || data.name || input.name), bankName: String(data.details.bank_name || 'Bank') };
+  }
+
+  async initiateTransfer(input: { amountMinor: string; recipientCode: string; reference: string; reason: string }) {
+    const data = await this.request('/transfer', { method: 'POST', body: JSON.stringify({
+      source: 'balance', amount: Number(input.amountMinor), recipient: input.recipientCode,
+      reference: input.reference, reason: input.reason, currency: 'NGN',
+    }) });
+    if (String(data.reference || '') !== input.reference || Number(data.amount) !== Number(input.amountMinor)) {
+      throw new ServiceUnavailableException('Paystack transfer response did not match the payout request.');
+    }
+    return { reference: input.reference, status: String(data.status || 'pending'), transferCode: data.transfer_code ? String(data.transfer_code) : null,
+      amountMinor: Number(data.amount), currency: String(data.currency || 'NGN').toUpperCase(), raw: data };
+  }
+
+  async verifyTransfer(reference: string) {
+    const data = await this.request(`/transfer/verify/${encodeURIComponent(reference)}`, { method: 'GET' });
+    if (String(data.reference || '') !== reference) throw new ServiceUnavailableException('Paystack transfer verification reference mismatch.');
+    return { reference, status: String(data.status || ''), transferCode: data.transfer_code ? String(data.transfer_code) : null,
+      amountMinor: Number(data.amount), currency: String(data.currency || '').toUpperCase(), raw: data };
+  }
+
   verifyWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): PaymentWebhookEvent | null {
     const getHeader = (name: string) => {
       const value = headers[name.toLowerCase()];
