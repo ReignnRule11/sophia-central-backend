@@ -20,7 +20,7 @@ export class FlutterwaveProvider implements PaymentProvider {
     return value;
   }
 
-  private async request(path: string, init: RequestInit = {}): Promise<any> {
+  private async request(path: string, init: RequestInit = {}, envelope = false): Promise<any> {
     let response: Response;
     try {
       response = await fetch(`${this.baseUrl}${path}`, {
@@ -35,7 +35,7 @@ export class FlutterwaveProvider implements PaymentProvider {
     if (!response.ok || body?.status !== 'success') {
       throw new ServiceUnavailableException(body?.message || 'Flutterwave request failed.');
     }
-    return body.data;
+    return envelope ? body : body.data;
   }
 
   async initialize(input: InitializePaymentInput): Promise<InitializedPayment> {
@@ -116,8 +116,8 @@ export class FlutterwaveProvider implements PaymentProvider {
     const results: ProviderTransactionRecord[] = [];
     for (let page = 1; page <= 100; page++) {
       const query = new URLSearchParams({ from: input.from.slice(0, 10), to: input.to.slice(0, 10), page: String(page) });
-      const body = await this.request(`/transactions?${query.toString()}`);
-      const rows = Array.isArray(body) ? body : body?.data;
+      const body = await this.request(`/transactions?${query.toString()}`, {}, true);
+      const rows = body?.data;
       if (!Array.isArray(rows)) throw new ServiceUnavailableException('Flutterwave returned an invalid transaction list.');
       for (const row of rows) results.push({
         reference: String(row.tx_ref || ''), status: String(row.status || '').toLowerCase() === 'successful' ? 'success' : String(row.status || '').toLowerCase(),
@@ -133,7 +133,7 @@ export class FlutterwaveProvider implements PaymentProvider {
     const results: ProviderRefundRecord[] = [];
     for (let page = 1; page <= 100; page++) {
       const query = new URLSearchParams({ from: input.from.slice(0, 10), to: input.to.slice(0, 10), page: String(page) });
-      const body = await this.request(`/refunds?${query.toString()}`);
+      const body = await this.request(`/refunds?${query.toString()}`, {}, true);
       const rows = Array.isArray(body) ? body : body?.data;
       if (!Array.isArray(rows)) throw new ServiceUnavailableException('Flutterwave returned an invalid refund list.');
       for (const row of rows) results.push({
@@ -151,7 +151,7 @@ export class FlutterwaveProvider implements PaymentProvider {
     const results: ProviderTransferRecord[] = [];
     for (let page = 1; page <= 100; page++) {
       const query = new URLSearchParams({ from: input.from.slice(0, 10), to: input.to.slice(0, 10), page: String(page) });
-      const body = await this.request(`/transfers?${query.toString()}`);
+      const body = await this.request(`/transfers?${query.toString()}`, {}, true);
       const rows = Array.isArray(body) ? body : body?.data;
       if (!Array.isArray(rows)) throw new ServiceUnavailableException('Flutterwave returned an invalid transfer list.');
       results.push(...rows.map((row: any) => ({ reference: String(row.reference || ''), status: String(row.status || '').toLowerCase(),
@@ -165,7 +165,9 @@ export class FlutterwaveProvider implements PaymentProvider {
   async resolveBankAccount(accountNumber: string, bankCode: string) {
     const data = await this.request('/accounts/resolve', { method: 'POST', body: JSON.stringify({ account_number: accountNumber, account_bank: bankCode }) });
     if (!data?.account_name || !data?.account_number) throw new ServiceUnavailableException('Flutterwave could not verify the bank account.');
-    return { accountName: String(data.account_name), bankName: 'Verified bank', accountNumber: String(data.account_number), bankCode };
+    const banks = await this.request('/banks/NG');
+    const bank = Array.isArray(banks) ? banks.find((item: any) => String(item.code) === bankCode) : null;
+    return { accountName: String(data.account_name), bankName: String(bank?.name || 'Verified bank'), accountNumber: String(data.account_number), bankCode };
   }
 
   async createTransferRecipient(input: { name: string; accountNumber: string; bankCode: string }) {
