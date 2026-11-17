@@ -28,6 +28,11 @@ export class AddAcademicAccountTransitions2026111700003 implements MigrationInte
       )
     `);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_academic_account_transitions_user_created" ON "academic_account_transitions" ("userId", "createdAt" DESC)`);
+    await queryRunner.query(`
+      CREATE TRIGGER "TRG_academic_account_transitions_immutable"
+      BEFORE UPDATE OR DELETE ON "academic_account_transitions"
+      FOR EACH ROW EXECUTE FUNCTION prevent_immutable_audit_mutation()
+    `);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
