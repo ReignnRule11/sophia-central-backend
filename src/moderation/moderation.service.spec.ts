@@ -26,8 +26,6 @@ describe('ModerationService academic reviewer workflow', () => {
     save: jest.fn((value) => Promise.resolve({ id: 'review-1', ...value })),
   };
   const userRepository = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
-  const appealRepository = { findOne: jest.fn().mockResolvedValue(null) };
-  const appealDecisionRepository = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(value => value), save: jest.fn() };
   const notificationsService = { createNotification: jest.fn().mockResolvedValue(undefined) };
   const pointsService = { processResourceApprovalReward: jest.fn().mockResolvedValue(true) };
   let service: ModerationService;
@@ -39,8 +37,6 @@ describe('ModerationService academic reviewer workflow', () => {
       resourceRepository as any,
       reviewRepository as any,
       userRepository as any,
-      appealRepository as any,
-      appealDecisionRepository as any,
       notificationsService as any,
       pointsService as any,
     );
