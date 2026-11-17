@@ -2,7 +2,7 @@
 
 ## Status
 
-Implementation is in progress on this draft PR. The current code adds Paystack full/partial refund initiation, refund verification, append-only ledger adjustments, full-refund resource entitlement revocation, and persistence of dispute create/remind/resolve webhooks. It does not yet provide dispute evidence submission/acceptance actions, a payout engine that consumes dispute holds, or real staging verification.
+Implementation is in progress on this draft PR. The current code adds Paystack full/partial refunds for resource purchases, provider refund verification, append-only ledger adjustment records, full-refund resource entitlement revocation, and persistence of dispute create/remind/resolve webhooks. It does not yet provide dispute evidence submission/acceptance actions, a payout engine that consumes dispute holds, or real staging verification.
 
 ## Scope
 
@@ -80,13 +80,14 @@ These will be separate implementation phases after this lifecycle is merged and 
 
 ## Implemented in this PR
 
-- `POST /payments/:reference/refunds` — admin/moderator only; accepts an idempotency key, reason, and optional amount in NGN minor units. The server calculates the remaining refundable balance under a payment row lock.
+- `POST /payments/:reference/refunds` — admin/moderator only; supports successful resource purchases in this release, accepts an idempotency key, reason, and optional amount in NGN minor units. The server calculates the remaining refundable balance under a payment row lock.
 - `GET /payments/refunds/:id/verify` — admin/moderator only; asks Paystack for the current refund status.
 - `GET /payments/disputes` — admin/moderator only; lists the latest 100 recorded disputes.
 - Signed webhook handling for `refund.*` and `charge.dispute.create/remind/resolve`.
 - Refund reservations count pending, processing, needs-attention, and processed refunds. Failed refunds release their reservation.
 - Confirmed processed refunds append proportional, immutable platform/lecturer ledger adjustments. Cumulative allocation rounding is calculated against the cumulative refunded amount.
-- A fully refunded resource purchase is removed; partial refunds preserve access.
+- A fully refunded resource purchase is removed; partial refunds preserve access. Wisdom Points top-ups are explicitly not refundable through this endpoint yet.
+- `needs-attention` refunds remain reserved and visible, but a bank-detail retry workflow is not included; operators must resolve these through the provider dashboard until a secure retry flow is implemented.
 
 ## Operational requirements before staging
 
