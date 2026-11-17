@@ -65,7 +65,7 @@ export class PaymentsService {
     }
     if (resource.uploaderId === user.id) throw new ForbiddenException('You cannot purchase your own resource.');
     const existing = await this.purchases.findOne({ where: { userId: user.id, resourceId: resource.id } });
-    if (existing) throw new ConflictException('You already own this resource.');
+    if (existing && !allowPending) throw new ConflictException('You already own this resource.');
     const pending = allowPending ? null : await this.payments.findOne({ where: { userId: user.id, resourceId: resource.id, status: PaymentStatus.PENDING } });
     if (pending) throw new ConflictException('A checkout for this resource is already pending. Verify its payment status before starting another checkout.');
     return { amountNaira: resource.priceAmount, points: null, resourceId: resource.id };
