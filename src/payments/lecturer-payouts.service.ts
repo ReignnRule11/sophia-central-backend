@@ -300,7 +300,8 @@ export class LecturerPayoutsService {
     if (['failed', 'abandoned', 'blocked', 'rejected'].includes(value)) return PaymentPayoutStatus.FAILED;
     if (value === 'reversed') return PaymentPayoutStatus.REVERSED;
     if (value === 'otp') return PaymentPayoutStatus.OTP;
-    return PaymentPayoutStatus.PENDING;
+    if (['pending', 'processing', 'received'].includes(value)) return PaymentPayoutStatus.PENDING;
+    throw new ConflictException('Paystack returned an unsupported transfer status; payout reservation remains unchanged.');
   }
 
   private publicPayout(payout: PaymentPayout) {
