@@ -29,6 +29,12 @@ export class ModerationController {
     return this.moderationService.getQueue(request.user);
   }
 
+  @Get('conflict-declarations')
+  @Roles(UserRole.ADMIN)
+  getConflictDeclarations(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getConflictDeclarations(request.user);
+  }
+
   @Get('history')
   @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   getHistory(@Req() request: AuthenticatedRequest) {
