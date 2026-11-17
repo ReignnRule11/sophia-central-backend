@@ -30,6 +30,7 @@ export class CreateReviewerApplications2026111700001 implements MigrationInterfa
     `);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_reviewer_applications_user_created" ON "reviewer_applications" ("userId", "createdAt" DESC)`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_reviewer_applications_status_created" ON "reviewer_applications" ("status", "createdAt")`);
+    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "UQ_reviewer_applications_one_active_per_user" ON "reviewer_applications" ("userId") WHERE "status" IN ('submitted', 'under_review')`);
   }
 
   async down(queryRunner: QueryRunner): Promise<void> {
