@@ -259,7 +259,7 @@ export class LecturerPayoutsService {
       const currency = String(providerTransfer.currency || '').toUpperCase();
       const status = String(providerTransfer.status || '').toLowerCase();
       const localStatus = payout.status === PaymentPayoutStatus.PROCESSING ? 'pending' : payout.status;
-      const normalizedStatus = ['abandoned', 'blocked', 'rejected'].includes(status) ? 'failed' : status;
+      const normalizedStatus = ['abandoned', 'blocked', 'rejected'].includes(status) ? 'failed' : ['new', 'processing', 'received', 'queued'].includes(status) ? 'pending' : ['successful'].includes(status) ? 'success' : status;
       if (!Number.isSafeInteger(amount) || amount !== Number(payout.amountMinor) ||
           currency !== payout.currency || normalizedStatus !== localStatus) {
         discrepancies.push({ type: 'payout_mismatch', reference: payout.reference, localStatus: payout.status,
