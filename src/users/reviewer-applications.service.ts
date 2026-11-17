@@ -16,31 +16,7 @@ export class ReviewerApplicationsService {
   ) {}
 
   async submit(user: User, dto: SubmitReviewerApplicationDto) {
-    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
-      throw new ForbiddenException('Only Student, Lecturer or External Reviewer accounts can apply for Academic Reviewer access.');
-    }
-    if (user.hasReviewerAccess === true) {
-      throw new ConflictException('Academic Reviewer access is already active on this account.');
-    }
     if (!dto.policyAccepted) throw new BadRequestException('You must accept the Academic Reviewer policy before submitting.');
-
-    const latest = await this.applications.findOne({ where: { userId: user.id }, order: { createdAt: 'DESC' } });
-    if (latest && [ReviewerApplicationStatus.SUBMITTED, ReviewerApplicationStatus.UNDER_REVIEW].includes(latest.status)) {
-      throw new ConflictException('Your existing reviewer application is being processed. Check its status before submitting again.');
-    }
-    if (latest?.status === ReviewerApplicationStatus.APPROVED) {
-      throw new ConflictException('Reviewer access has already been approved for this account.');
-    }
-    if ([ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED].includes(latest?.status as ReviewerApplicationStatus)) {
-      throw new ConflictException('Reviewer access is suspended or revoked. Contact an administrator for a formal access review.');
-    }
-
-    const institution = dto.institution?.trim() || user.institution?.trim() || null;
-    const faculty = dto.faculty?.trim() || user.faculty?.trim() || null;
-    const department = dto.department?.trim() || user.department?.trim() || null;
-    if (user.role !== UserRole.REVIEWER && (!institution || !faculty || !department)) {
-      throw new BadRequestException('Your existing Student or Lecturer academic affiliation must be complete before applying.');
-    }
 
     const qualifications = [...new Set(dto.qualifications.map(value => value.trim()).filter(Boolean))];
     const expertiseAreas = [...new Set(dto.expertiseAreas.map(value => value.trim()).filter(Boolean))];
@@ -54,26 +30,58 @@ export class ReviewerApplicationsService {
       throw new BadRequestException('Provide sufficient review experience and a meaningful conflict-of-interest declaration.');
     }
 
-    const application = this.applications.create({
-      userId: user.id,
-      status: ReviewerApplicationStatus.SUBMITTED,
-      qualifications,
-      expertiseAreas,
-      institution,
-      faculty,
-      department,
-      academicLevels,
-      reviewExperience,
-      supportingDocuments: dto.supportingDocuments?.map(value => value.trim()).filter(Boolean),
-      conflictDeclaration,
-      policyAccepted: true,
-    });
-
     try {
       return await this.dataSource.transaction(async manager => {
+        const currentUser = await manager.findOne(User, {
+          where: { id: user.id },
+          lock: { mode: 'pessimistic_write' },
+        });
+        if (!currentUser) throw new NotFoundException('Applicant account no longer exists.');
+        if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(currentUser.role)) {
+          throw new ForbiddenException('Only Student, Lecturer or External Reviewer accounts can apply for Academic Reviewer access.');
+        }
+        if (currentUser.hasReviewerAccess === true) {
+          throw new ConflictException('Academic Reviewer access is already active on this account.');
+        }
+
+        const latest = await manager.findOne(ReviewerApplication, {
+          where: { userId: currentUser.id },
+          order: { createdAt: 'DESC' },
+        });
+        if (latest && [ReviewerApplicationStatus.SUBMITTED, ReviewerApplicationStatus.UNDER_REVIEW].includes(latest.status)) {
+          throw new ConflictException('Your existing reviewer application is being processed. Check its status before submitting again.');
+        }
+        if (latest?.status === ReviewerApplicationStatus.APPROVED) {
+          throw new ConflictException('Reviewer access has already been approved for this account.');
+        }
+        if ([ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED].includes(latest?.status as ReviewerApplicationStatus)) {
+          throw new ConflictException('Reviewer access is suspended or revoked. Contact an administrator for a formal access review.');
+        }
+
+        const institution = dto.institution?.trim() || currentUser.institution?.trim() || null;
+        const faculty = dto.faculty?.trim() || currentUser.faculty?.trim() || null;
+        const department = dto.department?.trim() || currentUser.department?.trim() || null;
+        if (currentUser.role !== UserRole.REVIEWER && (!institution || !faculty || !department)) {
+          throw new BadRequestException('Your existing Student or Lecturer academic affiliation must be complete before applying.');
+        }
+
+        const application = manager.create(ReviewerApplication, {
+          userId: currentUser.id,
+          status: ReviewerApplicationStatus.SUBMITTED,
+          qualifications,
+          expertiseAreas,
+          institution,
+          faculty,
+          department,
+          academicLevels,
+          reviewExperience,
+          supportingDocuments: dto.supportingDocuments?.map(value => value.trim()).filter(Boolean),
+          conflictDeclaration,
+          policyAccepted: true,
+        });
         const saved = await manager.save(ReviewerApplication, application);
-        user.reviewerStatus = 'submitted';
-        await manager.save(User, user);
+        currentUser.reviewerStatus = ReviewerApplicationStatus.SUBMITTED;
+        await manager.save(User, currentUser);
         return saved;
       });
     } catch (error) {
@@ -119,10 +127,26 @@ export class ReviewerApplicationsService {
       throw new BadRequestException('A reason is required for rejection, suspension or revocation.');
     }
     return this.dataSource.transaction(async manager => {
-      const application = await manager.findOne(ReviewerApplication, { where: { id: applicationId }, lock: { mode: 'pessimistic_write' } });
-      if (!application) throw new NotFoundException('Reviewer application not found.');
-      const user = await manager.findOne(User, { where: { id: application.userId }, lock: { mode: 'pessimistic_write' } });
+      const applicationSnapshot = await manager.findOne(ReviewerApplication, { where: { id: applicationId } });
+      if (!applicationSnapshot) throw new NotFoundException('Reviewer application not found.');
+      const user = await manager.findOne(User, {
+        where: { id: applicationSnapshot.userId },
+        lock: { mode: 'pessimistic_write' },
+      });
       if (!user) throw new NotFoundException('Applicant account no longer exists.');
+      const application = await manager.findOne(ReviewerApplication, {
+        where: { id: applicationId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!application) throw new NotFoundException('Reviewer application not found.');
+      if (application.userId !== user.id) throw new ConflictException('The reviewer application identity changed. Refresh and try again.');
+      const latestApplication = await manager.findOne(ReviewerApplication, {
+        where: { userId: user.id },
+        order: { createdAt: 'DESC' },
+      });
+      if (latestApplication && latestApplication.id !== application.id) {
+        throw new ConflictException('A newer reviewer application exists. Review the latest submission instead.');
+      }
       if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
         throw new ConflictException('The applicant account type has changed. Resolve the account identity before deciding this application.');
       }
