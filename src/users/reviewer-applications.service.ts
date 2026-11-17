@@ -136,7 +136,7 @@ export class ReviewerApplicationsService {
       } else if ([ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED, ReviewerApplicationStatus.REJECTED].includes(dto.status)) {
         user.hasReviewerAccess = false;
         user.reviewerExpertise = [];
-        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
+        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL, "reviewAssignmentId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
       }
       await manager.save(User, user);
       return manager.save(ReviewerApplication, application);
