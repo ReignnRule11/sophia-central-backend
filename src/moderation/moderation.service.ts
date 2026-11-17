@@ -8,6 +8,8 @@ import { ReviewResourceDto } from './dto/review-resource.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { PointsService } from '../points/points.service';
 import { ResourceRewardOutbox } from '../points/entities/resource-reward-outbox.entity';
+import { randomUUID } from 'node:crypto';
+import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declaration.dto';
 
 function hasReviewerCapability(user: User): boolean {
   return user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
@@ -69,6 +71,7 @@ export class ModerationService {
       throw new BadRequestException('The selected reviewer has no recorded subject expertise');
     }
     resource.assignedReviewerId = reviewer.id;
+    resource.reviewAssignmentId = randomUUID();
     const saved = await this.resourceRepository.save(resource);
     try {
       await this.notificationsService.createNotification(
@@ -82,6 +85,46 @@ export class ModerationService {
       this.logger.warn(`Resource ${resource.id} was assigned but the reviewer notification could not be created: ${String(error)}`);
     }
     return saved;
+  }
+
+  async declareConflict(id: string, dto: ReviewerConflictDeclarationDto, reviewer: User) {
+    if (!hasReviewerCapability(reviewer) || reviewer.isSuspended) {
+      throw new ForbiddenException('Only active, approved academic reviewers can declare assignment conflicts.');
+    }
+    const resource = await this.resourceRepository.findOne({ where: { id } });
+    if (!resource) throw new NotFoundException('Resource not found');
+    if (resource.moderationStatus !== ResourceModerationStatus.PENDING || resource.assignedReviewerId !== reviewer.id || !resource.reviewAssignmentId) {
+      throw new ForbiddenException('This resource is not currently assigned to your reviewer account.');
+    }
+    if (dto.declaration === 'recuse' && !dto.reason?.trim()) {
+      throw new BadRequestException('Provide a reason when recusing yourself from an assignment.');
+    }
+    const existing = await this.resourceRepository.manager.query(
+      'SELECT id FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid LIMIT 1',
+      [resource.reviewAssignmentId],
+    );
+    if (existing.length) throw new ConflictException('A conflict declaration has already been recorded for this assignment.');
+
+    await this.resourceRepository.manager.query(
+      'INSERT INTO reviewer_conflict_declarations ("assignmentId", "resourceId", "reviewerId", declaration, reason) VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5)',
+      [resource.reviewAssignmentId, resource.id, reviewer.id, dto.declaration, dto.reason?.trim() || null],
+    );
+
+    if (dto.declaration === 'recuse') {
+      resource.assignedReviewerId = null;
+      resource.reviewAssignmentId = null;
+      await this.resourceRepository.save(resource);
+      const admins = await this.userRepository.find({ where: { role: UserRole.ADMIN, isSuspended: false } });
+      await Promise.all(admins.map(admin => this.notificationsService.createNotification(
+        admin.id,
+        'reviewer_recusal',
+        'An academic reviewer recused from an assignment',
+        `A reviewer recused from “${resource.title}”. Review the declaration and assign an independent reviewer.`,
+        '/moderation',
+      ).catch(error => this.logger.warn(`Could not notify administrator ${admin.id} about reviewer recusal: ${String(error)}`))));
+      return { declaration: dto.declaration, reassignmentRequired: true };
+    }
+    return { declaration: dto.declaration, reassignmentRequired: false };
   }
 
   async reviewResource(id: string, dto: ReviewResourceDto, reviewer: User) {
@@ -100,8 +143,15 @@ export class ModerationService {
     if (reviewer.isSuspended) {
       throw new ForbiddenException('Suspended reviewer accounts cannot access the review workflow');
     }
-    if (resource.assignedReviewerId !== reviewer.id) {
+    if (resource.assignedReviewerId !== reviewer.id || !resource.reviewAssignmentId) {
       throw new ForbiddenException('This resource is not assigned to your reviewer account');
+    }
+    const conflictDeclaration = await this.resourceRepository.manager.query(
+      'SELECT id FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid AND "reviewerId" = $2::uuid AND declaration = $3 LIMIT 1',
+      [resource.reviewAssignmentId, reviewer.id, 'no_conflict'],
+    );
+    if (!conflictDeclaration.length) {
+      throw new ForbiddenException('Record your conflict-of-interest declaration before submitting an academic review.');
     }
     if (![ResourceModerationStatus.APPROVED, ResourceModerationStatus.REJECTED, ResourceModerationStatus.REVISION_REQUESTED].includes(dto.status)) {
       throw new BadRequestException('Choose approve, reject or request revision');
@@ -116,6 +166,7 @@ export class ModerationService {
     resource.moderationStatus = dto.status;
     resource.isVerified = dto.status === ResourceModerationStatus.APPROVED;
     resource.assignedReviewerId = null;
+    resource.reviewAssignmentId = null;
 
     // Commit approval, review history, and the reward instruction atomically.
     // A process crash after this transaction cannot lose the student's reward.
