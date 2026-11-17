@@ -191,32 +191,8 @@ export class UsersService {
   }
 
 
-  async setReviewerAccess(id: string, dto: SetReviewerAccessDto): Promise<User> {
-    return this.dataSource.transaction(async manager => {
-      const user = await manager.findOne(User, { where: { id } });
-      if (!user) throw new NotFoundException('User not found');
-
-      if (dto.enabled) {
-        throw new ConflictException('Reviewer access is granted only through an approved Academic Reviewer application. Use the application decision workflow instead of a direct access toggle.');
-        const expertiseAreas = [...new Set((dto.expertiseAreas ?? []).map(area => area.trim()).filter(Boolean))];
-        if (expertiseAreas.length === 0) {
-          throw new BadRequestException('At least one verified subject expertise area is required');
-        }
-        user.hasReviewerAccess = true;
-        user.reviewerStatus = 'approved';
-        user.reviewerExpertise = expertiseAreas;
-      } else {
-        if (user.hasReviewerAccess !== true && user.role !== UserRole.REVIEWER) {
-          throw new BadRequestException('This account does not currently have reviewer access');
-        }
-        user.hasReviewerAccess = false;
-        user.reviewerStatus = 'revoked';
-        user.reviewerExpertise = [];
-        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
-      }
-
-      return manager.save(User, user);
-    });
+  async setReviewerAccess(_id: string, _dto: SetReviewerAccessDto): Promise<User> {
+    throw new ConflictException('Academic Reviewer access changes must go through the application decision workflow so every approval, suspension and revocation is audited.');
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {
