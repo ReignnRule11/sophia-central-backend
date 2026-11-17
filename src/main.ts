@@ -18,7 +18,7 @@ const authRateLimit = (max: number) =>
   });
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true });
 
   // Configure Express proxy trust and application security before
   // registering any rate-limiting middleware.
@@ -38,6 +38,9 @@ async function bootstrap() {
   app.use('/users/me/deletion-request', authRateLimit(5));
   app.use('/users/me/deactivate', authRateLimit(5));
   app.use('/users/me/security-question', authRateLimit(10));
+  app.use('/payments/webhooks', authRateLimit(120));
+  app.use('/payments/initialize', authRateLimit(10));
+  app.use('/payments/verify', authRateLimit(30));
 
   app.useGlobalGuards(new CsrfGuard());
 

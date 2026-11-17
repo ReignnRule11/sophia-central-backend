@@ -29,6 +29,9 @@ import { ChatConversationRead } from '../chat/entities/chat-conversation-read.en
 import { ChatMessageUserHide } from '../chat/entities/chat-message-user-hide.entity';
 import { ChatConversationRetention } from '../chat/entities/chat-conversation-retention.entity';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
+import { PaymentTransaction } from '../payments/entities/payment-transaction.entity';
+import { PaymentLedgerEntry } from '../payments/entities/payment-ledger-entry.entity';
+import { ResourcePurchase } from '../payments/entities/resource-purchase.entity';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const requiredProductionDbVars = ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_DATABASE'];
@@ -47,7 +50,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   entities: [
     User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
     ModerationReview, ContentReport, PointWallet, PointTransaction, ResourceRewardOutbox, FileUpload, StorageCleanupJob, Referral,
-    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, ChatConversationRetention, UserActivityEvent,
+    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, ChatConversationRetention, UserActivityEvent, PaymentTransaction, PaymentLedgerEntry, ResourcePurchase,
   ],
   synchronize: !isProduction,
   logging: !isProduction,
