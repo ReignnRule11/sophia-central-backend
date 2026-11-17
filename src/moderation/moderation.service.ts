@@ -505,7 +505,7 @@ export class ModerationService {
       throw new ForbiddenException('This resource is not assigned to your reviewer account');
     }
     const conflictDeclaration = await this.resourceRepository.manager.query(
-      'SELECT id FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid AND "reviewerId" = $2::uuid ORDER BY "createdAt" DESC LIMIT 1',
+      'SELECT declaration FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid AND "reviewerId" = $2::uuid ORDER BY "createdAt" DESC LIMIT 1',
       [resource.reviewAssignmentId, reviewer.id],
     );
     if (!conflictDeclaration.length || conflictDeclaration[0].declaration !== 'no_conflict') {
