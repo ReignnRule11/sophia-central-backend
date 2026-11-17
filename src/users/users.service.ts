@@ -250,7 +250,7 @@ export class UsersService {
         updateData.academicHandle = normalized;
       }
       if (updateData.isSuspended === true && (user.role === UserRole.REVIEWER || user.hasReviewerAccess === true)) {
-        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
+        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL, "reviewAssignmentId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
       }
       const previousProfileImage = user.profileImage;
       Object.assign(user, updateData);
@@ -512,7 +512,7 @@ export class UsersService {
       await manager.query('UPDATE resources SET "uploaderId" = NULL WHERE "uploaderId" = $1::uuid AND "moderationStatus" = \'approved\'', [id]);
 
       // Release reviewer assignments before deleting the user to preserve resource records.
-      await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [id]);
+      await manager.query('UPDATE resources SET "assignedReviewerId" = NULL, "reviewAssignmentId" = NULL WHERE "assignedReviewerId" = $1::uuid', [id]);
 
       // Preserve shared chat content while anonymizing the deleted account's identity.
       await manager.query('UPDATE chat_messages SET "senderId" = NULL, "senderHandle" = \'Deleted user\' WHERE "senderId" = $1::uuid', [id]);
