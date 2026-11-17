@@ -81,6 +81,10 @@ export class User {
   @Column({ type: 'varchar', default: UserRole.STUDENT })
   role!: UserRole;
 
+  // Reviewer authorization is independent of the user's primary academic role.
+  @Column({ type: 'boolean', default: false })
+  hasReviewerAccess!: boolean;
+
   @Column({ type: 'jsonb', nullable: true })
   reviewerExpertise?: string[];
 
