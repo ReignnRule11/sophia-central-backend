@@ -6,12 +6,15 @@ import { S3Service } from '../upload/s3.service';
 import { CreateResourceDto } from './dto/create-resource.dto';
 import { Resource, ResourceModerationStatus, ResourceOrigin } from './entities/resource.entity';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
+import { ResourcePurchase } from '../payments/entities/resource-purchase.entity';
+import { ResourcePricingMode } from './entities/resource.entity';
 
 @Injectable()
 export class CommunityResourcesService {
   constructor(
     @InjectRepository(Resource) private readonly resources: Repository<Resource>,
     @InjectRepository(User) private readonly users: Repository<User>,
+    @InjectRepository(ResourcePurchase) private readonly purchases: Repository<ResourcePurchase>,
     private readonly storage: S3Service,
   ) {}
 
@@ -125,6 +128,10 @@ export class CommunityResourcesService {
       where: { id, origin: ResourceOrigin.COMMUNITY_UPLOAD, moderationStatus: ResourceModerationStatus.APPROVED, rightsConfirmed: true },
     });
     if (!resource?.fileUrl) throw new NotFoundException('Public resource file not found');
+    if (resource.pricingMode !== ResourcePricingMode.FREE && resource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
+      const purchase = await this.purchases.findOne({ where: { userId: viewer.id, resourceId: resource.id } });
+      if (!purchase) throw new ForbiddenException('Purchase this resource before accessing its file.');
+    }
     const key = this.storage.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new NotFoundException('Public resource file not found');
     await this.resources.manager.save(UserActivityEvent, this.resources.manager.create(UserActivityEvent, {
