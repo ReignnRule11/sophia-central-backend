@@ -1,4 +1,6 @@
-import { ArrayNotEmpty, IsArray, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, MinLength } from 'class-validator';
+import { ArrayNotEmpty, IsArray, IsIn, IsNotEmpty, IsOptional, IsString, IsUUID, MaxLength, MinLength, ValidateNested } from 'class-validator';
+import { Type } from 'class-transformer';
+import { TeachingAssignmentDto } from '../../auth/dto/onboarding.dto';
 import { UserRole } from '../entities/user.entity';
 
 export class TransitionExternalReviewerDto {
@@ -23,6 +25,6 @@ export class TransitionExternalReviewerDto {
   @IsOptional() @IsArray() @ArrayNotEmpty() @IsString({ each: true }) @IsNotEmpty({ each: true }) @MaxLength(160, { each: true })
   coursesTaught?: string[];
 
-  @IsOptional() @IsArray()
-  teachingAssignments?: Array<{ courseName: string; courseCode?: string; levels: string[] }>;
+  @IsOptional() @IsArray() @ArrayNotEmpty() @ValidateNested({ each: true }) @Type(() => TeachingAssignmentDto)
+  teachingAssignments?: TeachingAssignmentDto[];
 }
