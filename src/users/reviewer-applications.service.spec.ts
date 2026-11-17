@@ -88,7 +88,8 @@ describe('ReviewerApplicationsService', () => {
       conflictDeclaration: 'I will disclose all relevant conflicts and recuse myself when necessary.',
       policyAccepted: true,
     })).rejects.toBeInstanceOf(BadRequestException);
-    expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(dataSource.transaction).toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
   });
 
   it('rejects whitespace-only qualifications, expertise and declarations after normalization', async () => {
