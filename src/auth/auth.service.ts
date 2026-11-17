@@ -413,6 +413,19 @@ export class AuthService {
     return { saved: true };
   }
 
+  async checkReviewerRegistrationIntent(email: string, academicHandle: string): Promise<{ requiresSignIn: boolean }> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedHandle = academicHandle.trim().replace(/^@+/, '').toLowerCase();
+    const [userByEmail, userByHandle, preAccount, draftByEmail, draftByHandle] = await Promise.all([
+      this.usersService.findByEmail(normalizedEmail),
+      this.usersService.findByAcademicHandle(normalizedHandle),
+      this.preAccounts.findOne({ where: { email: normalizedEmail } }),
+      this.registrationDrafts.findOne({ where: { email: normalizedEmail } }),
+      this.registrationDrafts.findOne({ where: { academicHandle: normalizedHandle } }),
+    ]);
+    return { requiresSignIn: Boolean(userByEmail || userByHandle || preAccount || draftByEmail || draftByHandle) };
+  }
+
   async checkAcademicHandleAvailability(handle: string): Promise<{ available: boolean; message: string }> {
     const normalized = handle.trim().replace(/^@+/, '').toLowerCase();
     if (!/^[a-zA-Z0-9._]{3,30}$/.test(normalized)) return { available: false, message: 'Enter a valid academic handle.' };
