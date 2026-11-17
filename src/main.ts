@@ -39,6 +39,8 @@ async function bootstrap() {
   app.use('/users/me/deactivate', authRateLimit(5));
   app.use('/users/me/security-question', authRateLimit(10));
   app.use('/payments/webhooks', authRateLimit(120));
+  app.use('/payments/initialize', authRateLimit(10));
+  app.use('/payments/verify', authRateLimit(30));
 
   app.useGlobalGuards(new CsrfGuard());
 
