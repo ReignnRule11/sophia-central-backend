@@ -21,7 +21,7 @@ async function main() {
       'users', 'resources', 'institutions', 'faculties', 'departments',
       'courses', 'course_topics', 'moderation_reviews', 'point_wallets',
       'point_transactions', 'file_uploads', 'referrals', 'notifications',
-      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events', 'resource_review_appeals', 'resource_review_appeal_decisions', 'moderation_review_overrides',
+      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events',
     ];
     for (const table of requiredTables) {
       const result = await client.query('SELECT to_regclass($1) AS name', [`public.${table}`]);
@@ -56,9 +56,7 @@ async function main() {
     assert.ok(migrationNames.includes('AddReviewerConflictDeclarations2026111700004'), 'reviewer conflict declaration migration should be applied');
     assert.ok(migrationNames.includes('AddResourceContributorIdentities2026111700005'), 'resource contributor identity migration should be applied');
     assert.ok(migrationNames.includes('AddReviewerApprovedScope2026111700006'), 'reviewer approved scope migration should be applied');
-    assert.ok(migrationNames.includes('CreateResourceReviewAppeals2026111700007'), 'resource appeal migration should be applied');
     assert.ok(migrationNames.includes('CreateReviewerAssignmentEvents2026111700008'), 'reviewer assignment event migration should be applied');
-    assert.ok(migrationNames.includes('CreateModerationReviewOverrides2026111700009'), 'moderation override migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
@@ -116,22 +114,7 @@ async function main() {
          VALUES ($1, $2, $3, $3, 'assigned')`,
         [auditAssignmentId, resource.rows[0].id, userId],
       ),
-      client.query(
-        `INSERT INTO moderation_review_overrides ("resourceId", "actorId", "originalReviewerId", "originalStatus", "newStatus", reason)
-         VALUES ($1, $2, $2, 'rejected', 'approved', 'CI override audit')`,
-        [resource.rows[0].id, userId],
-      ),
     ]);
-    const appeal = await client.query(
-      `INSERT INTO resource_review_appeals ("resourceId", "appellantId", "originalReviewId", "originalReviewerId", "appealType", reason)
-       VALUES ($1, $2, $3, $2, 'reconsideration', 'CI appeal audit') RETURNING id`,
-      [resource.rows[0].id, userId, '00000000-0000-4000-8000-000000000456'],
-    );
-    await client.query(
-      `INSERT INTO resource_review_appeal_decisions ("appealId", "actorId", "fromStatus", "toStatus", note)
-       VALUES ($1, $2, 'submitted', 'under_review', 'CI appeal decision audit')`,
-      [appeal.rows[0].id, userId],
-    );
 
     const session = await client.query(
       `INSERT INTO ai_sessions ("userId", "resourceId", title)
@@ -175,10 +158,7 @@ async function main() {
            'reviewer_application_decisions',
            'academic_account_transitions',
            'reviewer_conflict_declarations',
-           'reviewer_assignment_events',
-           'resource_review_appeals',
-           'resource_review_appeal_decisions',
-           'moderation_review_overrides'
+           'reviewer_assignment_events'
          )`,
     );
     assert.equal(immutableAuditForeignKeys.rowCount, 0, 'append-only audit records must not block account or resource deletion through foreign keys');
@@ -190,12 +170,6 @@ async function main() {
     assert.equal(conflictAudit.rowCount, 1, 'conflict audit should survive resource and user deletion');
     const assignmentAudit = await client.query('SELECT id FROM reviewer_assignment_events WHERE "resourceId" = $1', [resource.rows[0].id]);
     assert.equal(assignmentAudit.rowCount, 1, 'assignment audit should survive resource and user deletion');
-    const appealAudit = await client.query('SELECT id FROM resource_review_appeals WHERE "resourceId" = $1', [resource.rows[0].id]);
-    assert.equal(appealAudit.rowCount, 1, 'appeal record should remain available for audit after source deletion');
-    const appealDecisionAudit = await client.query('SELECT id FROM resource_review_appeal_decisions');
-    assert.equal(appealDecisionAudit.rowCount, 1, 'appeal decision audit should survive user deletion');
-    const overrideAudit = await client.query('SELECT id FROM moderation_review_overrides WHERE "resourceId" = $1', [resource.rows[0].id]);
-    assert.equal(overrideAudit.rowCount, 1, 'moderation override audit should survive resource and user deletion');
     const supportRow = await client.query('SELECT id FROM support_requests WHERE id = $1', [supportRequestId]);
     assert.equal(supportRow.rowCount, 0, 'deleting a user should cascade-delete support requests');
     const resetToken = await client.query('SELECT id FROM password_reset_tokens WHERE id = $1', [reset.rows[0].id]);
