@@ -10,7 +10,7 @@ import { PaymentRefund, PaymentRefundStatus } from './entities/payment-refund.en
 import { PaymentPayoutBeneficiary } from './entities/payment-payout-beneficiary.entity';
 import { PaymentPayout, PaymentPayoutStatus } from './entities/payment-payout.entity';
 import { PaymentPayoutReconciliationRun } from './entities/payment-payout-reconciliation-run.entity';
-import { PAYMENT_PROVIDER, PaymentProvider } from './providers/payment-provider.interface';
+import { PaymentProviderRegistry } from './providers/payment-provider.registry';
 import { randomBytes } from 'node:crypto';
 
 const HELD_STATUSES = [PaymentPayoutStatus.REQUESTED, PaymentPayoutStatus.PROCESSING, PaymentPayoutStatus.PENDING, PaymentPayoutStatus.OTP];
@@ -27,7 +27,7 @@ export class LecturerPayoutsService {
     @InjectRepository(PaymentPayoutBeneficiary) private readonly beneficiaries: Repository<PaymentPayoutBeneficiary>,
     @InjectRepository(PaymentPayout) private readonly payouts: Repository<PaymentPayout>,
     @InjectRepository(PaymentPayoutReconciliationRun) private readonly payoutRuns: Repository<PaymentPayoutReconciliationRun>,
-    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    private readonly providers: PaymentProviderRegistry,
   ) {}
 
   private lecturer(user: User) {
@@ -50,8 +50,9 @@ export class LecturerPayoutsService {
         .getOne();
       if (activePayout || inFlight) throw new ConflictException('Bank details cannot be changed while a payout is awaiting approval or settlement.');
     }
-    const resolved = await this.provider.resolveBankAccount(input.accountNumber, input.bankCode);
-    const recipient = await this.provider.createTransferRecipient({
+    const provider = this.providers.defaultProvider();
+    const resolved = await provider.resolveBankAccount(input.accountNumber, input.bankCode);
+    const recipient = await provider.createTransferRecipient({
       name: resolved.accountName, accountNumber: resolved.accountNumber, bankCode: resolved.bankCode,
     });
     const beneficiary = existing
@@ -131,6 +132,7 @@ export class LecturerPayoutsService {
       if (!beneficiary) throw new ConflictException('Verify and save a bank beneficiary before requesting a payout.');
       const available = await this.availableBalance(manager, user.id);
       if (BigInt(amountMinor) > available) throw new ConflictException('Payout amount exceeds the available lecturer balance.');
+      const provider = this.providers.defaultProvider();
       const payout = manager.create(PaymentPayout, {
         lecturerUserId: user.id, beneficiaryId: beneficiary.id, reference: `sophis-payout-${randomBytes(16).toString('hex')}`,
         provider: this.provider.name, amountMinor, currency: 'NGN', status: PaymentPayoutStatus.REQUESTED,
@@ -186,8 +188,8 @@ export class LecturerPayoutsService {
   }
 
 
-  async handleTransferWebhook(eventName: string, reference: string, _data: Record<string, any>) {
-    const expectedEvents = ['transfer.success', 'transfer.failed', 'transfer.reversed'];
+  async handleTransferWebhook(providerName: string, eventName: string, reference: string, _data: Record<string, any>) {
+    const expectedEvents = ['transfer.success', 'transfer.failed', 'transfer.reversed', 'transfer.completed'];
     if (!expectedEvents.includes(eventName)) return { received: true, processed: false };
     const payout = await this.payouts.findOne({ where: { reference, provider: this.provider.name } });
     if (!payout) return { received: true, processed: false };
@@ -231,6 +233,7 @@ export class LecturerPayoutsService {
         end.getTime() - start.getTime() > 31 * 24 * 60 * 60 * 1000) {
       throw new BadRequestException('Provide a valid UTC date range no longer than 31 days.');
     }
+    const provider = this.providers.defaultProvider();
     const [remote, local] = await Promise.all([
       this.provider.listTransfers({ from: start.toISOString(), to: end.toISOString() }),
       this.payouts.createQueryBuilder('payout')
@@ -296,12 +299,12 @@ export class LecturerPayoutsService {
 
   private mapStatus(status: string): PaymentPayoutStatus {
     const value = status.toLowerCase();
-    if (value === 'success') return PaymentPayoutStatus.SUCCESS;
+    if (['success', 'successful'].includes(value)) return PaymentPayoutStatus.SUCCESS;
     if (['failed', 'abandoned', 'blocked', 'rejected'].includes(value)) return PaymentPayoutStatus.FAILED;
     if (value === 'reversed') return PaymentPayoutStatus.REVERSED;
     if (value === 'otp') return PaymentPayoutStatus.OTP;
-    if (['pending', 'processing', 'received'].includes(value)) return PaymentPayoutStatus.PENDING;
-    throw new ConflictException('Paystack returned an unsupported transfer status; payout reservation remains unchanged.');
+    if (['new', 'pending', 'processing', 'received', 'queued'].includes(value)) return PaymentPayoutStatus.PENDING;
+    throw new ConflictException('Payment provider returned an unsupported transfer status; payout reservation remains unchanged.');
   }
 
   private publicPayout(payout: PaymentPayout) {
