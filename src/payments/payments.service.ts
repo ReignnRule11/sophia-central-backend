@@ -18,11 +18,7 @@ export class PaymentsService {
   constructor(
     @InjectRepository(PaymentTransaction) private readonly payments: Repository<PaymentTransaction>,
     @InjectRepository(Resource) private readonly resources: Repository<Resource>,
-    @InjectRepository(User) private readonly users: Repository<User>,
     @InjectRepository(ResourcePurchase) private readonly purchases: Repository<ResourcePurchase>,
-    @InjectRepository(PointWallet) private readonly wallets: Repository<PointWallet>,
-    @InjectRepository(PointTransaction) private readonly pointTransactions: Repository<PointTransaction>,
-    @InjectRepository(PaymentLedgerEntry) private readonly ledger: Repository<PaymentLedgerEntry>,
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
@@ -62,6 +58,8 @@ export class PaymentsService {
     if (resource.uploaderId === user.id) throw new ForbiddenException('You cannot purchase your own resource.');
     const existing = await this.purchases.findOne({ where: { userId: user.id, resourceId: resource.id } });
     if (existing) throw new ConflictException('You already own this resource.');
+    const pending = await this.payments.findOne({ where: { userId: user.id, resourceId: resource.id, status: PaymentStatus.PENDING } });
+    if (pending) throw new ConflictException('A checkout for this resource is already pending. Verify its payment status before starting another checkout.');
     return { amountNaira: resource.priceAmount, points: null, resourceId: resource.id };
   }
 
@@ -159,11 +157,9 @@ export class PaymentsService {
 
       if (payment.purpose === PaymentPurpose.WISDOM_POINTS_TOPUP) {
         if (!payment.points || payment.points < 1) throw new ConflictException('The recorded top-up has no valid point quantity.');
-        let wallet = await manager.findOne(PointWallet, { where: { userId: payment.userId }, lock: { mode: 'pessimistic_write' } });
-        if (!wallet) {
-          wallet = manager.create(PointWallet, { userId: payment.userId, balance: 0 });
-          wallet = await manager.save(PointWallet, wallet);
-        }
+        await manager.query('INSERT INTO point_wallets ("userId", balance) VALUES ($1, 0) ON CONFLICT ("userId") DO NOTHING', [payment.userId]);
+        const wallet = await manager.findOne(PointWallet, { where: { userId: payment.userId }, lock: { mode: 'pessimistic_write' } });
+        if (!wallet) throw new ConflictException('The Wisdom Points wallet could not be initialized.');
         wallet.balance += payment.points;
         await manager.save(PointWallet, wallet);
         await manager.save(PointTransaction, manager.create(PointTransaction, {
@@ -179,11 +175,10 @@ export class PaymentsService {
       const resource = await manager.findOne(Resource, { where: { id: payment.resourceId } });
       if (!resource || !resource.uploaderId) throw new ConflictException('The resource owner could not be verified.');
       const existing = await manager.findOne(ResourcePurchase, { where: { userId: payment.userId, resourceId: payment.resourceId } });
-      if (!existing) {
-        await manager.save(ResourcePurchase, manager.create(ResourcePurchase, {
-          userId: payment.userId, resourceId: payment.resourceId, paymentId: payment.id, purchasedAt: payment.paidAt,
-        }));
-      }
+      if (existing) throw new ConflictException('A completed purchase already exists for this resource. The duplicate charge requires reconciliation.');
+      await manager.save(ResourcePurchase, manager.create(ResourcePurchase, {
+        userId: payment.userId, resourceId: payment.resourceId, paymentId: payment.id, purchasedAt: payment.paidAt,
+      }));
       const gross = BigInt(payment.amountMinor);
       const platformShare = (gross * 30n) / 100n;
       const lecturerShare = gross - platformShare;
