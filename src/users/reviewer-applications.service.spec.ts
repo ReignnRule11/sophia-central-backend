@@ -80,6 +80,19 @@ describe('ReviewerApplicationsService', () => {
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
+  it('rejects whitespace-only qualifications, expertise and declarations after normalization', async () => {
+    const user = { id: 'external-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: false } as User;
+    await expect(service.submit(user, {
+      qualifications: ['   '],
+      expertiseAreas: ['   '],
+      academicLevels: ['   '],
+      reviewExperience: ' '.repeat(45),
+      conflictDeclaration: ' '.repeat(30),
+      policyAccepted: true,
+    })).rejects.toBeInstanceOf(BadRequestException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
   it('prevents a second active application for the same account', async () => {
     applications.findOne.mockResolvedValue({ id: 'application-1', status: ReviewerApplicationStatus.UNDER_REVIEW });
     const user = { id: 'student-1', role: UserRole.STUDENT } as User;
