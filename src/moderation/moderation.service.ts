@@ -14,6 +14,7 @@ import { ResourceReviewAppeal } from './entities/resource-review-appeal.entity';
 import { ResourceReviewAppealDecision } from './entities/resource-review-appeal-decision.entity';
 import { CreateResourceAppealDto } from './dto/create-resource-appeal.dto';
 import { DecideResourceAppealDto } from './dto/decide-resource-appeal.dto';
+import { OverrideModerationReviewDto } from './dto/override-moderation-review.dto';
 
 function hasReviewerCapability(user: User): boolean {
   return user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
@@ -187,6 +188,82 @@ export class ModerationService {
     if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can inspect appeal decision history.');
     if (!await this.appealRepository.findOne({ where: { id: appealId }, select: ['id'] })) throw new NotFoundException('Resource appeal not found.');
     return this.appealDecisionRepository.find({ where: { appealId }, order: { createdAt: 'ASC' } });
+  }
+
+  async overrideReview(resourceId: string, admin: User, dto: OverrideModerationReviewDto) {
+    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can override a completed academic review.');
+    const resource = await this.resourceRepository.findOne({ where: { id: resourceId }, relations: ['uploader'] });
+    if (!resource) throw new NotFoundException('Resource not found.');
+    if (resource.uploaderId === admin.id) throw new ForbiddenException('An administrator cannot override a review on their own uploaded resource.');
+    const originalReview = await this.moderationReviewRepository.findOne({
+      where: { resourceId },
+      order: { createdAt: 'DESC' },
+    });
+    if (!originalReview?.reviewerId) throw new BadRequestException('A completed reviewer decision is required before an Admin override.');
+    if (originalReview.reviewerId === admin.id) throw new ForbiddenException('An administrator who made the original review cannot override that same decision.');
+    if (resource.moderationStatus === dto.status) throw new ConflictException('The resource already has the requested moderation status.');
+
+    const originalStatus = resource.moderationStatus;
+    const completedAssignmentId = resource.reviewAssignmentId;
+    resource.moderationStatus = dto.status as ResourceModerationStatus;
+    resource.isVerified = dto.status === ResourceModerationStatus.APPROVED;
+    resource.assignedReviewerId = null;
+    resource.reviewAssignmentId = null;
+
+    await this.resourceRepository.manager.transaction(async manager => {
+      if (completedAssignmentId) {
+        await manager.query(
+          'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
+          [completedAssignmentId, resource.id, originalReview.reviewerId, admin.id, 'released'],
+        );
+      }
+      await manager.query(
+        'INSERT INTO moderation_review_overrides ("resourceId", "actorId", "originalReviewerId", "originalStatus", "newStatus", reason) VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5, $6)',
+        [resource.id, admin.id, originalReview.reviewerId, originalStatus, dto.status, dto.reason.trim()],
+      );
+      await manager.save(Resource, resource);
+      if (
+        dto.status === ResourceModerationStatus.APPROVED &&
+        resource.uploaderId &&
+        resource.uploader?.role === UserRole.STUDENT &&
+        !resource.uploader.isSuspended
+      ) {
+        await manager.save(ResourceRewardOutbox, manager.create(ResourceRewardOutbox, {
+          resourceId: resource.id,
+          userId: resource.uploaderId,
+        }));
+      }
+    });
+
+    if (dto.status === ResourceModerationStatus.APPROVED && resource.uploaderId && resource.uploader?.role === UserRole.STUDENT && !resource.uploader.isSuspended) {
+      try { await this.pointsService.processResourceApprovalReward(resource.id); }
+      catch (error) { this.logger.error(`Admin override approved resource ${resource.id}; reward remains queued for retry: ${String(error)}`); }
+    }
+    if (resource.uploaderId) {
+      await this.notificationsService.createNotification(
+        resource.uploaderId,
+        'moderation_admin_override',
+        'An administrator updated your resource review outcome',
+        `An administrator changed the moderation outcome for “${resource.title}” to ${dto.status.replace(/_/g, ' ')}. Reason: ${dto.reason.trim()}`,
+        dto.status === ResourceModerationStatus.APPROVED ? '/library' : '/my-resources',
+      );
+    }
+    return { resourceId: resource.id, originalStatus, newStatus: dto.status, originalReviewerId: originalReview.reviewerId, reason: dto.reason.trim() };
+  }
+
+  async getOverrideHistory(resourceId: string, admin: User) {
+    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can inspect review override history.');
+    return this.resourceRepository.manager.query(`
+      SELECT o."id", o."resourceId", o."actorId", o."originalReviewerId", o."originalStatus",
+             o."newStatus", o."reason", o."createdAt",
+             actor."firstName" AS "adminFirstName", actor."lastName" AS "adminLastName",
+             reviewer."firstName" AS "originalReviewerFirstName", reviewer."lastName" AS "originalReviewerLastName"
+      FROM "moderation_review_overrides" o
+      JOIN "users" actor ON actor."id" = o."actorId"
+      JOIN "users" reviewer ON reviewer."id" = o."originalReviewerId"
+      WHERE o."resourceId" = $1::uuid
+      ORDER BY o."createdAt" ASC
+    `, [resourceId]);
   }
 
   async getIntegrityReport(admin: User) {
