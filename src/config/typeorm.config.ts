@@ -32,6 +32,9 @@ import { UserActivityEvent } from '../analytics/entities/user-activity-event.ent
 import { PaymentTransaction } from '../payments/entities/payment-transaction.entity';
 import { PaymentLedgerEntry } from '../payments/entities/payment-ledger-entry.entity';
 import { ResourcePurchase } from '../payments/entities/resource-purchase.entity';
+import { PaymentRefund } from '../payments/entities/payment-refund.entity';
+import { PaymentDispute } from '../payments/entities/payment-dispute.entity';
+import { PaymentLedgerAdjustment } from '../payments/entities/payment-ledger-adjustment.entity';
 
 const isProduction = process.env.NODE_ENV === 'production';
 const requiredProductionDbVars = ['DB_HOST', 'DB_USERNAME', 'DB_PASSWORD', 'DB_DATABASE'];
@@ -50,7 +53,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   entities: [
     User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
     ModerationReview, ContentReport, PointWallet, PointTransaction, ResourceRewardOutbox, FileUpload, StorageCleanupJob, Referral,
-    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, ChatConversationRetention, UserActivityEvent, PaymentTransaction, PaymentLedgerEntry, ResourcePurchase,
+    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, ChatConversationRetention, UserActivityEvent, PaymentTransaction, PaymentLedgerEntry, ResourcePurchase, PaymentRefund, PaymentDispute, PaymentLedgerAdjustment,
   ],
   synchronize: !isProduction,
   logging: !isProduction,

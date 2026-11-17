@@ -10,7 +10,10 @@ import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { PaymentLedgerEntry, PaymentLedgerKind } from './entities/payment-ledger-entry.entity';
 import { PaymentTransaction, PaymentPurpose, PaymentStatus } from './entities/payment-transaction.entity';
 import { ResourcePurchase } from './entities/resource-purchase.entity';
-import { PAYMENT_PROVIDER, PaymentProvider, VerifiedPayment } from './providers/payment-provider.interface';
+import { PaymentRefund, PaymentRefundStatus } from './entities/payment-refund.entity';
+import { PaymentDispute, PaymentDisputeStatus } from './entities/payment-dispute.entity';
+import { PaymentLedgerAdjustment, PaymentLedgerAdjustmentKind } from './entities/payment-ledger-adjustment.entity';
+import { PAYMENT_PROVIDER, PaymentProvider, VerifiedPayment, ProviderRefund } from './providers/payment-provider.interface';
 import { randomBytes } from 'node:crypto';
 
 @Injectable()
@@ -19,6 +22,8 @@ export class PaymentsService {
     @InjectRepository(PaymentTransaction) private readonly payments: Repository<PaymentTransaction>,
     @InjectRepository(Resource) private readonly resources: Repository<Resource>,
     @InjectRepository(ResourcePurchase) private readonly purchases: Repository<ResourcePurchase>,
+    @InjectRepository(PaymentRefund) private readonly refunds: Repository<PaymentRefund>,
+    @InjectRepository(PaymentDispute) private readonly disputes: Repository<PaymentDispute>,
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
@@ -119,6 +124,184 @@ export class PaymentsService {
     return this.publicPayment(updated!);
   }
 
+
+  async createRefund(user: User, paymentReference: string, input: { idempotencyKey: string; amountMinor?: number; reason: string }) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role)) throw new ForbiddenException('Only administrators and moderators may initiate refunds.');
+    if (!input.idempotencyKey?.trim() || !input.reason?.trim()) throw new BadRequestException('An idempotency key and reason are required.');
+    const existing = await this.refunds.findOne({ where: { idempotencyKey: input.idempotencyKey } });
+    if (existing) return this.publicRefund(existing);
+    const refund = await this.dataSource.transaction(async manager => {
+      const payment = await manager.findOne(PaymentTransaction, { where: { reference: paymentReference }, lock: { mode: 'pessimistic_write' } });
+      if (!payment) throw new NotFoundException('Payment reference not found.');
+      if (payment.status !== PaymentStatus.SUCCESS || payment.purpose !== PaymentPurpose.RESOURCE_PURCHASE) {
+        throw new BadRequestException('Only successful resource purchases can be refunded in this release.');
+      }
+      const reservations = await manager.createQueryBuilder(PaymentRefund, 'refund')
+        .select('COALESCE(SUM(CAST(refund.amountMinor AS BIGINT)), 0)', 'total')
+        .where('refund.paymentId = :paymentId', { paymentId: payment.id })
+        .andWhere('refund.status IN (:...statuses)', { statuses: [PaymentRefundStatus.PENDING, PaymentRefundStatus.PROCESSING, PaymentRefundStatus.NEEDS_ATTENTION, PaymentRefundStatus.PROCESSED] })
+        .getRawOne();
+      const alreadyReserved = BigInt(reservations?.total || 0);
+      const total = BigInt(payment.amountMinor);
+      const requested = input.amountMinor === undefined ? total - alreadyReserved : BigInt(input.amountMinor);
+      if (requested <= 0n || requested > total - alreadyReserved) throw new ConflictException('Refund amount exceeds the remaining refundable balance.');
+      const record = manager.create(PaymentRefund, {
+        paymentId: payment.id,
+        idempotencyKey: input.idempotencyKey,
+        reference: `SOPHIS-REF-${randomBytes(16).toString('hex')}`,
+        providerRefundId: null,
+        amountMinor: requested.toString(),
+        currency: payment.currency,
+        status: PaymentRefundStatus.PENDING,
+        requestedByUserId: user.id,
+        reason: input.reason.trim(),
+        providerMetadata: null,
+        processedAt: null,
+      });
+      return manager.save(PaymentRefund, record);
+    });
+    const payment = await this.payments.findOneByOrFail({ id: refund.paymentId });
+    try {
+      const providerRefund = await this.provider.createRefund({
+        transactionReference: payment.reference,
+        amountMinor: refund.amountMinor,
+        currency: refund.currency,
+        reference: refund.reference,
+        reason: refund.reason,
+      });
+      if (providerRefund.currency !== refund.currency || BigInt(providerRefund.amountMinor) !== BigInt(refund.amountMinor)) {
+        throw new ConflictException('Paystack refund response amount or currency does not match the recorded request.');
+      }
+      await this.refunds.update({ id: refund.id }, {
+        providerRefundId: providerRefund.id,
+        providerMetadata: { providerStatus: providerRefund.status },
+      });
+      const verifiedRefund = await this.provider.verifyRefund(providerRefund.id);
+      await this.applyRefundStatus(refund.id, verifiedRefund);
+    } catch (error) {
+      // Keep the reservation pending when the provider request outcome is uncertain.
+      // This prevents a timeout from enabling a duplicate refund.
+      if (error instanceof ConflictException) throw error;
+    }
+    const latest = await this.refunds.findOneByOrFail({ id: refund.id });
+    return this.publicRefund(latest);
+  }
+
+  async listDisputes(user: User) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role)) throw new ForbiddenException('Only administrators and moderators may inspect payment disputes.');
+    const records = await this.disputes.find({ order: { createdAt: 'DESC' }, take: 100 });
+    return records.map(dispute => ({
+      id: dispute.id, paymentId: dispute.paymentId, providerDisputeId: dispute.providerDisputeId,
+      amountMinor: dispute.amountMinor, currency: dispute.currency, status: dispute.status,
+      reason: dispute.reason, responseDueAt: dispute.responseDueAt, resolvedAt: dispute.resolvedAt,
+      createdAt: dispute.createdAt,
+    }));
+  }
+
+  async verifyRefund(user: User, refundId: string) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role)) throw new ForbiddenException('Only administrators and moderators may inspect refunds.');
+    const refund = await this.refunds.findOne({ where: { id: refundId } });
+    if (!refund) throw new NotFoundException('Refund not found.');
+    if (!refund.providerRefundId) return this.publicRefund(refund);
+    const verified = await this.provider.verifyRefund(refund.providerRefundId);
+    await this.applyRefundStatus(refund.id, verified);
+    return this.publicRefund(await this.refunds.findOneByOrFail({ id: refund.id }));
+  }
+
+  private publicRefund(refund: PaymentRefund) {
+    return { id: refund.id, paymentId: refund.paymentId, reference: refund.reference, amountMinor: refund.amountMinor, currency: refund.currency, status: refund.status, reason: refund.reason, createdAt: refund.createdAt, processedAt: refund.processedAt };
+  }
+
+  private async applyRefundStatus(refundId: string, providerRefund: ProviderRefund) {
+    const statusMap: Record<string, PaymentRefundStatus | undefined> = {
+      pending: PaymentRefundStatus.PENDING,
+      processing: PaymentRefundStatus.PROCESSING,
+      'needs-attention': PaymentRefundStatus.NEEDS_ATTENTION,
+      failed: PaymentRefundStatus.FAILED,
+      processed: PaymentRefundStatus.PROCESSED,
+    };
+    const status = statusMap[providerRefund.status.toLowerCase()];
+    if (!status) throw new ConflictException('Paystack returned an unsupported refund status.');
+    await this.dataSource.transaction(async manager => {
+      const refund = await manager.findOne(PaymentRefund, { where: { id: refundId }, lock: { mode: 'pessimistic_write' } });
+      if (!refund) throw new NotFoundException('Refund not found.');
+      if (refund.status === PaymentRefundStatus.PROCESSED) return;
+      if (providerRefund.currency !== refund.currency || BigInt(providerRefund.amountMinor) !== BigInt(refund.amountMinor)) {
+        throw new ConflictException('Verified refund amount or currency does not match the refund record.');
+      }
+      const payment = await manager.findOne(PaymentTransaction, { where: { id: refund.paymentId }, lock: { mode: 'pessimistic_write' } });
+      if (!payment) throw new NotFoundException('Original payment not found.');
+      refund.status = status;
+      refund.providerRefundId = providerRefund.id;
+      refund.providerMetadata = { providerStatus: providerRefund.status };
+      if (status === PaymentRefundStatus.PROCESSED) {
+        refund.processedAt = new Date();
+        const totals = await manager.createQueryBuilder(PaymentRefund, 'refund')
+          .select('COALESCE(SUM(CAST(refund.amountMinor AS BIGINT)), 0)', 'total')
+          .where('refund.paymentId = :paymentId', { paymentId: payment.id })
+          .andWhere('(refund.status = :status OR refund.id = :currentId)', { status: PaymentRefundStatus.PROCESSED, currentId: refund.id })
+          .getRawOne();
+        const cumulativeRefunded = BigInt(totals?.total || 0);
+        const ledger = await manager.find(PaymentLedgerEntry, { where: { paymentId: payment.id } });
+        for (const entry of ledger) {
+          const kind = entry.kind === PaymentLedgerKind.PLATFORM_SHARE
+            ? PaymentLedgerAdjustmentKind.PLATFORM_REFUND : PaymentLedgerAdjustmentKind.LECTURER_REFUND;
+          const prior = await manager.createQueryBuilder(PaymentLedgerAdjustment, 'adjustment')
+            .select('COALESCE(SUM(CAST(adjustment.amountMinor AS BIGINT)), 0)', 'total')
+            .where('adjustment.paymentId = :paymentId AND adjustment.kind = :kind', { paymentId: payment.id, kind })
+            .getRawOne();
+          const target = (cumulativeRefunded * BigInt(entry.amountMinor)) / BigInt(payment.amountMinor);
+          const delta = target - BigInt(prior?.total || 0);
+          if (delta <= 0n) continue;
+          await manager.createQueryBuilder().insert().into(PaymentLedgerAdjustment).values({
+            refundId: refund.id, paymentId: payment.id, kind, beneficiaryUserId: entry.beneficiaryUserId,
+            amountMinor: delta.toString(), currency: refund.currency,
+          }).orIgnore().execute();
+        }
+        if (cumulativeRefunded >= BigInt(payment.amountMinor) && payment.resourceId) {
+          await manager.delete(ResourcePurchase, { paymentId: payment.id });
+        }
+      }
+      await manager.save(PaymentRefund, refund);
+    });
+  }
+
+  private async applyDisputeEvent(eventName: string, paymentReference: string, data: Record<string, any>) {
+    const payment = await this.payments.findOne({ where: { reference: paymentReference, status: PaymentStatus.SUCCESS } });
+    const disputeId = data.id === undefined ? null : String(data.id);
+    if (!payment || !disputeId) return;
+    const existing = await this.disputes.findOne({ where: { providerDisputeId: disputeId } });
+    if (eventName === 'charge.dispute.create' || eventName === 'charge.dispute.remind') {
+      const amount = Number(data.amount);
+      if (existing) {
+        if (eventName === 'charge.dispute.remind' && existing.status === PaymentDisputeStatus.OPEN) {
+          existing.status = PaymentDisputeStatus.UNDER_REVIEW;
+          if (data.due_at) existing.responseDueAt = new Date(data.due_at);
+          await this.disputes.save(existing);
+        }
+        return;
+      }
+      const currency = String(data.currency || payment.currency).toUpperCase();
+      if (!Number.isSafeInteger(amount) || amount < 1 || currency !== payment.currency) return;
+      await this.disputes.save(this.disputes.create({
+        paymentId: payment.id, providerDisputeId: disputeId, amountMinor: String(amount), currency,
+        status: eventName === 'charge.dispute.create' ? PaymentDisputeStatus.OPEN : PaymentDisputeStatus.UNDER_REVIEW,
+        reason: typeof data.reason === 'string' ? data.reason.slice(0, 128) : null,
+        responseDueAt: data.due_at ? new Date(data.due_at) : null,
+        providerMetadata: null, resolvedAt: null,
+      }));
+      return;
+    }
+    if (eventName === 'charge.dispute.resolve' && existing) {
+      const resolution = String(data.status || data.resolution || '').toLowerCase();
+      existing.status = ['won', 'merchant_won', 'resolved_won'].includes(resolution) ? PaymentDisputeStatus.WON
+        : ['lost', 'customer_won', 'resolved_lost'].includes(resolution) ? PaymentDisputeStatus.LOST
+        : PaymentDisputeStatus.CLOSED;
+      existing.resolvedAt = new Date();
+      await this.disputes.save(existing);
+    }
+  }
+
   private publicPayment(payment: PaymentTransaction) {
     return { reference: payment.reference, provider: payment.provider, purpose: payment.purpose, status: payment.status, amountMinor: payment.amountMinor, currency: payment.currency, paidAt: payment.paidAt };
   }
@@ -127,13 +310,31 @@ export class PaymentsService {
     if (providerName !== this.provider.name) throw new NotFoundException('Payment provider webhook is not enabled.');
     const event = this.provider.verifyWebhook(rawBody, headers);
     if (!event) return { received: true, processed: false };
-    if (event.event !== 'charge.success') return { received: true, processed: false };
-    const payment = await this.payments.findOne({ where: { reference: event.reference } });
-    if (!payment || payment.provider !== providerName) return { received: true, processed: false };
-    if (payment.status === PaymentStatus.SUCCESS) return { received: true, processed: true, duplicate: true };
-    const verified = await this.provider.verify(event.reference);
-    await this.applyVerifiedPayment(payment.id, verified);
-    return { received: true, processed: true };
+    if (event.event === 'charge.success') {
+      const payment = await this.payments.findOne({ where: { reference: event.reference } });
+      if (!payment || payment.provider !== providerName) return { received: true, processed: false };
+      if (payment.status === PaymentStatus.SUCCESS) return { received: true, processed: true, duplicate: true };
+      const verified = await this.provider.verify(event.reference);
+      await this.applyVerifiedPayment(payment.id, verified);
+      return { received: true, processed: true };
+    }
+    if (event.event.startsWith('refund.')) {
+      const data = event.data || {};
+      let refund = data.id ? await this.refunds.findOne({ where: { providerRefundId: String(data.id) } }) : null;
+      if (!refund) {
+        const candidates = await this.refunds.find({ where: { status: PaymentRefundStatus.PENDING } });
+        refund = candidates.find(item => item.reference === data.refund_reference || item.paymentId === event.reference) || null;
+      }
+      if (!refund || !refund.providerRefundId) return { received: true, processed: false };
+      const verifiedRefund = await this.provider.verifyRefund(refund.providerRefundId);
+      await this.applyRefundStatus(refund.id, verifiedRefund);
+      return { received: true, processed: true };
+    }
+    if (event.event.startsWith('charge.dispute.')) {
+      await this.applyDisputeEvent(event.event, event.reference, event.data || {});
+      return { received: true, processed: true };
+    }
+    return { received: true, processed: false };
   }
 
   private async applyVerifiedPayment(paymentId: string, verified: VerifiedPayment): Promise<void> {

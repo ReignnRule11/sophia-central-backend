@@ -1,7 +1,7 @@
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { InitializePaymentInput, InitializedPayment, PaymentProvider, VerifiedPayment } from './payment-provider.interface';
+import { InitializePaymentInput, InitializedPayment, PaymentProvider, PaymentWebhookEvent, ProviderRefund, VerifiedPayment } from './payment-provider.interface';
 
 @Injectable()
 export class PaystackProvider implements PaymentProvider {
@@ -62,7 +62,29 @@ export class PaystackProvider implements PaymentProvider {
     };
   }
 
-  verifyWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): { reference: string; event: string } | null {
+  async createRefund(input: { transactionReference: string; amountMinor: string; currency: string; reference: string; reason: string }): Promise<ProviderRefund> {
+    const data = await this.request('/refund', {
+      method: 'POST',
+      body: JSON.stringify({
+        transaction: input.transactionReference,
+        amount: Number(input.amountMinor),
+        currency: input.currency,
+        reference: input.reference,
+        merchant_note: input.reason,
+      }),
+    });
+    if (!data?.id || String(data.transaction_reference || '') !== input.transactionReference && !data?.transaction) {
+      throw new ServiceUnavailableException('Paystack returned an invalid refund response.');
+    }
+    return { id: String(data.id), status: String(data.status || 'pending'), amountMinor: Number(data.amount), currency: String(data.currency || input.currency).toUpperCase(), raw: data };
+  }
+
+  async verifyRefund(providerRefundId: string): Promise<ProviderRefund> {
+    const data = await this.request(`/refund/${encodeURIComponent(providerRefundId)}`, { method: 'GET' });
+    return { id: String(data.id), status: String(data.status || ''), amountMinor: Number(data.amount), currency: String(data.currency || '').toUpperCase(), raw: data };
+  }
+
+  verifyWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): PaymentWebhookEvent | null {
     const getHeader = (name: string) => {
       const value = headers[name.toLowerCase()];
       return Array.isArray(value) ? value[0] : value;
@@ -98,8 +120,9 @@ export class PaystackProvider implements PaymentProvider {
 
     let event: any;
     try { event = JSON.parse(rawBody.toString('utf8')); } catch { throw new UnauthorizedException('Invalid webhook payload.'); }
-    const reference = event?.data?.reference;
+    const data = event?.data || {};
+    const reference = data.reference || data.transaction_reference || data.transaction?.reference;
     if (typeof reference !== 'string' || !reference) return null;
-    return { reference, event: String(event?.event || '') };
+    return { reference, event: String(event?.event || ''), data };
   }
 }
