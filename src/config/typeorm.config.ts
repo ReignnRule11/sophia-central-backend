@@ -1,6 +1,7 @@
 import 'dotenv/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
+import { ReviewerApplication } from '../users/entities/reviewer-application.entity';
 import { Resource } from '../resources/entities/resource.entity';
 import { SavedResource } from '../resources/entities/saved-resource.entity';
 import { Institution, Faculty, Department } from '../institutions/entities/institution.entity';
@@ -45,7 +46,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   password: process.env.DB_PASSWORD || 'sophia123',
   database: process.env.DB_DATABASE || 'sophia_central',
   entities: [
-    User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
+    User, ReviewerApplication, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
     ModerationReview, ContentReport, PointWallet, PointTransaction, ResourceRewardOutbox, FileUpload, StorageCleanupJob, Referral,
     Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, ChatConversationRetention, UserActivityEvent,
   ],
