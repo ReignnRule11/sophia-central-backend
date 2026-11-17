@@ -6,6 +6,7 @@ import { ResourceRewardOutbox } from '../points/entities/resource-reward-outbox.
 
 describe('ModerationService academic reviewer workflow', () => {
   const transactionManager = {
+    findOne: jest.fn(),
     create: jest.fn((_entity, value) => value),
     save: jest.fn(async (entity, value) => entity === Resource ? value : { id: 'review-1', ...value }),
     query: jest.fn().mockResolvedValue([]),
@@ -78,31 +79,25 @@ describe('ModerationService academic reviewer workflow', () => {
       id: 'resource-1',
       moderationStatus: ResourceModerationStatus.PENDING,
     });
-    userRepository.findOne.mockResolvedValue({ id: 'user-1', role: UserRole.LECTURER, reviewerExpertise: ['Biology'] });
+    transactionManager.findOne.mockResolvedValueOnce({ id: 'resource-1', moderationStatus: ResourceModerationStatus.PENDING }).mockResolvedValueOnce({ id: 'user-1', role: UserRole.LECTURER, reviewerExpertise: ['Biology'] });
     await expect(service.assignReviewer('resource-1', 'user-1', 'admin-1')).rejects.toBeInstanceOf(BadRequestException);
     expect(resourceRepository.save).not.toHaveBeenCalled();
   });
 
   it('notifies the assigned reviewer when a resource is assigned', async () => {
-    resourceRepository.findOne.mockResolvedValue({
+    transactionManager.findOne.mockResolvedValueOnce({
       id: 'resource-1',
       title: 'Cell Biology',
       course: 'Biology',
       level: '300 level',
       moderationStatus: ResourceModerationStatus.PENDING,
     });
-    userRepository.findOne.mockResolvedValue({
-      id: 'reviewer-1',
-      role: UserRole.REVIEWER,
-      isSuspended: false,
-      reviewerExpertise: ['Biology'],
-      reviewerAcademicLevels: ['300 level'],
-    });
+    transactionManager.findOne.mockResolvedValueOnce({ id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: false, reviewerExpertise: ['Biology'], reviewerAcademicLevels: ['300 level'] });
     resourceRepository.save.mockImplementation(async value => value);
 
     await service.assignReviewer('resource-1', 'reviewer-1', 'admin-1');
 
-    expect(resourceRepository.manager.query).toHaveBeenCalledWith(
+    expect(transactionManager.query).toHaveBeenCalledWith(
       'INSERT INTO reviewer_assignment_events (\"assignmentId\", \"resourceId\", \"reviewerId\", \"actorId\", \"eventType\") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
       expect.arrayContaining(['resource-1', 'reviewer-1', 'admin-1', 'assigned']),
     );
@@ -116,7 +111,7 @@ describe('ModerationService academic reviewer workflow', () => {
   });
 
   it('prevents a reviewer from deciding on an unassigned resource', async () => {
-    resourceRepository.findOne.mockResolvedValue({
+    transactionManager.findOne.mockResolvedValueOnce({
       id: 'resource-1',
       moderationStatus: ResourceModerationStatus.PENDING,
       assignedReviewerId: 'reviewer-2',
@@ -147,8 +142,7 @@ describe('ModerationService academic reviewer workflow', () => {
       uploader: { id: 'student-1', role: UserRole.STUDENT },
     };
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
-    resourceRepository.findOne.mockResolvedValue(resource);
-    userRepository.findOne.mockResolvedValue(reviewer);
+    transactionManager.findOne.mockResolvedValueOnce(resource).mockResolvedValueOnce(reviewer);
     resourceRepository.save.mockImplementation(async value => value);
 
     await service.reviewResource('resource-student-1', {
@@ -156,7 +150,7 @@ describe('ModerationService academic reviewer workflow', () => {
     }, reviewer);
 
     expect(pointsService.processResourceApprovalReward).toHaveBeenCalledWith('resource-student-1');
-    expect(resourceRepository.manager.query).toHaveBeenCalledWith(
+    expect(transactionManager.query).toHaveBeenCalledWith(
       expect.stringContaining('SELECT declaration FROM reviewer_conflict_declarations'),
       ['assignment-1', 'reviewer-1'],
     );
@@ -187,8 +181,7 @@ describe('ModerationService academic reviewer workflow', () => {
     };
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
     resource.assignedReviewerId = reviewer.id;
-    resourceRepository.findOne.mockResolvedValue(resource);
-    userRepository.findOne.mockResolvedValue(reviewer);
+    transactionManager.findOne.mockResolvedValueOnce(resource).mockResolvedValueOnce(reviewer);
     resourceRepository.save.mockImplementation(async value => value);
     pointsService.processResourceApprovalReward.mockResolvedValue(false);
 
