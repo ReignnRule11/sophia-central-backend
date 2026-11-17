@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ConfigService } from '@nestjs/config';
 import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { PaymentLedgerEntry, PaymentLedgerKind } from './entities/payment-ledger-entry.entity';
@@ -28,6 +29,7 @@ export class LecturerPayoutsService {
     @InjectRepository(PaymentPayout) private readonly payouts: Repository<PaymentPayout>,
     @InjectRepository(PaymentPayoutReconciliationRun) private readonly payoutRuns: Repository<PaymentPayoutReconciliationRun>,
     private readonly providers: PaymentProviderRegistry,
+    private readonly config: ConfigService,
   ) {}
 
   private lecturer(user: User) {
@@ -134,8 +136,15 @@ export class LecturerPayoutsService {
       if (beneficiary.provider !== provider.name) throw new ConflictException('Your saved bank beneficiary belongs to a different payment provider. Re-verify your beneficiary with the active provider.');
       const available = await this.availableBalance(manager, user.id);
       if (BigInt(amountMinor) > available) throw new ConflictException('Payout amount exceeds the available lecturer balance.');
+      const referenceBase = `sophis-payout-${randomBytes(16).toString('hex')}`;
+      // Flutterwave's documented test simulator only settles transfers whose merchant reference
+      // carries its test suffix. Keep this strictly test-key gated; live references stay unchanged.
+      const flutterwaveTestKey = this.config.get<string>('FLUTTERWAVE_SECRET_KEY') || '';
+      const reference = provider.name === 'flutterwave' && flutterwaveTestKey.startsWith('FLWSECK_TEST-')
+        ? `${referenceBase}_PMCKDU_1`
+        : referenceBase;
       const payout = manager.create(PaymentPayout, {
-        lecturerUserId: user.id, beneficiaryId: beneficiary.id, reference: `sophis-payout-${randomBytes(16).toString('hex')}`,
+        lecturerUserId: user.id, beneficiaryId: beneficiary.id, reference,
         provider: provider.name, amountMinor, currency: 'NGN', status: PaymentPayoutStatus.REQUESTED,
         approvedByUserId: null, providerTransferCode: null, providerMetadata: null, failureReason: null, completedAt: null,
       });
