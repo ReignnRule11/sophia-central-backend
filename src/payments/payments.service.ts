@@ -15,6 +15,7 @@ import { PaymentDispute, PaymentDisputeStatus } from './entities/payment-dispute
 import { PaymentLedgerAdjustment, PaymentLedgerAdjustmentKind } from './entities/payment-ledger-adjustment.entity';
 import { PAYMENT_PROVIDER, PaymentProvider, VerifiedPayment, ProviderRefund } from './providers/payment-provider.interface';
 import { randomBytes } from 'node:crypto';
+import { LecturerPayoutsService } from './lecturer-payouts.service';
 
 @Injectable()
 export class PaymentsService {
@@ -27,6 +28,7 @@ export class PaymentsService {
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    private readonly lecturerPayouts: LecturerPayoutsService,
   ) {}
 
   private async getPrice(user: User, dto: InitializePaymentDto): Promise<{ amountNaira: number; points: number | null; resourceId: string | null }> {
@@ -310,6 +312,9 @@ export class PaymentsService {
     if (providerName !== this.provider.name) throw new NotFoundException('Payment provider webhook is not enabled.');
     const event = this.provider.verifyWebhook(rawBody, headers);
     if (!event) return { received: true, processed: false };
+    if (event.event.startsWith('transfer.')) {
+      return this.lecturerPayouts.handleTransferWebhook(event.event, event.reference, event.data || {});
+    }
     if (event.event === 'charge.success') {
       const payment = await this.payments.findOne({ where: { reference: event.reference } });
       if (!payment || payment.provider !== providerName) return { received: true, processed: false };
