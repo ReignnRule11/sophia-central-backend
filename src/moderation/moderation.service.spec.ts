@@ -33,7 +33,8 @@ describe('ModerationService academic reviewer workflow', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    transactionManager.query.mockResolvedValue([{ declaration: 'no_conflict' }]);
+    transactionManager.findOne.mockReset();
+    transactionManager.query.mockReset().mockResolvedValue([{ declaration: 'no_conflict' }]);
     pointsService.processResourceApprovalReward.mockResolvedValue(true);
     service = new ModerationService(
       resourceRepository as any,
