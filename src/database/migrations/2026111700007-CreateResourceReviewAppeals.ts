@@ -7,10 +7,10 @@ export class CreateResourceReviewAppeals2026111700007 implements MigrationInterf
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "resource_review_appeals" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        "resourceId" uuid NOT NULL REFERENCES "resources"("id") ON DELETE CASCADE,
-        "appellantId" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
-        "originalReviewId" uuid NOT NULL REFERENCES "moderation_reviews"("id") ON DELETE RESTRICT,
-        "originalReviewerId" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
+        "resourceId" uuid NOT NULL,
+        "appellantId" uuid NOT NULL,
+        "originalReviewId" uuid NOT NULL,
+        "originalReviewerId" uuid NOT NULL,
         "appealType" varchar(24) NOT NULL CHECK ("appealType" IN ('reconsideration', 'favoritism_report')),
         "reason" text NOT NULL,
         "status" varchar(24) NOT NULL DEFAULT 'submitted' CHECK ("status" IN ('submitted', 'under_review', 'accepted', 'rejected')),
@@ -22,8 +22,8 @@ export class CreateResourceReviewAppeals2026111700007 implements MigrationInterf
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "resource_review_appeal_decisions" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        "appealId" uuid NOT NULL REFERENCES "resource_review_appeals"("id") ON DELETE CASCADE,
-        "actorId" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
+        "appealId" uuid NOT NULL,
+        "actorId" uuid NOT NULL,
         "fromStatus" varchar(24) NOT NULL,
         "toStatus" varchar(24) NOT NULL,
         "note" text,
