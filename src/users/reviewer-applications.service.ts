@@ -133,22 +133,15 @@ export class ReviewerApplicationsService {
       const approvedAcademicLevels = dto.approvedAcademicLevels?.map(level => level.trim()).filter(Boolean)
         ?? application.approvedAcademicLevels
         ?? application.academicLevels;
-      const reviewerClassification = dto.reviewerClassification
-        ?? application.reviewerClassification
-        ?? (user.role === UserRole.STUDENT ? 'student_academic_reviewer' : 'academic_reviewer');
       if (dto.status === ReviewerApplicationStatus.APPROVED && (!approvedExpertiseAreas.length || !approvedAcademicLevels.length)) {
         throw new BadRequestException('Approved reviewer access requires at least one subject area and one academic level.');
       }
-      const decisionMetadata = dto.status === ReviewerApplicationStatus.APPROVED
-        ? { reviewerClassification, approvedExpertiseAreas, approvedAcademicLevels }
-        : null;
       await manager.save(ReviewerApplicationDecision, manager.create(ReviewerApplicationDecision, {
         applicationId: application.id,
         actorId: admin.id,
         fromStatus: application.status,
         toStatus: dto.status,
         note: dto.note?.trim() || null,
-        metadata: decisionMetadata,
       }));
       application.status = dto.status;
       application.decidedById = admin.id;
@@ -159,10 +152,8 @@ export class ReviewerApplicationsService {
         user.hasReviewerAccess = true;
         user.reviewerExpertise = approvedExpertiseAreas;
         user.reviewerAcademicLevels = approvedAcademicLevels;
-        user.reviewerClassification = reviewerClassification;
         application.approvedExpertiseAreas = approvedExpertiseAreas;
         application.approvedAcademicLevels = approvedAcademicLevels;
-        application.reviewerClassification = reviewerClassification;
       } else if ([ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED, ReviewerApplicationStatus.REJECTED].includes(dto.status)) {
         user.hasReviewerAccess = false;
         user.reviewerExpertise = [];
