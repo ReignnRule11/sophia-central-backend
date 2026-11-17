@@ -3,10 +3,11 @@
 
 /**
  * Real staging smoke test for the Sophis Central paid-resource flow.
- * Calls the deployed API, real PostgreSQL-backed services, Paystack test mode,
+ * Calls the deployed API, real PostgreSQL-backed services, the selected provider's test mode,
  * and configured private storage. No HTTP, database, provider, auth, or storage mocks.
+ * Set PAYMENT_PROVIDER=paystack or flutterwave in the deployed staging environment.
  *
- * Phase 1: MODE=initialize creates a real Paystack test checkout.
+ * Phase 1: MODE=initialize creates a real provider test checkout.
  * Phase 2: Complete checkout in a browser, then MODE=verify checks settlement,
  * purchaser download access, and denial for a separate unpaid student.
  */
@@ -74,7 +75,7 @@ async function initialize() {
   console.log(`Reference: ${data.reference}`);
   console.log(`Amount (minor units): ${data.amountMinor}`);
   console.log(`Currency: ${data.currency}`);
-  console.log('Open this URL, complete the Paystack TEST checkout, then run this script again in verify mode:');
+  console.log('Open this URL, complete the selected provider TEST checkout, then run this script again in verify mode:');
   console.log(data.checkoutUrl);
 }
 
