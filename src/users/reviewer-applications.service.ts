@@ -157,6 +157,10 @@ export class ReviewerApplicationsService {
       } else if ([ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED, ReviewerApplicationStatus.REJECTED].includes(dto.status)) {
         user.hasReviewerAccess = false;
         user.reviewerExpertise = [];
+        await manager.query(
+          'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") SELECT "reviewAssignmentId", "id", "assignedReviewerId", $2::uuid, $3 FROM resources WHERE "assignedReviewerId" = $1::uuid AND "reviewAssignmentId" IS NOT NULL',
+          [user.id, admin.id, 'released'],
+        );
         await manager.query('UPDATE resources SET "assignedReviewerId" = NULL, "reviewAssignmentId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
       }
       await manager.save(User, user);
