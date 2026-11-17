@@ -6,6 +6,7 @@ import { PaymentLedgerEntry, PaymentLedgerKind } from './entities/payment-ledger
 import { PaymentLedgerAdjustment, PaymentLedgerAdjustmentKind } from './entities/payment-ledger-adjustment.entity';
 import { PaymentDispute, PaymentDisputeStatus } from './entities/payment-dispute.entity';
 import { PaymentTransaction, PaymentStatus } from './entities/payment-transaction.entity';
+import { PaymentRefund, PaymentRefundStatus } from './entities/payment-refund.entity';
 import { PaymentPayoutBeneficiary } from './entities/payment-payout-beneficiary.entity';
 import { PaymentPayout, PaymentPayoutStatus } from './entities/payment-payout.entity';
 import { PAYMENT_PROVIDER, PaymentProvider } from './providers/payment-provider.interface';
@@ -51,7 +52,7 @@ export class LecturerPayoutsService {
       accountLast4: beneficiary.accountLast4, currency: beneficiary.currency, verified: true };
   }
 
-  private async availableBalance(manager: any, lecturerUserId: string): Promise<bigint> {
+  private async availableBalance(manager: any, lecturerUserId: string, excludePayoutId?: string): Promise<bigint> {
     const entries: PaymentLedgerEntry[] = await manager.createQueryBuilder(PaymentLedgerEntry, 'entry')
       .innerJoin(PaymentTransaction, 'payment', 'payment.id = entry.paymentId')
       .where('entry.beneficiaryUserId = :lecturerUserId', { lecturerUserId })
@@ -66,6 +67,16 @@ export class LecturerPayoutsService {
           paymentId: entry.paymentId, kind: PaymentLedgerAdjustmentKind.LECTURER_REFUND,
         }).getRawOne();
       let earned = BigInt(entry.amountMinor) - BigInt(adjustment?.total || 0);
+      const payment = await manager.findOne(PaymentTransaction, { where: { id: entry.paymentId } });
+      if (payment) {
+        const reservedRefunds = await manager.createQueryBuilder(PaymentRefund, 'refund')
+          .select('COALESCE(SUM(CAST(refund."amountMinor" AS BIGINT)), 0)', 'total')
+          .where('refund.paymentId = :paymentId', { paymentId: entry.paymentId })
+          .andWhere('refund.status IN (:...statuses)', { statuses: [PaymentRefundStatus.PENDING, PaymentRefundStatus.PROCESSING, PaymentRefundStatus.NEEDS_ATTENTION] })
+          .getRawOne();
+        const refundHold = (BigInt(reservedRefunds?.total || 0) * BigInt(entry.amountMinor)) / BigInt(payment.amountMinor);
+        earned -= refundHold;
+      }
       if (earned < 0n) earned = 0n;
       const activeDispute = await manager.createQueryBuilder(PaymentDispute, 'dispute')
         .where('dispute.paymentId = :paymentId', { paymentId: entry.paymentId })
@@ -78,6 +89,7 @@ export class LecturerPayoutsService {
       .select('COALESCE(SUM(CAST(payout."amountMinor" AS BIGINT)), 0)', 'total')
       .where('payout."lecturerUserId" = :lecturerUserId', { lecturerUserId })
       .andWhere('payout.status IN (:...statuses)', { statuses: [...HELD_STATUSES, PaymentPayoutStatus.SUCCESS] })
+      .andWhere(excludePayoutId ? 'payout.id <> :excludePayoutId' : '1=1', excludePayoutId ? { excludePayoutId } : {})
       .getRawOne();
     balance -= BigInt(reserved?.total || 0);
     return balance > 0n ? balance : 0n;
@@ -122,7 +134,8 @@ export class LecturerPayoutsService {
       if (record.lecturerUserId === admin.id) throw new ForbiddenException('A lecturer cannot approve their own payout.');
       const beneficiary = await manager.findOneBy(PaymentPayoutBeneficiary, { id: record.beneficiaryId });
       if (!beneficiary || beneficiary.provider !== this.provider.name) throw new ConflictException('Payout beneficiary is unavailable or belongs to another provider.');
-      const available = await this.availableBalance(manager, record.lecturerUserId);
+      await manager.findOne(User, { where: { id: record.lecturerUserId }, lock: { mode: 'pessimistic_write' } });
+      const available = await this.availableBalance(manager, record.lecturerUserId, record.id);
       if (BigInt(record.amountMinor) > available) throw new ConflictException('Available balance changed; this payout can no longer be approved.');
       record.status = PaymentPayoutStatus.PROCESSING;
       record.approvedByUserId = admin.id;
