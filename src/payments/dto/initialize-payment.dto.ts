@@ -1,8 +1,9 @@
-import { IsIn, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { IsEnum, IsOptional, IsString, IsUUID, MaxLength } from 'class-validator';
+import { PaymentPurpose } from '../entities/payment-transaction.entity';
 
 export class InitializePaymentDto {
-  @IsIn(['wisdom_points_topup', 'resource_purchase'])
-  purpose!: 'wisdom_points_topup' | 'resource_purchase';
+  @IsEnum(PaymentPurpose)
+  purpose!: PaymentPurpose;
 
   @IsOptional()
   @IsString()
