@@ -18,10 +18,10 @@ export class AddAcademicAccountTransitions2026111700003 implements MigrationInte
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "academic_account_transitions" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        "userId" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "userId" uuid NOT NULL,
         "fromAccountType" varchar(24) NOT NULL,
         "toAccountType" varchar(24) NOT NULL,
-        "actorId" uuid REFERENCES "users"("id") ON DELETE SET NULL,
+        "actorId" uuid,
         "createdAt" timestamptz NOT NULL DEFAULT now(),
         CONSTRAINT "CHK_academic_account_transition_one_way"
           CHECK ("fromAccountType" = 'external_reviewer' AND "toAccountType" IN ('student', 'lecturer'))
