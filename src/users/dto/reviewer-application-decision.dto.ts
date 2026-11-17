@@ -1,4 +1,4 @@
-import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
+import { ArrayMaxSize, ArrayNotEmpty, IsArray, IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 import { ReviewerApplicationStatus } from '../entities/reviewer-application.entity';
 
 export class ReviewerApplicationDecisionDto {
@@ -14,4 +14,13 @@ export class ReviewerApplicationDecisionDto {
 
   @IsOptional() @IsString() @MaxLength(3000)
   note?: string;
+
+  @IsOptional() @IsIn(['student_academic_reviewer', 'academic_reviewer', 'senior_academic_reviewer'])
+  reviewerClassification?: 'student_academic_reviewer' | 'academic_reviewer' | 'senior_academic_reviewer';
+
+  @IsOptional() @IsArray() @ArrayNotEmpty() @ArrayMaxSize(40) @IsString({ each: true }) @MaxLength(160, { each: true })
+  approvedExpertiseAreas?: string[];
+
+  @IsOptional() @IsArray() @ArrayNotEmpty() @ArrayMaxSize(30) @IsString({ each: true }) @MaxLength(80, { each: true })
+  approvedAcademicLevels?: string[];
 }
