@@ -8,11 +8,12 @@ import { User } from '../users/entities/user.entity';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { PaymentsService } from './payments.service';
+import { PaymentsReconciliationService } from './payments-reconciliation.service';
 
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly payments: PaymentsService) {}
+  constructor(private readonly payments: PaymentsService, private readonly reconciliation: PaymentsReconciliationService) {}
 
   @Post('initialize')
   @UseGuards(JwtAuthGuard)
@@ -53,6 +54,22 @@ export class PaymentsController {
   @ApiOperation({ summary: 'Verify a refund with the payment provider' })
   verifyRefund(@CurrentUser() user: User, @Param('id') id: string) {
     return this.payments.verifyRefund(user, id);
+  }
+
+  @Post('reconciliation/run')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Compare local payments and refunds with Paystack without mutating financial records' })
+  reconcile(@CurrentUser() user: User, @Body() body: { from: string; to: string }) {
+    return this.reconciliation.reconcile(user, body);
+  }
+
+  @Get('reconciliation/history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List recent payment reconciliation reports' })
+  reconciliationHistory(@CurrentUser() user: User) {
+    return this.reconciliation.history(user);
   }
 
   @Post('webhooks/:provider')
