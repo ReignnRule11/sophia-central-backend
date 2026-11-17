@@ -105,3 +105,8 @@ Flutterwave hosted checkout, transaction verification, refunds, bank beneficiary
 Clients should send an `Idempotency-Key` header with each logical checkout attempt. Use the same key when retrying the same request after a network interruption; use a new key for a new purchase intent. Keys are scoped to the authenticated user, must be 8–128 characters, and may contain letters, numbers, dots, underscores, colons, and hyphens.
 
 A replay with the same key and same server-priced purchase returns the original payment reference and checkout URL, including after a successful purchase. Reusing a key for a different purpose, resource, or package amount returns HTTP 409. The database enforces uniqueness per user. If provider initialization timed out after the provider may have accepted it, the pending intent is retained and replay does not create another provider checkout; verify/reconcile the original reference before taking corrective action.
+
+
+### Flutterwave sandbox transfer behavior
+
+Flutterwave's test transfer simulator requires a special merchant reference suffix. When the selected provider is Flutterwave and `FLUTTERWAVE_SECRET_KEY` begins with `FLWSECK_TEST-`, Sophis Central appends `_PMCKDU_1` to newly requested payout references. This asks the sandbox to simulate success after approximately one minute; it is never applied with a live key. Flutterwave also documents that the server's outbound IP must be allowlisted for transfer API calls. Add the Render service's applicable outbound IP address(es) to the Flutterwave test dashboard allowlist before testing payouts. Do not interpret a transfer as successful until the provider verification endpoint and signed webhook confirm it.
