@@ -209,4 +209,27 @@ describe('ModerationService academic reviewer workflow', () => {
       '/moderation',
     );
   });
+
+  it('allows a student with reviewer capability to access only their assigned queue', async () => {
+    const reviewer = { id: 'student-reviewer-1', role: UserRole.STUDENT, hasReviewerAccess: true } as User;
+    resourceRepository.find.mockResolvedValue([]);
+
+    await service.getQueue(reviewer);
+
+    expect(resourceRepository.find).toHaveBeenCalledWith(expect.objectContaining({
+      where: { moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: 'student-reviewer-1' },
+    }));
+  });
+
+  it('allows a lecturer with reviewer capability to access their own review history', async () => {
+    const reviewer = { id: 'lecturer-reviewer-1', role: UserRole.LECTURER, hasReviewerAccess: true } as User;
+    reviewRepository.find.mockResolvedValue([]);
+
+    await service.getHistory(reviewer);
+
+    expect(reviewRepository.find).toHaveBeenCalledWith(expect.objectContaining({
+      where: { reviewer: { id: 'lecturer-reviewer-1' } },
+    }));
+  });
+
 });
