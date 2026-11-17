@@ -215,7 +215,7 @@ export class AuthService {
       const firstName = String(registration.firstName || '').trim();
       const lastName = String(registration.lastName || '').trim();
       const role = registration.role as UserRole;
-      if (!email || !academicHandle || !firstName || !lastName || !registration.jti || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
+      if (!email || !academicHandle || !firstName || !lastName || !registration.jti || ![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(role)) {
         throw new UnauthorizedException('This verification link is invalid or has expired. Please restart registration.');
       }
       if (await this.usersService.findByEmail(email)) throw new ConflictException('An account already exists for this email. Sign in instead.');
@@ -310,11 +310,11 @@ export class AuthService {
     const lastName = String(metadata.lastName || '').trim();
     const role = metadata.role as UserRole;
     const passwordHash = preAccount.password;
-    if (!academicHandle || !firstName || !lastName || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
+    if (!academicHandle || !firstName || !lastName || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(role)) {
       throw new UnauthorizedException('Your pre-account details are incomplete. Please contact support.');
     }
-    if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
-      throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
+    if (role !== UserRole.REVIEWER && (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim())) {
+      throw new BadRequestException('Institution, faculty and department are required to complete Student or Lecturer onboarding.');
     }
     if (role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !dto.program?.trim())) {
       throw new BadRequestException('Your current academic level and program are required.');
@@ -345,10 +345,10 @@ export class AuthService {
           isVerified: false,
           isProfileComplete: true,
           accountStatus: 'active',
-          institutionId: dto.institutionId,
-          institution: dto.institution,
-          faculty: dto.faculty?.trim() ?? '',
-          department: dto.department?.trim() ?? '',
+          ...(dto.institutionId ? { institutionId: dto.institutionId } : {}),
+          institution: dto.institution?.trim() || undefined,
+          faculty: dto.faculty?.trim() || undefined,
+          department: dto.department?.trim() || undefined,
           program: dto.program?.trim() ?? '',
           studyLevel: dto.studyLevel?.trim(),
           coursesTaught: dto.coursesTaught,
