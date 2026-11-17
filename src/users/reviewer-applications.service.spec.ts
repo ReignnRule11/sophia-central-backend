@@ -29,7 +29,7 @@ describe('ReviewerApplicationsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     applications.findOne.mockResolvedValue(null);
-    manager.findOne.mockResolvedValue(null);
+    manager.findOne.mockReset().mockResolvedValue(null);
     service = new ReviewerApplicationsService(
       applications as unknown as Repository<ReviewerApplication>,
       decisions as unknown as Repository<ReviewerApplicationDecision>,
