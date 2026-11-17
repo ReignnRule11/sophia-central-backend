@@ -16,7 +16,7 @@ export class PaymentsReconciliationService {
     private readonly providers: PaymentProviderRegistry,
   ) {}
 
-  async reconcile(user: User, input: { from: string; to: string }) {
+  async reconcile(user: User, input: { from: string; to: string; provider?: string }) {
     if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role)) {
       throw new ForbiddenException('Only administrators and moderators may run payment reconciliation.');
     }
@@ -27,7 +27,7 @@ export class PaymentsReconciliationService {
       throw new BadRequestException('Provide a valid UTC date range no longer than 31 days.');
     }
 
-    const provider = this.providers.defaultProvider();
+    const provider = input.provider ? this.providers.get(input.provider) : this.providers.defaultProvider();
     try {
       const [providerTransactions, providerRefunds] = await Promise.all([
         provider.listTransactions({ from: start.toISOString(), to: end.toISOString() }),
