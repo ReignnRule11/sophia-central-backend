@@ -117,7 +117,8 @@ describe('ReviewerApplicationsService', () => {
       conflictDeclaration: 'I will disclose all relevant conflicts and recuse myself when necessary.',
       policyAccepted: true,
     })).rejects.toBeInstanceOf(ConflictException);
-    expect(dataSource.transaction).not.toHaveBeenCalled();
+    expect(dataSource.transaction).toHaveBeenCalled();
+    expect(manager.save).not.toHaveBeenCalled();
   });
 
   it('grants reviewer access without changing a Student primary identity', async () => {
