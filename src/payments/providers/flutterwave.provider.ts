@@ -81,7 +81,7 @@ export class FlutterwaveProvider implements PaymentProvider {
   }
 
   async createRefund(input: { transactionReference: string; amountMinor: string; currency: string; reference: string; reason: string }): Promise<ProviderRefund> {
-    if (!/^\\d+$/.test(input.transactionReference)) {
+    if (!/^\d+$/.test(input.transactionReference)) {
       throw new ServiceUnavailableException('Flutterwave refunds require the verified numeric provider transaction ID.');
     }
     const data = await this.request(`/transactions/${encodeURIComponent(input.transactionReference)}/refund`, {
