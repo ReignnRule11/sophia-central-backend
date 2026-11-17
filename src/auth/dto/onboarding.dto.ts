@@ -33,8 +33,9 @@ export class TeachingAssignmentDto {
 }
 
 export class OnboardingDto {
+  @IsOptional()
   @IsUUID()
-  institutionId!: string;
+  institutionId?: string;
 
   @IsOptional()
   @IsString()
