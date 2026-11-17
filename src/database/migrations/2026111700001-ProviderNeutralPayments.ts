@@ -25,6 +25,7 @@ export class ProviderNeutralPayments2026111700001 implements MigrationInterface 
       )
     `);
     await queryRunner.query(`CREATE INDEX IDX_payment_transactions_user_created ON payment_transactions ("userId", "createdAt" DESC)`);
+    await queryRunner.query(`CREATE UNIQUE INDEX UQ_payment_transactions_pending_resource ON payment_transactions ("userId", "resourceId") WHERE purpose = 'resource_purchase' AND status = 'pending' AND "resourceId" IS NOT NULL`);
     await queryRunner.query(`
       CREATE TABLE payment_ledger_entries (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
