@@ -144,7 +144,6 @@ describe('AuthService', () => {
     expect(users.createWithManager).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
       email: 'reviewer@example.com',
       role: UserRole.REVIEWER,
-      academicAccountType: undefined,
     }));
     expect(referrals.redeemReferral).not.toHaveBeenCalled();
   });
