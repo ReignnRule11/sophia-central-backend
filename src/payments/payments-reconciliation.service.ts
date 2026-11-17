@@ -5,7 +5,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
 import { PaymentRefund } from './entities/payment-refund.entity';
 import { PaymentReconciliationRun } from './entities/payment-reconciliation-run.entity';
-import { PAYMENT_PROVIDER, PaymentProvider } from './providers/payment-provider.interface';
+import { PaymentProviderRegistry } from './providers/payment-provider.registry';
 
 @Injectable()
 export class PaymentsReconciliationService {
@@ -13,7 +13,7 @@ export class PaymentsReconciliationService {
     @InjectRepository(PaymentTransaction) private readonly payments: Repository<PaymentTransaction>,
     @InjectRepository(PaymentRefund) private readonly refunds: Repository<PaymentRefund>,
     @InjectRepository(PaymentReconciliationRun) private readonly runs: Repository<PaymentReconciliationRun>,
-    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    private readonly providers: PaymentProviderRegistry,
   ) {}
 
   async reconcile(user: User, input: { from: string; to: string }) {
@@ -27,6 +27,7 @@ export class PaymentsReconciliationService {
       throw new BadRequestException('Provide a valid UTC date range no longer than 31 days.');
     }
 
+    const provider = this.providers.defaultProvider();
     try {
       const [providerTransactions, providerRefunds] = await Promise.all([
         this.provider.listTransactions({ from: start.toISOString(), to: end.toISOString() }),
