@@ -61,8 +61,8 @@ describe('PaystackProvider webhook verification', () => {
     const to = '2026-11-18T00:00:00.000Z';
     await expect(provider.listTransactions({ from, to })).resolves.toHaveLength(1);
     await expect(provider.listRefunds({ from, to })).resolves.toHaveLength(1);
-    expect(fetchSpy).toHaveBeenNthCalledWith(1, expect.stringContaining('/transaction?'));
-    expect(fetchSpy).toHaveBeenNthCalledWith(2, expect.stringContaining('/refund?'));
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, expect.stringContaining('/transaction?'), expect.any(Object));
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, expect.stringContaining('/refund?'), expect.any(Object));
     fetchSpy.mockRestore();
   });
 
