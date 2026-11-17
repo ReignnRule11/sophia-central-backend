@@ -29,6 +29,7 @@ describe('ReviewerApplicationsService', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     applications.findOne.mockResolvedValue(null);
+    manager.findOne.mockResolvedValue(null);
     service = new ReviewerApplicationsService(
       applications as unknown as Repository<ReviewerApplication>,
       decisions as unknown as Repository<ReviewerApplicationDecision>,
@@ -53,6 +54,7 @@ describe('ReviewerApplicationsService', () => {
       policyAccepted: true,
     };
 
+    manager.findOne.mockResolvedValueOnce(user).mockResolvedValueOnce(null);
     const result = await service.submit(user, dto);
 
     expect(result).toMatchObject({
@@ -69,6 +71,7 @@ describe('ReviewerApplicationsService', () => {
 
   it('requires an existing Student or Lecturer affiliation before application', async () => {
     const user = { id: 'student-1', role: UserRole.STUDENT, hasReviewerAccess: false } as User;
+    manager.findOne.mockResolvedValueOnce(user).mockResolvedValueOnce(null);
     await expect(service.submit(user, {
       qualifications: ['BSc'],
       expertiseAreas: ['Biology'],
@@ -94,8 +97,8 @@ describe('ReviewerApplicationsService', () => {
   });
 
   it('prevents a second active application for the same account', async () => {
-    applications.findOne.mockResolvedValue({ id: 'application-1', status: ReviewerApplicationStatus.UNDER_REVIEW });
     const user = { id: 'student-1', role: UserRole.STUDENT } as User;
+    manager.findOne.mockResolvedValueOnce(user).mockResolvedValueOnce({ id: 'application-1', status: ReviewerApplicationStatus.UNDER_REVIEW });
 
     await expect(service.submit(user, {
       qualifications: ['BSc'],
@@ -124,7 +127,9 @@ describe('ReviewerApplicationsService', () => {
     } as User;
     manager.findOne
       .mockResolvedValueOnce(application)
-      .mockResolvedValueOnce(user);
+      .mockResolvedValueOnce(user)
+      .mockResolvedValueOnce(application)
+      .mockResolvedValueOnce(application);
 
     await service.decide('application-1', { id: 'admin-1', role: UserRole.ADMIN } as User, {
       status: ReviewerApplicationStatus.APPROVED,
