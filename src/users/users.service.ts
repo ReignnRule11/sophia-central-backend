@@ -25,8 +25,9 @@ export class UsersService {
     const baseRole = accountRole === UserRole.REVIEWER ? data.reviewerBaseRole : accountRole;
     const roleCode = baseRole === UserRole.LECTURER ? 'LEC'
       : baseRole === UserRole.STUDENT ? 'STU'
+      : accountRole === UserRole.REVIEWER ? 'REV'
       : accountRole === UserRole.ADMIN ? 'ADM' : 'SYS';
-    if ([UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(accountRole) && !institution) {
+    if ([UserRole.STUDENT, UserRole.LECTURER].includes(accountRole) && !institution) {
       throw new BadRequestException('Choose an institution from the Sophis Central catalogue before creating your account.');
     }
     const institutionPart = institution
