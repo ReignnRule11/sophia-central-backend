@@ -60,6 +60,21 @@ export class ModerationService {
     return queue;
   }
 
+  async getConflictDeclarations(viewer: User) {
+    if (viewer.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can inspect reviewer conflict declarations.');
+    return this.resourceRepository.manager.query(`
+      SELECT d."id", d."assignmentId", d."resourceId", d."reviewerId", d."declaration", d."reason", d."createdAt",
+             r."title" AS "resourceTitle", u."firstName" AS "reviewerFirstName",
+             u."lastName" AS "reviewerLastName", u."email" AS "reviewerEmail",
+             u."academicHandle" AS "reviewerAcademicHandle"
+      FROM "reviewer_conflict_declarations" d
+      LEFT JOIN "resources" r ON r."id" = d."resourceId"
+      LEFT JOIN "users" u ON u."id" = d."reviewerId"
+      ORDER BY d."createdAt" DESC
+      LIMIT 250
+    `);
+  }
+
   async getHistory(viewer: User) {
     if (viewer.role !== UserRole.ADMIN && !hasReviewerCapability(viewer)) {
       throw new ForbiddenException('Only approved academic reviewers and admins can access academic review history.');
