@@ -29,6 +29,7 @@ async function bootstrap() {
   app.use('/auth/csrf', authRateLimit(120));
   app.use('/auth/login', authRateLimit(30));
   app.use('/auth/signup', authRateLimit(5));
+  app.use('/auth/reviewer-registration-check', authRateLimit(5));
   app.use('/auth/email-verification/resend', authRateLimit(5));
   app.use('/auth/email-verification/confirm', authRateLimit(20));
   app.use('/auth/onboarding/complete', authRateLimit(10));
