@@ -88,6 +88,9 @@ export class User {
   @Column({ type: 'varchar', length: 32, default: 'not_applied' })
   reviewerStatus!: 'not_applied' | 'draft' | 'submitted' | 'under_review' | 'more_information_required' | 'approved' | 'rejected' | 'suspended' | 'revoked';
 
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  academicAccountType?: 'student' | 'lecturer' | 'external_reviewer' | null;
+
   @Column({ type: 'jsonb', nullable: true })
   reviewerExpertise?: string[];
 
