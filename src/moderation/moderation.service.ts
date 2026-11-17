@@ -78,6 +78,7 @@ export class ModerationService {
       throw new BadRequestException('Select an active, administrator-approved academic reviewer');
     }
     if (resource.uploaderId === reviewer.id) throw new BadRequestException('A reviewer cannot be assigned to review their own uploaded resource.');
+    if (resource.contributorUserIds?.includes(reviewer.id)) throw new BadRequestException('A reviewer cannot be assigned to review material they co-authored or contributed to.');
     if (!Array.isArray(reviewer.reviewerExpertise) || reviewer.reviewerExpertise.length === 0) {
       throw new BadRequestException('The selected reviewer has no recorded subject expertise');
     }
@@ -151,6 +152,7 @@ export class ModerationService {
       throw new ForbiddenException('Only an assigned academic reviewer can approve, reject or request revisions.');
     }
     if (resource.uploaderId === reviewer.id) throw new ForbiddenException('You cannot review a resource that you uploaded.');
+    if (resource.contributorUserIds?.includes(reviewer.id)) throw new ForbiddenException('You cannot review material you co-authored or contributed to.');
     if (reviewer.isSuspended) {
       throw new ForbiddenException('Suspended reviewer accounts cannot access the review workflow');
     }
