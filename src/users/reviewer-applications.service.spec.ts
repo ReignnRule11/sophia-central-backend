@@ -125,7 +125,6 @@ describe('ReviewerApplicationsService', () => {
       reviewerStatus: ReviewerApplicationStatus.APPROVED,
       reviewerExpertise: ['Biology'],
       reviewerAcademicLevels: ['Undergraduate'],
-      reviewerClassification: 'student_academic_reviewer',
     });
     expect(manager.save).toHaveBeenCalledWith(User, user);
   });
