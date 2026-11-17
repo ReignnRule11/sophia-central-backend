@@ -11,19 +11,30 @@ export class AddReviewerCapability1794873600000 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" TYPE varchar(32) USING "role"::text`);
     await queryRunner.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "hasReviewerAccess" boolean NOT NULL DEFAULT false`);
 
-    // Preserve the legacy role representation during this backend-first
-    // rollout so the currently deployed frontend keeps routing existing
-    // reviewers correctly. The frontend migration will read reviewerBaseRole
-    // as the legacy academic workspace until it is safe to normalize roles.
+    // Restore the underlying academic account type for legacy users whose
+    // old REVIEWER role replaced their student/lecturer role. External
+    // reviewer-only accounts remain REVIEWER identities.
+    await queryRunner.query(`
+      UPDATE "users"
+      SET "role" = "reviewerBaseRole", "hasReviewerAccess" = true
+      WHERE "role"::text = 'reviewer'
+        AND "reviewerBaseRole" IN ('student', 'lecturer')
+    `);
     await queryRunner.query(`
       UPDATE "users"
       SET "hasReviewerAccess" = true
-      WHERE "role" = 'reviewer'
+      WHERE "role"::text = 'reviewer'
     `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    // The migration intentionally leaves role/reviewerBaseRole unchanged.
+    // Reconstruct the previous single-role representation for rollback.
+    await queryRunner.query(`
+      UPDATE "users"
+      SET "reviewerBaseRole" = "role", "role" = 'reviewer'
+      WHERE "hasReviewerAccess" = true
+        AND "role" IN ('student', 'lecturer')
+    `);
     await queryRunner.query(`ALTER TABLE "users" DROP COLUMN IF EXISTS "hasReviewerAccess"`);
   }
 }
