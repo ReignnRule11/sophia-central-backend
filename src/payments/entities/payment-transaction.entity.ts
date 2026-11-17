@@ -8,7 +8,7 @@ export enum PaymentStatus { PENDING = 'pending', SUCCESS = 'success', FAILED = '
 export class PaymentTransaction {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ type: 'varchar', length: 32 }) provider!: string;
-  @Column({ type: 'varchar', length: 64, unique: true }) reference!: string;
+  @Column({ type: 'varchar', length: 64 }) reference!: string;
   @Column({ type: 'uuid' }) userId!: string;
   @Column({ type: 'varchar', length: 32 }) purpose!: PaymentPurpose;
   @Column({ type: 'varchar', length: 16, default: PaymentStatus.PENDING }) status!: PaymentStatus;
