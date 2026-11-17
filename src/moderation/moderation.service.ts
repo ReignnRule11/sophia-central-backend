@@ -242,7 +242,6 @@ export class ModerationService {
     const result = await this.resourceRepository.manager.transaction(async manager => {
       const resource = await manager.findOne(Resource, {
         where: { id },
-        relations: ['uploader'],
         lock: { mode: 'pessimistic_write' },
       });
       if (!resource) throw new NotFoundException('Resource not found');
@@ -262,6 +261,9 @@ export class ModerationService {
       if (!reviewerRecord || !hasReviewerCapability(reviewerRecord) || reviewerRecord.isSuspended) {
         throw new ForbiddenException('Your reviewer access is no longer active.');
       }
+      const uploader = resource.uploaderId
+        ? await manager.findOne(User, { where: { id: resource.uploaderId }, lock: { mode: 'pessimistic_read' } })
+        : null;
 
       const completedAssignmentId = resource.reviewAssignmentId;
       const conflictDeclaration = await manager.query(
@@ -292,23 +294,23 @@ export class ModerationService {
       if (
         dto.status === ResourceModerationStatus.APPROVED &&
         resource.uploaderId &&
-        resource.uploader?.role === UserRole.STUDENT &&
-        !resource.uploader.isSuspended
+        uploader?.role === UserRole.STUDENT &&
+        !uploader.isSuspended
       ) {
         await manager.save(ResourceRewardOutbox, manager.create(ResourceRewardOutbox, {
           resourceId: resource.id,
           userId: resource.uploaderId,
         }));
       }
-      return { savedReview, resource };
+      return { savedReview, resource, uploader };
     });
 
     let wisdomRewardAwarded = false;
     if (
       dto.status === ResourceModerationStatus.APPROVED &&
       Boolean(result.resource.uploaderId) &&
-      result.resource.uploader?.role === UserRole.STUDENT &&
-      !result.resource.uploader.isSuspended
+      result.uploader?.role === UserRole.STUDENT &&
+      !result.uploader.isSuspended
     ) {
       try {
         wisdomRewardAwarded = await this.pointsService.processResourceApprovalReward(result.resource.id);
