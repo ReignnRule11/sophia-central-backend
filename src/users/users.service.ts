@@ -8,6 +8,7 @@ import { Institution } from '../institutions/entities/institution.entity';
 import { generateInstitutionCode, institutionTypeCode } from '../institutions/institution-code';
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
 import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
+import { TransitionExternalReviewerDto } from './dto/transition-external-reviewer.dto';
 
 @Injectable()
 export class UsersService {
@@ -75,6 +76,53 @@ export class UsersService {
       academicAccountType: data.academicAccountType ?? (data.role === UserRole.STUDENT ? 'student' : data.role === UserRole.LECTURER ? 'lecturer' : data.role === UserRole.REVIEWER ? 'external_reviewer' : undefined),
       uniqueId,
     }));
+  }
+
+  async transitionExternalReviewer(userId: string, dto: TransitionExternalReviewerDto): Promise<User> {
+    return this.dataSource.transaction(async manager => {
+      const user = await manager.findOne(User, { where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      if (!user) throw new NotFoundException('User not found.');
+      if (user.role !== UserRole.REVIEWER || user.academicAccountType !== 'external_reviewer') {
+        throw new ConflictException('Only an External Reviewer account that has not previously selected an academic account type can use this transition.');
+      }
+      if (user.hasReviewerAccess !== true || user.reviewerStatus !== 'approved') {
+        throw new ForbiddenException('Your Academic Reviewer application must be approved before you can add a Student or Lecturer workspace.');
+      }
+      const institution = await manager.findOne(Institution, { where: { id: dto.institutionId } });
+      if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
+      if (!dto.faculty.trim() || !dto.department.trim()) {
+        throw new BadRequestException('Faculty and department are required for the selected academic account.');
+      }
+      if (dto.targetRole === UserRole.STUDENT && (!dto.program?.trim() || !dto.studyLevel?.trim())) {
+        throw new BadRequestException('Student access requires a programme and current academic level.');
+      }
+      if (dto.targetRole === UserRole.LECTURER && (!dto.coursesTaught?.length || !dto.teachingAssignments?.length)) {
+        throw new BadRequestException('Lecturer access requires at least one course taught with its course code and academic level.');
+      }
+
+      const fromAccountType = user.academicAccountType;
+      user.role = dto.targetRole;
+      user.academicAccountType = dto.targetRole;
+      user.institutionId = institution.id;
+      user.institution = institution.name;
+      user.faculty = dto.faculty.trim();
+      user.department = dto.department.trim();
+      user.program = dto.targetRole === UserRole.STUDENT ? dto.program?.trim() : undefined;
+      user.studyLevel = dto.targetRole === UserRole.STUDENT ? dto.studyLevel?.trim() : undefined;
+      user.coursesTaught = dto.targetRole === UserRole.LECTURER ? dto.coursesTaught : [];
+      user.teachingAssignments = dto.targetRole === UserRole.LECTURER ? dto.teachingAssignments : [];
+      user.isProfileComplete = true;
+      // Reviewer approval and expertise survive the one-way academic identity conversion.
+      user.hasReviewerAccess = true;
+      user.reviewerStatus = 'approved';
+
+      const saved = await manager.save(User, user);
+      await manager.query(
+        'INSERT INTO academic_account_transitions ("userId", "fromAccountType", "toAccountType", "actorId") VALUES ($1::uuid, $2, $3, $4::uuid)',
+        [user.id, fromAccountType, dto.targetRole, user.id],
+      );
+      return saved;
+    });
   }
 
   async findByEmail(email: string): Promise<User | null> {
