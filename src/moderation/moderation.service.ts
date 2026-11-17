@@ -93,6 +93,7 @@ export class ModerationService {
       order: { createdAt: 'DESC' },
     });
     if (!originalReview) throw new BadRequestException('There is no completed reviewer decision to appeal.');
+    if (!originalReview.reviewerId) throw new BadRequestException('The original reviewer identity is no longer available for an independent appeal review.');
     const pending = await this.appealRepository.findOne({
       where: [{ resourceId, appellantId: appellant.id, status: 'submitted' }, { resourceId, appellantId: appellant.id, status: 'under_review' }],
     });
