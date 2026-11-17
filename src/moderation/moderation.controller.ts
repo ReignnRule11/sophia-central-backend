@@ -10,6 +10,8 @@ import { ModerationService } from './moderation.service';
 import { ReviewResourceDto } from './dto/review-resource.dto';
 import { AssignReviewerDto } from './dto/assign-reviewer.dto';
 import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declaration.dto';
+import { CreateResourceAppealDto } from './dto/create-resource-appeal.dto';
+import { DecideResourceAppealDto } from './dto/decide-resource-appeal.dto';
 import { SupportService } from '../support/support.service';
 import { ConcludeSupportRequestDto } from '../support/dto/conclude-support-request.dto';
 import { SupportEmailService } from '../support/support-email.service';
@@ -27,6 +29,38 @@ export class ModerationController {
   @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   getQueue(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getQueue(request.user);
+  }
+
+  @Post('resources/:id/appeals')
+  @Roles(UserRole.STUDENT, UserRole.LECTURER)
+  @UseGuards(CsrfGuard)
+  createAppeal(@Param('id') id: string, @Body() dto: CreateResourceAppealDto, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.createAppeal(id, request.user, dto);
+  }
+
+  @Get('appeals/mine')
+  @Roles(UserRole.STUDENT, UserRole.LECTURER)
+  getMyAppeals(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getMyAppeals(request.user);
+  }
+
+  @Get('appeals')
+  @Roles(UserRole.ADMIN)
+  getAppeals(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getAppeals(request.user);
+  }
+
+  @Get('appeals/:id/decisions')
+  @Roles(UserRole.ADMIN)
+  getAppealDecisionHistory(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.getAppealDecisionHistory(id, request.user);
+  }
+
+  @Patch('appeals/:id/decision')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(CsrfGuard)
+  decideAppeal(@Param('id') id: string, @Body() dto: DecideResourceAppealDto, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.decideAppeal(id, request.user, dto);
   }
 
   @Get('conflict-declarations')
