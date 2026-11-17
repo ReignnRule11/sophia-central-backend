@@ -10,6 +10,10 @@ import { PointsService } from '../points/points.service';
 import { ResourceRewardOutbox } from '../points/entities/resource-reward-outbox.entity';
 import { randomUUID } from 'node:crypto';
 import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declaration.dto';
+import { ResourceReviewAppeal } from './entities/resource-review-appeal.entity';
+import { ResourceReviewAppealDecision } from './entities/resource-review-appeal-decision.entity';
+import { CreateResourceAppealDto } from './dto/create-resource-appeal.dto';
+import { DecideResourceAppealDto } from './dto/decide-resource-appeal.dto';
 
 function hasReviewerCapability(user: User): boolean {
   return user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
@@ -31,6 +35,10 @@ export class ModerationService {
     private readonly moderationReviewRepository: Repository<ModerationReview>,
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+    @InjectRepository(ResourceReviewAppeal)
+    private readonly appealRepository: Repository<ResourceReviewAppeal>,
+    @InjectRepository(ResourceReviewAppealDecision)
+    private readonly appealDecisionRepository: Repository<ResourceReviewAppealDecision>,
     private readonly notificationsService: NotificationsService,
     private readonly pointsService: PointsService,
   ) {}
@@ -58,6 +66,113 @@ export class ModerationService {
       }
     }
     return queue;
+  }
+
+  async createAppeal(resourceId: string, appellant: User, dto: CreateResourceAppealDto) {
+    const resource = await this.resourceRepository.findOne({ where: { id: resourceId } });
+    if (!resource) throw new NotFoundException('Resource not found.');
+    if (resource.uploaderId !== appellant.id) throw new ForbiddenException('Only the original uploader can request reconsideration of this resource.');
+    if (![ResourceModerationStatus.REJECTED, ResourceModerationStatus.REVISION_REQUESTED].includes(resource.moderationStatus)) {
+      throw new BadRequestException('Only rejected or revision-requested resources can be appealed.');
+    }
+    const originalReview = await this.moderationReviewRepository.findOne({
+      where: { resourceId },
+      order: { createdAt: 'DESC' },
+    });
+    if (!originalReview) throw new BadRequestException('There is no completed reviewer decision to appeal.');
+    const pending = await this.appealRepository.findOne({
+      where: [{ resourceId, appellantId: appellant.id, status: 'submitted' }, { resourceId, appellantId: appellant.id, status: 'under_review' }],
+    });
+    if (pending) throw new ConflictException('A reconsideration request is already open for this resource.');
+    const appeal = await this.appealRepository.save(this.appealRepository.create({
+      resourceId,
+      appellantId: appellant.id,
+      originalReviewId: originalReview.id,
+      originalReviewerId: originalReview.reviewerId,
+      appealType: dto.appealType,
+      reason: dto.reason.trim(),
+      status: 'submitted',
+    }));
+    const admins = await this.userRepository.find({ where: { role: UserRole.ADMIN, isSuspended: false } });
+    await Promise.all(admins.map(admin => this.notificationsService.createNotification(
+      admin.id,
+      'resource_review_appeal',
+      'A resource review appeal was submitted',
+      `A reconsideration request was submitted for “${resource.title}”. Review it independently.`,
+      '/moderation?tab=appeals',
+    ).catch(error => this.logger.warn(`Could not notify administrator ${admin.id} about resource appeal: ${String(error)}`))));
+    return appeal;
+  }
+
+  async getMyAppeals(appellant: User) {
+    return this.appealRepository.find({ where: { appellantId: appellant.id }, order: { createdAt: 'DESC' } });
+  }
+
+  async getAppeals(admin: User) {
+    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can inspect resource appeals.');
+    return this.resourceRepository.manager.query(`
+      SELECT a."id", a."resourceId", a."appellantId", a."originalReviewId", a."originalReviewerId",
+             a."appealType", a."reason", a."status", a."createdAt", a."updatedAt",
+             r."title" AS "resourceTitle", u."firstName" AS "appellantFirstName",
+             u."lastName" AS "appellantLastName", u."email" AS "appellantEmail",
+             reviewer."firstName" AS "originalReviewerFirstName", reviewer."lastName" AS "originalReviewerLastName"
+      FROM "resource_review_appeals" a
+      JOIN "resources" r ON r."id" = a."resourceId"
+      JOIN "users" u ON u."id" = a."appellantId"
+      JOIN "users" reviewer ON reviewer."id" = a."originalReviewerId"
+      ORDER BY a."createdAt" DESC
+      LIMIT 250
+    `);
+  }
+
+  async decideAppeal(appealId: string, admin: User, dto: DecideResourceAppealDto) {
+    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can decide resource appeals.');
+    const appeal = await this.appealRepository.findOne({ where: { id: appealId } });
+    if (!appeal) throw new NotFoundException('Resource appeal not found.');
+    if (admin.id === appeal.appellantId || admin.id === appeal.originalReviewerId) {
+      throw new ForbiddenException('An administrator involved in the original upload or review cannot investigate this appeal.');
+    }
+    if (!['submitted', 'under_review'].includes(appeal.status)) throw new ConflictException('This appeal has already been decided.');
+    if (dto.status !== 'under_review' && !dto.note?.trim()) {
+      throw new BadRequestException('Provide a reason for accepting or rejecting an appeal.');
+    }
+    await this.appealDecisionRepository.save(this.appealDecisionRepository.create({
+      appealId: appeal.id,
+      actorId: admin.id,
+      fromStatus: appeal.status,
+      toStatus: dto.status,
+      note: dto.note?.trim() || null,
+    }));
+    appeal.status = dto.status;
+    await this.appealRepository.save(appeal);
+
+    if (dto.status === 'accepted') {
+      const resource = await this.resourceRepository.findOne({ where: { id: appeal.resourceId } });
+      if (resource) {
+        resource.moderationStatus = ResourceModerationStatus.PENDING;
+        resource.isVerified = false;
+        resource.assignedReviewerId = null;
+        resource.reviewAssignmentId = null;
+        await this.resourceRepository.save(resource);
+      }
+    }
+    const resource = await this.resourceRepository.findOne({ where: { id: appeal.resourceId } });
+    await this.notificationsService.createNotification(
+      appeal.appellantId,
+      'resource_review_appeal_decision',
+      dto.status === 'accepted' ? 'Your appeal was accepted' : dto.status === 'rejected' ? 'Your appeal was not accepted' : 'Your appeal is under review',
+      dto.status === 'accepted'
+        ? `Your appeal was accepted. “${resource?.title || 'Your resource'}” has been returned to the review queue for an independent reassessment.`
+        : dto.note?.trim() || 'An administrator has updated the status of your reconsideration request.',
+      '/my-resources',
+    );
+    return appeal;
+  }
+
+  async getAppealDecisionHistory(appealId: string, admin: User) {
+    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can inspect appeal decision history.');
+    if (!await this.appealRepository.findOne({ where: { id: appealId }, select: ['id'] })) throw new NotFoundException('Resource appeal not found.');
+    return this.appealDecisionRepository.find({ where: { appealId }, order: { createdAt: 'ASC' } });
   }
 
   async getConflictDeclarations(viewer: User) {
