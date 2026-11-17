@@ -20,6 +20,7 @@ import { ChatModule } from './chat/chat.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { SentryService } from './common/services/sentry.service';
+import { PaymentsModule } from './payments/payments.module';
 
 @Module({
   imports: [
