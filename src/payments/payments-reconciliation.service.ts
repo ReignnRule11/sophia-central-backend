@@ -38,7 +38,7 @@ export class PaymentsReconciliationService {
         .andWhere('payment.createdAt >= :start AND payment.createdAt < :end', { start, end }).getMany();
       const localRefunds = await this.refunds.createQueryBuilder('refund')
         .innerJoin(PaymentTransaction, 'payment', 'payment.id = refund.paymentId')
-        .where('payment.provider = :provider', { provider: this.provider.name })
+        .where('payment.provider = :provider', { provider: provider.name })
         .andWhere('refund.createdAt >= :start AND refund.createdAt < :end', { start, end }).getMany();
 
       const txByReference = new Map(providerTransactions.map(tx => [String(tx.reference || ''), tx]));
