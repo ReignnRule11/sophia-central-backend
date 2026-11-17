@@ -25,10 +25,10 @@ export class ModerationService {
   ) {}
 
   async getQueue(viewer: User) {
-    if (![UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role)) {
+    if (viewer.role !== UserRole.ADMIN && viewer.hasReviewerAccess !== true) {
       throw new ForbiddenException('Only reviewers and admins can access the academic resource queue.');
     }
-    if (viewer.role === UserRole.REVIEWER && viewer.isSuspended) return [];
+    if (viewer.hasReviewerAccess === true && viewer.isSuspended) return [];
     return this.resourceRepository.find({
       where: viewer.role === UserRole.ADMIN
         ? { moderationStatus: ResourceModerationStatus.PENDING }
@@ -57,7 +57,7 @@ export class ModerationService {
       throw new ConflictException('Only pending resources can be assigned for review');
     }
     const reviewer = await this.userRepository.findOne({ where: { id: reviewerId } });
-    if (!reviewer || reviewer.role !== UserRole.REVIEWER || reviewer.isSuspended) {
+    if (!reviewer || reviewer.hasReviewerAccess !== true || reviewer.isSuspended) {
       throw new BadRequestException('Select an active, administrator-approved academic reviewer');
     }
     if (!Array.isArray(reviewer.reviewerExpertise) || reviewer.reviewerExpertise.length === 0) {
@@ -88,7 +88,7 @@ export class ModerationService {
     if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
       throw new ConflictException('This resource is no longer awaiting review');
     }
-    if (reviewer.role !== UserRole.REVIEWER) {
+    if (reviewer.hasReviewerAccess !== true) {
       throw new ForbiddenException('Only an assigned academic reviewer can approve, reject or request revisions.');
     }
     if (reviewer.isSuspended) {
@@ -172,7 +172,7 @@ export class ModerationService {
       }
     }
 
-    if (reviewer.role === UserRole.REVIEWER) {
+    if (reviewer.hasReviewerAccess === true) {
       try {
         const moderators = await this.userRepository.find({
           where: { role: UserRole.MODERATOR, isSuspended: false },
