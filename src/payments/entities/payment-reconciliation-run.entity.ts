@@ -11,8 +11,6 @@ export class PaymentReconciliationRun {
   @Column({ type: 'integer', default: 0 }) localPayments!: number;
   @Column({ type: 'integer', default: 0 }) providerRefunds!: number;
   @Column({ type: 'integer', default: 0 }) localRefunds!: number;
-  @Column({ type: 'integer', default: 0 }) providerTransfers!: number;
-  @Column({ type: 'integer', default: 0 }) localPayouts!: number;
   @Column({ type: 'jsonb' }) discrepancies!: Record<string, unknown>[];
   @Column({ type: 'uuid' }) initiatedByUserId!: string;
   @CreateDateColumn() createdAt!: Date;
