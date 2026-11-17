@@ -81,6 +81,13 @@ export class User {
   @Column({ type: 'varchar', default: UserRole.STUDENT })
   role!: UserRole;
 
+  // Reviewer permission is independent of the primary academic account type.
+  @Column({ type: 'boolean', default: false })
+  hasReviewerAccess!: boolean;
+
+  @Column({ type: 'varchar', length: 32, default: 'not_applied' })
+  reviewerStatus!: 'not_applied' | 'draft' | 'submitted' | 'under_review' | 'more_information_required' | 'approved' | 'rejected' | 'suspended' | 'revoked';
+
   @Column({ type: 'jsonb', nullable: true })
   reviewerExpertise?: string[];
 

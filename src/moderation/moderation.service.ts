@@ -9,6 +9,10 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { PointsService } from '../points/points.service';
 import { ResourceRewardOutbox } from '../points/entities/resource-reward-outbox.entity';
 
+function hasReviewerCapability(user: User): boolean {
+  return user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
+}
+
 @Injectable()
 export class ModerationService {
   private readonly logger = new Logger(ModerationService.name);
@@ -25,10 +29,10 @@ export class ModerationService {
   ) {}
 
   async getQueue(viewer: User) {
-    if (![UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role)) {
-      throw new ForbiddenException('Only reviewers and admins can access the academic resource queue.');
+    if (viewer.role !== UserRole.ADMIN && !hasReviewerCapability(viewer)) {
+      throw new ForbiddenException('Only approved academic reviewers and admins can access the academic resource queue.');
     }
-    if (viewer.role === UserRole.REVIEWER && viewer.isSuspended) return [];
+    if (hasReviewerCapability(viewer) && viewer.isSuspended) return [];
     return this.resourceRepository.find({
       where: viewer.role === UserRole.ADMIN
         ? { moderationStatus: ResourceModerationStatus.PENDING }
@@ -39,10 +43,10 @@ export class ModerationService {
   }
 
   async getHistory(viewer: User) {
-    if (![UserRole.ADMIN, UserRole.REVIEWER].includes(viewer.role)) {
-      throw new ForbiddenException('Only reviewers and admins can access academic review history.');
+    if (viewer.role !== UserRole.ADMIN && !hasReviewerCapability(viewer)) {
+      throw new ForbiddenException('Only approved academic reviewers and admins can access academic review history.');
     }
-    if (viewer.role === UserRole.REVIEWER && viewer.isSuspended) return [];
+    if (hasReviewerCapability(viewer) && viewer.isSuspended) return [];
     return this.moderationReviewRepository.find({
       where: viewer.role === UserRole.ADMIN ? {} : { reviewer: { id: viewer.id } },
       relations: ['resource', 'resource.uploader', 'reviewer'],
@@ -57,9 +61,10 @@ export class ModerationService {
       throw new ConflictException('Only pending resources can be assigned for review');
     }
     const reviewer = await this.userRepository.findOne({ where: { id: reviewerId } });
-    if (!reviewer || reviewer.role !== UserRole.REVIEWER || reviewer.isSuspended) {
+    if (!reviewer || !hasReviewerCapability(reviewer) || reviewer.isSuspended) {
       throw new BadRequestException('Select an active, administrator-approved academic reviewer');
     }
+    if (resource.uploaderId === reviewer.id) throw new BadRequestException('A reviewer cannot be assigned to review their own uploaded resource.');
     if (!Array.isArray(reviewer.reviewerExpertise) || reviewer.reviewerExpertise.length === 0) {
       throw new BadRequestException('The selected reviewer has no recorded subject expertise');
     }
@@ -88,9 +93,10 @@ export class ModerationService {
     if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
       throw new ConflictException('This resource is no longer awaiting review');
     }
-    if (reviewer.role !== UserRole.REVIEWER) {
+    if (!hasReviewerCapability(reviewer)) {
       throw new ForbiddenException('Only an assigned academic reviewer can approve, reject or request revisions.');
     }
+    if (resource.uploaderId === reviewer.id) throw new ForbiddenException('You cannot review a resource that you uploaded.');
     if (reviewer.isSuspended) {
       throw new ForbiddenException('Suspended reviewer accounts cannot access the review workflow');
     }
@@ -172,7 +178,7 @@ export class ModerationService {
       }
     }
 
-    if (reviewer.role === UserRole.REVIEWER) {
+    if (hasReviewerCapability(reviewer)) {
       try {
         const moderators = await this.userRepository.find({
           where: { role: UserRole.MODERATOR, isSuspended: false },
