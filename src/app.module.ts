@@ -44,6 +44,7 @@ import { PaymentsModule } from './payments/payments.module';
     AnalyticsModule,
     SupportModule,
     ChatModule,
+    PaymentsModule,
   ],
   controllers: [AppController],
   providers: [AppService, SentryService],
