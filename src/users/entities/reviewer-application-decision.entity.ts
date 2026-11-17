@@ -10,14 +10,14 @@ export class ReviewerApplicationDecision {
   @Column({ type: 'uuid' })
   applicationId!: string;
 
-  @ManyToOne(() => ReviewerApplication, { onDelete: 'CASCADE' })
+  @ManyToOne(() => ReviewerApplication, { createForeignKeyConstraints: false })
   @JoinColumn({ name: 'applicationId' })
   application!: ReviewerApplication;
 
   @Column({ type: 'uuid', nullable: true })
   actorId?: string | null;
 
-  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => User, { nullable: true, createForeignKeyConstraints: false })
   @JoinColumn({ name: 'actorId' })
   actor?: User | null;
 
