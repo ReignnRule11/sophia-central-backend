@@ -160,6 +160,12 @@ export class UsersService {
           throw new BadRequestException('This account does not currently have reviewer access');
         }
         user.hasReviewerAccess = false;
+        // Legacy reviewer accounts stored their underlying academic role in
+        // reviewerBaseRole. Restore it when reviewer access is revoked.
+        if (user.role === UserRole.REVIEWER && [UserRole.STUDENT, UserRole.LECTURER].includes(user.reviewerBaseRole as UserRole)) {
+          user.role = user.reviewerBaseRole as UserRole;
+          user.reviewerBaseRole = undefined;
+        }
         await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
         user.reviewerExpertise = [];
       }
