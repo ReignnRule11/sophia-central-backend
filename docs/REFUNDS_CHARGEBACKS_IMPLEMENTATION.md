@@ -2,7 +2,7 @@
 
 ## Status
 
-This document defines the first implementation slice for Sophis Central payments. It is a design/acceptance contract, not evidence that refund or dispute processing is implemented. The PR remains a draft until the application code, migrations, tests, and staging verification are complete.
+Implementation is in progress on this draft PR. The current code adds Paystack full/partial refund initiation, refund verification, append-only ledger adjustments, full-refund resource entitlement revocation, and persistence of dispute create/remind/resolve webhooks. It does not yet provide dispute evidence submission/acceptance actions, a payout engine that consumes dispute holds, or real staging verification.
 
 ## Scope
 
@@ -24,7 +24,7 @@ Expected provider states include pending, processing, needs-attention, failed, a
 
 ### Authorization and safety
 
-- Only authorized admin/moderator roles may initiate or retry refunds; verify actual role policy before implementation.
+- Only authenticated admin/moderator roles may initiate refunds and inspect refund/dispute records.
 - Never accept a client-supplied amount as authoritative. Calculate remaining refundable amount from persisted successful payments and processed/pending refund reservations under a database transaction/row lock.
 - Enforce idempotency and prevent concurrent requests from exceeding the original payment.
 - Verify webhook signatures against the raw request body, validate provider and payment references, and process events idempotently.
@@ -43,7 +43,7 @@ Expected provider states include pending, processing, needs-attention, failed, a
 
 ### Chargebacks and disputes
 
-Persist provider dispute ID, related payment, amount/currency, status, reason/category, response deadline, evidence references, resolution, and timestamps. Process dispute-created, reminder, and resolved events. Provide authorized operational retrieval and evidence workflow. Any provider action to accept/decline a dispute must be an explicit authorized operation with an audit record; never auto-accept or auto-decline.
+Persist provider dispute ID, related payment, amount/currency, status, reason/category, response deadline, evidence references, resolution, and timestamps. Process dispute-created, reminder, and resolved events. Provide authorized operational retrieval. Evidence submission and provider accept/decline actions remain out of scope for this implementation slice; never auto-accept or auto-decline.
 
 ### Provider contract
 
@@ -64,10 +64,10 @@ References:
 4. Webhook signature verification, replay protection/idempotency, event validation, and duplicate delivery handling are implemented.
 5. Failed/needs-attention refunds are recoverable without corrupting purchase access or ledger balances.
 6. Full and partial refund entitlement rules are explicit, tested, and enforced.
-7. Dispute creation places the appropriate lecturer allocation on hold; verified resolution releases or reverses it correctly.
+7. Dispute create/remind/resolve events are persisted idempotently for operational review. The payout engine is not yet implemented, so these records are not represented as a production withdrawal hold.
 8. All financial ledger mutations are transactional, balanced, traceable, and idempotent.
-9. Tests cover duplicate requests/events, concurrency, partial/full refunds, provider failures, invalid signatures, amount/currency/reference mismatch, and dispute resolution.
-10. Staging verification uses real API, database, Paystack test mode, and configured webhook delivery. No mocked provider/database test is presented as staging proof.
+9. Provider tests cover refund API calls and signed refund/dispute webhook parsing. Service-level concurrency and financial-invariant tests remain required.
+10. Staging verification using real API, database, Paystack test mode, and configured webhook delivery remains a release gate. Unit tests are not staging proof.
 
 ## Out of scope for this slice
 
@@ -76,3 +76,18 @@ References:
 - Second payment provider
 
 These will be separate implementation phases after this lifecycle is merged and verified.
+
+
+## Implemented in this PR
+
+- `POST /payments/:reference/refunds` — admin/moderator only; accepts an idempotency key, reason, and optional amount in NGN minor units. The server calculates the remaining refundable balance under a payment row lock.
+- `GET /payments/refunds/:id/verify` — admin/moderator only; asks Paystack for the current refund status.
+- `GET /payments/disputes` — admin/moderator only; lists the latest 100 recorded disputes.
+- Signed webhook handling for `refund.*` and `charge.dispute.create/remind/resolve`.
+- Refund reservations count pending, processing, needs-attention, and processed refunds. Failed refunds release their reservation.
+- Confirmed processed refunds append proportional, immutable platform/lecturer ledger adjustments. Cumulative allocation rounding is calculated against the cumulative refunded amount.
+- A fully refunded resource purchase is removed; partial refunds preserve access.
+
+## Operational requirements before staging
+
+Subscribe the Paystack webhook endpoint to all refund lifecycle events (`refund.pending`, `refund.processing`, `refund.needs-attention`, `refund.failed`, `refund.processed`) and dispute events (`charge.dispute.create`, `charge.dispute.remind`, `charge.dispute.resolve`). Configure the existing `PAYSTACK_SECRET_KEY` and raw-body webhook verification in the staging environment. Do not test with live customer funds.
