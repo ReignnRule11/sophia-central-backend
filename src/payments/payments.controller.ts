@@ -113,6 +113,22 @@ export class PaymentsController {
     return this.payouts.approve(user, id);
   }
 
+  @Post('payouts/reconciliation/run')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Compare lecturer payouts with Paystack transfers without mutating financial records' })
+  reconcilePayouts(@CurrentUser() user: User, @Body() body: { from: string; to: string }) {
+    return this.payouts.reconcilePayouts(user, body);
+  }
+
+  @Get('payouts/reconciliation/history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List recent payout reconciliation reports' })
+  payoutReconciliationHistory(@CurrentUser() user: User) {
+    return this.payouts.payoutReconciliationHistory(user);
+  }
+
   @Get('payouts/verify/:reference')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()

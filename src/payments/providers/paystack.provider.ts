@@ -1,7 +1,7 @@
 import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createHmac, timingSafeEqual } from 'node:crypto';
-import { InitializePaymentInput, InitializedPayment, PaymentProvider, PaymentWebhookEvent, ProviderRefund, VerifiedPayment } from './payment-provider.interface';
+import { InitializePaymentInput, InitializedPayment, PaymentProvider, PaymentWebhookEvent, ProviderRefund, ProviderTransferRecord, VerifiedPayment } from './payment-provider.interface';
 
 @Injectable()
 export class PaystackProvider implements PaymentProvider {
@@ -106,6 +106,19 @@ export class PaystackProvider implements PaymentProvider {
       if (rows.length < 100) return results;
     }
     throw new ServiceUnavailableException('Paystack refund reconciliation exceeded the 10,000-record safety limit.');
+  }
+
+
+  async listTransfers(input: { from: string; to: string }): Promise<ProviderTransferRecord[]> {
+    const results: ProviderTransferRecord[] = [];
+    for (let page = 1; page <= 100; page++) {
+      const query = new URLSearchParams({ from: input.from, to: input.to, perPage: '100', page: String(page) });
+      const rows = await this.request(`/transfer?${query.toString()}`, { method: 'GET' });
+      if (!Array.isArray(rows)) throw new ServiceUnavailableException('Paystack returned an invalid transfer list.');
+      results.push(...rows);
+      if (rows.length < 100) return results;
+    }
+    throw new ServiceUnavailableException('Paystack transfer reconciliation exceeded the 10,000-record safety limit.');
   }
 
 

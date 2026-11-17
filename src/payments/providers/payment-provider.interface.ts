@@ -16,6 +16,9 @@ export interface PaymentWebhookEvent {
 export interface ProviderTransactionRecord {
   reference: string; status: string; amount: number; currency: string; id?: number | string; [key: string]: unknown;
 }
+export interface ProviderTransferRecord {
+  reference: string; status: string; amount: number; currency: string; transfer_code?: string; [key: string]: unknown;
+}
 export interface ProviderRefundRecord {
   id: number | string; status: string; amount: number; currency: string; transaction?: number | string; [key: string]: unknown;
 }
@@ -29,6 +32,7 @@ export interface PaymentProvider {
   verifyRefund(providerRefundId: string): Promise<ProviderRefund>;
   listTransactions(input: { from: string; to: string }): Promise<ProviderTransactionRecord[]>;
   listRefunds(input: { from: string; to: string }): Promise<ProviderRefundRecord[]>;
+  listTransfers(input: { from: string; to: string }): Promise<ProviderTransferRecord[]>;
   resolveBankAccount(accountNumber: string, bankCode: string): Promise<ProviderBankAccount>;
   createTransferRecipient(input: { name: string; accountNumber: string; bankCode: string }): Promise<{ recipientCode: string; accountName: string; bankName: string }>;
   initiateTransfer(input: { amountMinor: string; recipientCode: string; reference: string; reason: string }): Promise<ProviderTransfer>;

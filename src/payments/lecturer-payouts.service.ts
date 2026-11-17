@@ -9,6 +9,7 @@ import { PaymentTransaction, PaymentStatus } from './entities/payment-transactio
 import { PaymentRefund, PaymentRefundStatus } from './entities/payment-refund.entity';
 import { PaymentPayoutBeneficiary } from './entities/payment-payout-beneficiary.entity';
 import { PaymentPayout, PaymentPayoutStatus } from './entities/payment-payout.entity';
+import { PaymentPayoutReconciliationRun } from './entities/payment-payout-reconciliation-run.entity';
 import { PAYMENT_PROVIDER, PaymentProvider } from './providers/payment-provider.interface';
 import { randomBytes } from 'node:crypto';
 
@@ -25,6 +26,7 @@ export class LecturerPayoutsService {
     @InjectRepository(PaymentTransaction) private readonly payments: Repository<PaymentTransaction>,
     @InjectRepository(PaymentPayoutBeneficiary) private readonly beneficiaries: Repository<PaymentPayoutBeneficiary>,
     @InjectRepository(PaymentPayout) private readonly payouts: Repository<PaymentPayout>,
+    @InjectRepository(PaymentPayoutReconciliationRun) private readonly payoutRuns: Repository<PaymentPayoutReconciliationRun>,
     @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
   ) {}
 
@@ -179,15 +181,111 @@ export class LecturerPayoutsService {
     if (!payout) throw new NotFoundException('Payout not found.');
     if ([PaymentPayoutStatus.SUCCESS, PaymentPayoutStatus.FAILED, PaymentPayoutStatus.REVERSED].includes(payout.status)) return this.publicPayout(payout);
     const transfer = await this.provider.verifyTransfer(reference);
-    if (String(transfer.amountMinor) !== payout.amountMinor || transfer.currency !== payout.currency) {
-      throw new ConflictException('Verified transfer amount or currency does not match the payout record.');
+    await this.applyTransferStatus(payout.id, transfer, 'manual_verification');
+    return this.publicPayout(await this.payouts.findOneByOrFail({ id: payout.id }));
+  }
+
+
+  async handleTransferWebhook(eventName: string, reference: string, _data: Record<string, any>) {
+    const expectedEvents = ['transfer.success', 'transfer.failed', 'transfer.reversed'];
+    if (!expectedEvents.includes(eventName)) return { received: true, processed: false };
+    const payout = await this.payouts.findOne({ where: { reference, provider: this.provider.name } });
+    if (!payout) return { received: true, processed: false };
+    const transfer = await this.provider.verifyTransfer(reference);
+    if (eventName === 'transfer.success' && transfer.status.toLowerCase() !== 'success') return { received: true, processed: false };
+    if (eventName === 'transfer.reversed' && transfer.status.toLowerCase() !== 'reversed') return { received: true, processed: false };
+    if (eventName === 'transfer.failed' && !['failed', 'abandoned', 'blocked', 'rejected'].includes(transfer.status.toLowerCase())) return { received: true, processed: false };
+    await this.applyTransferStatus(payout.id, transfer, eventName);
+    return { received: true, processed: true };
+  }
+
+  private async applyTransferStatus(payoutId: string, transfer: { reference: string; status: string; transferCode: string | null; amountMinor: number; currency: string; raw: Record<string, unknown> }, source: string) {
+    await this.dataSource.transaction(async manager => {
+      const payout = await manager.findOne(PaymentPayout, { where: { id: payoutId }, lock: { mode: 'pessimistic_write' } });
+      if (!payout) throw new NotFoundException('Payout not found.');
+      if (transfer.reference !== payout.reference || !Number.isSafeInteger(Number(transfer.amountMinor)) ||
+          String(transfer.amountMinor) !== payout.amountMinor || transfer.currency !== payout.currency) {
+        throw new ConflictException('Verified transfer reference, amount or currency does not match the payout record.');
+      }
+      const next = this.mapStatus(transfer.status);
+      const terminal = [PaymentPayoutStatus.SUCCESS, PaymentPayoutStatus.FAILED, PaymentPayoutStatus.REVERSED];
+      const currentTerminal = terminal.includes(payout.status);
+      const nextTerminal = terminal.includes(next);
+      // A confirmed reversal is the only allowed terminal-to-terminal transition.
+      if (currentTerminal && payout.status !== next &&
+          !(payout.status === PaymentPayoutStatus.SUCCESS && next === PaymentPayoutStatus.REVERSED)) return;
+      if (currentTerminal && !nextTerminal) return;
+      payout.status = next;
+      payout.providerTransferCode = transfer.transferCode;
+      payout.providerMetadata = { status: transfer.status, source };
+      payout.failureReason = next === PaymentPayoutStatus.FAILED ? transfer.status : null;
+      payout.completedAt = nextTerminal ? new Date() : null;
+      await manager.save(PaymentPayout, payout);
+    });
+  }
+
+  async reconcilePayouts(admin: User, input: { from: string; to: string }) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(admin.role)) throw new ForbiddenException('Only administrators and moderators may reconcile payouts.');
+    const start = new Date(input.from), end = new Date(input.to);
+    if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start ||
+        end.getTime() - start.getTime() > 31 * 24 * 60 * 60 * 1000) {
+      throw new BadRequestException('Provide a valid UTC date range no longer than 31 days.');
     }
-    payout.status = this.mapStatus(transfer.status);
-    payout.providerTransferCode = transfer.transferCode;
-    payout.providerMetadata = { status: transfer.status };
-    payout.completedAt = payout.status === PaymentPayoutStatus.SUCCESS ? new Date() : null;
-    await this.payouts.save(payout);
-    return this.publicPayout(payout);
+    const [remote, local] = await Promise.all([
+      this.provider.listTransfers({ from: start.toISOString(), to: end.toISOString() }),
+      this.payouts.createQueryBuilder('payout')
+        .where('payout.provider = :provider', { provider: this.provider.name })
+        .andWhere('payout.createdAt >= :start AND payout.createdAt < :end', { start, end }).getMany(),
+    ]);
+    // Reconcile only transfers initiated by this payout workflow; a shared Paystack account
+    // may contain unrelated transfers belonging to other products or operations.
+    const sophisTransfers = remote.filter(item => String(item.reference || '').startsWith('sophis-payout-'));
+    const eligibleLocal = local.filter(item => item.status !== PaymentPayoutStatus.REQUESTED);
+    const remoteByReference = new Map(sophisTransfers.map(item => [String(item.reference || ''), item]));
+    const localByReference = new Map(eligibleLocal.map(item => [item.reference, item]));
+    const discrepancies: Record<string, unknown>[] = [];
+    for (const payout of eligibleLocal) {
+      const providerTransfer = remoteByReference.get(payout.reference);
+      if (!providerTransfer) {
+        discrepancies.push({ type: 'local_payout_missing_at_provider', reference: payout.reference, localStatus: payout.status });
+        continue;
+      }
+      const amount = Number(providerTransfer.amount);
+      const currency = String(providerTransfer.currency || '').toUpperCase();
+      const status = String(providerTransfer.status || '').toLowerCase();
+      const localStatus = payout.status === PaymentPayoutStatus.PROCESSING ? 'pending' : payout.status;
+      const normalizedStatus = ['abandoned', 'blocked', 'rejected'].includes(status) ? 'failed' : status;
+      if (!Number.isSafeInteger(amount) || amount !== Number(payout.amountMinor) ||
+          currency !== payout.currency || normalizedStatus !== localStatus) {
+        discrepancies.push({ type: 'payout_mismatch', reference: payout.reference, localStatus: payout.status,
+          providerStatus: status, localAmountMinor: payout.amountMinor,
+          providerAmountMinor: Number.isSafeInteger(amount) ? amount : null,
+          localCurrency: payout.currency, providerCurrency: currency });
+      }
+    }
+    for (const transfer of sophisTransfers) {
+      const reference = String(transfer.reference || '');
+      if (reference && !localByReference.has(reference)) discrepancies.push({
+        type: 'provider_transfer_missing_locally', reference, providerStatus: String(transfer.status || ''),
+        amountMinor: transfer.amount, currency: transfer.currency,
+      });
+    }
+    const run = await this.payoutRuns.save(this.payoutRuns.create({
+      provider: this.provider.name, periodStart: start, periodEnd: end, status: 'completed',
+      providerTransfers: sophisTransfers.length, localPayouts: eligibleLocal.length, discrepancies, initiatedByUserId: admin.id,
+    }));
+    return { id: run.id, provider: run.provider, periodStart: run.periodStart, periodEnd: run.periodEnd,
+      counts: { providerTransfers: run.providerTransfers, localPayouts: run.localPayouts },
+      discrepancyCount: discrepancies.length, discrepancies, createdAt: run.createdAt, mode: 'read_only',
+      note: 'This report does not change payout, payment, refund, or ledger records.' };
+  }
+
+  async payoutReconciliationHistory(admin: User) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(admin.role)) throw new ForbiddenException('Only administrators and moderators may inspect payout reconciliation history.');
+    const rows = await this.payoutRuns.find({ order: { createdAt: 'DESC' }, take: 50 });
+    return rows.map(run => ({ id: run.id, provider: run.provider, periodStart: run.periodStart, periodEnd: run.periodEnd,
+      status: run.status, counts: { providerTransfers: run.providerTransfers, localPayouts: run.localPayouts },
+      discrepancyCount: run.discrepancies.length, discrepancies: run.discrepancies, createdAt: run.createdAt }));
   }
 
   async listRequests(admin: User) {
@@ -199,10 +297,11 @@ export class LecturerPayoutsService {
   private mapStatus(status: string): PaymentPayoutStatus {
     const value = status.toLowerCase();
     if (value === 'success') return PaymentPayoutStatus.SUCCESS;
-    if (value === 'failed') return PaymentPayoutStatus.FAILED;
+    if (['failed', 'abandoned', 'blocked', 'rejected'].includes(value)) return PaymentPayoutStatus.FAILED;
     if (value === 'reversed') return PaymentPayoutStatus.REVERSED;
     if (value === 'otp') return PaymentPayoutStatus.OTP;
-    return PaymentPayoutStatus.PENDING;
+    if (['pending', 'processing', 'received'].includes(value)) return PaymentPayoutStatus.PENDING;
+    throw new ConflictException('Paystack returned an unsupported transfer status; payout reservation remains unchanged.');
   }
 
   private publicPayout(payout: PaymentPayout) {
