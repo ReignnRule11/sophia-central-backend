@@ -5,10 +5,12 @@ export enum PaymentStatus { PENDING = 'pending', SUCCESS = 'success', FAILED = '
 
 @Entity({ name: 'payment_transactions' })
 @Index('UQ_payment_transactions_reference', ['reference'], { unique: true })
+@Index('UQ_payment_transactions_user_idempotency', ['userId', 'idempotencyKey'], { unique: true, where: '"idempotencyKey" IS NOT NULL' })
 export class PaymentTransaction {
   @PrimaryGeneratedColumn('uuid') id!: string;
   @Column({ type: 'varchar', length: 32 }) provider!: string;
   @Column({ type: 'varchar', length: 64 }) reference!: string;
+  @Column({ type: 'varchar', length: 128, nullable: true }) idempotencyKey!: string | null;
   @Column({ type: 'uuid' }) userId!: string;
   @Column({ type: 'varchar', length: 32 }) purpose!: PaymentPurpose;
   @Column({ type: 'varchar', length: 16, default: PaymentStatus.PENDING }) status!: PaymentStatus;
