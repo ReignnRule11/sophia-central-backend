@@ -80,6 +80,20 @@ async function main() {
       [userId],
     );
     const reviewerApplicationId = reviewerApplication.rows[0].id;
+    await assert.rejects(
+      client.query(
+        `INSERT INTO reviewer_applications ("userId", status, qualifications, "expertiseAreas", "academicLevels", "reviewExperience", "conflictDeclaration", "policyAccepted")
+         VALUES ($1, 'submitted', '["MSc"]'::jsonb, '["Research methods"]'::jsonb, '["Postgraduate"]'::jsonb, 'duplicate CI reviewer experience', 'duplicate CI conflict declaration', true)`,
+        [userId],
+      ),
+      (error) => error.code === '23505',
+      'only one active reviewer application may exist per account',
+    );
+    const activeApplicationIndex = await client.query(
+      `SELECT indexdef FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'UQ_reviewer_applications_one_active_per_user'`,
+    );
+    assert.equal(activeApplicationIndex.rowCount, 1, 'active reviewer application uniqueness index should exist');
+
     const auditAssignmentId = '00000000-0000-4000-8000-000000000123';
     await Promise.all([
       client.query(
@@ -152,6 +166,22 @@ async function main() {
     // Remove the pending resource explicitly; approved shared content must survive account deletion.
     await client.query('DELETE FROM resources WHERE id = $1', [resource.rows[0].id]);
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    const immutableAuditForeignKeys = await client.query(
+      `SELECT table_name, constraint_name
+       FROM information_schema.table_constraints
+       WHERE table_schema = 'public'
+         AND constraint_type = 'FOREIGN KEY'
+         AND table_name IN (
+           'reviewer_application_decisions',
+           'academic_account_transitions',
+           'reviewer_conflict_declarations',
+           'reviewer_assignment_events',
+           'resource_review_appeals',
+           'resource_review_appeal_decisions',
+           'moderation_review_overrides'
+         )`,
+    );
+    assert.equal(immutableAuditForeignKeys.rowCount, 0, 'append-only audit records must not block account or resource deletion through foreign keys');
     const applicationDecisionAudit = await client.query('SELECT id FROM reviewer_application_decisions WHERE "applicationId" = $1', [reviewerApplicationId]);
     assert.equal(applicationDecisionAudit.rowCount, 1, 'reviewer application decision audit should survive user deletion');
     const transitionAudit = await client.query('SELECT id FROM academic_account_transitions WHERE "userId" = $1', [userId]);
