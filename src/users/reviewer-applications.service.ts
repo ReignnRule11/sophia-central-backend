@@ -47,7 +47,12 @@ export class ReviewerApplicationsService {
       conflictDeclaration: dto.conflictDeclaration.trim(),
       policyAccepted: true,
     });
-    return this.applications.save(application);
+    return this.dataSource.transaction(async manager => {
+      const saved = await manager.save(ReviewerApplication, application);
+      user.reviewerStatus = 'submitted';
+      await manager.save(User, user);
+      return saved;
+    });
   }
 
   async mine(user: User) {
@@ -86,6 +91,7 @@ export class ReviewerApplicationsService {
       application.decidedById = admin.id;
       application.decisionNote = dto.note?.trim() || null;
       application.decidedAt = new Date();
+      user.reviewerStatus = dto.status;
       if (dto.status === ReviewerApplicationStatus.APPROVED) {
         user.hasReviewerAccess = true;
         user.reviewerExpertise = application.expertiseAreas;
