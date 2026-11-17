@@ -30,6 +30,9 @@ export class ReviewerApplicationDecision {
   @Column({ type: 'text', nullable: true })
   note?: string | null;
 
+  @Column({ type: 'jsonb', nullable: true })
+  metadata?: Record<string, unknown> | null;
+
   @CreateDateColumn()
   createdAt!: Date;
 }
