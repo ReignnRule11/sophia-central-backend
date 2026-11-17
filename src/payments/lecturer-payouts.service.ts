@@ -190,14 +190,14 @@ export class LecturerPayoutsService {
 
 
   async handleTransferWebhook(providerName: string, eventName: string, reference: string, _data: Record<string, any>) {
-    const expectedEvents = ['transfer.success', 'transfer.failed', 'transfer.reversed', 'transfer.completed'];
+    const expectedEvents = ['transfer.success', 'transfer.failed', 'transfer.reversed', 'transfer.reversal', 'transfer.completed'];
     if (!expectedEvents.includes(eventName)) return { received: true, processed: false };
     const payout = await this.payouts.findOne({ where: { reference, provider: providerName } });
     if (!payout) return { received: true, processed: false };
     const transfer = await this.providers.get(payout.provider).verifyTransfer(reference);
     if (eventName === 'transfer.success' && !['success', 'successful'].includes(transfer.status.toLowerCase())) return { received: true, processed: false };
     if (eventName === 'transfer.completed' && !['success', 'successful', 'failed'].includes(transfer.status.toLowerCase())) return { received: true, processed: false };
-    if (eventName === 'transfer.reversed' && transfer.status.toLowerCase() !== 'reversed') return { received: true, processed: false };
+    if (['transfer.reversed', 'transfer.reversal'].includes(eventName) && transfer.status.toLowerCase() !== 'reversed') return { received: true, processed: false };
     if (eventName === 'transfer.failed' && !['failed', 'abandoned', 'blocked', 'rejected'].includes(transfer.status.toLowerCase())) return { received: true, processed: false };
     await this.applyTransferStatus(payout.id, transfer, eventName);
     return { received: true, processed: true };
