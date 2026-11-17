@@ -8,7 +8,9 @@ export class AddReviewerCapability1794873600000 implements MigrationInterface {
     // created a PostgreSQL enum that omitted the reviewer value. Normalize the
     // column to the entity's string representation before reviewer accounts
     // or future account types need to be persisted.
+    await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" DROP DEFAULT`);
     await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" TYPE varchar(32) USING "role"::text`);
+    await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'student'`);
     await queryRunner.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "hasReviewerAccess" boolean NOT NULL DEFAULT false`);
 
     // Restore the underlying academic account type for legacy users whose
