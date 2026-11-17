@@ -1,7 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { UsersService } from './users.service';
-import { User } from './entities/user.entity';
+import { User, UserRole } from './entities/user.entity';
 import { Institution } from '../institutions/entities/institution.entity';
 
 describe('UsersService institution identity updates', () => {
@@ -55,6 +55,41 @@ describe('UsersService institution identity updates', () => {
     });
     expect(updated.uniqueId).toMatch(/^SC-UNI-NEWUNI-STU-[0-9A-HJKMNP-TV-Z]{10}$/);
     expect(manager.query).not.toHaveBeenCalled();
+  });
+
+  it('adds one academic identity to an approved External Reviewer without removing reviewer access', async () => {
+    const externalReviewer = {
+      id: 'reviewer-1',
+      role: UserRole.REVIEWER,
+      academicAccountType: 'external_reviewer',
+      hasReviewerAccess: true,
+      reviewerStatus: 'approved',
+      reviewerExpertise: ['Biology'],
+      reviewerAcademicLevels: ['Undergraduate'],
+    };
+    manager.findOne.mockImplementation(async (entity) => entity === Institution ? { ...catalogueInstitution } : { ...externalReviewer });
+
+    const updated = await service.transitionExternalReviewer('reviewer-1', {
+      targetRole: UserRole.STUDENT,
+      institutionId: catalogueInstitution.id,
+      faculty: 'Science',
+      department: 'Biological Sciences',
+      program: 'BSc Biology',
+      studyLevel: '300',
+    });
+
+    expect(updated).toMatchObject({
+      role: UserRole.STUDENT,
+      academicAccountType: 'student',
+      institutionId: catalogueInstitution.id,
+      hasReviewerAccess: true,
+      reviewerStatus: 'approved',
+      isProfileComplete: true,
+    });
+    expect(manager.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO academic_account_transitions'),
+      ['reviewer-1', 'external_reviewer', UserRole.STUDENT, 'reviewer-1'],
+    );
   });
 
   it('rejects a manually typed institution without a catalogue reference', async () => {
