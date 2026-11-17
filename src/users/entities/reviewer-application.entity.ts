@@ -33,14 +33,14 @@ export class ReviewerApplication {
   @Column({ type: 'jsonb' })
   expertiseAreas!: string[];
 
-  @Column({ type: 'varchar', length: 160 })
-  institution!: string;
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  institution?: string | null;
 
-  @Column({ type: 'varchar', length: 160 })
-  faculty!: string;
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  faculty?: string | null;
 
-  @Column({ type: 'varchar', length: 160 })
-  department!: string;
+  @Column({ type: 'varchar', length: 160, nullable: true })
+  department?: string | null;
 
   @Column({ type: 'jsonb' })
   academicLevels!: string[];
