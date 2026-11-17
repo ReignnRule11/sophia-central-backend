@@ -41,6 +41,7 @@ export class Resource {
   @Column({ type: 'timestamptz', default: () => 'NOW()' }) lastSubstantiveUpdateAt!: Date;
   @Column({ type: 'uuid', nullable: true }) assignedReviewerId?: string | null;
   @Column({ type: 'uuid', nullable: true }) reviewAssignmentId?: string | null;
+  reviewConflictDeclaration?: 'no_conflict' | 'recuse' | null;
   @ManyToOne(() => User, (user) => user.assignedReviews, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'assignedReviewerId' })
   assignedReviewer?: User;
