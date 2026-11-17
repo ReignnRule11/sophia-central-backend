@@ -45,6 +45,15 @@ export class ReviewerApplication {
   @Column({ type: 'jsonb' })
   academicLevels!: string[];
 
+  @Column({ type: 'jsonb', nullable: true })
+  approvedExpertiseAreas?: string[] | null;
+
+  @Column({ type: 'jsonb', nullable: true })
+  approvedAcademicLevels?: string[] | null;
+
+  @Column({ type: 'varchar', length: 40, nullable: true })
+  reviewerClassification?: 'student_academic_reviewer' | 'academic_reviewer' | 'senior_academic_reviewer' | null;
+
   @Column({ type: 'text' })
   reviewExperience!: string;
 
