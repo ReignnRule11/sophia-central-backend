@@ -250,7 +250,11 @@ export class UsersService {
         updateData.academicHandle = normalized;
       }
       if (updateData.isSuspended === true && (user.role === UserRole.REVIEWER || user.hasReviewerAccess === true)) {
-        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL, "reviewAssignmentId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
+        await manager.query(
+        'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") SELECT "reviewAssignmentId", "id", "assignedReviewerId", NULL, $2 FROM resources WHERE "assignedReviewerId" = $1::uuid AND "reviewAssignmentId" IS NOT NULL',
+        [user.id, 'released'],
+      );
+      await manager.query('UPDATE resources SET "assignedReviewerId" = NULL, "reviewAssignmentId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
       }
       const previousProfileImage = user.profileImage;
       Object.assign(user, updateData);
