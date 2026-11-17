@@ -13,7 +13,9 @@ export class PaymentProviderRegistry {
     paystack: PaystackProvider,
     flutterwave: FlutterwaveProvider,
   ) {
-    this.providers = new Map([[paystack.name, paystack], [flutterwave.name, flutterwave]]);
+    this.providers = new Map<string, PaymentProvider>();
+    this.providers.set(paystack.name, paystack);
+    this.providers.set(flutterwave.name, flutterwave);
   }
 
   defaultProvider(): PaymentProvider {
