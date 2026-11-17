@@ -189,6 +189,88 @@ export class ModerationService {
     return this.appealDecisionRepository.find({ where: { appealId }, order: { createdAt: 'ASC' } });
   }
 
+  async getIntegrityReport(admin: User) {
+    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can inspect reviewer integrity signals.');
+    const [fastReviews, repeatedUploaderApprovals, reciprocalPatterns, unusualApprovalRates, repeatedAssignments] = await Promise.all([
+      this.resourceRepository.manager.query(`
+        SELECT a."assignmentId", a."resourceId", r."title" AS "resourceTitle",
+               a."reviewerId", u."academicHandle", u."firstName", u."lastName",
+               EXTRACT(EPOCH FROM (c."createdAt" - a."createdAt")) AS "reviewSeconds"
+        FROM "reviewer_assignment_events" a
+        JOIN "reviewer_assignment_events" c ON c."assignmentId" = a."assignmentId" AND c."eventType" = 'completed'
+        JOIN "resources" r ON r."id" = a."resourceId"
+        JOIN "users" u ON u."id" = a."reviewerId"
+        WHERE a."eventType" = 'assigned' AND c."createdAt" - a."createdAt" < INTERVAL '120 seconds'
+        ORDER BY c."createdAt" DESC LIMIT 50
+      `),
+      this.resourceRepository.manager.query(`
+        SELECT m."reviewerId", reviewer."academicHandle", r."uploaderId", uploader."academicHandle" AS "uploaderHandle",
+               COUNT(*)::int AS "approvedCount"
+        FROM "moderation_reviews" m
+        JOIN "resources" r ON r."id" = m."resourceId"
+        JOIN "users" reviewer ON reviewer."id" = m."reviewerId"
+        JOIN "users" uploader ON uploader."id" = r."uploaderId"
+        WHERE m."status" = 'approved' AND r."uploaderId" IS NOT NULL
+        GROUP BY m."reviewerId", reviewer."academicHandle", r."uploaderId", uploader."academicHandle"
+        HAVING COUNT(*) >= 3
+        ORDER BY COUNT(*) DESC LIMIT 50
+      `),
+      this.resourceRepository.manager.query(`
+        WITH approvals AS (
+          SELECT m."reviewerId", r."uploaderId", COUNT(*)::int AS "count"
+          FROM "moderation_reviews" m
+          JOIN "resources" r ON r."id" = m."resourceId"
+          WHERE m."status" = 'approved' AND r."uploaderId" IS NOT NULL
+          GROUP BY m."reviewerId", r."uploaderId"
+        )
+        SELECT a."reviewerId" AS "reviewerA", a."uploaderId" AS "uploaderA",
+               b."reviewerId" AS "reviewerB", b."uploaderId" AS "uploaderB",
+               a."count" AS "approvalsA", b."count" AS "approvalsB"
+        FROM approvals a JOIN approvals b
+          ON a."reviewerId" = b."uploaderId"
+         AND a."uploaderId" = b."reviewerId"
+         AND a."reviewerId" < a."uploaderId"
+        WHERE a."count" >= 1 AND b."count" >= 1
+        LIMIT 50
+      `),
+      this.resourceRepository.manager.query(`
+        SELECT m."reviewerId", u."academicHandle", COUNT(*)::int AS "totalReviews",
+               SUM(CASE WHEN m."status" = 'approved' THEN 1 ELSE 0 END)::int AS "approvedReviews",
+               ROUND(100.0 * SUM(CASE WHEN m."status" = 'approved' THEN 1 ELSE 0 END) / NULLIF(COUNT(*), 0), 1) AS "approvalRate"
+        FROM "moderation_reviews" m
+        JOIN "users" u ON u."id" = m."reviewerId"
+        GROUP BY m."reviewerId", u."academicHandle"
+        HAVING COUNT(*) >= 10 AND (
+          SUM(CASE WHEN m."status" = 'approved' THEN 1 ELSE 0 END)::float / COUNT(*) >= 0.95
+          OR SUM(CASE WHEN m."status" = 'approved' THEN 1 ELSE 0 END)::float / COUNT(*) <= 0.10
+        )
+        ORDER BY COUNT(*) DESC LIMIT 50
+      `),
+      this.resourceRepository.manager.query(`
+        SELECT e."resourceId", r."title" AS "resourceTitle", COUNT(*)::int AS "assignmentCount",
+               COUNT(DISTINCT e."reviewerId")::int AS "distinctReviewers"
+        FROM "reviewer_assignment_events" e
+        JOIN "resources" r ON r."id" = e."resourceId"
+        WHERE e."eventType" = 'assigned'
+        GROUP BY e."resourceId", r."title"
+        HAVING COUNT(*) >= 3
+        ORDER BY COUNT(*) DESC LIMIT 50
+      `),
+    ]);
+    const alerts = [
+      ...fastReviews.map(row => ({ type: 'unusually_fast_review', severity: 'review', details: row })),
+      ...repeatedUploaderApprovals.map(row => ({ type: 'concentrated_approvals_for_uploader', severity: 'review', details: row })),
+      ...reciprocalPatterns.map(row => ({ type: 'possible_reciprocal_approval_pattern', severity: 'high_review', details: row })),
+      ...unusualApprovalRates.map(row => ({ type: 'unusual_reviewer_approval_rate', severity: 'review', details: row })),
+      ...repeatedAssignments.map(row => ({ type: 'repeated_resource_reassignment', severity: 'review', details: row })),
+    ];
+    return {
+      generatedAt: new Date().toISOString(),
+      policy: 'These are investigation signals only. They do not establish collusion or misconduct and must not trigger automatic sanctions.',
+      alerts,
+    };
+  }
+
   async getConflictDeclarations(viewer: User) {
     if (viewer.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can inspect reviewer conflict declarations.');
     return this.resourceRepository.manager.query(`
