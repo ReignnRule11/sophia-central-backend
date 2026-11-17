@@ -7,9 +7,9 @@ export class CreateModerationReviewOverrides2026111700009 implements MigrationIn
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "moderation_review_overrides" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        "resourceId" uuid NOT NULL REFERENCES "resources"("id") ON DELETE CASCADE,
-        "actorId" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
-        "originalReviewerId" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
+        "resourceId" uuid NOT NULL,
+        "actorId" uuid NOT NULL,
+        "originalReviewerId" uuid NOT NULL,
         "originalStatus" varchar(24) NOT NULL,
         "newStatus" varchar(24) NOT NULL CHECK ("newStatus" IN ('approved', 'rejected', 'revision_requested')),
         "reason" text NOT NULL,
