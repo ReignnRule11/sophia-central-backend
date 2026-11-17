@@ -13,6 +13,7 @@ import { PaymentLedgerAdjustment } from './entities/payment-ledger-adjustment.en
 import { PaymentReconciliationRun } from './entities/payment-reconciliation-run.entity';
 import { PaymentPayout } from './entities/payment-payout.entity';
 import { PaymentPayoutBeneficiary } from './entities/payment-payout-beneficiary.entity';
+import { PaymentPayoutReconciliationRun } from './entities/payment-payout-reconciliation-run.entity';
 import { LecturerPayoutsService } from './lecturer-payouts.service';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
@@ -21,7 +22,7 @@ import { PaystackProvider } from './providers/paystack.provider';
 import { PAYMENT_PROVIDER } from './providers/payment-provider.interface';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PaymentTransaction, PaymentLedgerEntry, ResourcePurchase, PointWallet, PointTransaction, Resource, User, PaymentRefund, PaymentDispute, PaymentLedgerAdjustment, PaymentReconciliationRun, PaymentPayout, PaymentPayoutBeneficiary])],
+  imports: [TypeOrmModule.forFeature([PaymentTransaction, PaymentLedgerEntry, ResourcePurchase, PointWallet, PointTransaction, Resource, User, PaymentRefund, PaymentDispute, PaymentLedgerAdjustment, PaymentReconciliationRun, PaymentPayout, PaymentPayoutBeneficiary, PaymentPayoutReconciliationRun])],
   controllers: [PaymentsController],
   providers: [
     PaystackProvider,
