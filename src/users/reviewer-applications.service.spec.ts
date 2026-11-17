@@ -22,7 +22,7 @@ describe('ReviewerApplicationsService', () => {
     query: jest.fn(),
   };
   const dataSource = {
-    transaction: jest.fn(async (callback: (manager: typeof manager) => Promise<unknown>) => callback(manager)),
+    transaction: jest.fn(async (callback: (manager: any) => Promise<unknown>) => callback(manager)),
   };
   let service: ReviewerApplicationsService;
 
