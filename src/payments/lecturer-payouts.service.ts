@@ -39,15 +39,29 @@ export class LecturerPayoutsService {
     if (!/^\d{10}$/.test(input.accountNumber || '') || !/^[A-Za-z0-9_-]{2,16}$/.test(input.bankCode || '')) {
       throw new BadRequestException('Provide a valid 10-digit Nigerian account number and bank code.');
     }
+    const existing = await this.beneficiaries.findOne({ where: { lecturerUserId: user.id } });
+    if (existing) {
+      const activePayout = await this.payouts.findOne({ where: { lecturerUserId: user.id, status: PaymentPayoutStatus.REQUESTED } });
+      const inFlight = await this.payouts.createQueryBuilder('payout')
+        .where('payout.lecturerUserId = :userId', { userId: user.id })
+        .andWhere('payout.status IN (:...statuses)', { statuses: [PaymentPayoutStatus.PROCESSING, PaymentPayoutStatus.PENDING, PaymentPayoutStatus.OTP] })
+        .getOne();
+      if (activePayout || inFlight) throw new ConflictException('Bank details cannot be changed while a payout is awaiting approval or settlement.');
+    }
     const resolved = await this.provider.resolveBankAccount(input.accountNumber, input.bankCode);
     const recipient = await this.provider.createTransferRecipient({
       name: resolved.accountName, accountNumber: resolved.accountNumber, bankCode: resolved.bankCode,
     });
-    const beneficiary = await this.beneficiaries.save(this.beneficiaries.create({
-      lecturerUserId: user.id, provider: this.provider.name, recipientCode: recipient.recipientCode,
-      accountName: recipient.accountName, bankName: resolved.bankName,
-      accountLast4: resolved.accountNumber.slice(-4), currency: 'NGN',
-    }));
+    const beneficiary = existing
+      ? await this.beneficiaries.save(Object.assign(existing, {
+          provider: this.provider.name, recipientCode: recipient.recipientCode, accountName: recipient.accountName,
+          bankName: resolved.bankName, accountLast4: resolved.accountNumber.slice(-4), currency: 'NGN',
+        }))
+      : await this.beneficiaries.save(this.beneficiaries.create({
+          lecturerUserId: user.id, provider: this.provider.name, recipientCode: recipient.recipientCode,
+          accountName: recipient.accountName, bankName: resolved.bankName,
+          accountLast4: resolved.accountNumber.slice(-4), currency: 'NGN',
+        }));
     return { id: beneficiary.id, accountName: beneficiary.accountName, bankName: beneficiary.bankName,
       accountLast4: beneficiary.accountLast4, currency: beneficiary.currency, verified: true };
   }
