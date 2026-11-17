@@ -21,7 +21,7 @@ async function main() {
       'users', 'resources', 'institutions', 'faculties', 'departments',
       'courses', 'course_topics', 'moderation_reviews', 'point_wallets',
       'point_transactions', 'file_uploads', 'referrals', 'notifications',
-      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests',
+      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events', 'resource_review_appeals', 'resource_review_appeal_decisions', 'moderation_review_overrides',
     ];
     for (const table of requiredTables) {
       const result = await client.query('SELECT to_regclass($1) AS name', [`public.${table}`]);
@@ -50,6 +50,15 @@ async function main() {
     assert.ok(migrationNames.includes('CreateSupportRequests2026103100001'), 'support request migration should be applied');
     assert.ok(migrationNames.includes('SophisCommercialFoundation2026111200001'), 'Sophis commercial foundation migration should be applied');
     assert.ok(migrationNames.includes('AddAccountLifecycle2026111300001'), 'account lifecycle migration should be applied');
+    assert.ok(migrationNames.includes('CreateReviewerApplications2026111700001'), 'reviewer application migration should be applied');
+    assert.ok(migrationNames.includes('CreateReviewerApplicationDecisionAudit2026111700002'), 'reviewer decision audit migration should be applied');
+    assert.ok(migrationNames.includes('AddAcademicAccountTransitions2026111700003'), 'academic account transition migration should be applied');
+    assert.ok(migrationNames.includes('AddReviewerConflictDeclarations2026111700004'), 'reviewer conflict declaration migration should be applied');
+    assert.ok(migrationNames.includes('AddResourceContributorIdentities2026111700005'), 'resource contributor identity migration should be applied');
+    assert.ok(migrationNames.includes('AddReviewerApprovedScope2026111700006'), 'reviewer approved scope migration should be applied');
+    assert.ok(migrationNames.includes('CreateResourceReviewAppeals2026111700007'), 'resource appeal migration should be applied');
+    assert.ok(migrationNames.includes('CreateReviewerAssignmentEvents2026111700008'), 'reviewer assignment event migration should be applied');
+    assert.ok(migrationNames.includes('CreateModerationReviewOverrides2026111700009'), 'moderation override migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
@@ -63,6 +72,54 @@ async function main() {
        VALUES ('CI migration smoke resource', 'other', 'pending', $1) RETURNING id`,
       [userId],
     );
+
+    const reviewerApplication = await client.query(
+      `INSERT INTO reviewer_applications ("userId", status, qualifications, "expertiseAreas", "academicLevels", "reviewExperience", "conflictDeclaration", "policyAccepted")
+       VALUES ($1, 'submitted', '["MSc"]'::jsonb, '["Research methods"]'::jsonb, '["Postgraduate"]'::jsonb, 'CI reviewer experience', 'CI conflict declaration', true)
+       RETURNING id`,
+      [userId],
+    );
+    const reviewerApplicationId = reviewerApplication.rows[0].id;
+    const auditAssignmentId = '00000000-0000-4000-8000-000000000123';
+    const auditInsertResults = await Promise.all([
+      client.query(
+        `INSERT INTO reviewer_application_decisions ("applicationId", "actorId", "fromStatus", "toStatus", note)
+         VALUES ($1, $2, 'submitted', 'under_review', 'CI decision audit')`,
+        [reviewerApplicationId, userId],
+      ),
+      client.query(
+        `INSERT INTO academic_account_transitions ("userId", "fromAccountType", "toAccountType", "actorId")
+         VALUES ($1, 'external_reviewer', 'student', $1)`,
+        [userId],
+      ),
+      client.query(
+        `INSERT INTO reviewer_conflict_declarations ("assignmentId", "resourceId", "reviewerId", declaration)
+         VALUES ($1, $2, $3, 'no_conflict')`,
+        [auditAssignmentId, resource.rows[0].id, userId],
+      ),
+      client.query(
+        `INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType")
+         VALUES ($1, $2, $3, $3, 'assigned')`,
+        [auditAssignmentId, resource.rows[0].id, userId],
+      ),
+      client.query(
+        `INSERT INTO resource_review_appeals ("resourceId", "appellantId", "originalReviewId", "originalReviewerId", "appealType", reason)
+         VALUES ($1, $2, $3, $2, 'reconsideration', 'CI appeal audit')`,
+        [resource.rows[0].id, userId, '00000000-0000-4000-8000-000000000456'],
+      ),
+      client.query(
+        `INSERT INTO resource_review_appeal_decisions ("appealId", "actorId", "fromStatus", "toStatus", note)
+         SELECT id, $2, 'submitted', 'under_review', 'CI appeal decision audit'
+         FROM resource_review_appeals WHERE "resourceId" = $1`,
+        [resource.rows[0].id, userId],
+      ),
+      client.query(
+        `INSERT INTO moderation_review_overrides ("resourceId", "actorId", "originalReviewerId", "originalStatus", "newStatus", reason)
+         VALUES ($1, $2, $2, 'rejected', 'approved', 'CI override audit')`,
+        [resource.rows[0].id, userId],
+      ),
+    ]);
+    assert.equal(auditInsertResults.length, 7, 'all reviewer audit rows should be insertable');
 
     const session = await client.query(
       `INSERT INTO ai_sessions ("userId", "resourceId", title)
@@ -97,6 +154,40 @@ async function main() {
     // Remove the pending resource explicitly; approved shared content must survive account deletion.
     await client.query('DELETE FROM resources WHERE id = $1', [resource.rows[0].id]);
     await client.query('DELETE FROM users WHERE id = $1', [userId]);
+    const auditTables = [
+      'reviewer_application_decisions',
+      'academic_account_transitions',
+      'reviewer_conflict_declarations',
+      'reviewer_assignment_events',
+      'resource_review_appeals',
+      'resource_review_appeal_decisions',
+      'moderation_review_overrides',
+    ];
+    for (const table of auditTables) {
+      const auditRows = await client.query(`SELECT id FROM "${table}" WHERE "${table}" = $1`, [resource.rows[0].id]).catch(() => null);
+      if (table === 'reviewer_application_decisions') {
+        const rows = await client.query('SELECT id FROM reviewer_application_decisions WHERE "applicationId" = $1', [reviewerApplicationId]);
+        assert.equal(rows.rowCount, 1, 'reviewer application decision audit should survive user deletion');
+      } else if (table === 'academic_account_transitions') {
+        const rows = await client.query('SELECT id FROM academic_account_transitions WHERE "userId" = $1', [userId]);
+        assert.equal(rows.rowCount, 1, 'academic transition audit should survive user deletion');
+      } else if (table === 'reviewer_conflict_declarations') {
+        const rows = await client.query('SELECT id FROM reviewer_conflict_declarations WHERE "resourceId" = $1', [resource.rows[0].id]);
+        assert.equal(rows.rowCount, 1, 'conflict audit should survive resource and user deletion');
+      } else if (table === 'reviewer_assignment_events') {
+        const rows = await client.query('SELECT id FROM reviewer_assignment_events WHERE "resourceId" = $1', [resource.rows[0].id]);
+        assert.equal(rows.rowCount, 1, 'assignment audit should survive resource and user deletion');
+      } else if (table === 'resource_review_appeals') {
+        const rows = await client.query('SELECT id FROM resource_review_appeals WHERE "resourceId" = $1', [resource.rows[0].id]);
+        assert.equal(rows.rowCount, 1, 'appeal record should remain available for audit after source deletion');
+      } else if (table === 'resource_review_appeal_decisions') {
+        const rows = await client.query('SELECT id FROM resource_review_appeal_decisions');
+        assert.equal(rows.rowCount, 1, 'appeal decision audit should survive user deletion');
+      } else if (table === 'moderation_review_overrides') {
+        const rows = await client.query('SELECT id FROM moderation_review_overrides WHERE "resourceId" = $1', [resource.rows[0].id]);
+        assert.equal(rows.rowCount, 1, 'moderation override audit should survive resource and user deletion');
+      }
+    }
     const supportRow = await client.query('SELECT id FROM support_requests WHERE id = $1', [supportRequestId]);
     assert.equal(supportRow.rowCount, 0, 'deleting a user should cascade-delete support requests');
     const resetToken = await client.query('SELECT id FROM password_reset_tokens WHERE id = $1', [reset.rows[0].id]);
