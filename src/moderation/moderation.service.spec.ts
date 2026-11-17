@@ -218,7 +218,7 @@ describe('ModerationService academic reviewer workflow', () => {
     };
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
     resource.assignedReviewerId = reviewer.id;
-    transactionManager.findOne.mockResolvedValueOnce(resource).mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource.uploader);
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource).mockResolvedValueOnce(resource.uploader);
     resourceRepository.save.mockImplementation(async value => value);
     pointsService.processResourceApprovalReward.mockResolvedValue(false);
 
@@ -248,7 +248,7 @@ describe('ModerationService academic reviewer workflow', () => {
       uploader: { id: 'lecturer-1' },
     };
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
-    transactionManager.findOne.mockResolvedValueOnce(resource).mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource.uploader);
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource).mockResolvedValueOnce(resource.uploader);
     userRepository.find.mockResolvedValue([{ id: 'moderator-1' }]);
     resourceRepository.save.mockImplementation(async (value) => value);
 
