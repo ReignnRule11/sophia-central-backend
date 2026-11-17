@@ -50,10 +50,24 @@ export class ProviderNeutralPayments2026111700001 implements MigrationInterface 
       )
     `);
     await queryRunner.query(`CREATE INDEX IDX_resource_purchases_resource ON resource_purchases ("resourceId")`);
+    await queryRunner.query(`
+      CREATE FUNCTION prevent_payment_ledger_mutation() RETURNS trigger AS $
+      BEGIN
+        RAISE EXCEPTION 'Payment ledger entries are append-only; create a compensating entry instead.';
+      END;
+      $ LANGUAGE plpgsql
+    `);
+    await queryRunner.query(`
+      CREATE TRIGGER TRG_payment_ledger_immutable
+      BEFORE UPDATE OR DELETE ON payment_ledger_entries
+      FOR EACH ROW EXECUTE FUNCTION prevent_payment_ledger_mutation()
+    `);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`DROP TABLE resource_purchases`);
+    await queryRunner.query(`DROP TRIGGER TRG_payment_ledger_immutable ON payment_ledger_entries`);
+    await queryRunner.query(`DROP FUNCTION prevent_payment_ledger_mutation()`);
     await queryRunner.query(`DROP TABLE payment_ledger_entries`);
     await queryRunner.query(`DROP TABLE payment_transactions`);
   }
