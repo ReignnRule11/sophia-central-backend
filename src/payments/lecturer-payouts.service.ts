@@ -130,9 +130,10 @@ export class LecturerPayoutsService {
       await manager.findOne(User, { where: { id: user.id }, lock: { mode: 'pessimistic_write' } });
       const beneficiary = await manager.findOne(PaymentPayoutBeneficiary, { where: { lecturerUserId: user.id } });
       if (!beneficiary) throw new ConflictException('Verify and save a bank beneficiary before requesting a payout.');
+      const provider = this.providers.defaultProvider();
+      if (beneficiary.provider !== provider.name) throw new ConflictException('Your saved bank beneficiary belongs to a different payment provider. Re-verify your beneficiary with the active provider.');
       const available = await this.availableBalance(manager, user.id);
       if (BigInt(amountMinor) > available) throw new ConflictException('Payout amount exceeds the available lecturer balance.');
-      const provider = this.providers.defaultProvider();
       const payout = manager.create(PaymentPayout, {
         lecturerUserId: user.id, beneficiaryId: beneficiary.id, reference: `sophis-payout-${randomBytes(16).toString('hex')}`,
         provider: provider.name, amountMinor, currency: 'NGN', status: PaymentPayoutStatus.REQUESTED,
