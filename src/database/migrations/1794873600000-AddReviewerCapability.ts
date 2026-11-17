@@ -12,6 +12,9 @@ export class AddReviewerCapability1794873600000 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" TYPE varchar(32) USING "role"::text`);
     await queryRunner.query(`ALTER TABLE "users" ALTER COLUMN "role" SET DEFAULT 'student'`);
     await queryRunner.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "hasReviewerAccess" boolean NOT NULL DEFAULT false`);
+    // Older production schemas may not have received the reviewerBaseRole
+    // property even though the current entity and service already depend on it.
+    await queryRunner.query(`ALTER TABLE "users" ADD COLUMN IF NOT EXISTS "reviewerBaseRole" varchar(16) NULL`);
 
     // Restore the underlying academic account type for legacy users whose
     // old REVIEWER role replaced their student/lecturer role. External
