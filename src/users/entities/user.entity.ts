@@ -98,7 +98,6 @@ export class User {
   reviewerAcademicLevels!: string[];
 
   @Column({ type: 'varchar', length: 40, nullable: true })
-  reviewerClassification?: 'student_academic_reviewer' | 'academic_reviewer' | 'senior_academic_reviewer' | null;
 
   @Column({ type: 'varchar', length: 16, nullable: true })
   reviewerBaseRole?: 'student' | 'lecturer';
