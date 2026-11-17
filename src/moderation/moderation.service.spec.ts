@@ -56,6 +56,21 @@ describe('ModerationService academic reviewer workflow', () => {
   });
 
 
+  it('allows an approved Student account to use its additional reviewer capability', async () => {
+    const reviewer = {
+      id: 'student-reviewer-1',
+      role: UserRole.STUDENT,
+      hasReviewerAccess: true,
+      reviewerStatus: 'approved',
+      isSuspended: false,
+    } as User;
+    resourceRepository.find.mockResolvedValue([]);
+    await expect(service.getQueue(reviewer)).resolves.toEqual([]);
+    expect(resourceRepository.find).toHaveBeenCalledWith(expect.objectContaining({
+      where: { moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: 'student-reviewer-1' },
+    }));
+  });
+
   it('does not return queue items to suspended reviewers', async () => {
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: true } as User;
     await expect(service.getQueue(reviewer)).resolves.toEqual([]);
