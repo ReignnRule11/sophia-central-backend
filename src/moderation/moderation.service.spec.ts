@@ -33,6 +33,7 @@ describe('ModerationService academic reviewer workflow', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    transactionManager.query.mockResolvedValue([{ declaration: 'no_conflict' }]);
     pointsService.processResourceApprovalReward.mockResolvedValue(true);
     service = new ModerationService(
       resourceRepository as any,
@@ -211,8 +212,7 @@ describe('ModerationService academic reviewer workflow', () => {
       uploader: { id: 'lecturer-1' },
     };
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
-    resourceRepository.findOne.mockResolvedValue(resource);
-    userRepository.findOne.mockResolvedValue(reviewer);
+    transactionManager.findOne.mockResolvedValueOnce(resource).mockResolvedValueOnce(reviewer);
     userRepository.find.mockResolvedValue([{ id: 'moderator-1' }]);
     resourceRepository.save.mockImplementation(async (value) => value);
 
