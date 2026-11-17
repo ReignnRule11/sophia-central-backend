@@ -16,6 +16,14 @@ export class CreatePaymentLedgerAdjustments2026111700003 implements MigrationInt
         UNIQUE ("refundId", kind)
       )
     `);
+    await q.query(`
+      CREATE TRIGGER TRG_payment_ledger_adjustments_immutable
+      BEFORE UPDATE OR DELETE ON payment_ledger_adjustments
+      FOR EACH ROW EXECUTE FUNCTION prevent_payment_ledger_mutation()
+    `);
   }
-  async down(q: QueryRunner): Promise<void> { await q.query('DROP TABLE payment_ledger_adjustments'); }
+  async down(q: QueryRunner): Promise<void> {
+    await q.query('DROP TRIGGER TRG_payment_ledger_adjustments_immutable ON payment_ledger_adjustments');
+    await q.query('DROP TABLE payment_ledger_adjustments');
+  }
 }
