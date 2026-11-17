@@ -102,6 +102,14 @@ export class ModerationService {
 
   async assignReviewer(resourceId: string, reviewerId: string, adminId: string) {
     const assignment = await this.resourceRepository.manager.transaction(async manager => {
+      const reviewer = await manager.findOne(User, {
+        where: { id: reviewerId },
+        lock: { mode: 'pessimistic_write' },
+      });
+      if (!reviewer || !hasReviewerCapability(reviewer) || reviewer.isSuspended) {
+        throw new BadRequestException('Select an active, administrator-approved academic reviewer');
+      }
+
       const resource = await manager.findOne(Resource, {
         where: { id: resourceId },
         lock: { mode: 'pessimistic_write' },
@@ -109,14 +117,6 @@ export class ModerationService {
       if (!resource) throw new NotFoundException('Resource not found');
       if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
         throw new ConflictException('Only pending resources can be assigned for review');
-      }
-
-      const reviewer = await manager.findOne(User, {
-        where: { id: reviewerId },
-        lock: { mode: 'pessimistic_write' },
-      });
-      if (!reviewer || !hasReviewerCapability(reviewer) || reviewer.isSuspended) {
-        throw new BadRequestException('Select an active, administrator-approved academic reviewer');
       }
       if (resource.uploaderId === reviewer.id) throw new BadRequestException('A reviewer cannot be assigned to review their own uploaded resource.');
       if (resource.contributorUserIds?.includes(reviewer.id)) throw new BadRequestException('A reviewer cannot be assigned to review material they co-authored or contributed to.');
@@ -180,6 +180,13 @@ export class ModerationService {
     }
 
     const result = await this.resourceRepository.manager.transaction(async manager => {
+      const reviewerRecord = await manager.findOne(User, {
+        where: { id: reviewer.id },
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (!reviewerRecord || !hasReviewerCapability(reviewerRecord) || reviewerRecord.isSuspended) {
+        throw new ForbiddenException('Your reviewer access is no longer active.');
+      }
       const resource = await manager.findOne(Resource, {
         where: { id },
         lock: { mode: 'pessimistic_write' },
@@ -240,6 +247,13 @@ export class ModerationService {
     }
 
     const result = await this.resourceRepository.manager.transaction(async manager => {
+      const reviewerRecord = await manager.findOne(User, {
+        where: { id: reviewer.id },
+        lock: { mode: 'pessimistic_read' },
+      });
+      if (!reviewerRecord || !hasReviewerCapability(reviewerRecord) || reviewerRecord.isSuspended) {
+        throw new ForbiddenException('Your reviewer access is no longer active.');
+      }
       const resource = await manager.findOne(Resource, {
         where: { id },
         lock: { mode: 'pessimistic_write' },
@@ -254,15 +268,8 @@ export class ModerationService {
         throw new ForbiddenException('This resource is not assigned to your reviewer account');
       }
 
-      const reviewerRecord = await manager.findOne(User, {
-        where: { id: reviewer.id },
-        lock: { mode: 'pessimistic_read' },
-      });
-      if (!reviewerRecord || !hasReviewerCapability(reviewerRecord) || reviewerRecord.isSuspended) {
-        throw new ForbiddenException('Your reviewer access is no longer active.');
-      }
       const uploader = resource.uploaderId
-        ? await manager.findOne(User, { where: { id: resource.uploaderId }, lock: { mode: 'pessimistic_read' } })
+        ? await manager.findOne(User, { where: { id: resource.uploaderId } })
         : null;
 
       const completedAssignmentId = resource.reviewAssignmentId;
