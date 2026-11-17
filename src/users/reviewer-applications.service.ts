@@ -27,7 +27,7 @@ export class ReviewerApplicationsService {
     });
     if (pending) throw new ConflictException('You already have a submitted reviewer application awaiting review.');
     const latest = await this.applications.findOne({ where: { userId: user.id }, order: { createdAt: 'DESC' } });
-    if (latest && [ReviewerApplicationStatus.UNDER_REVIEW, ReviewerApplicationStatus.MORE_INFORMATION_REQUIRED].includes(latest.status)) {
+    if (latest && [ReviewerApplicationStatus.SUBMITTED, ReviewerApplicationStatus.UNDER_REVIEW].includes(latest.status)) {
       throw new ConflictException('Your existing reviewer application is being processed. Check its status before submitting again.');
     }
     if (latest?.status === ReviewerApplicationStatus.APPROVED) {
