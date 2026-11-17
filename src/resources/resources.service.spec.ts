@@ -80,7 +80,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
 
   it('does not allow an academic reviewer to download resources', async () => {
     const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
-    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, storageCleanup);
+    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
     await expect(downloadService.downloadForUser('resource-1', { id: 'reviewer-1', role: UserRole.REVIEWER } as any))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(resourceRepository.findOne).not.toHaveBeenCalled();
@@ -128,6 +128,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       {} as any,
       activityRepository,
       savedRepository,
+      resourcePurchaseRepository,
       storageCleanup,
     );
 
