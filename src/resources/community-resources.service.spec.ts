@@ -16,7 +16,11 @@ describe('CommunityResourcesService', () => {
     create: jest.fn((_entity, value) => value),
     save: jest.fn(async (_entity, value) => value),
   };
-  resourceRepository.manager = { transaction: jest.fn(async (callback) => callback(transactionManager)) };
+  resourceRepository.manager = {
+    create: jest.fn((_entity, value) => value),
+    save: jest.fn(async (_entity, value) => value),
+    transaction: jest.fn(async (callback) => callback(transactionManager)),
+  };
   const storage: any = {
     getKeyFromPublicUrl: jest.fn(),
     createPresignedDownloadUrl: jest.fn(),
