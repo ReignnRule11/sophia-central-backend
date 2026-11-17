@@ -72,6 +72,22 @@ describe('AuthService', () => {
 
   afterEach(() => jest.restoreAllMocks());
 
+  it('routes an existing account to sign-in without disclosing its role', async () => {
+    users.findByEmail.mockResolvedValue(user as never);
+    users.findByAcademicHandle.mockResolvedValue(null);
+
+    await expect(service.checkReviewerRegistrationIntent('LEARNER@example.com', 'learner_handle'))
+      .resolves.toEqual({ requiresSignIn: true, signInIdentifier: 'learner@example.com' });
+  });
+
+  it('allows an unregistered identity to continue to External Reviewer registration', async () => {
+    users.findByEmail.mockResolvedValue(null);
+    users.findByAcademicHandle.mockResolvedValue(null);
+
+    await expect(service.checkReviewerRegistrationIntent('new@example.com', 'new_handle'))
+      .resolves.toEqual({ requiresSignIn: false });
+  });
+
   it('completes onboarding even if referral reward processing fails', async () => {
     users.findOne.mockResolvedValue({ ...user, isProfileComplete: false } as never);
     users.update.mockResolvedValue({ ...user, isProfileComplete: true } as never);
