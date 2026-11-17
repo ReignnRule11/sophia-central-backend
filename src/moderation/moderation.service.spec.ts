@@ -25,6 +25,8 @@ describe('ModerationService academic reviewer workflow', () => {
     save: jest.fn((value) => Promise.resolve({ id: 'review-1', ...value })),
   };
   const userRepository = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
+  const appealRepository = { findOne: jest.fn().mockResolvedValue(null) };
+  const appealDecisionRepository = { findOne: jest.fn(), find: jest.fn(), create: jest.fn(value => value), save: jest.fn() };
   const notificationsService = { createNotification: jest.fn().mockResolvedValue(undefined) };
   const pointsService = { processResourceApprovalReward: jest.fn().mockResolvedValue(true) };
   let service: ModerationService;
@@ -36,6 +38,8 @@ describe('ModerationService academic reviewer workflow', () => {
       resourceRepository as any,
       reviewRepository as any,
       userRepository as any,
+      appealRepository as any,
+      appealDecisionRepository as any,
       notificationsService as any,
       pointsService as any,
     );
@@ -63,7 +67,7 @@ describe('ModerationService academic reviewer workflow', () => {
       moderationStatus: ResourceModerationStatus.PENDING,
     });
     userRepository.findOne.mockResolvedValue({ id: 'user-1', role: UserRole.LECTURER, reviewerExpertise: ['Biology'] });
-    await expect(service.assignReviewer('resource-1', 'user-1')).rejects.toBeInstanceOf(BadRequestException);
+    await expect(service.assignReviewer('resource-1', 'user-1', 'admin-1')).rejects.toBeInstanceOf(BadRequestException);
     expect(resourceRepository.save).not.toHaveBeenCalled();
   });
 
@@ -84,8 +88,12 @@ describe('ModerationService academic reviewer workflow', () => {
     });
     resourceRepository.save.mockImplementation(async value => value);
 
-    await service.assignReviewer('resource-1', 'reviewer-1');
+    await service.assignReviewer('resource-1', 'reviewer-1', 'admin-1');
 
+    expect(resourceRepository.manager.query).toHaveBeenCalledWith(
+      'INSERT INTO reviewer_assignment_events (\"assignmentId\", \"resourceId\", \"reviewerId\", \"actorId\", \"eventType\") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
+      expect.arrayContaining(['resource-1', 'reviewer-1', 'admin-1', 'assigned']),
+    );
     expect(notificationsService.createNotification).toHaveBeenCalledWith(
       'reviewer-1',
       'resource_review_assigned',
