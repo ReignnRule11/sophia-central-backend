@@ -413,7 +413,7 @@ export class AuthService {
     return { saved: true };
   }
 
-  async checkReviewerRegistrationIntent(email: string, academicHandle: string): Promise<{ requiresSignIn: boolean }> {
+  async checkReviewerRegistrationIntent(email: string, academicHandle: string): Promise<{ requiresSignIn: boolean; signInIdentifier?: string }> {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedHandle = academicHandle.trim().replace(/^@+/, '').toLowerCase();
     const [userByEmail, userByHandle, preAccount, draftByEmail, draftByHandle] = await Promise.all([
@@ -423,7 +423,12 @@ export class AuthService {
       this.registrationDrafts.findOne({ where: { email: normalizedEmail } }),
       this.registrationDrafts.findOne({ where: { academicHandle: normalizedHandle } }),
     ]);
-    return { requiresSignIn: Boolean(userByEmail || userByHandle || preAccount || draftByEmail || draftByHandle) };
+    const signInIdentifier = userByEmail || preAccount || draftByEmail
+      ? normalizedEmail
+      : userByHandle || draftByHandle
+        ? normalizedHandle
+        : undefined;
+    return { requiresSignIn: Boolean(signInIdentifier), ...(signInIdentifier ? { signInIdentifier } : {}) };
   }
 
   async checkAcademicHandleAvailability(handle: string): Promise<{ available: boolean; message: string }> {
