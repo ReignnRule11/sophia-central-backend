@@ -51,6 +51,7 @@ export class UsersService {
     return this.usersRepository.save(this.usersRepository.create({
       ...data,
       ...(institution ? { institution: institution.name } : {}),
+      academicAccountType: data.academicAccountType ?? (data.role === UserRole.STUDENT ? 'student' : data.role === UserRole.LECTURER ? 'lecturer' : data.role === UserRole.REVIEWER ? 'external_reviewer' : undefined),
       uniqueId,
     }));
   }
@@ -71,6 +72,7 @@ export class UsersService {
     return manager.getRepository(User).save(manager.getRepository(User).create({
       ...data,
       ...(institution ? { institution: institution.name } : {}),
+      academicAccountType: data.academicAccountType ?? (data.role === UserRole.STUDENT ? 'student' : data.role === UserRole.LECTURER ? 'lecturer' : data.role === UserRole.REVIEWER ? 'external_reviewer' : undefined),
       uniqueId,
     }));
   }
