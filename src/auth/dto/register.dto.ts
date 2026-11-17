@@ -30,7 +30,7 @@ export class RegisterDto {
   referralCode?: string;
 
   @IsOptional()
-  @IsIn([UserRole.STUDENT, UserRole.LECTURER], { message: 'Role must be student or lecturer' })
+  @IsIn([UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER], { message: 'Role must be student, lecturer or external reviewer' })
   role?: UserRole;
 
 
