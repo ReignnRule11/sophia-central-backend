@@ -145,6 +145,10 @@ describe('ModerationService academic reviewer workflow', () => {
     }, reviewer);
 
     expect(pointsService.processResourceApprovalReward).toHaveBeenCalledWith('resource-student-1');
+    expect(resourceRepository.manager.query).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT declaration FROM reviewer_conflict_declarations'),
+      ['assignment-1', 'reviewer-1'],
+    );
     expect(resourceRepository.manager.transaction).toHaveBeenCalled();
     expect(transactionManager.save).toHaveBeenCalledWith(
       ResourceRewardOutbox,
