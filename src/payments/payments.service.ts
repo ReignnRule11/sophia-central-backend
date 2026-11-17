@@ -224,23 +224,29 @@ export class PaymentsService {
       refund.providerMetadata = { providerStatus: providerRefund.status };
       if (status === PaymentRefundStatus.PROCESSED) {
         refund.processedAt = new Date();
-        const ledger = await manager.find(PaymentLedgerEntry, { where: { paymentId: payment.id } });
-        for (const entry of ledger) {
-          const amount = (BigInt(refund.amountMinor) * BigInt(entry.amountMinor)) / BigInt(payment.amountMinor);
-          if (amount <= 0n) continue;
-          const kind = entry.kind === PaymentLedgerKind.PLATFORM_SHARE
-            ? PaymentLedgerAdjustmentKind.PLATFORM_REFUND : PaymentLedgerAdjustmentKind.LECTURER_REFUND;
-          await manager.createQueryBuilder().insert().into(PaymentLedgerAdjustment).values({
-            refundId: refund.id, paymentId: payment.id, kind, beneficiaryUserId: entry.beneficiaryUserId,
-            amountMinor: amount.toString(), currency: refund.currency,
-          }).orIgnore().execute();
-        }
         const totals = await manager.createQueryBuilder(PaymentRefund, 'refund')
           .select('COALESCE(SUM(CAST(refund.amountMinor AS BIGINT)), 0)', 'total')
           .where('refund.paymentId = :paymentId', { paymentId: payment.id })
-          .andWhere('refund.status = :status OR refund.id = :currentId', { status: PaymentRefundStatus.PROCESSED, currentId: refund.id })
+          .andWhere('(refund.status = :status OR refund.id = :currentId)', { status: PaymentRefundStatus.PROCESSED, currentId: refund.id })
           .getRawOne();
-        if (BigInt(totals?.total || 0) >= BigInt(payment.amountMinor) && payment.resourceId) {
+        const cumulativeRefunded = BigInt(totals?.total || 0);
+        const ledger = await manager.find(PaymentLedgerEntry, { where: { paymentId: payment.id } });
+        for (const entry of ledger) {
+          const kind = entry.kind === PaymentLedgerKind.PLATFORM_SHARE
+            ? PaymentLedgerAdjustmentKind.PLATFORM_REFUND : PaymentLedgerAdjustmentKind.LECTURER_REFUND;
+          const prior = await manager.createQueryBuilder(PaymentLedgerAdjustment, 'adjustment')
+            .select('COALESCE(SUM(CAST(adjustment.amountMinor AS BIGINT)), 0)', 'total')
+            .where('adjustment.paymentId = :paymentId AND adjustment.kind = :kind', { paymentId: payment.id, kind })
+            .getRawOne();
+          const target = (cumulativeRefunded * BigInt(entry.amountMinor)) / BigInt(payment.amountMinor);
+          const delta = target - BigInt(prior?.total || 0);
+          if (delta <= 0n) continue;
+          await manager.createQueryBuilder().insert().into(PaymentLedgerAdjustment).values({
+            refundId: refund.id, paymentId: payment.id, kind, beneficiaryUserId: entry.beneficiaryUserId,
+            amountMinor: delta.toString(), currency: refund.currency,
+          }).orIgnore().execute();
+        }
+        if (cumulativeRefunded >= BigInt(payment.amountMinor) && payment.resourceId) {
           await manager.delete(ResourcePurchase, { paymentId: payment.id });
         }
       }
@@ -254,8 +260,15 @@ export class PaymentsService {
     if (!payment || !disputeId) return;
     const existing = await this.disputes.findOne({ where: { providerDisputeId: disputeId } });
     if (eventName === 'charge.dispute.create' || eventName === 'charge.dispute.remind') {
-      if (existing) return;
       const amount = Number(data.amount);
+      if (existing) {
+        if (eventName === 'charge.dispute.remind' && existing.status === PaymentDisputeStatus.OPEN) {
+          existing.status = PaymentDisputeStatus.UNDER_REVIEW;
+          if (data.due_at) existing.responseDueAt = new Date(data.due_at);
+          await this.disputes.save(existing);
+        }
+        return;
+      }
       const currency = String(data.currency || payment.currency).toUpperCase();
       if (!Number.isSafeInteger(amount) || amount < 1 || currency !== payment.currency) return;
       await this.disputes.save(this.disputes.create({
