@@ -216,7 +216,7 @@ export class ModerationService {
     });
   }
 
-  async assignReviewer(resourceId: string, reviewerId: string) {
+  async assignReviewer(resourceId: string, reviewerId: string, adminId: string) {
     const resource = await this.resourceRepository.findOne({ where: { id: resourceId } });
     if (!resource) throw new NotFoundException('Resource not found');
     if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
@@ -253,9 +253,20 @@ export class ModerationService {
     }))) {
       throw new BadRequestException('The selected reviewer is not approved for this material’s academic level.');
     }
+    if (resource.assignedReviewerId && resource.reviewAssignmentId) {
+      await this.resourceRepository.manager.query(
+        'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
+        [resource.reviewAssignmentId, resource.id, resource.assignedReviewerId, adminId, 'released'],
+      );
+    }
     resource.assignedReviewerId = reviewer.id;
     resource.reviewAssignmentId = randomUUID();
+    const assignmentId = resource.reviewAssignmentId;
     const saved = await this.resourceRepository.save(resource);
+    await this.resourceRepository.manager.query(
+      'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
+      [assignmentId, resource.id, reviewer.id, adminId, 'assigned'],
+    );
     try {
       await this.notificationsService.createNotification(
         reviewer.id,
@@ -294,6 +305,10 @@ export class ModerationService {
     );
 
     if (dto.declaration === 'recuse') {
+      await this.resourceRepository.manager.query(
+        'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
+        [resource.reviewAssignmentId, resource.id, reviewer.id, reviewer.id, 'recused'],
+      );
       resource.assignedReviewerId = null;
       resource.reviewAssignmentId = null;
       await this.resourceRepository.save(resource);
@@ -347,6 +362,7 @@ export class ModerationService {
     const reviewerRecord = await this.userRepository.findOne({ where: { id: reviewer.id } });
     if (!reviewerRecord) throw new NotFoundException('Authenticated reviewer not found');
 
+    const completedAssignmentId = resource.reviewAssignmentId;
     resource.moderationStatus = dto.status;
     resource.isVerified = dto.status === ResourceModerationStatus.APPROVED;
     resource.assignedReviewerId = null;
@@ -363,6 +379,12 @@ export class ModerationService {
         note: dto.note?.trim() || undefined,
       });
       const saved = await manager.save(ModerationReview, review);
+      if (completedAssignmentId) {
+        await manager.query(
+          'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType", "reviewStatus") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6)',
+          [completedAssignmentId, resource.id, reviewer.id, reviewer.id, 'completed', dto.status],
+        );
+      }
 
       if (
         dto.status === ResourceModerationStatus.APPROVED &&
