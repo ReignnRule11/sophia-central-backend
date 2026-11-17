@@ -42,18 +42,30 @@ export class ReviewerApplicationsService {
       throw new BadRequestException('Your existing Student or Lecturer academic affiliation must be complete before applying.');
     }
 
+    const qualifications = [...new Set(dto.qualifications.map(value => value.trim()).filter(Boolean))];
+    const expertiseAreas = [...new Set(dto.expertiseAreas.map(value => value.trim()).filter(Boolean))];
+    const academicLevels = [...new Set(dto.academicLevels.map(value => value.trim()).filter(Boolean))];
+    const reviewExperience = dto.reviewExperience.trim();
+    const conflictDeclaration = dto.conflictDeclaration.trim();
+    if (!qualifications.length || !expertiseAreas.length || !academicLevels.length) {
+      throw new BadRequestException('Add at least one qualification, expertise area and academic level.');
+    }
+    if (reviewExperience.length < 30 || conflictDeclaration.length < 20) {
+      throw new BadRequestException('Provide sufficient review experience and a meaningful conflict-of-interest declaration.');
+    }
+
     const application = this.applications.create({
       userId: user.id,
       status: ReviewerApplicationStatus.SUBMITTED,
-      qualifications: [...new Set(dto.qualifications.map(value => value.trim()).filter(Boolean))],
-      expertiseAreas: [...new Set(dto.expertiseAreas.map(value => value.trim()).filter(Boolean))],
+      qualifications,
+      expertiseAreas,
       institution,
       faculty,
       department,
-      academicLevels: [...new Set(dto.academicLevels.map(value => value.trim()).filter(Boolean))],
-      reviewExperience: dto.reviewExperience.trim(),
+      academicLevels,
+      reviewExperience,
       supportingDocuments: dto.supportingDocuments?.map(value => value.trim()).filter(Boolean),
-      conflictDeclaration: dto.conflictDeclaration.trim(),
+      conflictDeclaration,
       policyAccepted: true,
     });
 
@@ -104,7 +116,7 @@ export class ReviewerApplicationsService {
   async decide(applicationId: string, admin: User, dto: ReviewerApplicationDecisionDto) {
     if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only an administrator can decide reviewer applications.');
     if ([ReviewerApplicationStatus.REJECTED, ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED].includes(dto.status) && !dto.note?.trim()) {
-      throw new BadRequestException('A reason is required for rejection or revocation.');
+      throw new BadRequestException('A reason is required for rejection, suspension or revocation.');
     }
     return this.dataSource.transaction(async manager => {
       const application = await manager.findOne(ReviewerApplication, { where: { id: applicationId }, lock: { mode: 'pessimistic_write' } });
