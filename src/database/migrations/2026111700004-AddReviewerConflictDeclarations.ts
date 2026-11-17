@@ -8,7 +8,7 @@ export class AddReviewerConflictDeclarations2026111700004 implements MigrationIn
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS "reviewer_conflict_declarations" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        "assignmentId" uuid NOT NULL UNIQUE,
+        "assignmentId" uuid NOT NULL,
         "resourceId" uuid NOT NULL REFERENCES "resources"("id") ON DELETE CASCADE,
         "reviewerId" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
         "declaration" varchar(16) NOT NULL CHECK ("declaration" IN ('no_conflict', 'recuse')),
@@ -16,6 +16,7 @@ export class AddReviewerConflictDeclarations2026111700004 implements MigrationIn
         "createdAt" timestamptz NOT NULL DEFAULT now()
       )
     `);
+    await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_reviewer_conflict_declarations_assignment_created" ON "reviewer_conflict_declarations" ("assignmentId", "createdAt" DESC)`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_reviewer_conflict_declarations_resource" ON "reviewer_conflict_declarations" ("resourceId", "createdAt" DESC)`);
     await queryRunner.query(`CREATE INDEX IF NOT EXISTS "IDX_reviewer_conflict_declarations_reviewer" ON "reviewer_conflict_declarations" ("reviewerId", "createdAt" DESC)`);
     await queryRunner.query(`
