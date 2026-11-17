@@ -15,6 +15,11 @@ function hasReviewerCapability(user: User): boolean {
   return user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
 }
 
+function normalizeReviewScope(value: string): string {
+  return value.normalize('NFKD').replace(/[\\u0300-\\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+}
+
+
 @Injectable()
 export class ModerationService {
   private readonly logger = new Logger(ModerationService.name);
@@ -79,8 +84,23 @@ export class ModerationService {
     }
     if (resource.uploaderId === reviewer.id) throw new BadRequestException('A reviewer cannot be assigned to review their own uploaded resource.');
     if (resource.contributorUserIds?.includes(reviewer.id)) throw new BadRequestException('A reviewer cannot be assigned to review material they co-authored or contributed to.');
-    if (!Array.isArray(reviewer.reviewerExpertise) || reviewer.reviewerExpertise.length === 0) {
-      throw new BadRequestException('The selected reviewer has no recorded subject expertise');
+    const approvedExpertise = Array.isArray(reviewer.reviewerExpertise) ? reviewer.reviewerExpertise : [];
+    const resourceExpertise = [resource.course, resource.topic, resource.type, ...(resource.tags ?? [])]
+      .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
+      .map(normalizeReviewScope);
+    if (!approvedExpertise.length || !approvedExpertise.some(area => {
+      const normalizedArea = normalizeReviewScope(area);
+      return resourceExpertise.some(term => term === normalizedArea || term.includes(normalizedArea) || normalizedArea.includes(term));
+    })) {
+      throw new BadRequestException('The selected reviewer does not have an approved expertise area matching this material.');
+    }
+    const approvedLevels = Array.isArray(reviewer.reviewerAcademicLevels) ? reviewer.reviewerAcademicLevels : [];
+    const resourceLevel = normalizeReviewScope(resource.level ?? '');
+    if (!approvedLevels.length || (resourceLevel && !approvedLevels.some(level => {
+      const normalizedLevel = normalizeReviewScope(level);
+      return normalizedLevel === 'all' || normalizedLevel === 'all levels' || normalizedLevel.includes(resourceLevel) || resourceLevel.includes(normalizedLevel);
+    }))) {
+      throw new BadRequestException('The selected reviewer is not approved for this material’s academic level.');
     }
     resource.assignedReviewerId = reviewer.id;
     resource.reviewAssignmentId = randomUUID();
