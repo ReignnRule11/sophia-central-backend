@@ -53,6 +53,19 @@ describe('PaystackProvider webhook verification', () => {
     fetchSpy.mockRestore();
   });
 
+  it('lists transactions and refunds using bounded pagination', async () => {
+    const fetchSpy = jest.spyOn(global, 'fetch')
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: true, data: [{ reference: 'tx-1', status: 'success', amount: 5000, currency: 'NGN' }] }), { status: 200 }))
+      .mockResolvedValueOnce(new Response(JSON.stringify({ status: true, data: [{ id: 91, status: 'processed', amount: 5000, currency: 'NGN' }] }), { status: 200 }));
+    const from = '2026-11-17T00:00:00.000Z';
+    const to = '2026-11-18T00:00:00.000Z';
+    await expect(provider.listTransactions({ from, to })).resolves.toHaveLength(1);
+    await expect(provider.listRefunds({ from, to })).resolves.toHaveLength(1);
+    expect(fetchSpy).toHaveBeenNthCalledWith(1, expect.stringContaining('/transaction?'), expect.any(Object));
+    expect(fetchSpy).toHaveBeenNthCalledWith(2, expect.stringContaining('/refund?'), expect.any(Object));
+    fetchSpy.mockRestore();
+  });
+
   it('rejects an invalid signature', () => {
     const raw = Buffer.from('{"event":"charge.success","data":{"reference":"ref-3"}}');
     expect(() => provider.verifyWebhook(raw, { 'x-paystack-signature': '0'.repeat(128) })).toThrow(UnauthorizedException);

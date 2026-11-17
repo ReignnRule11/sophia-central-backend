@@ -84,6 +84,30 @@ export class PaystackProvider implements PaymentProvider {
     return { id: String(data.id), status: String(data.status || ''), amountMinor: Number(data.amount), currency: String(data.currency || '').toUpperCase(), raw: data };
   }
 
+  async listTransactions(input: { from: string; to: string }): Promise<Array<{ reference: string; status: string; amount: number; currency: string; id?: number | string; [key: string]: unknown }>> {
+    const results: Array<{ reference: string; status: string; amount: number; currency: string; id?: number | string; [key: string]: unknown }> = [];
+    for (let page = 1; page <= 100; page++) {
+      const query = new URLSearchParams({ from: input.from, to: input.to, perPage: '100', page: String(page) });
+      const rows = await this.request(`/transaction?${query.toString()}`, { method: 'GET' });
+      if (!Array.isArray(rows)) throw new ServiceUnavailableException('Paystack returned an invalid transaction list.');
+      results.push(...rows);
+      if (rows.length < 100) return results;
+    }
+    throw new ServiceUnavailableException('Paystack transaction reconciliation exceeded the 10,000-record safety limit.');
+  }
+
+  async listRefunds(input: { from: string; to: string }): Promise<Array<{ id: number | string; status: string; amount: number; currency: string; transaction?: number | string; [key: string]: unknown }>> {
+    const results: Array<{ id: number | string; status: string; amount: number; currency: string; transaction?: number | string; [key: string]: unknown }> = [];
+    for (let page = 1; page <= 100; page++) {
+      const query = new URLSearchParams({ from: input.from, to: input.to, perPage: '100', page: String(page) });
+      const rows = await this.request(`/refund?${query.toString()}`, { method: 'GET' });
+      if (!Array.isArray(rows)) throw new ServiceUnavailableException('Paystack returned an invalid refund list.');
+      results.push(...rows);
+      if (rows.length < 100) return results;
+    }
+    throw new ServiceUnavailableException('Paystack refund reconciliation exceeded the 10,000-record safety limit.');
+  }
+
   verifyWebhook(rawBody: Buffer, headers: Record<string, string | string[] | undefined>): PaymentWebhookEvent | null {
     const getHeader = (name: string) => {
       const value = headers[name.toLowerCase()];
