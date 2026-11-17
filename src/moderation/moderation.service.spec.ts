@@ -80,12 +80,13 @@ describe('ModerationService academic reviewer workflow', () => {
       id: 'resource-1',
       moderationStatus: ResourceModerationStatus.PENDING,
     });
-    transactionManager.findOne.mockResolvedValueOnce({ id: 'resource-1', moderationStatus: ResourceModerationStatus.PENDING }).mockResolvedValueOnce({ id: 'user-1', role: UserRole.LECTURER, reviewerExpertise: ['Biology'] });
+    transactionManager.findOne.mockResolvedValueOnce({ id: 'user-1', role: UserRole.LECTURER, reviewerExpertise: ['Biology'] }).mockResolvedValueOnce({ id: 'resource-1', moderationStatus: ResourceModerationStatus.PENDING });
     await expect(service.assignReviewer('resource-1', 'user-1', 'admin-1')).rejects.toBeInstanceOf(BadRequestException);
     expect(resourceRepository.save).not.toHaveBeenCalled();
   });
 
   it('notifies the assigned reviewer when a resource is assigned', async () => {
+    transactionManager.findOne.mockResolvedValueOnce({ id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: false, reviewerExpertise: ['Biology'], reviewerAcademicLevels: ['300 level'] });
     transactionManager.findOne.mockResolvedValueOnce({
       id: 'resource-1',
       title: 'Cell Biology',
@@ -93,7 +94,6 @@ describe('ModerationService academic reviewer workflow', () => {
       level: '300 level',
       moderationStatus: ResourceModerationStatus.PENDING,
     });
-    transactionManager.findOne.mockResolvedValueOnce({ id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: false, reviewerExpertise: ['Biology'], reviewerAcademicLevels: ['300 level'] });
     resourceRepository.save.mockImplementation(async value => value);
 
     await service.assignReviewer('resource-1', 'reviewer-1', 'admin-1');
@@ -112,13 +112,13 @@ describe('ModerationService academic reviewer workflow', () => {
   });
 
   it('prevents a reviewer from deciding on an unassigned resource', async () => {
-    transactionManager.findOne.mockResolvedValueOnce({
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce({
       id: 'resource-1',
       moderationStatus: ResourceModerationStatus.PENDING,
       assignedReviewerId: 'reviewer-2',
       uploaderId: 'lecturer-1',
     });
-    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
     await expect(service.reviewResource('resource-1', {
       status: ResourceModerationStatus.APPROVED,
     }, reviewer)).rejects.toBeInstanceOf(ForbiddenException);
@@ -143,7 +143,7 @@ describe('ModerationService academic reviewer workflow', () => {
       uploader: { id: 'student-1', role: UserRole.STUDENT },
     };
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
-    transactionManager.findOne.mockResolvedValueOnce(resource).mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource.uploader);
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource).mockResolvedValueOnce(resource.uploader);
     resourceRepository.save.mockImplementation(async value => value);
 
     await service.reviewResource('resource-student-1', {
