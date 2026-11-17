@@ -99,3 +99,9 @@ The second phase requires provider verification to return `success`, checks that
 Flutterwave hosted checkout, transaction verification, refunds, bank beneficiary verification, transfers and provider-specific read-only reconciliation are implemented in the adapter. Flutterwave amounts are submitted in naira and converted from the application's kobo minor units at the adapter boundary. Verified transactions, refunds and transfers are converted back to kobo before the shared ledger and payout services compare amounts. Flutterwave's webhook uses the Dashboard-configured `verif-hash` secret hash (not the Paystack HMAC signature format).
 
 **Release gate:** CI tests validate adapter behavior and signature handling; they do not prove a real provider transaction. Do not enable live Flutterwave keys until the staging checkout, refund, beneficiary verification, transfer, webhook delivery and reconciliation have each been exercised against Flutterwave test mode.
+
+## Checkout idempotency
+
+Clients should send an `Idempotency-Key` header with each logical checkout attempt. Use the same key when retrying the same request after a network interruption; use a new key for a new purchase intent. Keys are scoped to the authenticated user, must be 8–128 characters, and may contain letters, numbers, dots, underscores, colons, and hyphens.
+
+A replay with the same key and same server-priced purchase returns the original payment reference and checkout URL, including after a successful purchase. Reusing a key for a different purpose, resource, or package amount returns HTTP 409. The database enforces uniqueness per user. If provider initialization timed out after the provider may have accepted it, the pending intent is retained and replay does not create another provider checkout; verify/reconcile the original reference before taking corrective action.
