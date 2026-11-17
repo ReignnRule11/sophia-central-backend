@@ -1,8 +1,6 @@
 import 'dotenv/config';
 import { TypeOrmModuleOptions } from '@nestjs/typeorm';
 import { User } from '../users/entities/user.entity';
-import { ResourceReviewAppeal } from '../moderation/entities/resource-review-appeal.entity';
-import { ResourceReviewAppealDecision } from '../moderation/entities/resource-review-appeal-decision.entity';
 import { ReviewerApplication } from '../users/entities/reviewer-application.entity';
 import { ReviewerApplicationDecision } from '../users/entities/reviewer-application-decision.entity';
 import { Resource } from '../resources/entities/resource.entity';
@@ -59,7 +57,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   password: process.env.DB_PASSWORD || 'sophia123',
   database: process.env.DB_DATABASE || 'sophia_central',
   entities: [
-    User, ReviewerApplication, ReviewerApplicationDecision, ResourceReviewAppeal, ResourceReviewAppealDecision, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
+    User, ReviewerApplication, ReviewerApplicationDecision, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
     ModerationReview, ContentReport, PointWallet, PointTransaction, ResourceRewardOutbox, FileUpload, StorageCleanupJob, Referral,
     Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, ChatConversationRetention, UserActivityEvent, PaymentTransaction, PaymentLedgerEntry, ResourcePurchase, PaymentRefund, PaymentDispute, PaymentLedgerAdjustment, PaymentReconciliationRun, PaymentPayout, PaymentPayoutBeneficiary, PaymentPayoutReconciliationRun,
   ],
