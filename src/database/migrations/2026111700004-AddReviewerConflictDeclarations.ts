@@ -9,8 +9,8 @@ export class AddReviewerConflictDeclarations2026111700004 implements MigrationIn
       CREATE TABLE IF NOT EXISTS "reviewer_conflict_declarations" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "assignmentId" uuid NOT NULL,
-        "resourceId" uuid NOT NULL REFERENCES "resources"("id") ON DELETE CASCADE,
-        "reviewerId" uuid NOT NULL REFERENCES "users"("id") ON DELETE CASCADE,
+        "resourceId" uuid NOT NULL,
+        "reviewerId" uuid NOT NULL,
         "declaration" varchar(16) NOT NULL CHECK ("declaration" IN ('no_conflict', 'recuse')),
         "reason" text,
         "createdAt" timestamptz NOT NULL DEFAULT now()
