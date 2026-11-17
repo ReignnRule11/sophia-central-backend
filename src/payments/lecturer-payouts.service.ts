@@ -237,10 +237,14 @@ export class LecturerPayoutsService {
         .where('payout.provider = :provider', { provider: this.provider.name })
         .andWhere('payout.createdAt >= :start AND payout.createdAt < :end', { start, end }).getMany(),
     ]);
-    const remoteByReference = new Map(remote.map(item => [String(item.reference || ''), item]));
-    const localByReference = new Map(local.map(item => [item.reference, item]));
+    // Reconcile only transfers initiated by this payout workflow; a shared Paystack account
+    // may contain unrelated transfers belonging to other products or operations.
+    const sophisTransfers = remote.filter(item => String(item.reference || '').startsWith('sophis-payout-'));
+    const eligibleLocal = local.filter(item => item.status !== PaymentPayoutStatus.REQUESTED);
+    const remoteByReference = new Map(sophisTransfers.map(item => [String(item.reference || ''), item]));
+    const localByReference = new Map(eligibleLocal.map(item => [item.reference, item]));
     const discrepancies: Record<string, unknown>[] = [];
-    for (const payout of local) {
+    for (const payout of eligibleLocal) {
       const providerTransfer = remoteByReference.get(payout.reference);
       if (!providerTransfer) {
         discrepancies.push({ type: 'local_payout_missing_at_provider', reference: payout.reference, localStatus: payout.status });
@@ -259,7 +263,7 @@ export class LecturerPayoutsService {
           localCurrency: payout.currency, providerCurrency: currency });
       }
     }
-    for (const transfer of remote) {
+    for (const transfer of sophisTransfers) {
       const reference = String(transfer.reference || '');
       if (reference && !localByReference.has(reference)) discrepancies.push({
         type: 'provider_transfer_missing_locally', reference, providerStatus: String(transfer.status || ''),
@@ -268,7 +272,7 @@ export class LecturerPayoutsService {
     }
     const run = await this.payoutRuns.save(this.payoutRuns.create({
       provider: this.provider.name, periodStart: start, periodEnd: end, status: 'completed',
-      providerTransfers: remote.length, localPayouts: local.length, discrepancies, initiatedByUserId: admin.id,
+      providerTransfers: sophisTransfers.length, localPayouts: eligibleLocal.length, discrepancies, initiatedByUserId: admin.id,
     }));
     return { id: run.id, provider: run.provider, periodStart: run.periodStart, periodEnd: run.periodEnd,
       counts: { providerTransfers: run.providerTransfers, localPayouts: run.localPayouts },
