@@ -85,7 +85,7 @@ export class ModerationService {
     if (resource.uploaderId === reviewer.id) throw new BadRequestException('A reviewer cannot be assigned to review their own uploaded resource.');
     if (resource.contributorUserIds?.includes(reviewer.id)) throw new BadRequestException('A reviewer cannot be assigned to review material they co-authored or contributed to.');
     const approvedExpertise = Array.isArray(reviewer.reviewerExpertise) ? reviewer.reviewerExpertise : [];
-    const resourceExpertise = [resource.course, resource.topic, resource.type, ...(resource.tags ?? [])]
+    const resourceExpertise = [resource.title, resource.course, resource.topic, resource.type, ...(resource.tags ?? [])]
       .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
       .map(normalizeReviewScope);
     if (!approvedExpertise.length || !approvedExpertise.some(area => {
