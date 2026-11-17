@@ -106,9 +106,10 @@ export class FlutterwaveProvider implements PaymentProvider {
 
   private refundStatus(status: unknown): string {
     const value = String(status || '').toLowerCase();
-    if (['completed', 'successful', 'processed'].includes(value)) return 'processed';
+    if (['completed', 'successful', 'succeeded', 'processed'].includes(value)) return 'processed';
     if (['failed', 'cancelled'].includes(value)) return 'failed';
-    if (['processing', 'pending', 'pending-bank-transfer', 'pending-mpgs'].includes(value)) return 'processing';
+    if (value === 'requires_action') return 'needs-attention';
+    if (['processing', 'pending', 'new', 'pending-bank-transfer', 'pending-mpgs'].includes(value)) return 'processing';
     return value;
   }
 
