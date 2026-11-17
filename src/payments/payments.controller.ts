@@ -9,11 +9,12 @@ import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { CreateRefundDto } from './dto/create-refund.dto';
 import { PaymentsService } from './payments.service';
 import { PaymentsReconciliationService } from './payments-reconciliation.service';
+import { LecturerPayoutsService } from './lecturer-payouts.service';
 
 @ApiTags('Payments')
 @Controller('payments')
 export class PaymentsController {
-  constructor(private readonly payments: PaymentsService, private readonly reconciliation: PaymentsReconciliationService) {}
+  constructor(private readonly payments: PaymentsService, private readonly reconciliation: PaymentsReconciliationService, private readonly payouts: LecturerPayoutsService) {}
 
   @Post('initialize')
   @UseGuards(JwtAuthGuard)
@@ -70,6 +71,54 @@ export class PaymentsController {
   @ApiOperation({ summary: 'List recent payment reconciliation reports' })
   reconciliationHistory(@CurrentUser() user: User) {
     return this.reconciliation.history(user);
+  }
+
+  @Post('payouts/beneficiary')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify and save a lecturer Nigerian bank beneficiary' })
+  setPayoutBeneficiary(@CurrentUser() user: User, @Body() body: { accountNumber: string; bankCode: string }) {
+    return this.payouts.setBeneficiary(user, body);
+  }
+
+  @Get('payouts/balance')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Read available lecturer earnings after refund, dispute and payout holds' })
+  payoutBalance(@CurrentUser() user: User) {
+    return this.payouts.balance(user);
+  }
+
+  @Post('payouts')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Request a lecturer earnings payout for admin approval' })
+  requestPayout(@CurrentUser() user: User, @Body() body: { amountMinor: string }) {
+    return this.payouts.request(user, body.amountMinor);
+  }
+
+  @Get('payouts/requests')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List payout requests for authorized operators' })
+  listPayoutRequests(@CurrentUser() user: User) {
+    return this.payouts.listRequests(user);
+  }
+
+  @Post('payouts/:id/approve')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Approve and initiate a lecturer payout transfer' })
+  approvePayout(@CurrentUser() user: User, @Param('id') id: string) {
+    return this.payouts.approve(user, id);
+  }
+
+  @Get('payouts/verify/:reference')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Verify an in-flight Paystack lecturer transfer' })
+  verifyPayout(@CurrentUser() user: User, @Param('reference') reference: string) {
+    return this.payouts.verify(user, reference);
   }
 
   @Post('webhooks/:provider')
