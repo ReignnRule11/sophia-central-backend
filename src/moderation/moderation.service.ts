@@ -35,13 +35,24 @@ export class ModerationService {
       throw new ForbiddenException('Only approved academic reviewers and admins can access the academic resource queue.');
     }
     if (hasReviewerCapability(viewer) && viewer.isSuspended) return [];
-    return this.resourceRepository.find({
+    const queue = await this.resourceRepository.find({
       where: viewer.role === UserRole.ADMIN
         ? { moderationStatus: ResourceModerationStatus.PENDING }
         : { moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: viewer.id },
       relations: ['uploader', 'assignedReviewer'],
       order: { createdAt: 'ASC' },
     });
+    if (viewer.role !== UserRole.ADMIN) {
+      for (const resource of queue) {
+        if (!resource.reviewAssignmentId) { resource.reviewConflictDeclaration = null; continue; }
+        const rows = await this.resourceRepository.manager.query(
+          'SELECT declaration FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid AND "reviewerId" = $2::uuid ORDER BY "createdAt" DESC LIMIT 1',
+          [resource.reviewAssignmentId, viewer.id],
+        );
+        resource.reviewConflictDeclaration = rows[0]?.declaration ?? null;
+      }
+    }
+    return queue;
   }
 
   async getHistory(viewer: User) {
