@@ -58,12 +58,22 @@ export class ReviewerApplicationsService {
       conflictDeclaration: dto.conflictDeclaration.trim(),
       policyAccepted: true,
     });
-    return this.dataSource.transaction(async manager => {
+    try {
+      return await this.dataSource.transaction(async manager => {
       const saved = await manager.save(ReviewerApplication, application);
       user.reviewerStatus = 'submitted';
       await manager.save(User, user);
       return saved;
-    });
+    })
+    } catch (error) {
+      const databaseError = error as { code?: string; driverError?: { code?: string; constraint?: string } };
+      const code = databaseError.driverError?.code ?? databaseError.code;
+      const constraint = databaseError.driverError?.constraint;
+      if (code === '23505' && constraint === 'UQ_reviewer_applications_one_active_per_user') {
+        throw new ConflictException('You already have an active reviewer application. Check its status before submitting again.');
+      }
+      throw error;
+    };
   }
 
   async mine(user: User) {
