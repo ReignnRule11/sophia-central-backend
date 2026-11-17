@@ -111,6 +111,33 @@ describe('ModerationService academic reviewer workflow', () => {
     );
   });
 
+  it('records recusal and releases the assignment atomically', async () => {
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
+    const resource = {
+      id: 'resource-1',
+      title: 'Cell Biology',
+      moderationStatus: ResourceModerationStatus.PENDING,
+      assignedReviewerId: reviewer.id,
+      reviewAssignmentId: 'assignment-1',
+    };
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource);
+    userRepository.find.mockResolvedValue([]);
+
+    await expect(service.declareConflict('resource-1', {
+      declaration: 'recuse',
+      reason: 'I have a direct professional relationship with one of the contributors.',
+    }, reviewer)).resolves.toEqual({ declaration: 'recuse', reassignmentRequired: true });
+
+    expect(resource.assignedReviewerId).toBeNull();
+    expect(resource.reviewAssignmentId).toBeNull();
+    expect(transactionManager.save).toHaveBeenCalledWith(Resource, resource);
+    expect(transactionManager.query).toHaveBeenCalledWith(
+      expect.stringContaining("VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)"),
+      ['assignment-1', 'resource-1', 'reviewer-1', 'reviewer-1', 'recused'],
+    );
+    expect(resourceRepository.manager.transaction).toHaveBeenCalled();
+  });
+
   it('prevents a reviewer from deciding on an unassigned resource', async () => {
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
     transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce({
@@ -155,6 +182,14 @@ describe('ModerationService academic reviewer workflow', () => {
       expect.stringContaining('SELECT declaration FROM reviewer_conflict_declarations'),
       ['assignment-1', 'reviewer-1'],
     );
+    expect(transactionManager.findOne).toHaveBeenNthCalledWith(1, User, expect.objectContaining({
+      where: { id: reviewer.id },
+      lock: { mode: 'pessimistic_read' },
+    }));
+    expect(transactionManager.findOne).toHaveBeenNthCalledWith(2, Resource, expect.objectContaining({
+      where: { id: 'resource-student-1' },
+      lock: { mode: 'pessimistic_write' },
+    }));
     expect(resourceRepository.manager.transaction).toHaveBeenCalled();
     expect(transactionManager.save).toHaveBeenCalledWith(
       ResourceRewardOutbox,
