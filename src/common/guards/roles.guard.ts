@@ -25,7 +25,7 @@ export class RolesGuard implements CanActivate {
     // Other privileged roles continue to use their existing role checks.
     return requiredRoles.some((requiredRole) =>
       requiredRole === 'reviewer'
-        ? user.hasReviewerAccess === true
+        ? user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === 'reviewer')
         : requiredRole === user.role,
     );
   }
