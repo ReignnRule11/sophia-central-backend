@@ -61,7 +61,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Compare local payments and refunds with Paystack without mutating financial records' })
-  reconcile(@CurrentUser() user: User, @Body() body: { from: string; to: string }) {
+  reconcile(@CurrentUser() user: User, @Body() body: { from: string; to: string; provider?: string }) {
     return this.reconciliation.reconcile(user, body);
   }
 
@@ -117,7 +117,7 @@ export class PaymentsController {
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Compare lecturer payouts with Paystack transfers without mutating financial records' })
-  reconcilePayouts(@CurrentUser() user: User, @Body() body: { from: string; to: string }) {
+  reconcilePayouts(@CurrentUser() user: User, @Body() body: { from: string; to: string; provider?: string }) {
     return this.payouts.reconcilePayouts(user, body);
   }
 
