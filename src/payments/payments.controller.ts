@@ -39,6 +39,14 @@ export class PaymentsController {
     return this.payments.createRefund(user, reference, dto);
   }
 
+  @Get('disputes')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'List recent payment disputes for authorized operators' })
+  listDisputes(@CurrentUser() user: User) {
+    return this.payments.listDisputes(user);
+  }
+
   @Get('refunds/:id/verify')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
