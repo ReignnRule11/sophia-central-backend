@@ -34,6 +34,12 @@ export class ReviewerApplicationsController {
     return this.applications.listForAdmin(status);
   }
 
+  @Get(':id/decisions')
+  @Roles(UserRole.ADMIN)
+  decisionHistory(@Param('id') id: string) {
+    return this.applications.decisionHistory(id);
+  }
+
   @Patch(':id/decision')
   @Roles(UserRole.ADMIN)
   decide(@Param('id') id: string, @Req() req: AuthenticatedRequest, @Body() dto: ReviewerApplicationDecisionDto) {
