@@ -38,6 +38,7 @@ async function bootstrap() {
   app.use('/users/me/deletion-request', authRateLimit(5));
   app.use('/users/me/deactivate', authRateLimit(5));
   app.use('/users/me/security-question', authRateLimit(10));
+  app.use('/payments/webhooks', authRateLimit(120));
 
   app.useGlobalGuards(new CsrfGuard());
 
