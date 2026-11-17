@@ -13,7 +13,8 @@ import { ResourcePurchase } from './entities/resource-purchase.entity';
 import { PaymentRefund, PaymentRefundStatus } from './entities/payment-refund.entity';
 import { PaymentDispute, PaymentDisputeStatus } from './entities/payment-dispute.entity';
 import { PaymentLedgerAdjustment, PaymentLedgerAdjustmentKind } from './entities/payment-ledger-adjustment.entity';
-import { PAYMENT_PROVIDER, PaymentProvider, VerifiedPayment, ProviderRefund } from './providers/payment-provider.interface';
+import { VerifiedPayment, ProviderRefund } from './providers/payment-provider.interface';
+import { PaymentProviderRegistry } from './providers/payment-provider.registry';
 import { randomBytes } from 'node:crypto';
 import { LecturerPayoutsService } from './lecturer-payouts.service';
 
@@ -27,7 +28,7 @@ export class PaymentsService {
     @InjectRepository(PaymentDispute) private readonly disputes: Repository<PaymentDispute>,
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
-    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    private readonly providers: PaymentProviderRegistry,
     private readonly lecturerPayouts: LecturerPayoutsService,
   ) {}
 
@@ -76,9 +77,10 @@ export class PaymentsService {
     if (!callbackUrl || !/^https:\/\//i.test(callbackUrl)) {
       throw new ServiceUnavailableException('A secure PAYMENT_CALLBACK_URL must be configured before checkout.');
     }
+    const provider = this.providers.defaultProvider();
     const reference = `SOPHIS-${Date.now()}-${randomBytes(8).toString('hex')}`;
     const payment = await this.payments.save(this.payments.create({
-      provider: this.provider.name,
+      provider: provider.name,
       reference,
       userId: user.id,
       purpose: dto.purpose,
@@ -93,7 +95,7 @@ export class PaymentsService {
       paidAt: null,
     }));
     try {
-      const initialized = await this.provider.initialize({
+      const initialized = await provider.initialize({
         email: user.email,
         amountMinor: payment.amountMinor,
         currency: payment.currency,
@@ -205,7 +207,9 @@ export class PaymentsService {
     const refund = await this.refunds.findOne({ where: { id: refundId } });
     if (!refund) throw new NotFoundException('Refund not found.');
     if (!refund.providerRefundId) return this.publicRefund(refund);
-    const verified = await this.provider.verifyRefund(refund.providerRefundId);
+    const payment = await this.payments.findOneByOrFail({ id: refund.paymentId });
+    const provider = this.providers.get(payment.provider);
+    const verified = await provider.verifyRefund(refund.providerRefundId);
     await this.applyRefundStatus(refund.id, verified);
     return this.publicRefund(await this.refunds.findOneByOrFail({ id: refund.id }));
   }
@@ -313,9 +317,9 @@ export class PaymentsService {
     const event = this.provider.verifyWebhook(rawBody, headers);
     if (!event) return { received: true, processed: false };
     if (event.event.startsWith('transfer.')) {
-      return this.lecturerPayouts.handleTransferWebhook(event.event, event.reference, event.data || {});
+      return this.lecturerPayouts.handleTransferWebhook(providerName, event.event, event.reference, event.data || {});
     }
-    if (event.event === 'charge.success') {
+    if (event.event === 'charge.success' || event.event === 'charge.completed') {
       const payment = await this.payments.findOne({ where: { reference: event.reference } });
       if (!payment || payment.provider !== providerName) return { received: true, processed: false };
       if (payment.status === PaymentStatus.SUCCESS) return { received: true, processed: true, duplicate: true };
@@ -331,7 +335,9 @@ export class PaymentsService {
         refund = candidates.find(item => item.reference === data.refund_reference || item.paymentId === event.reference) || null;
       }
       if (!refund || !refund.providerRefundId) return { received: true, processed: false };
-      const verifiedRefund = await this.provider.verifyRefund(refund.providerRefundId);
+      const payment = await this.payments.findOneByOrFail({ id: refund.paymentId });
+      const provider = this.providers.get(payment.provider);
+      const verifiedRefund = await provider.verifyRefund(refund.providerRefundId);
       await this.applyRefundStatus(refund.id, verifiedRefund);
       return { received: true, processed: true };
     }
