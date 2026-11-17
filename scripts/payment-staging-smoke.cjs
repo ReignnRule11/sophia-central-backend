@@ -3,9 +3,8 @@
 
 /**
  * Real staging smoke test for the Sophis Central paid-resource flow.
- *
- * This script calls the deployed API and configured payment provider. It does
- * not stub HTTP, persistence, authentication, payment verification, or storage.
+ * Calls the deployed API, real PostgreSQL-backed services, Paystack test mode,
+ * and configured private storage. No HTTP, database, provider, auth, or storage mocks.
  *
  * Phase 1: MODE=initialize creates a real Paystack test checkout.
  * Phase 2: Complete checkout in a browser, then MODE=verify checks settlement,
@@ -14,9 +13,7 @@
 
 const required = (name) => {
   const value = process.env[name];
-  if (!value || !value.trim()) {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
+  if (!value || !value.trim()) throw new Error(`Missing required environment variable: ${name}`);
   return value.trim();
 };
 
@@ -29,11 +26,25 @@ if (!/^https:\/\//i.test(apiBase) && !/^http:\/\/localhost(?::\d+)?$/i.test(apiB
   throw new Error('API_BASE_URL must use HTTPS (HTTP is allowed only for localhost).');
 }
 
+async function csrfHeaders() {
+  const response = await fetch(`${apiBase}/auth/csrf`, { signal: AbortSignal.timeout(15000) });
+  if (!response.ok) throw new Error(`CSRF bootstrap failed (HTTP ${response.status}).`);
+  const body = await response.json();
+  if (typeof body.csrfToken !== 'string' || !body.csrfToken) throw new Error('CSRF bootstrap did not return a token.');
+  return {
+    Cookie: `sophia_csrf_token=${encodeURIComponent(body.csrfToken)}`,
+    'X-CSRF-Token': body.csrfToken,
+  };
+}
+
 async function request(path, token, options = {}) {
+  const method = (options.method || 'GET').toUpperCase();
+  const csrf = ['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) ? await csrfHeaders() : {};
   const response = await fetch(`${apiBase}${path}`, {
     ...options,
     headers: {
       Authorization: `Bearer ${token}`,
+      ...csrf,
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
       ...(options.headers || {}),
     },
