@@ -100,10 +100,10 @@ export class ModerationService {
       throw new BadRequestException('Provide a reason when recusing yourself from an assignment.');
     }
     const existing = await this.resourceRepository.manager.query(
-      'SELECT id FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid LIMIT 1',
+      'SELECT declaration FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid ORDER BY "createdAt" DESC LIMIT 1',
       [resource.reviewAssignmentId],
     );
-    if (existing.length) throw new ConflictException('A conflict declaration has already been recorded for this assignment.');
+    if (existing[0]?.declaration === dto.declaration) throw new ConflictException('This conflict declaration has already been recorded for the current assignment.');
 
     await this.resourceRepository.manager.query(
       'INSERT INTO reviewer_conflict_declarations ("assignmentId", "resourceId", "reviewerId", declaration, reason) VALUES ($1::uuid, $2::uuid, $3::uuid, $4, $5)',
@@ -147,11 +147,11 @@ export class ModerationService {
       throw new ForbiddenException('This resource is not assigned to your reviewer account');
     }
     const conflictDeclaration = await this.resourceRepository.manager.query(
-      'SELECT id FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid AND "reviewerId" = $2::uuid AND declaration = $3 LIMIT 1',
-      [resource.reviewAssignmentId, reviewer.id, 'no_conflict'],
+      'SELECT id FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid AND "reviewerId" = $2::uuid ORDER BY "createdAt" DESC LIMIT 1',
+      [resource.reviewAssignmentId, reviewer.id],
     );
-    if (!conflictDeclaration.length) {
-      throw new ForbiddenException('Record your conflict-of-interest declaration before submitting an academic review.');
+    if (!conflictDeclaration.length || conflictDeclaration[0].declaration !== 'no_conflict') {
+      throw new ForbiddenException('Record a no-conflict declaration before submitting an academic review.');
     }
     if (![ResourceModerationStatus.APPROVED, ResourceModerationStatus.REJECTED, ResourceModerationStatus.REVISION_REQUESTED].includes(dto.status)) {
       throw new BadRequestException('Choose approve, reject or request revision');
