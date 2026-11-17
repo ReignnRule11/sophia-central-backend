@@ -146,7 +146,10 @@ export class UsersService {
       if (!user) throw new NotFoundException('User not found');
 
       if (dto.enabled) {
-        if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
+        if ([UserRole.STUDENT, UserRole.LECTURER].includes(user.role)) {
+          throw new ConflictException('Student and Lecturer reviewer access must be granted by approving a submitted reviewer application.');
+        }
+        if (user.role !== UserRole.REVIEWER) {
           throw new BadRequestException('Only student, lecturer or external reviewer accounts can be granted academic reviewer access');
         }
         const expertiseAreas = [...new Set((dto.expertiseAreas ?? []).map(area => area.trim()).filter(Boolean))];
@@ -160,6 +163,7 @@ export class UsersService {
           throw new BadRequestException('This account does not currently have reviewer access');
         }
         user.hasReviewerAccess = false;
+        user.reviewerStatus = 'revoked';
         // Legacy reviewer accounts stored their underlying academic role in
         // reviewerBaseRole. Restore it when reviewer access is revoked.
         if (user.role === UserRole.REVIEWER && [UserRole.STUDENT, UserRole.LECTURER].includes(user.reviewerBaseRole as UserRole)) {
