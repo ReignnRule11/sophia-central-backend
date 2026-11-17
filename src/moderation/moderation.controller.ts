@@ -31,6 +31,12 @@ export class ModerationController {
     return this.moderationService.getQueue(request.user);
   }
 
+  @Get('resources/:id/review-history')
+  @Roles(UserRole.STUDENT, UserRole.LECTURER, UserRole.ADMIN)
+  getResourceReviewHistory(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.getResourceReviewHistory(id, request.user);
+  }
+
   @Post('resources/:id/appeals')
   @Roles(UserRole.STUDENT, UserRole.LECTURER)
   @UseGuards(CsrfGuard)
