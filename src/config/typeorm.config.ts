@@ -50,7 +50,7 @@ export const typeOrmConfig: TypeOrmModuleOptions = {
   entities: [
     User, Resource, SavedResource, Institution, Faculty, Department, AcademicCatalogueSubmission, Course, CourseTopic,
     ModerationReview, ContentReport, PointWallet, PointTransaction, ResourceRewardOutbox, FileUpload, StorageCleanupJob, Referral,
-    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, ChatConversationRetention, UserActivityEvent,
+    Notification, AiSession, AiMessage, PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft, SupportRequest, ChatMessage, ChatUserBlock, ChatConversationRead, ChatMessageUserHide, ChatConversationRetention, UserActivityEvent, PaymentTransaction, PaymentLedgerEntry, ResourcePurchase,
   ],
   synchronize: !isProduction,
   logging: !isProduction,
