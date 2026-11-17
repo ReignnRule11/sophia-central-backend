@@ -69,6 +69,12 @@ export class ModerationController {
     return this.moderationService.decideAppeal(id, request.user, dto);
   }
 
+  @Get('integrity-monitor')
+  @Roles(UserRole.ADMIN)
+  getIntegrityReport(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getIntegrityReport(request.user);
+  }
+
   @Get('conflict-declarations')
   @Roles(UserRole.ADMIN)
   getConflictDeclarations(@Req() request: AuthenticatedRequest) {
