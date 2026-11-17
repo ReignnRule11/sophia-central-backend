@@ -337,6 +337,7 @@ export class PaymentsService {
       }
       if (!refund || !refund.providerRefundId) return { received: true, processed: false };
       const payment = await this.payments.findOneByOrFail({ id: refund.paymentId });
+      if (payment.provider !== providerName) return { received: true, processed: false };
       const provider = this.providers.get(payment.provider);
       const verifiedRefund = await provider.verifyRefund(refund.providerRefundId);
       await this.applyRefundStatus(refund.id, verifiedRefund);
