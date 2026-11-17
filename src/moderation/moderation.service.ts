@@ -68,6 +68,19 @@ export class ModerationService {
     return queue;
   }
 
+  async getResourceReviewHistory(resourceId: string, viewer: User) {
+    const resource = await this.resourceRepository.findOne({ where: { id: resourceId } });
+    if (!resource) throw new NotFoundException('Resource not found.');
+    if (viewer.role !== UserRole.ADMIN && resource.uploaderId !== viewer.id) {
+      throw new ForbiddenException('Only the original uploader or an administrator can inspect this review history.');
+    }
+    return this.moderationReviewRepository.find({
+      where: { resourceId },
+      relations: ['reviewer'],
+      order: { createdAt: 'ASC' },
+    });
+  }
+
   async createAppeal(resourceId: string, appellant: User, dto: CreateResourceAppealDto) {
     const resource = await this.resourceRepository.findOne({ where: { id: resourceId } });
     if (!resource) throw new NotFoundException('Resource not found.');
