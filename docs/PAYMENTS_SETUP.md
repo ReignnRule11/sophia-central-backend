@@ -7,7 +7,7 @@ The application uses a provider-neutral `PaymentProvider` contract and a provide
 ## Endpoints
 
 - `POST /payments/initialize` — authenticated student checkout. The server derives the amount from an approved resource price or a server-configured Wisdom Points package. The client cannot submit an amount.
-- `GET /payments/verify/:reference` — authenticated owner verification. The server calls the configured provider and checks reference, status, currency and exact amount before applying value.
+- `GET /payments/verify/:reference` — authenticated owner verification. The server calls the provider recorded on the transaction and checks reference, status, currency and exact amount before applying value.
 - `POST /payments/webhooks/:provider` — public provider callback. Raw request bytes are signature-verified before parsing. Successful events are independently verified against the provider API before settlement.
 - `POST /resources/:id/download` and `GET /resources/:id/file-url` — authenticated resource download and file access. Paid-resource access requires a persisted purchase record, except for the uploader and authorized staff.
 
@@ -83,7 +83,7 @@ The second phase requires provider verification to return `success`, checks that
 - A database row lock and transaction make successful settlement idempotent. Wisdom Points credit and ledger entry are committed together.
 - Resource purchases create an ownership record and 70% lecturer / 30% platform gross-allocation entries. Provider fees and payout operations are not yet netted or executed; the entries are gross allocation records, not proof of payout.
 - Paid-resource authorization is enforced at the resource download and file URL service paths. The staging smoke test must still be run against the deployed API, database, selected provider test account, and configured storage before production sign-off.
-- Refunds, chargebacks, automated reconciliation, payout bank-account verification, multi-currency pricing and a second provider adapter remain separate follow-up work.
+- Refunds, chargebacks, reconciliation and lecturer payouts are implemented through the provider contract. Multi-currency pricing remains out of scope; the current Sophis checkout and payout business rules are NGN-only.
 - Do not enable live keys until the frontend callback, package pricing, webhook delivery, refund operations, and the real staging flow above have been tested end-to-end.
 
 
@@ -96,6 +96,6 @@ The second phase requires provider verification to return `success`, checks that
 5. Run read-only provider reconciliation as an administrator/moderator. Include `"provider":"flutterwave"` in the request body to reconcile Flutterwave records even when Paystack is the default, or use `"provider":"paystack"` for Paystack records. Payout reconciliation accepts the same provider selector.
 6. For payout testing, verify a beneficiary in the active provider, create a lecturer payout request, approve it with an authorized operator, and confirm the provider transfer status and webhook. Do not infer successful payout from a queued transfer response.
 
-Flutterwave amounts are submitted in naira and converted from the application's kobo minor units at the adapter boundary. Verified transactions, refunds and transfers are converted back to kobo before the shared ledger and payout services compare amounts. Flutterwave's webhook uses the Dashboard-configured `verif-hash` secret hash (not the Paystack HMAC signature format).
+Flutterwave hosted checkout, transaction verification, refunds, bank beneficiary verification, transfers and provider-specific read-only reconciliation are implemented in the adapter. Flutterwave amounts are submitted in naira and converted from the application's kobo minor units at the adapter boundary. Verified transactions, refunds and transfers are converted back to kobo before the shared ledger and payout services compare amounts. Flutterwave's webhook uses the Dashboard-configured `verif-hash` secret hash (not the Paystack HMAC signature format).
 
 **Release gate:** CI tests validate adapter behavior and signature handling; they do not prove a real provider transaction. Do not enable live Flutterwave keys until the staging checkout, refund, beneficiary verification, transfer, webhook delivery and reconciliation have each been exercised against Flutterwave test mode.
