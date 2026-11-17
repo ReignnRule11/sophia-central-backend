@@ -5,6 +5,7 @@ import {
   JoinColumn,
   ManyToOne,
   PrimaryGeneratedColumn,
+  RelationId,
 } from 'typeorm';
 import { Resource, ResourceModerationStatus } from '../../resources/entities/resource.entity';
 import { User } from '../../users/entities/user.entity';
@@ -18,9 +19,15 @@ export class ModerationReview {
   @JoinColumn({ name: 'resourceId' })
   resource!: Resource;
 
+  @RelationId((review: ModerationReview) => review.resource)
+  resourceId!: string;
+
   @ManyToOne(() => User, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reviewerId' })
   reviewer!: User;
+
+  @RelationId((review: ModerationReview) => review.reviewer)
+  reviewerId?: string;
 
   @Column({ type: 'enum', enum: ResourceModerationStatus })
   status!: ResourceModerationStatus;
