@@ -106,7 +106,7 @@ export class PaymentsService {
       payment.checkoutUrl = initialized.authorizationUrl;
       payment.providerMetadata = { authorization: initialized.raw };
       await this.payments.save(payment);
-      return { reference, provider: this.provider.name, checkoutUrl: initialized.authorizationUrl, amountMinor: payment.amountMinor, currency: payment.currency, status: payment.status };
+      return { reference, provider: provider.name, checkoutUrl: initialized.authorizationUrl, amountMinor: payment.amountMinor, currency: payment.currency, status: payment.status };
     } catch (error) {
       // Keep the intent pending: a provider timeout can happen after the provider
       // accepted the transaction. Reconciliation must verify before retrying.
@@ -121,8 +121,8 @@ export class PaymentsService {
       throw new ForbiddenException('You cannot inspect another user payment.');
     }
     if (payment.status === PaymentStatus.SUCCESS) return this.publicPayment(payment);
-    if (payment.provider !== this.provider.name) throw new ServiceUnavailableException('The configured payment provider does not match this transaction.');
-    const verified = await this.provider.verify(reference);
+    const provider = this.providers.get(payment.provider);
+    const verified = await provider.verify(reference);
     await this.applyVerifiedPayment(payment.id, verified);
     const updated = await this.payments.findOne({ where: { id: payment.id } });
     return this.publicPayment(updated!);
@@ -165,22 +165,23 @@ export class PaymentsService {
       return manager.save(PaymentRefund, record);
     });
     const payment = await this.payments.findOneByOrFail({ id: refund.paymentId });
+    const provider = this.providers.get(payment.provider);
     try {
-      const providerRefund = await this.provider.createRefund({
-        transactionReference: payment.reference,
+      const providerRefund = await provider.createRefund({
+        transactionReference: payment.provider === 'flutterwave' ? (payment.providerTransactionId || '') : payment.reference,
         amountMinor: refund.amountMinor,
         currency: refund.currency,
         reference: refund.reference,
         reason: refund.reason,
       });
       if (providerRefund.currency !== refund.currency || BigInt(providerRefund.amountMinor) !== BigInt(refund.amountMinor)) {
-        throw new ConflictException('Paystack refund response amount or currency does not match the recorded request.');
+        throw new ConflictException('Payment provider refund response amount or currency does not match the recorded request.');
       }
       await this.refunds.update({ id: refund.id }, {
         providerRefundId: providerRefund.id,
         providerMetadata: { providerStatus: providerRefund.status },
       });
-      const verifiedRefund = await this.provider.verifyRefund(providerRefund.id);
+      const verifiedRefund = await provider.verifyRefund(providerRefund.id);
       await this.applyRefundStatus(refund.id, verifiedRefund);
     } catch (error) {
       // Keep the reservation pending when the provider request outcome is uncertain.
@@ -227,7 +228,7 @@ export class PaymentsService {
       processed: PaymentRefundStatus.PROCESSED,
     };
     const status = statusMap[providerRefund.status.toLowerCase()];
-    if (!status) throw new ConflictException('Paystack returned an unsupported refund status.');
+    if (!status) throw new ConflictException('Payment provider returned an unsupported refund status.');
     await this.dataSource.transaction(async manager => {
       const refund = await manager.findOne(PaymentRefund, { where: { id: refundId }, lock: { mode: 'pessimistic_write' } });
       if (!refund) throw new NotFoundException('Refund not found.');
@@ -313,8 +314,8 @@ export class PaymentsService {
   }
 
   async handleWebhook(providerName: string, rawBody: Buffer, headers: Record<string, string | string[] | undefined>) {
-    if (providerName !== this.provider.name) throw new NotFoundException('Payment provider webhook is not enabled.');
-    const event = this.provider.verifyWebhook(rawBody, headers);
+    const provider = this.providers.get(providerName);
+    const event = provider.verifyWebhook(rawBody, headers);
     if (!event) return { received: true, processed: false };
     if (event.event.startsWith('transfer.')) {
       return this.lecturerPayouts.handleTransferWebhook(providerName, event.event, event.reference, event.data || {});
@@ -323,7 +324,7 @@ export class PaymentsService {
       const payment = await this.payments.findOne({ where: { reference: event.reference } });
       if (!payment || payment.provider !== providerName) return { received: true, processed: false };
       if (payment.status === PaymentStatus.SUCCESS) return { received: true, processed: true, duplicate: true };
-      const verified = await this.provider.verify(event.reference);
+      const verified = await provider.verify(event.reference);
       await this.applyVerifiedPayment(payment.id, verified);
       return { received: true, processed: true };
     }
