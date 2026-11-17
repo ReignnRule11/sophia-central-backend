@@ -121,7 +121,7 @@ export class UsersService {
     // The platform-owned moderator account is operational infrastructure, not a
     // managed user. Never expose moderator-role accounts through user management.
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.hasReviewerAccess', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
       .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
       .orderBy('user.createdAt', 'DESC')
       .getMany();
@@ -129,7 +129,7 @@ export class UsersService {
 
   async findAllForManagement(): Promise<User[]> {
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.hasReviewerAccess', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
       .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
       .andWhere('user.emailVerified = true')
       .andWhere('(user.role NOT IN (:...profileRoles) OR user.isProfileComplete = true)', {
@@ -147,22 +147,20 @@ export class UsersService {
 
       if (dto.enabled) {
         if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
-          throw new BadRequestException('Only student or lecturer accounts can be granted academic reviewer access');
+          throw new BadRequestException('Only student, lecturer or external reviewer accounts can be granted academic reviewer access');
         }
         const expertiseAreas = [...new Set((dto.expertiseAreas ?? []).map(area => area.trim()).filter(Boolean))];
         if (expertiseAreas.length === 0) {
           throw new BadRequestException('At least one verified subject expertise area is required');
         }
-        if (user.role !== UserRole.REVIEWER) user.reviewerBaseRole = user.role as 'student' | 'lecturer';
-        user.role = UserRole.REVIEWER;
+        user.hasReviewerAccess = true;
         user.reviewerExpertise = expertiseAreas;
       } else {
-        if (user.role !== UserRole.REVIEWER) {
+        if (user.hasReviewerAccess !== true) {
           throw new BadRequestException('This account does not currently have reviewer access');
         }
-        user.role = (user.reviewerBaseRole as UserRole | undefined) ?? UserRole.STUDENT;
+        user.hasReviewerAccess = false;
         await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
-        user.reviewerBaseRole = undefined;
         user.reviewerExpertise = [];
       }
 
@@ -224,7 +222,7 @@ export class UsersService {
         if (existing || reserved.length) throw new ConflictException('Academic handle taken');
         updateData.academicHandle = normalized;
       }
-      if (updateData.isSuspended === true && user.role === UserRole.REVIEWER) {
+      if (updateData.isSuspended === true && user.hasReviewerAccess === true) {
         await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
       }
       const previousProfileImage = user.profileImage;
