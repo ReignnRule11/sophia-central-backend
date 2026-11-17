@@ -176,7 +176,8 @@ export class PaymentsService {
         providerRefundId: providerRefund.id,
         providerMetadata: { providerStatus: providerRefund.status },
       });
-      await this.applyRefundStatus(refund.id, providerRefund);
+      const verifiedRefund = await this.provider.verifyRefund(providerRefund.id);
+      await this.applyRefundStatus(refund.id, verifiedRefund);
     } catch (error) {
       // Keep the reservation pending when the provider request outcome is uncertain.
       // This prevents a timeout from enabling a duplicate refund.
@@ -184,6 +185,17 @@ export class PaymentsService {
     }
     const latest = await this.refunds.findOneByOrFail({ id: refund.id });
     return this.publicRefund(latest);
+  }
+
+  async listDisputes(user: User) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role)) throw new ForbiddenException('Only administrators and moderators may inspect payment disputes.');
+    const records = await this.disputes.find({ order: { createdAt: 'DESC' }, take: 100 });
+    return records.map(dispute => ({
+      id: dispute.id, paymentId: dispute.paymentId, providerDisputeId: dispute.providerDisputeId,
+      amountMinor: dispute.amountMinor, currency: dispute.currency, status: dispute.status,
+      reason: dispute.reason, responseDueAt: dispute.responseDueAt, resolvedAt: dispute.resolvedAt,
+      createdAt: dispute.createdAt,
+    }));
   }
 
   async verifyRefund(user: User, refundId: string) {
