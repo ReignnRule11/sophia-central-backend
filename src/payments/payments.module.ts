@@ -7,13 +7,16 @@ import { User } from '../users/entities/user.entity';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
 import { PaymentLedgerEntry } from './entities/payment-ledger-entry.entity';
 import { ResourcePurchase } from './entities/resource-purchase.entity';
+import { PaymentRefund } from './entities/payment-refund.entity';
+import { PaymentDispute } from './entities/payment-dispute.entity';
+import { PaymentLedgerAdjustment } from './entities/payment-ledger-adjustment.entity';
 import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PaystackProvider } from './providers/paystack.provider';
 import { PAYMENT_PROVIDER } from './providers/payment-provider.interface';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([PaymentTransaction, PaymentLedgerEntry, ResourcePurchase, PointWallet, PointTransaction, Resource, User])],
+  imports: [TypeOrmModule.forFeature([PaymentTransaction, PaymentLedgerEntry, ResourcePurchase, PointWallet, PointTransaction, Resource, User, PaymentRefund, PaymentDispute, PaymentLedgerAdjustment])],
   controllers: [PaymentsController],
   providers: [
     PaystackProvider,
