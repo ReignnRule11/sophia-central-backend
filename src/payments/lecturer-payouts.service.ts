@@ -192,8 +192,6 @@ export class LecturerPayoutsService {
     const payout = await this.payouts.findOne({ where: { reference, provider: this.provider.name } });
     if (!payout) return { received: true, processed: false };
     const transfer = await this.provider.verifyTransfer(reference);
-    const expectedStatus = eventName === 'transfer.success' ? 'success'
-      : eventName === 'transfer.reversed' ? 'reversed' : ['failed', 'abandoned', 'blocked', 'rejected'].includes(transfer.status.toLowerCase()) ? transfer.status.toLowerCase() : 'failed';
     if (eventName === 'transfer.success' && transfer.status.toLowerCase() !== 'success') return { received: true, processed: false };
     if (eventName === 'transfer.reversed' && transfer.status.toLowerCase() !== 'reversed') return { received: true, processed: false };
     if (eventName === 'transfer.failed' && !['failed', 'abandoned', 'blocked', 'rejected'].includes(transfer.status.toLowerCase())) return { received: true, processed: false };
