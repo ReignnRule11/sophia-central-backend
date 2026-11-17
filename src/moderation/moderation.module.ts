@@ -12,9 +12,11 @@ import { ChatMessage } from '../chat/entities/chat-message.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { SupportModule } from '../support/support.module';
 import { PointsModule } from '../points/points.module';
+import { ResourceReviewAppeal } from './entities/resource-review-appeal.entity';
+import { ResourceReviewAppealDecision } from './entities/resource-review-appeal-decision.entity';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ModerationReview, ContentReport, Resource, User, ChatMessage]), NotificationsModule, SupportModule, PointsModule],
+  imports: [TypeOrmModule.forFeature([ModerationReview, ContentReport, Resource, User, ChatMessage, ResourceReviewAppeal, ResourceReviewAppealDecision]), NotificationsModule, SupportModule, PointsModule],
   controllers: [ModerationController, ReportsController, ModerationReportsController],
   providers: [ModerationService, ContentReportsService],
   exports: [ModerationService, ContentReportsService],
