@@ -19,18 +19,16 @@ import { PaymentsController } from './payments.controller';
 import { PaymentsService } from './payments.service';
 import { PaymentsReconciliationService } from './payments-reconciliation.service';
 import { PaystackProvider } from './providers/paystack.provider';
-import { PAYMENT_PROVIDER } from './providers/payment-provider.interface';
+import { FlutterwaveProvider } from './providers/flutterwave.provider';
+import { PaymentProviderRegistry } from './providers/payment-provider.registry';
 
 @Module({
   imports: [TypeOrmModule.forFeature([PaymentTransaction, PaymentLedgerEntry, ResourcePurchase, PointWallet, PointTransaction, Resource, User, PaymentRefund, PaymentDispute, PaymentLedgerAdjustment, PaymentReconciliationRun, PaymentPayout, PaymentPayoutBeneficiary, PaymentPayoutReconciliationRun])],
   controllers: [PaymentsController],
   providers: [
     PaystackProvider,
-    { provide: PAYMENT_PROVIDER, useFactory: (paystack: PaystackProvider) => {
-      const selected = (process.env.PAYMENT_PROVIDER || 'paystack').toLowerCase();
-      if (selected !== 'paystack') throw new Error(`Unsupported PAYMENT_PROVIDER "${selected}". Add and register a provider adapter before selecting it.`);
-      return paystack;
-    }, inject: [PaystackProvider] },
+    FlutterwaveProvider,
+    PaymentProviderRegistry,
     PaymentsService,
     PaymentsReconciliationService,
     LecturerPayoutsService,
