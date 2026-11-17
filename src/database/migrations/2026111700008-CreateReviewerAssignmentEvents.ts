@@ -8,9 +8,9 @@ export class CreateReviewerAssignmentEvents2026111700008 implements MigrationInt
       CREATE TABLE IF NOT EXISTS "reviewer_assignment_events" (
         "id" uuid PRIMARY KEY DEFAULT gen_random_uuid(),
         "assignmentId" uuid NOT NULL,
-        "resourceId" uuid NOT NULL REFERENCES "resources"("id") ON DELETE CASCADE,
-        "reviewerId" uuid NOT NULL REFERENCES "users"("id") ON DELETE RESTRICT,
-        "actorId" uuid REFERENCES "users"("id") ON DELETE SET NULL,
+        "resourceId" uuid NOT NULL,
+        "reviewerId" uuid NOT NULL,
+        "actorId" uuid,
         "eventType" varchar(24) NOT NULL CHECK ("eventType" IN ('assigned', 'recused', 'completed', 'released')),
         "reviewStatus" varchar(24),
         "createdAt" timestamptz NOT NULL DEFAULT now()
