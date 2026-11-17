@@ -228,14 +228,14 @@ export class LecturerPayoutsService {
     });
   }
 
-  async reconcilePayouts(admin: User, input: { from: string; to: string }) {
+  async reconcilePayouts(admin: User, input: { from: string; to: string; provider?: string }) {
     if (![UserRole.ADMIN, UserRole.MODERATOR].includes(admin.role)) throw new ForbiddenException('Only administrators and moderators may reconcile payouts.');
     const start = new Date(input.from), end = new Date(input.to);
     if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start ||
         end.getTime() - start.getTime() > 31 * 24 * 60 * 60 * 1000) {
       throw new BadRequestException('Provide a valid UTC date range no longer than 31 days.');
     }
-    const provider = this.providers.defaultProvider();
+    const provider = input.provider ? this.providers.get(input.provider) : this.providers.defaultProvider();
     const [remote, local] = await Promise.all([
       provider.listTransfers({ from: start.toISOString(), to: end.toISOString() }),
       this.payouts.createQueryBuilder('payout')
