@@ -12,6 +12,7 @@ import { AssignReviewerDto } from './dto/assign-reviewer.dto';
 import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declaration.dto';
 import { CreateResourceAppealDto } from './dto/create-resource-appeal.dto';
 import { DecideResourceAppealDto } from './dto/decide-resource-appeal.dto';
+import { OverrideModerationReviewDto } from './dto/override-moderation-review.dto';
 import { SupportService } from '../support/support.service';
 import { ConcludeSupportRequestDto } from '../support/dto/conclude-support-request.dto';
 import { SupportEmailService } from '../support/support-email.service';
@@ -67,6 +68,19 @@ export class ModerationController {
   @UseGuards(CsrfGuard)
   decideAppeal(@Param('id') id: string, @Body() dto: DecideResourceAppealDto, @Req() request: AuthenticatedRequest) {
     return this.moderationService.decideAppeal(id, request.user, dto);
+  }
+
+  @Patch('resources/:id/override')
+  @Roles(UserRole.ADMIN)
+  @UseGuards(CsrfGuard)
+  overrideReview(@Param('id') id: string, @Body() dto: OverrideModerationReviewDto, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.overrideReview(id, request.user, dto);
+  }
+
+  @Get('resources/:id/override-history')
+  @Roles(UserRole.ADMIN)
+  getOverrideHistory(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.getOverrideHistory(id, request.user);
   }
 
   @Get('integrity-monitor')
