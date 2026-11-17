@@ -1,6 +1,6 @@
 import { ForbiddenException, NotFoundException } from '@nestjs/common';
 import { ResourcesService } from './resources.service';
-import { ResourceModerationStatus, ResourceOrigin } from './entities/resource.entity';
+import { ResourceModerationStatus, ResourceOrigin, ResourcePricingMode } from './entities/resource.entity';
 import { UserRole } from '../users/entities/user.entity';
 
 describe('ResourcesService.findOneForViewer authorization', () => {
@@ -12,6 +12,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     create: jest.fn((value) => value),
     save: jest.fn(async (value) => value),
   };
+  const resourcePurchaseRepository: any = { findOne: jest.fn().mockResolvedValue(null) };
   const storageCleanup: any = { enqueueWithManager: jest.fn() };
   const service = new ResourcesService(
     resourceRepository,
@@ -19,6 +20,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     {} as any,
     activityRepository,
     {} as any,
+    resourcePurchaseRepository,
     storageCleanup,
   );
 
@@ -28,6 +30,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     uploaderId: 'student-owner',
     moderationStatus: ResourceModerationStatus.PENDING,
     fileUrl: 'https://storage.example.test/private/test.pdf',
+    pricingMode: ResourcePricingMode.FREE,
     ...overrides,
   });
 
@@ -69,7 +72,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     const pending = resource({ downloadRestricted: true });
     resourceRepository.findOne.mockResolvedValueOnce(pending).mockResolvedValueOnce(pending);
     const savedRepository: any = { findOne: jest.fn().mockResolvedValue(null), create: jest.fn((value) => value), save: jest.fn(async (value) => value) };
-    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, storageCleanup);
+    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
     await expect(downloadService.downloadForUser('resource-1', { id: 'moderator-1', role: UserRole.MODERATOR } as any))
       .resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
     expect(savedRepository.save).toHaveBeenCalledWith(expect.objectContaining({ userId: 'moderator-1', resourceId: 'resource-1', downloadedAt: expect.any(Date) }));
@@ -77,7 +80,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
 
   it('does not allow an academic reviewer to download resources', async () => {
     const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
-    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, storageCleanup);
+    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
     await expect(downloadService.downloadForUser('resource-1', { id: 'reviewer-1', role: UserRole.REVIEWER } as any))
       .rejects.toBeInstanceOf(ForbiddenException);
     expect(resourceRepository.findOne).not.toHaveBeenCalled();
@@ -99,6 +102,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       {} as any,
       activityRepository,
       savedRepository,
+      resourcePurchaseRepository,
       storageCleanup,
     );
 
@@ -124,6 +128,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       {} as any,
       activityRepository,
       savedRepository,
+      resourcePurchaseRepository,
       storageCleanup,
     );
 
@@ -170,6 +175,31 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     resourceRepository.findOne.mockResolvedValue(resource({ assignedReviewerId: 'reviewer-2' }));
     await expect(service.findOneForViewer('resource-1', { id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: false } as any, false))
       .rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('blocks an unpaid student from recording a paid-resource download', async () => {
+    const paid = resource({ moderationStatus: ResourceModerationStatus.APPROVED, pricingMode: ResourcePricingMode.FIXED, uploaderId: 'lecturer-1' });
+    resourceRepository.findOne.mockResolvedValue(paid);
+    resourcePurchaseRepository.findOne.mockResolvedValue(null);
+    const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
+
+    await expect(downloadService.downloadForUser('resource-1', {
+      id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1',
+    } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(savedRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('allows a student with a recorded purchase to download a paid resource', async () => {
+    const paid = resource({ moderationStatus: ResourceModerationStatus.APPROVED, pricingMode: ResourcePricingMode.FIXED, uploaderId: 'lecturer-1' });
+    resourceRepository.findOne.mockResolvedValue(paid);
+    resourcePurchaseRepository.findOne.mockResolvedValue({ id: 'purchase-1', userId: 'student-1', resourceId: 'resource-1' });
+    const savedRepository: any = { findOne: jest.fn().mockResolvedValue(null), create: jest.fn((value) => value), save: jest.fn(async value => value) };
+    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
+
+    await expect(downloadService.downloadForUser('resource-1', {
+      id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1',
+    } as any)).resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
   });
 
   it('rejects unsupported roles', async () => {

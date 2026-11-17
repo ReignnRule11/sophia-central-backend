@@ -7,11 +7,12 @@ import { OpenSourceResearchService } from './open-source-research.service';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 import { Resource } from './entities/resource.entity';
 import { SavedResource } from './entities/saved-resource.entity';
+import { ResourcePurchase } from '../payments/entities/resource-purchase.entity';
 import { User } from '../users/entities/user.entity';
 import { StorageModule } from '../upload/storage.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([Resource, SavedResource, User, UserActivityEvent]), StorageModule],
+  imports: [TypeOrmModule.forFeature([Resource, SavedResource, ResourcePurchase, User, UserActivityEvent]), StorageModule],
   controllers: [ResourcesController],
   providers: [ResourcesService, CommunityResourcesService, OpenSourceResearchService],
   exports: [ResourcesService, CommunityResourcesService, OpenSourceResearchService],

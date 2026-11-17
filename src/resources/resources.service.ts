@@ -15,6 +15,8 @@ import { S3Service } from '../upload/s3.service';
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
 import { FileUpload } from '../upload/entities/file-upload.entity';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
+import { ResourcePurchase } from '../payments/entities/resource-purchase.entity';
+import { ResourcePricingMode } from './entities/resource.entity';
 
 @Injectable()
 export class ResourcesService {
@@ -28,6 +30,8 @@ export class ResourcesService {
     private readonly activityRepository: Repository<UserActivityEvent>,
     @InjectRepository(SavedResource)
     private readonly savedResourceRepository: Repository<SavedResource>,
+    @InjectRepository(ResourcePurchase)
+    private readonly resourcePurchaseRepository: Repository<ResourcePurchase>,
     private readonly storageCleanup: StorageCleanupService,
   ) {}
 
@@ -127,6 +131,13 @@ export class ResourcesService {
     return { saved: true, resourceId: id };
   }
 
+  private async assertPaidResourceAccess(resource: Resource, viewer: User): Promise<void> {
+    if (resource.pricingMode === ResourcePricingMode.FREE) return;
+    if (resource.uploaderId === viewer.id || [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) return;
+    const purchase = await this.resourcePurchaseRepository.findOne({ where: { userId: viewer.id, resourceId: resource.id } });
+    if (!purchase) throw new ForbiddenException('Purchase this resource before accessing its file.');
+  }
+
   async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
     this.assertCanSave(viewer);
     this.assertInstitutionIdentity(viewer);
@@ -135,6 +146,7 @@ export class ResourcesService {
     }
     const resource = await this.findOneForViewer(id, viewer, false);
     const ownUpload = resource.uploaderId === viewer.id;
+    await this.assertPaidResourceAccess(resource, viewer);
     if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new NotFoundException('Approved resource not found');
     if (resource.downloadRestricted && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
     // findOneForViewer deliberately strips private storage URLs from its response.
@@ -213,6 +225,7 @@ export class ResourcesService {
       throw new ForbiddenException('Academic reviewers can preview assigned resources but cannot download them.');
     }
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
+    await this.assertPaidResourceAccess(authorizedResource, viewer);
     if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
       if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
