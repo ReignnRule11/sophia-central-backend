@@ -86,7 +86,7 @@ export class User {
   hasReviewerAccess!: boolean;
 
   @Column({ type: 'varchar', length: 32, default: 'not_applied' })
-  reviewerStatus!: 'not_applied' | 'submitted' | 'under_review' | 'more_information_required' | 'approved' | 'rejected' | 'suspended' | 'revoked';
+  reviewerStatus!: 'not_applied' | 'draft' | 'submitted' | 'under_review' | 'more_information_required' | 'approved' | 'rejected' | 'suspended' | 'revoked';
 
   @Column({ type: 'jsonb', nullable: true })
   reviewerExpertise?: string[];
