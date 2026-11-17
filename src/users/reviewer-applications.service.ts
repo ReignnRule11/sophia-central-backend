@@ -15,8 +15,8 @@ export class ReviewerApplicationsService {
   ) {}
 
   async submit(user: User, dto: SubmitReviewerApplicationDto) {
-    if (![UserRole.STUDENT, UserRole.LECTURER].includes(user.role)) {
-      throw new ForbiddenException('Only an existing Student or Lecturer account can apply for additional Academic Reviewer access.');
+    if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
+      throw new ForbiddenException('Only Student, Lecturer or External Reviewer accounts can apply for Academic Reviewer access.');
     }
     if (user.hasReviewerAccess === true) {
       throw new ConflictException('Academic Reviewer access is already active on this account.');
@@ -37,14 +37,20 @@ export class ReviewerApplicationsService {
     if ([ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED].includes(latest?.status as ReviewerApplicationStatus)) {
       throw new ConflictException('Reviewer access is suspended or revoked. Contact an administrator for a formal access review.');
     }
+    const institution = dto.institution?.trim() || user.institution?.trim() || null;
+    const faculty = dto.faculty?.trim() || user.faculty?.trim() || null;
+    const department = dto.department?.trim() || user.department?.trim() || null;
+    if (user.role !== UserRole.REVIEWER && (!institution || !faculty || !department)) {
+      throw new BadRequestException('Your existing Student or Lecturer academic affiliation must be complete before applying.');
+    }
     const application = this.applications.create({
       userId: user.id,
       status: ReviewerApplicationStatus.SUBMITTED,
       qualifications: [...new Set(dto.qualifications.map(v => v.trim()).filter(Boolean))],
       expertiseAreas: [...new Set(dto.expertiseAreas.map(v => v.trim()).filter(Boolean))],
-      institution: dto.institution.trim(),
-      faculty: dto.faculty.trim(),
-      department: dto.department.trim(),
+      institution,
+      faculty,
+      department,
       academicLevels: [...new Set(dto.academicLevels.map(v => v.trim()).filter(Boolean))],
       reviewExperience: dto.reviewExperience.trim(),
       supportingDocuments: dto.supportingDocuments?.map(v => v.trim()).filter(Boolean),
@@ -85,7 +91,7 @@ export class ReviewerApplicationsService {
       if (!application) throw new NotFoundException('Reviewer application not found.');
       const user = await manager.findOne(User, { where: { id: application.userId }, lock: { mode: 'pessimistic_write' } });
       if (!user) throw new NotFoundException('Applicant account no longer exists.');
-      if (user.role !== UserRole.STUDENT && user.role !== UserRole.LECTURER) {
+      if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
         throw new ConflictException('The applicant account type has changed. Resolve the account identity before deciding this application.');
       }
       const allowedTransitions: Record<ReviewerApplicationStatus, ReviewerApplicationStatus[]> = {
