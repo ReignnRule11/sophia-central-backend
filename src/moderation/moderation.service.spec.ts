@@ -8,6 +8,7 @@ describe('ModerationService academic reviewer workflow', () => {
   const transactionManager = {
     create: jest.fn((_entity, value) => value),
     save: jest.fn(async (entity, value) => entity === Resource ? value : { id: 'review-1', ...value }),
+    query: jest.fn().mockResolvedValue([]),
   };
   const resourceRepository = {
     find: jest.fn(),
