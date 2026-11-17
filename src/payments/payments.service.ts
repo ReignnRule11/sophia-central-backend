@@ -273,8 +273,8 @@ export class PaymentsService {
     });
   }
 
-  private async applyDisputeEvent(eventName: string, paymentReference: string, data: Record<string, any>) {
-    const payment = await this.payments.findOne({ where: { reference: paymentReference, status: PaymentStatus.SUCCESS } });
+  private async applyDisputeEvent(providerName: string, eventName: string, paymentReference: string, data: Record<string, any>) {
+    const payment = await this.payments.findOne({ where: { reference: paymentReference, provider: providerName, status: PaymentStatus.SUCCESS } });
     const disputeId = data.id === undefined ? null : String(data.id);
     if (!payment || !disputeId) return;
     const existing = await this.disputes.findOne({ where: { providerDisputeId: disputeId } });
@@ -343,7 +343,7 @@ export class PaymentsService {
       return { received: true, processed: true };
     }
     if (event.event.startsWith('charge.dispute.')) {
-      await this.applyDisputeEvent(event.event, event.reference, event.data || {});
+      await this.applyDisputeEvent(providerName, event.event, event.reference, event.data || {});
       return { received: true, processed: true };
     }
     return { received: true, processed: false };
