@@ -1,11 +1,11 @@
-import { BadRequestException, ForbiddenException, Inject, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { PaymentTransaction } from './entities/payment-transaction.entity';
 import { PaymentRefund } from './entities/payment-refund.entity';
 import { PaymentReconciliationRun } from './entities/payment-reconciliation-run.entity';
-import { PAYMENT_PROVIDER, PaymentProvider } from './providers/payment-provider.interface';
+import { PaymentProviderRegistry } from './providers/payment-provider.registry';
 
 @Injectable()
 export class PaymentsReconciliationService {
@@ -13,10 +13,10 @@ export class PaymentsReconciliationService {
     @InjectRepository(PaymentTransaction) private readonly payments: Repository<PaymentTransaction>,
     @InjectRepository(PaymentRefund) private readonly refunds: Repository<PaymentRefund>,
     @InjectRepository(PaymentReconciliationRun) private readonly runs: Repository<PaymentReconciliationRun>,
-    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    private readonly providers: PaymentProviderRegistry,
   ) {}
 
-  async reconcile(user: User, input: { from: string; to: string }) {
+  async reconcile(user: User, input: { from: string; to: string; provider?: string }) {
     if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role)) {
       throw new ForbiddenException('Only administrators and moderators may run payment reconciliation.');
     }
@@ -27,17 +27,18 @@ export class PaymentsReconciliationService {
       throw new BadRequestException('Provide a valid UTC date range no longer than 31 days.');
     }
 
+    const provider = input.provider ? this.providers.get(input.provider) : this.providers.defaultProvider();
     try {
       const [providerTransactions, providerRefunds] = await Promise.all([
-        this.provider.listTransactions({ from: start.toISOString(), to: end.toISOString() }),
-        this.provider.listRefunds({ from: start.toISOString(), to: end.toISOString() }),
+        provider.listTransactions({ from: start.toISOString(), to: end.toISOString() }),
+        provider.listRefunds({ from: start.toISOString(), to: end.toISOString() }),
       ]);
       const localPayments = await this.payments.createQueryBuilder('payment')
-        .where('payment.provider = :provider', { provider: this.provider.name })
+        .where('payment.provider = :provider', { provider: provider.name })
         .andWhere('payment.createdAt >= :start AND payment.createdAt < :end', { start, end }).getMany();
       const localRefunds = await this.refunds.createQueryBuilder('refund')
         .innerJoin(PaymentTransaction, 'payment', 'payment.id = refund.paymentId')
-        .where('payment.provider = :provider', { provider: this.provider.name })
+        .where('payment.provider = :provider', { provider: provider.name })
         .andWhere('refund.createdAt >= :start AND refund.createdAt < :end', { start, end }).getMany();
 
       const txByReference = new Map(providerTransactions.map(tx => [String(tx.reference || ''), tx]));
@@ -98,7 +99,7 @@ export class PaymentsReconciliationService {
       }
 
       const run = await this.runs.save(this.runs.create({
-        provider: this.provider.name, periodStart: start, periodEnd: end, status: 'completed',
+        provider: provider.name, periodStart: start, periodEnd: end, status: 'completed',
         providerTransactions: providerTransactions.length, localPayments: localPayments.length,
         providerRefunds: providerRefunds.length, localRefunds: localRefunds.length,
         discrepancies, initiatedByUserId: user.id,

@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
@@ -10,7 +10,7 @@ import { PaymentRefund, PaymentRefundStatus } from './entities/payment-refund.en
 import { PaymentPayoutBeneficiary } from './entities/payment-payout-beneficiary.entity';
 import { PaymentPayout, PaymentPayoutStatus } from './entities/payment-payout.entity';
 import { PaymentPayoutReconciliationRun } from './entities/payment-payout-reconciliation-run.entity';
-import { PAYMENT_PROVIDER, PaymentProvider } from './providers/payment-provider.interface';
+import { PaymentProviderRegistry } from './providers/payment-provider.registry';
 import { randomBytes } from 'node:crypto';
 
 const HELD_STATUSES = [PaymentPayoutStatus.REQUESTED, PaymentPayoutStatus.PROCESSING, PaymentPayoutStatus.PENDING, PaymentPayoutStatus.OTP];
@@ -27,7 +27,7 @@ export class LecturerPayoutsService {
     @InjectRepository(PaymentPayoutBeneficiary) private readonly beneficiaries: Repository<PaymentPayoutBeneficiary>,
     @InjectRepository(PaymentPayout) private readonly payouts: Repository<PaymentPayout>,
     @InjectRepository(PaymentPayoutReconciliationRun) private readonly payoutRuns: Repository<PaymentPayoutReconciliationRun>,
-    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    private readonly providers: PaymentProviderRegistry,
   ) {}
 
   private lecturer(user: User) {
@@ -50,17 +50,18 @@ export class LecturerPayoutsService {
         .getOne();
       if (activePayout || inFlight) throw new ConflictException('Bank details cannot be changed while a payout is awaiting approval or settlement.');
     }
-    const resolved = await this.provider.resolveBankAccount(input.accountNumber, input.bankCode);
-    const recipient = await this.provider.createTransferRecipient({
+    const provider = this.providers.defaultProvider();
+    const resolved = await provider.resolveBankAccount(input.accountNumber, input.bankCode);
+    const recipient = await provider.createTransferRecipient({
       name: resolved.accountName, accountNumber: resolved.accountNumber, bankCode: resolved.bankCode,
     });
     const beneficiary = existing
       ? await this.beneficiaries.save(Object.assign(existing, {
-          provider: this.provider.name, recipientCode: recipient.recipientCode, accountName: recipient.accountName,
+          provider: provider.name, recipientCode: recipient.recipientCode, accountName: recipient.accountName,
           bankName: resolved.bankName, accountLast4: resolved.accountNumber.slice(-4), currency: 'NGN',
         }))
       : await this.beneficiaries.save(this.beneficiaries.create({
-          lecturerUserId: user.id, provider: this.provider.name, recipientCode: recipient.recipientCode,
+          lecturerUserId: user.id, provider: provider.name, recipientCode: recipient.recipientCode,
           accountName: recipient.accountName, bankName: resolved.bankName,
           accountLast4: resolved.accountNumber.slice(-4), currency: 'NGN',
         }));
@@ -129,11 +130,13 @@ export class LecturerPayoutsService {
       await manager.findOne(User, { where: { id: user.id }, lock: { mode: 'pessimistic_write' } });
       const beneficiary = await manager.findOne(PaymentPayoutBeneficiary, { where: { lecturerUserId: user.id } });
       if (!beneficiary) throw new ConflictException('Verify and save a bank beneficiary before requesting a payout.');
+      const provider = this.providers.defaultProvider();
+      if (beneficiary.provider !== provider.name) throw new ConflictException('Your saved bank beneficiary belongs to a different payment provider. Re-verify your beneficiary with the active provider.');
       const available = await this.availableBalance(manager, user.id);
       if (BigInt(amountMinor) > available) throw new ConflictException('Payout amount exceeds the available lecturer balance.');
       const payout = manager.create(PaymentPayout, {
         lecturerUserId: user.id, beneficiaryId: beneficiary.id, reference: `sophis-payout-${randomBytes(16).toString('hex')}`,
-        provider: this.provider.name, amountMinor, currency: 'NGN', status: PaymentPayoutStatus.REQUESTED,
+        provider: provider.name, amountMinor, currency: 'NGN', status: PaymentPayoutStatus.REQUESTED,
         approvedByUserId: null, providerTransferCode: null, providerMetadata: null, failureReason: null, completedAt: null,
       });
       const saved = await manager.save(PaymentPayout, payout);
@@ -149,7 +152,7 @@ export class LecturerPayoutsService {
       if (record.status !== PaymentPayoutStatus.REQUESTED) throw new ConflictException('Only a newly requested payout can be approved.');
       if (record.lecturerUserId === admin.id) throw new ForbiddenException('A lecturer cannot approve their own payout.');
       const beneficiary = await manager.findOneBy(PaymentPayoutBeneficiary, { id: record.beneficiaryId });
-      if (!beneficiary || beneficiary.provider !== this.provider.name) throw new ConflictException('Payout beneficiary is unavailable or belongs to another provider.');
+      if (!beneficiary || beneficiary.provider !== record.provider) throw new ConflictException('Payout beneficiary is unavailable or belongs to another provider.');
       await manager.findOne(User, { where: { id: record.lecturerUserId }, lock: { mode: 'pessimistic_write' } });
       const available = await this.availableBalance(manager, record.lecturerUserId, record.id);
       if (BigInt(record.amountMinor) > available) throw new ConflictException('Available balance changed; this payout can no longer be approved.');
@@ -159,7 +162,7 @@ export class LecturerPayoutsService {
       return { record, beneficiary };
     });
     try {
-      const transfer = await this.provider.initiateTransfer({
+      const transfer = await this.providers.get(payout.record.provider).initiateTransfer({
         amountMinor: payout.record.amountMinor, recipientCode: payout.beneficiary.recipientCode,
         reference: payout.record.reference, reason: 'Sophis Central lecturer earnings payout',
       });
@@ -180,20 +183,21 @@ export class LecturerPayoutsService {
     const payout = await this.payouts.findOne({ where: { reference } });
     if (!payout) throw new NotFoundException('Payout not found.');
     if ([PaymentPayoutStatus.SUCCESS, PaymentPayoutStatus.FAILED, PaymentPayoutStatus.REVERSED].includes(payout.status)) return this.publicPayout(payout);
-    const transfer = await this.provider.verifyTransfer(reference);
+    const transfer = await this.providers.get(payout.provider).verifyTransfer(reference);
     await this.applyTransferStatus(payout.id, transfer, 'manual_verification');
     return this.publicPayout(await this.payouts.findOneByOrFail({ id: payout.id }));
   }
 
 
-  async handleTransferWebhook(eventName: string, reference: string, _data: Record<string, any>) {
-    const expectedEvents = ['transfer.success', 'transfer.failed', 'transfer.reversed'];
+  async handleTransferWebhook(providerName: string, eventName: string, reference: string, _data: Record<string, any>) {
+    const expectedEvents = ['transfer.success', 'transfer.failed', 'transfer.reversed', 'transfer.reversal', 'transfer.completed'];
     if (!expectedEvents.includes(eventName)) return { received: true, processed: false };
-    const payout = await this.payouts.findOne({ where: { reference, provider: this.provider.name } });
+    const payout = await this.payouts.findOne({ where: { reference, provider: providerName } });
     if (!payout) return { received: true, processed: false };
-    const transfer = await this.provider.verifyTransfer(reference);
-    if (eventName === 'transfer.success' && transfer.status.toLowerCase() !== 'success') return { received: true, processed: false };
-    if (eventName === 'transfer.reversed' && transfer.status.toLowerCase() !== 'reversed') return { received: true, processed: false };
+    const transfer = await this.providers.get(payout.provider).verifyTransfer(reference);
+    if (eventName === 'transfer.success' && !['success', 'successful'].includes(transfer.status.toLowerCase())) return { received: true, processed: false };
+    if (eventName === 'transfer.completed' && !['success', 'successful', 'failed'].includes(transfer.status.toLowerCase())) return { received: true, processed: false };
+    if (['transfer.reversed', 'transfer.reversal'].includes(eventName) && transfer.status.toLowerCase() !== 'reversed') return { received: true, processed: false };
     if (eventName === 'transfer.failed' && !['failed', 'abandoned', 'blocked', 'rejected'].includes(transfer.status.toLowerCase())) return { received: true, processed: false };
     await this.applyTransferStatus(payout.id, transfer, eventName);
     return { received: true, processed: true };
@@ -224,17 +228,18 @@ export class LecturerPayoutsService {
     });
   }
 
-  async reconcilePayouts(admin: User, input: { from: string; to: string }) {
+  async reconcilePayouts(admin: User, input: { from: string; to: string; provider?: string }) {
     if (![UserRole.ADMIN, UserRole.MODERATOR].includes(admin.role)) throw new ForbiddenException('Only administrators and moderators may reconcile payouts.');
     const start = new Date(input.from), end = new Date(input.to);
     if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start ||
         end.getTime() - start.getTime() > 31 * 24 * 60 * 60 * 1000) {
       throw new BadRequestException('Provide a valid UTC date range no longer than 31 days.');
     }
+    const provider = input.provider ? this.providers.get(input.provider) : this.providers.defaultProvider();
     const [remote, local] = await Promise.all([
-      this.provider.listTransfers({ from: start.toISOString(), to: end.toISOString() }),
+      provider.listTransfers({ from: start.toISOString(), to: end.toISOString() }),
       this.payouts.createQueryBuilder('payout')
-        .where('payout.provider = :provider', { provider: this.provider.name })
+        .where('payout.provider = :provider', { provider: provider.name })
         .andWhere('payout.createdAt >= :start AND payout.createdAt < :end', { start, end }).getMany(),
     ]);
     // Reconcile only transfers initiated by this payout workflow; a shared Paystack account
@@ -254,7 +259,7 @@ export class LecturerPayoutsService {
       const currency = String(providerTransfer.currency || '').toUpperCase();
       const status = String(providerTransfer.status || '').toLowerCase();
       const localStatus = payout.status === PaymentPayoutStatus.PROCESSING ? 'pending' : payout.status;
-      const normalizedStatus = ['abandoned', 'blocked', 'rejected'].includes(status) ? 'failed' : status;
+      const normalizedStatus = ['abandoned', 'blocked', 'rejected'].includes(status) ? 'failed' : ['new', 'processing', 'received', 'queued'].includes(status) ? 'pending' : ['successful'].includes(status) ? 'success' : status;
       if (!Number.isSafeInteger(amount) || amount !== Number(payout.amountMinor) ||
           currency !== payout.currency || normalizedStatus !== localStatus) {
         discrepancies.push({ type: 'payout_mismatch', reference: payout.reference, localStatus: payout.status,
@@ -271,7 +276,7 @@ export class LecturerPayoutsService {
       });
     }
     const run = await this.payoutRuns.save(this.payoutRuns.create({
-      provider: this.provider.name, periodStart: start, periodEnd: end, status: 'completed',
+      provider: provider.name, periodStart: start, periodEnd: end, status: 'completed',
       providerTransfers: sophisTransfers.length, localPayouts: eligibleLocal.length, discrepancies, initiatedByUserId: admin.id,
     }));
     return { id: run.id, provider: run.provider, periodStart: run.periodStart, periodEnd: run.periodEnd,
@@ -296,12 +301,12 @@ export class LecturerPayoutsService {
 
   private mapStatus(status: string): PaymentPayoutStatus {
     const value = status.toLowerCase();
-    if (value === 'success') return PaymentPayoutStatus.SUCCESS;
+    if (['success', 'successful'].includes(value)) return PaymentPayoutStatus.SUCCESS;
     if (['failed', 'abandoned', 'blocked', 'rejected'].includes(value)) return PaymentPayoutStatus.FAILED;
     if (value === 'reversed') return PaymentPayoutStatus.REVERSED;
     if (value === 'otp') return PaymentPayoutStatus.OTP;
-    if (['pending', 'processing', 'received'].includes(value)) return PaymentPayoutStatus.PENDING;
-    throw new ConflictException('Paystack returned an unsupported transfer status; payout reservation remains unchanged.');
+    if (['new', 'pending', 'processing', 'received', 'queued'].includes(value)) return PaymentPayoutStatus.PENDING;
+    throw new ConflictException('Payment provider returned an unsupported transfer status; payout reservation remains unchanged.');
   }
 
   private publicPayout(payout: PaymentPayout) {

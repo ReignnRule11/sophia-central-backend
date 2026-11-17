@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException, ForbiddenException, Inject, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, Injectable, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
@@ -13,7 +13,8 @@ import { ResourcePurchase } from './entities/resource-purchase.entity';
 import { PaymentRefund, PaymentRefundStatus } from './entities/payment-refund.entity';
 import { PaymentDispute, PaymentDisputeStatus } from './entities/payment-dispute.entity';
 import { PaymentLedgerAdjustment, PaymentLedgerAdjustmentKind } from './entities/payment-ledger-adjustment.entity';
-import { PAYMENT_PROVIDER, PaymentProvider, VerifiedPayment, ProviderRefund } from './providers/payment-provider.interface';
+import { VerifiedPayment, ProviderRefund } from './providers/payment-provider.interface';
+import { PaymentProviderRegistry } from './providers/payment-provider.registry';
 import { randomBytes } from 'node:crypto';
 import { LecturerPayoutsService } from './lecturer-payouts.service';
 
@@ -27,7 +28,7 @@ export class PaymentsService {
     @InjectRepository(PaymentDispute) private readonly disputes: Repository<PaymentDispute>,
     private readonly dataSource: DataSource,
     private readonly config: ConfigService,
-    @Inject(PAYMENT_PROVIDER) private readonly provider: PaymentProvider,
+    private readonly providers: PaymentProviderRegistry,
     private readonly lecturerPayouts: LecturerPayoutsService,
   ) {}
 
@@ -76,9 +77,10 @@ export class PaymentsService {
     if (!callbackUrl || !/^https:\/\//i.test(callbackUrl)) {
       throw new ServiceUnavailableException('A secure PAYMENT_CALLBACK_URL must be configured before checkout.');
     }
+    const provider = this.providers.defaultProvider();
     const reference = `SOPHIS-${Date.now()}-${randomBytes(8).toString('hex')}`;
     const payment = await this.payments.save(this.payments.create({
-      provider: this.provider.name,
+      provider: provider.name,
       reference,
       userId: user.id,
       purpose: dto.purpose,
@@ -93,7 +95,7 @@ export class PaymentsService {
       paidAt: null,
     }));
     try {
-      const initialized = await this.provider.initialize({
+      const initialized = await provider.initialize({
         email: user.email,
         amountMinor: payment.amountMinor,
         currency: payment.currency,
@@ -104,7 +106,7 @@ export class PaymentsService {
       payment.checkoutUrl = initialized.authorizationUrl;
       payment.providerMetadata = { authorization: initialized.raw };
       await this.payments.save(payment);
-      return { reference, provider: this.provider.name, checkoutUrl: initialized.authorizationUrl, amountMinor: payment.amountMinor, currency: payment.currency, status: payment.status };
+      return { reference, provider: provider.name, checkoutUrl: initialized.authorizationUrl, amountMinor: payment.amountMinor, currency: payment.currency, status: payment.status };
     } catch (error) {
       // Keep the intent pending: a provider timeout can happen after the provider
       // accepted the transaction. Reconciliation must verify before retrying.
@@ -119,8 +121,8 @@ export class PaymentsService {
       throw new ForbiddenException('You cannot inspect another user payment.');
     }
     if (payment.status === PaymentStatus.SUCCESS) return this.publicPayment(payment);
-    if (payment.provider !== this.provider.name) throw new ServiceUnavailableException('The configured payment provider does not match this transaction.');
-    const verified = await this.provider.verify(reference);
+    const provider = this.providers.get(payment.provider);
+    const verified = await provider.verify(reference);
     await this.applyVerifiedPayment(payment.id, verified);
     const updated = await this.payments.findOne({ where: { id: payment.id } });
     return this.publicPayment(updated!);
@@ -163,22 +165,23 @@ export class PaymentsService {
       return manager.save(PaymentRefund, record);
     });
     const payment = await this.payments.findOneByOrFail({ id: refund.paymentId });
+    const provider = this.providers.get(payment.provider);
     try {
-      const providerRefund = await this.provider.createRefund({
-        transactionReference: payment.reference,
+      const providerRefund = await provider.createRefund({
+        transactionReference: payment.provider === 'flutterwave' ? (payment.providerTransactionId || '') : payment.reference,
         amountMinor: refund.amountMinor,
         currency: refund.currency,
         reference: refund.reference,
         reason: refund.reason,
       });
       if (providerRefund.currency !== refund.currency || BigInt(providerRefund.amountMinor) !== BigInt(refund.amountMinor)) {
-        throw new ConflictException('Paystack refund response amount or currency does not match the recorded request.');
+        throw new ConflictException('Payment provider refund response amount or currency does not match the recorded request.');
       }
       await this.refunds.update({ id: refund.id }, {
         providerRefundId: providerRefund.id,
         providerMetadata: { providerStatus: providerRefund.status },
       });
-      const verifiedRefund = await this.provider.verifyRefund(providerRefund.id);
+      const verifiedRefund = await provider.verifyRefund(providerRefund.id);
       await this.applyRefundStatus(refund.id, verifiedRefund);
     } catch (error) {
       // Keep the reservation pending when the provider request outcome is uncertain.
@@ -205,7 +208,9 @@ export class PaymentsService {
     const refund = await this.refunds.findOne({ where: { id: refundId } });
     if (!refund) throw new NotFoundException('Refund not found.');
     if (!refund.providerRefundId) return this.publicRefund(refund);
-    const verified = await this.provider.verifyRefund(refund.providerRefundId);
+    const payment = await this.payments.findOneByOrFail({ id: refund.paymentId });
+    const provider = this.providers.get(payment.provider);
+    const verified = await provider.verifyRefund(refund.providerRefundId);
     await this.applyRefundStatus(refund.id, verified);
     return this.publicRefund(await this.refunds.findOneByOrFail({ id: refund.id }));
   }
@@ -223,7 +228,7 @@ export class PaymentsService {
       processed: PaymentRefundStatus.PROCESSED,
     };
     const status = statusMap[providerRefund.status.toLowerCase()];
-    if (!status) throw new ConflictException('Paystack returned an unsupported refund status.');
+    if (!status) throw new ConflictException('Payment provider returned an unsupported refund status.');
     await this.dataSource.transaction(async manager => {
       const refund = await manager.findOne(PaymentRefund, { where: { id: refundId }, lock: { mode: 'pessimistic_write' } });
       if (!refund) throw new NotFoundException('Refund not found.');
@@ -268,8 +273,8 @@ export class PaymentsService {
     });
   }
 
-  private async applyDisputeEvent(eventName: string, paymentReference: string, data: Record<string, any>) {
-    const payment = await this.payments.findOne({ where: { reference: paymentReference, status: PaymentStatus.SUCCESS } });
+  private async applyDisputeEvent(providerName: string, eventName: string, paymentReference: string, data: Record<string, any>) {
+    const payment = await this.payments.findOne({ where: { reference: paymentReference, provider: providerName, status: PaymentStatus.SUCCESS } });
     const disputeId = data.id === undefined ? null : String(data.id);
     if (!payment || !disputeId) return;
     const existing = await this.disputes.findOne({ where: { providerDisputeId: disputeId } });
@@ -309,17 +314,17 @@ export class PaymentsService {
   }
 
   async handleWebhook(providerName: string, rawBody: Buffer, headers: Record<string, string | string[] | undefined>) {
-    if (providerName !== this.provider.name) throw new NotFoundException('Payment provider webhook is not enabled.');
-    const event = this.provider.verifyWebhook(rawBody, headers);
+    const provider = this.providers.get(providerName);
+    const event = provider.verifyWebhook(rawBody, headers);
     if (!event) return { received: true, processed: false };
     if (event.event.startsWith('transfer.')) {
-      return this.lecturerPayouts.handleTransferWebhook(event.event, event.reference, event.data || {});
+      return this.lecturerPayouts.handleTransferWebhook(providerName, event.event, event.reference, event.data || {});
     }
-    if (event.event === 'charge.success') {
+    if (event.event === 'charge.success' || event.event === 'charge.completed') {
       const payment = await this.payments.findOne({ where: { reference: event.reference } });
       if (!payment || payment.provider !== providerName) return { received: true, processed: false };
       if (payment.status === PaymentStatus.SUCCESS) return { received: true, processed: true, duplicate: true };
-      const verified = await this.provider.verify(event.reference);
+      const verified = await provider.verify(event.reference);
       await this.applyVerifiedPayment(payment.id, verified);
       return { received: true, processed: true };
     }
@@ -331,12 +336,15 @@ export class PaymentsService {
         refund = candidates.find(item => item.reference === data.refund_reference || item.paymentId === event.reference) || null;
       }
       if (!refund || !refund.providerRefundId) return { received: true, processed: false };
-      const verifiedRefund = await this.provider.verifyRefund(refund.providerRefundId);
+      const payment = await this.payments.findOneByOrFail({ id: refund.paymentId });
+      if (payment.provider !== providerName) return { received: true, processed: false };
+      const provider = this.providers.get(payment.provider);
+      const verifiedRefund = await provider.verifyRefund(refund.providerRefundId);
       await this.applyRefundStatus(refund.id, verifiedRefund);
       return { received: true, processed: true };
     }
     if (event.event.startsWith('charge.dispute.')) {
-      await this.applyDisputeEvent(event.event, event.reference, event.data || {});
+      await this.applyDisputeEvent(providerName, event.event, event.reference, event.data || {});
       return { received: true, processed: true };
     }
     return { received: true, processed: false };

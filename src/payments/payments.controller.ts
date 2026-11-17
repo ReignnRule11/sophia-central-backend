@@ -60,8 +60,8 @@ export class PaymentsController {
   @Post('reconciliation/run')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Compare local payments and refunds with Paystack without mutating financial records' })
-  reconcile(@CurrentUser() user: User, @Body() body: { from: string; to: string }) {
+  @ApiOperation({ summary: 'Compare local payments and refunds with a selected provider without mutating financial records' })
+  reconcile(@CurrentUser() user: User, @Body() body: { from: string; to: string; provider?: string }) {
     return this.reconciliation.reconcile(user, body);
   }
 
@@ -116,8 +116,8 @@ export class PaymentsController {
   @Post('payouts/reconciliation/run')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Compare lecturer payouts with Paystack transfers without mutating financial records' })
-  reconcilePayouts(@CurrentUser() user: User, @Body() body: { from: string; to: string }) {
+  @ApiOperation({ summary: 'Compare lecturer payouts with a selected provider without mutating financial records' })
+  reconcilePayouts(@CurrentUser() user: User, @Body() body: { from: string; to: string; provider?: string }) {
     return this.payouts.reconcilePayouts(user, body);
   }
 
@@ -132,7 +132,7 @@ export class PaymentsController {
   @Get('payouts/verify/:reference')
   @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Verify an in-flight Paystack lecturer transfer' })
+  @ApiOperation({ summary: 'Verify an in-flight lecturer transfer with its recorded provider' })
   verifyPayout(@CurrentUser() user: User, @Param('reference') reference: string) {
     return this.payouts.verify(user, reference);
   }
