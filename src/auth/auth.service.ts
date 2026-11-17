@@ -416,18 +416,21 @@ export class AuthService {
   async checkReviewerRegistrationIntent(email: string, academicHandle: string): Promise<{ requiresSignIn: boolean; signInIdentifier?: string }> {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedHandle = academicHandle.trim().replace(/^@+/, '').toLowerCase();
-    const [userByEmail, userByHandle, preAccount, draftByEmail, draftByHandle] = await Promise.all([
+    const [userByEmail, userByHandle, preAccount, draftByEmail] = await Promise.all([
       this.usersService.findByEmail(normalizedEmail),
       this.usersService.findByAcademicHandle(normalizedHandle),
       this.preAccounts.findOne({ where: { email: normalizedEmail } }),
       this.registrationDrafts.findOne({ where: { email: normalizedEmail } }),
-      this.registrationDrafts.findOne({ where: { academicHandle: normalizedHandle } }),
     ]);
-    const signInIdentifier = userByEmail || preAccount || draftByEmail
-      ? normalizedEmail
-      : userByHandle || draftByHandle
-        ? normalizedHandle
-        : undefined;
+    const draftExpired = Boolean(draftByEmail && draftByEmail.expiresAt.getTime() <= Date.now());
+    if (draftExpired) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(PreAccount).delete({ email: normalizedEmail });
+        await manager.getRepository(RegistrationDraft).delete({ email: normalizedEmail });
+      });
+    }
+    const existingEmailIdentity = Boolean(userByEmail || (preAccount && !draftExpired) || (draftByEmail && !draftExpired));
+    const signInIdentifier = existingEmailIdentity ? normalizedEmail : userByHandle ? normalizedHandle : undefined;
     return { requiresSignIn: Boolean(signInIdentifier), ...(signInIdentifier ? { signInIdentifier } : {}) };
   }
 
