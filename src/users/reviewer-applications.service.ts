@@ -6,6 +6,7 @@ import { ReviewerApplication, ReviewerApplicationStatus } from './entities/revie
 import { ReviewerApplicationDecision } from './entities/reviewer-application-decision.entity';
 import { SubmitReviewerApplicationDto } from './dto/submit-reviewer-application.dto';
 import { ReviewerApplicationDecisionDto } from './dto/reviewer-application-decision.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class ReviewerApplicationsService {
@@ -13,6 +14,7 @@ export class ReviewerApplicationsService {
     @InjectRepository(ReviewerApplication) private readonly applications: Repository<ReviewerApplication>,
     @InjectRepository(ReviewerApplicationDecision) private readonly decisions: Repository<ReviewerApplicationDecision>,
     private readonly dataSource: DataSource,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async submit(user: User, dto: SubmitReviewerApplicationDto) {
@@ -137,7 +139,7 @@ export class ReviewerApplicationsService {
     if ([ReviewerApplicationStatus.REJECTED, ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED].includes(dto.status) && !dto.note?.trim()) {
       throw new BadRequestException('A reason is required for rejection, suspension or revocation.');
     }
-    return this.dataSource.transaction(async manager => {
+    const result = await this.dataSource.transaction(async manager => {
       const applicationSnapshot = await manager.findOne(ReviewerApplication, { where: { id: applicationId } });
       if (!applicationSnapshot) throw new NotFoundException('Reviewer application not found.');
       const user = await manager.findOne(User, {
@@ -211,7 +213,32 @@ export class ReviewerApplicationsService {
         await manager.query('UPDATE resources SET "assignedReviewerId" = NULL, "reviewAssignmentId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
       }
       await manager.save(User, user);
-      return manager.save(ReviewerApplication, application);
+      const savedApplication = await manager.save(ReviewerApplication, application);
+      return { application: savedApplication, applicantId: user.id, applicantName: user.firstName || 'there' };
     });
+
+    const notificationByStatus: Record<ReviewerApplicationStatus, { title: string; message: string; link: string }> = {
+      [ReviewerApplicationStatus.DRAFT]: { title: 'Reviewer application updated', message: 'Your reviewer application draft has been updated.', link: '/reviewer-application' },
+      [ReviewerApplicationStatus.SUBMITTED]: { title: 'Reviewer application submitted', message: 'Your reviewer application has been submitted.', link: '/reviewer-application' },
+      [ReviewerApplicationStatus.UNDER_REVIEW]: { title: 'Reviewer application under review', message: 'Your reviewer application is now being reviewed.', link: '/reviewer-application' },
+      [ReviewerApplicationStatus.MORE_INFORMATION_REQUIRED]: { title: 'More information required', message: 'Please review the decision note and provide the requested information for your reviewer application.', link: '/reviewer-application' },
+      [ReviewerApplicationStatus.APPROVED]: { title: 'Academic Reviewer access approved', message: 'Your Academic Reviewer access has been approved. Your reviewer workspace is now available.', link: '/moderation' },
+      [ReviewerApplicationStatus.REJECTED]: { title: 'Reviewer application not approved', message: 'Your reviewer application was not approved. Review the decision note for details.', link: '/reviewer-application' },
+      [ReviewerApplicationStatus.SUSPENDED]: { title: 'Reviewer access suspended', message: 'Your Academic Reviewer access has been suspended. Review the decision note for details.', link: '/reviewer-application' },
+      [ReviewerApplicationStatus.REVOKED]: { title: 'Reviewer access revoked', message: 'Your Academic Reviewer access has been revoked. Review the decision note for details.', link: '/reviewer-application' },
+    };
+    const notification = notificationByStatus[result.application.status];
+    try {
+      await this.notificationsService.createNotification(
+        result.applicantId,
+        'reviewer_application_decision',
+        notification.title,
+        `${notification.message}${result.application.decisionNote ? ` Decision note: ${result.application.decisionNote}` : ''}`,
+        notification.link,
+      );
+    } catch {
+      // The decision and immutable audit record remain committed if notification delivery is unavailable.
+    }
+    return result.application;
   }
 }
