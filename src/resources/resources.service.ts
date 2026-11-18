@@ -17,6 +17,15 @@ import { FileUpload } from '../upload/entities/file-upload.entity';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 import { ResourcePurchase } from '../payments/entities/resource-purchase.entity';
 import { ResourcePricingMode } from './entities/resource.entity';
+import { hasActiveGlobalReviewerAuthority } from '../users/reviewer-permissions';
+
+function hasReviewerCapability(viewer: Partial<User>): boolean {
+  return viewer.hasReviewerAccess === true || (viewer.hasReviewerAccess == null && viewer.role === UserRole.REVIEWER);
+}
+
+function isPreviewOnlyResourceAccess(viewer: Partial<User>): boolean {
+  return hasReviewerCapability(viewer) || viewer.role === UserRole.MODERATOR || viewer.role === UserRole.ADMIN;
+}
 
 @Injectable()
 export class ResourcesService {
@@ -89,7 +98,7 @@ export class ResourcesService {
   }
 
   private assertInstitutionIdentity(viewer: User): void {
-    if ([UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(viewer.role) && !viewer.institutionId) {
+    if ([UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && !viewer.institutionId) {
       throw new ForbiddenException('Complete your catalogue-backed institution setup before uploading or downloading academic materials.');
     }
   }
@@ -145,17 +154,17 @@ export class ResourcesService {
 
   private async assertPaidResourceAccess(resource: Resource, viewer: User): Promise<void> {
     if (resource.pricingMode === ResourcePricingMode.FREE) return;
-    if (resource.uploaderId === viewer.id || [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) return;
+    if (resource.uploaderId === viewer.id || isPreviewOnlyResourceAccess(viewer)) return;
     const purchase = await this.resourcePurchaseRepository.findOne({ where: { userId: viewer.id, resourceId: resource.id } });
     if (!purchase) throw new ForbiddenException('Purchase this resource before accessing its file.');
   }
 
   async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
     this.assertCanSave(viewer);
-    this.assertInstitutionIdentity(viewer);
-    if (viewer.role === UserRole.REVIEWER) {
-      throw new ForbiddenException('Academic reviewers can preview assigned resources but cannot download them.');
+    if (isPreviewOnlyResourceAccess(viewer)) {
+      throw new ForbiddenException('Academic reviewers and platform oversight accounts can preview authorised resources but cannot download them.');
     }
+    this.assertInstitutionIdentity(viewer);
     const resource = await this.findOneForViewer(id, viewer, false);
     const ownUpload = resource.uploaderId === viewer.id;
     await this.assertPaidResourceAccess(resource, viewer);
@@ -209,8 +218,10 @@ export class ResourcesService {
     }
 
     const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
-    const isAssignedReviewer = viewer.role === UserRole.REVIEWER && !viewer.isSuspended && resource.assignedReviewerId === viewer.id;
-    const hasModerationAccess = isPlatformModerator || isAssignedReviewer;
+    const reviewerCapability = hasReviewerCapability(viewer);
+    const isAssignedReviewer = reviewerCapability && !viewer.isSuspended && resource.assignedReviewerId === viewer.id;
+    const isGlobalReviewer = hasActiveGlobalReviewerAuthority(viewer) && resource.moderationStatus === ResourceModerationStatus.PENDING;
+    const hasModerationAccess = isPlatformModerator || isAssignedReviewer || isGlobalReviewer;
     const isUploader = resource.uploaderId === viewer.id;
 
     // Contributors may inspect their own submissions (including pending/rejected
@@ -232,24 +243,20 @@ export class ResourcesService {
   }
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string; filename: string; contentType?: string }> {
-    this.assertInstitutionIdentity(viewer);
-    if (download && viewer.role === UserRole.REVIEWER) {
-      throw new ForbiddenException('Academic reviewers can preview assigned resources but cannot download them.');
+    if (download && isPreviewOnlyResourceAccess(viewer)) {
+      throw new ForbiddenException('Academic reviewers and platform oversight accounts can preview authorised resources but cannot download them.');
     }
+    this.assertInstitutionIdentity(viewer);
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
     await this.assertPaidResourceAccess(authorizedResource, viewer);
     if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
       if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
     }
-    if (download && authorizedResource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
-    if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
-      const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
-      if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
-    }
+    if (download && authorizedResource.downloadRestricted && authorizedResource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
-    if (download && resource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (download && resource.downloadRestricted && authorizedResource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
     if (download) {
