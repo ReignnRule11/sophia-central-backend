@@ -34,7 +34,7 @@ export class SupportService {
       links: (dto.links ?? []).map((link) => link.trim()).filter(Boolean),
       attachments,
       status: 'pending',
-      ticketNumber: `SUP-${new Date().getFullYear()}-${String(Number((await this.requests.query('SELECT nextval(\'sophis_support_ticket_seq\') AS value'))[0].value).padStart(6, '0'))}`,
+      ticketNumber: `SUP-${new Date().getFullYear()}-${String((await this.requests.query("SELECT nextval('sophis_support_ticket_seq') AS value"))[0].value).padStart(6, '0')}`,
     });
     const saved = await this.requests.save(request);
 
