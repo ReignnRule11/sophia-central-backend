@@ -101,7 +101,7 @@ export class ContentReportsService {
     const target = await this.resolveTarget(reporter, dto);
     const duplicate = await this.reports.findOne({
       where: {
-      reporterId: reporter.id,
+        reporterId: reporter.id,
         targetType: dto.targetType,
         targetId: dto.targetId,
         status: In([ContentReportStatus.PENDING, ContentReportStatus.REVIEWING]),
@@ -124,7 +124,7 @@ export class ContentReportsService {
     }));
 
     try {
-      const moderators = await this.users.find({ where: { role: In([UserRole.MODERATOR, UserRole.ADMIN]), isSuspended: false } });
+      const moderators = await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false } });
       await Promise.all(moderators.map(moderator => this.notifications.createNotification(
         moderator.id,
         'content_report_submitted',
