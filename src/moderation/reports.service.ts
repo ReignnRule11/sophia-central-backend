@@ -153,7 +153,7 @@ export class ContentReportsService {
     if (!report) throw new NotFoundException('Report not found.');
     const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
     if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
-    await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'moderation_report_escalated', 'Moderation report escalated', `Report ${report.ticketNumber} was escalated by the Moderator: ${reason.trim()}`, targetRole === UserRole.SUPPORT ? '/support/requests' : '/admin')));
+    await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'moderation_report_escalated', 'Moderation report escalated', `Report ${report.ticketNumber} was escalated by the Moderator: ${reason.trim()}`, '/notifications')));
     return { success: true, ticketNumber: report.ticketNumber, notified: recipients.length };
   }
 
