@@ -48,7 +48,7 @@ export class ModerationService {
       relations: ['uploader', 'assignedReviewer'],
       order: { createdAt: 'ASC' },
     });
-    if (viewer.role !== UserRole.ADMIN && viewer.isGlobalReviewer !== true) {
+    if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) {
       for (const resource of queue) {
         if (!resource.reviewAssignmentId) { resource.reviewConflictDeclaration = null; continue; }
         const rows = await this.resourceRepository.manager.query(
@@ -75,7 +75,7 @@ export class ModerationService {
   }
 
   async getReviewerRoster(viewer: User) {
-    if (viewer.role !== UserRole.ADMIN && viewer.isGlobalReviewer !== true) {
+    if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) {
       throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect the reviewer roster.');
     }
     return this.userRepository.find({
@@ -86,7 +86,7 @@ export class ModerationService {
   }
 
   async getConflictDeclarations(viewer: User) {
-    if (viewer.role !== UserRole.ADMIN && viewer.isGlobalReviewer !== true) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer conflict declarations.');
+    if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer conflict declarations.');
     return this.resourceRepository.manager.query(`
       SELECT d."id", d."assignmentId", d."resourceId", d."reviewerId", d."declaration", d."reason", d."createdAt",
              r."title" AS "resourceTitle", u."firstName" AS "reviewerFirstName",
@@ -106,7 +106,7 @@ export class ModerationService {
     }
     if (hasReviewerCapability(viewer) && viewer.isSuspended) return [];
     return this.moderationReviewRepository.find({
-      where: viewer.role === UserRole.ADMIN || viewer.isGlobalReviewer === true ? {} : { reviewer: { id: viewer.id } },
+      where: viewer.role === UserRole.ADMIN || hasActiveGlobalReviewerAuthority(viewer) ? {} : { reviewer: { id: viewer.id } },
       relations: ['resource', 'resource.uploader', 'reviewer'],
       order: { createdAt: 'DESC' },
     });
