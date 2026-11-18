@@ -85,6 +85,9 @@ export class ResourcesService {
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to resources.');
     }
+    if (viewer.role === UserRole.REVIEWER && !hasReviewerCapability(viewer)) {
+      throw new ForbiddenException('Your academic reviewer access is no longer active.');
+    }
 
     // Only moderators and admins receive platform-wide resource visibility.
     // Reviewers use the assigned-review queue; their shared library remains approved-only.
@@ -106,6 +109,9 @@ export class ResourcesService {
   private assertCanSave(viewer: User): void {
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to personal resources.');
+    }
+    if (viewer.role === UserRole.REVIEWER && !hasReviewerCapability(viewer)) {
+      throw new ForbiddenException('Your academic reviewer access is no longer active.');
     }
   }
 
