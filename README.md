@@ -45,6 +45,14 @@ The backend supports the API boundary used by the frontend's resource library, u
 
 Resource reads, uploads, ownership, and moderation actions must be protected by server-side authentication and role/permission checks. Student visibility should be limited to approved/verified resources according to the backend's actual resource policy.
 
+### Academic Reviewer governance
+
+Reviewer recruitment is closed by default. Set `REVIEWER_RECRUITMENT_OPEN=true` only when recruitment is intentionally opened. During a closed period, `REVIEWER_TEST_ACCOUNT_EMAIL` may allow one exact email to complete verified reviewer registration. The backend is authoritative; frontend visibility flags are not a security boundary.
+
+`GLOBAL_ACADEMIC_REVIEWER_EMAIL` is a separate exact-email bootstrap setting. When that email completes verified External Reviewer registration, the backend records an approved reviewer application and immutable system decision, and grants the `isGlobalReviewer` capability with all-subject/all-level scope. This capability is distinct from `moderator` and `admin`: it governs academic resource review and reviewer applications/assignments only. It does not grant support-request, wallet, user-administration, or platform-settings permissions. Keep the global email configuration restricted and unset when no such account is intended.
+
+The global reviewer application records that its evidence URL is a placeholder and does not represent a verified professional qualification. Self-review, co-author exclusion, conflict declarations, assignment audit events, and account suspension/revocation checks still apply.
+
 ### Other application areas
 The frontend also includes AI tutor, wallet, analytics, and administration views. Availability of these capabilities depends on the corresponding backend endpoints, provider configuration, and authorization rules; do not infer a fully configured production integration from the presence of a frontend screen.
 
