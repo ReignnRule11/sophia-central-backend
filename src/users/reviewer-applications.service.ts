@@ -122,7 +122,7 @@ export class ReviewerApplicationsService {
   }
 
   async decisionHistory(applicationId: string, actor?: User) {
-    if (actor && actor.role !== UserRole.ADMIN && actor.isGlobalReviewer !== true) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer decision history.');
+    if (actor && actor.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(actor)) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer decision history.');
     const application = await this.applications.findOne({ where: { id: applicationId }, select: ['id'] });
     if (!application) throw new NotFoundException('Reviewer application not found.');
     return this.decisions.find({
