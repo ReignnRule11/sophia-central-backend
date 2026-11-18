@@ -54,7 +54,7 @@ export class UsersController {
   @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Assign a dedicated platform Support, Moderator, or Admin role' })
+  @ApiOperation({ summary: 'Assign the dedicated Support role to an existing staff account' })
   async setPlatformRole(@Param('id') id: string, @Body() body: { role: UserRole }) {
     if (body.role !== UserRole.SUPPORT) throw new BadRequestException('This endpoint can assign only the dedicated Support role.');
     return this.usersService.update(id, { role: body.role });
