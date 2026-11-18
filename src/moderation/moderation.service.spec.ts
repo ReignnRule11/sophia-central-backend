@@ -68,7 +68,7 @@ describe('ModerationService academic reviewer workflow', () => {
     const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, reviewerStatus: 'approved', isGlobalReviewer: true, accountStatus: 'active' } as User;
     userRepository.find.mockResolvedValue([]);
     await expect(service.getReviewerRoster(reviewer)).resolves.toEqual([]);
-    expect(userRepository.find).toHaveBeenCalledWith(expect.objectContaining({ where: { hasReviewerAccess: true } }));
+    expect(userRepository.find).toHaveBeenCalledWith(expect.objectContaining({ where: expect.arrayContaining([{ hasReviewerAccess: true }, { reviewerStatus: 'suspended' }, { reviewerStatus: 'revoked' }]) }));
   });
 
   it('allows an approved Student account to use its additional reviewer capability', async () => {
