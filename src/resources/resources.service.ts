@@ -28,7 +28,7 @@ function isPreviewOnlyResourceAccess(viewer: Partial<User>): boolean {
 }
 
 function normalizeAcademicValue(value?: string | null): string {
-  return (value ?? '').trim().toLocaleLowerCase().replace(/\\s+/g, ' ');
+  return (value ?? '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
 }
 
 function sameAcademicValue(left?: string | null, right?: string | null): boolean {
