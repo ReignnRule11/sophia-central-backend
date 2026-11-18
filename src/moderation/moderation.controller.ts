@@ -36,9 +36,15 @@ export class ModerationController {
   }
 
   @Get('conflict-declarations')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   getConflictDeclarations(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getConflictDeclarations(request.user);
+  }
+
+  @Get('reviewers')
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  getReviewerRoster(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getReviewerRoster(request.user);
   }
 
   @Get('history')
@@ -70,9 +76,9 @@ export class ModerationController {
   }
 
   @Patch('resources/:id/assign-reviewer')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   assignReviewer(@Param('id') id: string, @Body() dto: AssignReviewerDto, @Req() request: AuthenticatedRequest) {
-    return this.moderationService.assignReviewer(id, dto.reviewerId, request.user.id);
+    return this.moderationService.assignReviewer(id, dto.reviewerId, request.user.id, request.user);
   }
 
   @Patch('resources/:id/conflict-declaration')
