@@ -110,7 +110,10 @@ export class ContentReportsService {
     });
     if (duplicate) throw new ConflictException('You already have an open report for this item.');
 
+    const ticketSequence = await this.reports.query("SELECT nextval('sophis_report_ticket_seq') AS value");
+    const ticketNumber = `RPT-${new Date().getFullYear()}-${String(Number(ticketSequence[0].value)).padStart(6, '0')}`;
     const report = await this.reports.save(this.reports.create({
+      ticketNumber,
       reporterId: reporter.id,
       reporter,
       targetType: dto.targetType,
