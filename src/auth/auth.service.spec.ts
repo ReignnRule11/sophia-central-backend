@@ -207,7 +207,7 @@ describe('AuthService', () => {
     expect(verificationEmail.sendVerificationLink).toHaveBeenCalled();
   });
 
-  it('completes External Reviewer onboarding without a university affiliation', async () => {
+  it('requires ordinary External Reviewers to provide affiliation and a professional summary', async () => {
     const expiresAt = new Date(Date.now() + 60_000);
     preAccounts.findOne.mockResolvedValue({ email: 'reviewer@example.com', password: 'password-hash' });
     registrationDrafts.findOne.mockResolvedValue({ email: 'reviewer@example.com', expiresAt, encryptedPayload: 'encrypted-draft' });
@@ -231,7 +231,23 @@ describe('AuthService', () => {
       isProfileComplete: true,
     } as never);
 
-    await expect(service.completePreAccountOnboarding('onboarding-token', { bio: 'Independent research professional' } as never))
+    await expect(service.completePreAccountOnboarding('onboarding-token', { institution: 'Independent Research Practice' } as never))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(users.createWithManager).not.toHaveBeenCalled();
+  });
+
+  it('completes ordinary External Reviewer onboarding when affiliation and summary are supplied', async () => {
+    const expiresAt = new Date(Date.now() + 60_000);
+    preAccounts.findOne.mockResolvedValue({ email: 'reviewer@example.com', password: 'password-hash' });
+    registrationDrafts.findOne.mockResolvedValue({ email: 'reviewer@example.com', expiresAt, encryptedPayload: 'encrypted-draft' });
+    registrationTokens.open
+      .mockReturnValueOnce({ stage: 'pre-account', email: 'reviewer@example.com', jti: 'resume-jti', expiresAt: expiresAt.getTime() })
+      .mockReturnValueOnce({ stage: 'pre-account-draft', email: 'reviewer@example.com', firstName: 'External', lastName: 'Reviewer', academicHandle: 'external.reviewer', role: UserRole.REVIEWER });
+    users.findByEmail.mockResolvedValue(null);
+    users.findByAcademicHandle.mockResolvedValue(null);
+    users.createWithManager.mockResolvedValue({ id: 'external-reviewer-id', email: 'reviewer@example.com', role: UserRole.REVIEWER, academicAccountType: 'external_reviewer', isProfileComplete: true } as never);
+
+    await expect(service.completePreAccountOnboarding('onboarding-token', { institution: 'Independent Research Practice', bio: 'Independent research professional' } as never))
       .resolves.toEqual(expect.objectContaining({
         accessToken: 'signed-access-token',
         user: expect.objectContaining({ role: UserRole.REVIEWER, academicAccountType: 'external_reviewer' }),
