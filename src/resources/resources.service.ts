@@ -46,7 +46,7 @@ function sameAcademicValue(left?: string | null, right?: string | null): boolean
  */
 function reviewerAcademicRole(viewer: Partial<User>): UserRole | string | undefined {
   return viewer.role === UserRole.REVIEWER
-    ? viewer.reviewerBaseRole ?? viewer.academicAccountType
+    ? (viewer.reviewerBaseRole ?? viewer.academicAccountType) ?? undefined
     : viewer.role;
 }
 
