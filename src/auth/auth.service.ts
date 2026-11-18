@@ -25,6 +25,8 @@ import { PasswordResetEmailService } from './password-reset-email.service';
 import { EmailVerificationEmailService } from './email-verification-email.service';
 import { UsersService } from '../users/users.service';
 import { User, UserRole } from '../users/entities/user.entity';
+import { ReviewerApplication, ReviewerApplicationStatus } from '../users/entities/reviewer-application.entity';
+import { ReviewerApplicationDecision } from '../users/entities/reviewer-application-decision.entity';
 import { ReferralService } from '../referral/referral.service';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
@@ -321,6 +323,8 @@ export class AuthService {
     const role = metadata.role as UserRole;
     if (role === UserRole.REVIEWER && !this.reviewerRegistrationAllowed(email)) throw new ForbiddenException('Academic Reviewer registration is coming soon. Recruitment is currently closed.');
     const passwordHash = preAccount.password;
+    const configuredGlobalReviewerEmail = (process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL || '').trim().toLowerCase();
+    const isConfiguredGlobalReviewer = role === UserRole.REVIEWER && Boolean(configuredGlobalReviewerEmail) && email === configuredGlobalReviewerEmail;
     if (!academicHandle || !firstName || !lastName || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(role)) {
       throw new UnauthorizedException('Your pre-account details are incomplete. Please contact support.');
     }
@@ -356,6 +360,13 @@ export class AuthService {
           isVerified: false,
           isProfileComplete: true,
           accountStatus: 'active',
+          ...(isConfiguredGlobalReviewer ? {
+            hasReviewerAccess: true,
+            isGlobalReviewer: true,
+            reviewerStatus: ReviewerApplicationStatus.APPROVED,
+            reviewerExpertise: ['*'],
+            reviewerAcademicLevels: ['*'],
+          } : {}),
           ...(dto.institutionId ? { institutionId: dto.institutionId } : {}),
           institution: dto.institution?.trim() || undefined,
           faculty: dto.faculty?.trim() || undefined,
@@ -368,6 +379,32 @@ export class AuthService {
           socialHandle: dto.socialHandle?.trim(),
           socialLinks: dto.socialLinks,
         });
+        if (isConfiguredGlobalReviewer) {
+          const applicationRepository = manager.getRepository(ReviewerApplication);
+          const application = await applicationRepository.save(applicationRepository.create({
+            userId: created.id,
+            status: ReviewerApplicationStatus.APPROVED,
+            qualifications: ['Platform-wide test authorization; no professional qualification or licence is being represented.'],
+            expertiseAreas: ['*'],
+            academicLevels: ['*'],
+            approvedExpertiseAreas: ['*'],
+            approvedAcademicLevels: ['*'],
+            reviewExperience: 'System-designated Global Academic Reviewer account for platform testing and academic-material review across all subjects and levels. This is a platform permission designation, not a claim of professional reviewing credentials.',
+            supportingDocuments: ['https://example.com/qualification-evidence-placeholder'],
+            conflictDeclaration: 'The account must disclose any personal, financial, institutional, authorship or other conflict and recuse itself where a conflict exists.',
+            policyAccepted: true,
+            decisionNote: 'Approved through the exact-email GLOBAL_ACADEMIC_REVIEWER_EMAIL bootstrap configuration after verified email registration. This grants academic-review governance only and does not grant moderator or administrator permissions.',
+            decidedAt: new Date(),
+          }));
+          const decisionRepository = manager.getRepository(ReviewerApplicationDecision);
+          await decisionRepository.save(decisionRepository.create({
+            applicationId: application.id,
+            actorId: null,
+            fromStatus: ReviewerApplicationStatus.SUBMITTED,
+            toStatus: ReviewerApplicationStatus.APPROVED,
+            note: 'System bootstrap: exact-email Global Academic Reviewer allowlist; email verification and normal password setup completed.',
+          }));
+        }
         await manager.getRepository(PreAccount).delete({ email });
         await manager.getRepository(RegistrationDraft).delete({ email });
         return created;
