@@ -6,6 +6,7 @@ export class AddSupportRoleTicketReferencesAndWorkflow2026111800003 implements M
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query('CREATE SEQUENCE IF NOT EXISTS sophis_support_ticket_seq START WITH 1');
     await queryRunner.query('CREATE SEQUENCE IF NOT EXISTS sophis_report_ticket_seq START WITH 1');
+    await queryRunner.query(`CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_single_support_role" ON users (role) WHERE role = 'support'`);
 
     await queryRunner.query('ALTER TABLE support_requests ADD COLUMN IF NOT EXISTS "ticketNumber" varchar(32)');
     await queryRunner.query(`UPDATE support_requests SET "ticketNumber" = 'SUP-' || EXTRACT(YEAR FROM "createdAt")::int::text || '-' || LPAD(nextval('sophis_support_ticket_seq')::text, 6, '0') WHERE "ticketNumber" IS NULL`);
@@ -21,6 +22,7 @@ export class AddSupportRoleTicketReferencesAndWorkflow2026111800003 implements M
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`UPDATE support_requests SET status = 'concluded' WHERE status = 'response_sent'`);
+    await queryRunner.query('DROP INDEX IF EXISTS "IDX_users_single_support_role"');
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_content_reports_ticketNumber"');
     await queryRunner.query('ALTER TABLE content_reports DROP COLUMN IF EXISTS "ticketNumber"');
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_support_requests_ticketNumber"');
