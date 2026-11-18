@@ -101,7 +101,8 @@ export class ContentReportsService {
     const target = await this.resolveTarget(reporter, dto);
     const duplicate = await this.reports.findOne({
       where: {
-        reporterId: reporter.id,
+        ticketNumber: `RPT-${new Date().getFullYear()}-${String(Number((await this.reports.query('SELECT nextval(\'sophis_report_ticket_seq\') AS value'))[0].value).padStart(6, '0'))}`,
+      reporterId: reporter.id,
         targetType: dto.targetType,
         targetId: dto.targetId,
         status: In([ContentReportStatus.PENDING, ContentReportStatus.REVIEWING]),
@@ -138,10 +139,20 @@ export class ContentReportsService {
   async listMine(userId: string) {
     return this.reports.find({
       where: { reporterId: userId },
-      select: ['id', 'targetType', 'targetLabel', 'reason', 'details', 'status', 'moderatorNote', 'createdAt', 'updatedAt'],
+      select: ['id', 'ticketNumber', 'targetType', 'targetLabel', 'reason', 'details', 'status', 'moderatorNote', 'createdAt', 'updatedAt'],
       order: { createdAt: 'DESC' },
       take: 50,
     });
+  }
+
+  async escalate(id: string, actor: User, targetRole: UserRole.SUPPORT | UserRole.ADMIN, reason: string) {
+    if (actor.role !== UserRole.MODERATOR || actor.isSuspended) throw new ForbiddenException('Only active Moderators can escalate reports.');
+    const report = await this.reports.findOne({ where: { id } });
+    if (!report) throw new NotFoundException('Report not found.');
+    const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
+    if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
+    await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'moderation_report_escalated', 'Moderation report escalated', `Report ${report.ticketNumber} was escalated by the Moderator: ${reason.trim()}`, targetRole === UserRole.SUPPORT ? '/support/requests' : '/admin')));
+    return { success: true, ticketNumber: report.ticketNumber, notified: recipients.length };
   }
 
   async listForModeration(status?: ContentReportStatus) {
@@ -177,8 +188,8 @@ export class ContentReportsService {
           report.reporterId,
           'content_report_updated',
           'Your report has been updated',
-          `Your report about ${report.targetLabel} is now ${dto.status.replace(/_/g, ' ')}.`,
-          '/reports',
+          `Ticket ${report.ticketNumber} is now ${dto.status.replace(/_/g, ' ')}. Open My Activity for the full update.`,
+          '/my-activity',
         );
       } catch (error) {
         this.logger.warn(`Report ${report.id} was updated but reporter notification failed: ${String(error)}`);
