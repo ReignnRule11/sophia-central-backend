@@ -16,6 +16,12 @@ export class ReviewerApplicationsService {
   ) {}
 
   async submit(user: User, dto: SubmitReviewerApplicationDto) {
+    const recruitmentOpen = process.env.REVIEWER_RECRUITMENT_OPEN === 'true';
+    const testEmail = (process.env.REVIEWER_TEST_ACCOUNT_EMAIL || '').trim().toLowerCase();
+    const isTestAccount = Boolean(testEmail && user.email?.trim().toLowerCase() === testEmail);
+    if (!recruitmentOpen && !isTestAccount && user.hasReviewerAccess !== true) {
+      throw new ForbiddenException('Academic Reviewer applications are coming soon. Recruitment is currently closed.');
+    }
     if (!dto.policyAccepted) throw new BadRequestException('You must accept the Academic Reviewer policy before submitting.');
 
     const qualifications = [...new Set(dto.qualifications.map(value => value.trim()).filter(Boolean))];
