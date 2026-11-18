@@ -128,6 +128,24 @@ describe('ModerationService academic reviewer workflow', () => {
     );
   });
 
+  it('lets the Global Academic Reviewer self-assign an unassigned resource before declaring no conflict', async () => {
+    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true, reviewerStatus: 'approved', accountStatus: 'active', isSuspended: false } as User;
+    const resource = { id: 'resource-global-1', title: 'Cross-disciplinary research', moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: null, reviewAssignmentId: null };
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource);
+    transactionManager.query.mockReset().mockResolvedValueOnce([]).mockResolvedValue([]);
+
+    await expect(service.declareConflict('resource-global-1', { declaration: 'no_conflict' }, reviewer))
+      .resolves.toEqual({ declaration: 'no_conflict', reassignmentRequired: false });
+
+    expect(resource.assignedReviewerId).toBe(reviewer.id);
+    expect(resource.reviewAssignmentId).toBeTruthy();
+    expect(transactionManager.save).toHaveBeenCalledWith(Resource, resource);
+    expect(transactionManager.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO reviewer_conflict_declarations'),
+      expect.arrayContaining([resource.id, reviewer.id, 'no_conflict']),
+    );
+  });
+
   it('records recusal and releases the assignment atomically', async () => {
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
     const resource = {
