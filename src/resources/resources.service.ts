@@ -27,6 +27,49 @@ function isPreviewOnlyResourceAccess(viewer: Partial<User>): boolean {
   return viewer.role === UserRole.REVIEWER || hasReviewerCapability(viewer) || viewer.role === UserRole.MODERATOR || viewer.role === UserRole.ADMIN;
 }
 
+function normalizeAcademicValue(value?: string | null): string {
+  return (value ?? '').trim().toLocaleLowerCase().replace(/\\s+/g, ' ');
+}
+
+function sameAcademicValue(left?: string | null, right?: string | null): boolean {
+  const normalizedLeft = normalizeAcademicValue(left);
+  return Boolean(normalizedLeft && normalizedLeft === normalizeAcademicValue(right));
+}
+
+/**
+ * A dual-role academic reviewer must not use a paid review assignment to obtain
+ * material that is directly tied to their own programme/department or teaching
+ * responsibilities. Such assignments must be recused and reassigned.
+ */
+function hasPaidResourceReviewConflict(resource: Resource, viewer: Partial<User>): boolean {
+  const academicRole = viewer.role === UserRole.REVIEWER
+    ? viewer.reviewerBaseRole ?? viewer.academicAccountType
+    : viewer.role;
+
+  if (academicRole === UserRole.STUDENT) {
+    return sameAcademicValue(viewer.department, resource.department)
+      || sameAcademicValue(viewer.program, resource.course);
+  }
+
+  if (academicRole === UserRole.LECTURER) {
+    const teachesCourse = (viewer.teachingAssignments ?? []).some((assignment) =>
+      sameAcademicValue(assignment.courseName, resource.course)
+        || sameAcademicValue(assignment.courseCode, resource.course),
+    ) || (viewer.coursesTaught ?? []).some((course) => sameAcademicValue(course, resource.course));
+
+    return sameAcademicValue(viewer.department, resource.department) || teachesCourse;
+  }
+
+  return false;
+}
+
+function hasAuthorisedPendingReviewContext(resource: Resource, viewer: Partial<User>): boolean {
+  if (!hasReviewerCapability(viewer) || viewer.isSuspended === true
+    || resource.moderationStatus !== ResourceModerationStatus.PENDING) return false;
+
+  return resource.assignedReviewerId === viewer.id || hasActiveGlobalReviewerAuthority(viewer);
+}
+
 @Injectable()
 export class ResourcesService {
   constructor(
@@ -160,7 +203,17 @@ export class ResourcesService {
 
   private async assertPaidResourceAccess(resource: Resource, viewer: User): Promise<void> {
     if (resource.pricingMode === ResourcePricingMode.FREE) return;
-    if (resource.uploaderId === viewer.id || isPreviewOnlyResourceAccess(viewer)) return;
+    if (resource.uploaderId === viewer.id || [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) return;
+
+    // Reviewer access is an exception for an active pending-review assignment only.
+    // It must never grant free preview of an approved paid item in the ordinary library.
+    if (hasAuthorisedPendingReviewContext(resource, viewer)) {
+      if (hasPaidResourceReviewConflict(resource, viewer)) {
+        throw new ForbiddenException('This paid resource overlaps with your own academic programme or teaching responsibilities. Recuse yourself and request reassignment.');
+      }
+      return;
+    }
+
     const purchase = await this.resourcePurchaseRepository.findOne({ where: { userId: viewer.id, resourceId: resource.id } });
     if (!purchase) throw new ForbiddenException('Purchase this resource before accessing its file.');
   }
