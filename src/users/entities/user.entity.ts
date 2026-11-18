@@ -85,6 +85,10 @@ export class User {
   @Column({ type: 'boolean', default: false })
   hasReviewerAccess!: boolean;
 
+  // Platform-wide academic review authority; does not imply moderator/admin permissions.
+  @Column({ type: 'boolean', default: false })
+  isGlobalReviewer!: boolean;
+
   @Column({ type: 'varchar', length: 32, default: 'not_applied' })
   reviewerStatus!: 'not_applied' | 'draft' | 'submitted' | 'under_review' | 'more_information_required' | 'approved' | 'rejected' | 'suspended' | 'revoked';
 
@@ -96,8 +100,6 @@ export class User {
 
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   reviewerAcademicLevels!: string[];
-
-  @Column({ type: 'varchar', length: 40, nullable: true })
 
   @Column({ type: 'varchar', length: 16, nullable: true })
   reviewerBaseRole?: 'student' | 'lecturer';
