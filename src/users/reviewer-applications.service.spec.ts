@@ -1,4 +1,4 @@
-import { BadRequestException, ConflictException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { ReviewerApplicationsService } from './reviewer-applications.service';
 import { ReviewerApplication, ReviewerApplicationStatus } from './entities/reviewer-application.entity';
@@ -79,6 +79,21 @@ describe('ReviewerApplicationsService', () => {
     }));
     expect(user.reviewerStatus).toBe('submitted');
     expect(manager.save).toHaveBeenCalledWith(User, user);
+  });
+
+  it('blocks new applications while reviewer recruitment is closed for non-allowlisted accounts', async () => {
+    process.env.REVIEWER_RECRUITMENT_OPEN = 'false';
+    delete process.env.REVIEWER_TEST_ACCOUNT_EMAIL;
+    const user = { id: 'student-closed-1', email: 'student@example.com', role: UserRole.STUDENT, hasReviewerAccess: false } as User;
+    await expect(service.submit(user, {
+      qualifications: ['BSc'],
+      expertiseAreas: ['Biology'],
+      academicLevels: ['Undergraduate'],
+      reviewExperience: 'I have relevant academic review experience across several research projects.',
+      conflictDeclaration: 'I will disclose all relevant conflicts and recuse myself when necessary.',
+      policyAccepted: true,
+    })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
   it('requires an existing Student or Lecturer affiliation before application', async () => {
