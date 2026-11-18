@@ -36,6 +36,8 @@ async function main() {
     assert.equal(lifecycleColumns.rowCount, 5, 'account lifecycle and security-question columns should exist');
     const ticketColumns = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'support_requests' AND column_name = 'ticketNumber') OR (table_name = 'content_reports' AND column_name = 'ticketNumber'))");
     assert.equal(ticketColumns.rowCount, 2, 'support and report ticket references should exist');
+    const singleSupportRoleIndex = await client.query(`SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'IDX_users_single_support_role'`);
+    assert.equal(singleSupportRoleIndex.rowCount, 1, 'only one dedicated Support account should be assignable');
 
     const globalReviewerColumn = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'isGlobalReviewer'");
     assert.equal(globalReviewerColumn.rowCount, 1, 'global academic reviewer capability column should exist');
