@@ -175,7 +175,7 @@ export class SupportService {
     if (!request) throw new NotFoundException('Support ticket not found.');
     const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
     if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
-    await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} was escalated by Support: ${reason.trim()}`, targetRole === UserRole.MODERATOR ? '/moderation/reports' : targetRole === UserRole.ADMIN ? '/admin' : '/support/requests')));
+    await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} was escalated by Support: ${reason.trim()}`, '/notifications')));
     return { success: true, ticketNumber: request.ticketNumber, notified: recipients.length };
   }
 }
