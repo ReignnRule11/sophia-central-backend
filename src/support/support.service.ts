@@ -117,7 +117,8 @@ export class SupportService {
     const request = await this.requests.findOne({ where: { id } });
     if (!request) throw new NotFoundException('Support ticket not found.');
     if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A responded ticket cannot return to an earlier stage.');
-    if (status === 'reviewed' && request.status === 'pending') throw new BadRequestException('Move the ticket to Under review before marking it reviewed.');
+    if (status === 'under_review' && request.status !== 'pending') throw new BadRequestException('Only submitted tickets can move to Under review.');
+    if (status === 'reviewed' && request.status !== 'under_review') throw new BadRequestException('Move the ticket to Under review before marking it reviewed.');
     request.status = status;
     const saved = await this.requests.save(request);
     try { await this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket status updated', `Ticket ${request.ticketNumber} is now ${status.replace(/_/g, ' ')}.`, '/my-activity'); }
@@ -129,8 +130,9 @@ export class SupportService {
     const request = await this.requests.findOne({ where: { id }, relations: ['user'] });
     if (!request) throw new NotFoundException('Support request not found');
     if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A response has already been sent for this support request.');
+    if (request.status !== 'reviewed') throw new BadRequestException('Mark the ticket as Reviewed before sending a response.');
     const reviewer = await this.users.findOne({ where: { id: reviewerId } });
-    if (!reviewer) throw new NotFoundException('Administrator account not found');
+    if (!reviewer) throw new NotFoundException('Support account not found');
 
     request.status = 'response_sent';
     request.resolutionMessage = dto.resolutionMessage.trim();
