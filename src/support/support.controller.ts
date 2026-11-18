@@ -29,7 +29,7 @@ export class SupportController {
   }
 
   @Get('queue')
-  @Roles(UserRole.SUPPORT, UserRole.ADMIN)
+  @Roles(UserRole.SUPPORT)
   queue(@Query('status') status?: string) {
     const allowed = ['pending', 'under_review', 'reviewed', 'response_sent', 'concluded'] as const;
     const value = allowed.find(item => item === status) || 'pending';
