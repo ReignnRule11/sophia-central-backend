@@ -260,6 +260,39 @@ describe('AuthService', () => {
     expect(referrals.redeemReferral).not.toHaveBeenCalled();
   });
 
+  it('rejects reviewer accounts from the Student/Lecturer profile completion endpoint', async () => {
+    users.findOne.mockResolvedValue({ ...user, role: UserRole.REVIEWER, isProfileComplete: false } as never);
+    await expect(service.completeOnboarding(user.id, {
+      institutionId: '00000000-0000-4000-8000-000000000001',
+      institution: 'Research Institute',
+      faculty: 'Research',
+      department: 'Methods',
+    } as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(users.update).not.toHaveBeenCalled();
+  });
+
+  it('persists External Reviewer affiliation and summary in encrypted onboarding progress', async () => {
+    const expiresAt = new Date(Date.now() + 60_000);
+    registrationTokens.open
+      .mockReturnValueOnce({ stage: 'pre-account', email: 'reviewer@example.com' })
+      .mockReturnValueOnce({ stage: 'pre-account-draft', email: 'reviewer@example.com', firstName: 'External' });
+    registrationDrafts.findOne.mockResolvedValue({ email: 'reviewer@example.com', expiresAt, encryptedPayload: 'encrypted-draft' });
+
+    await expect(service.savePreAccountProgress('pre-account-token', {
+      step: 1,
+      externalAffiliation: 'Independent Research Practice',
+      externalBio: 'Research and professional background',
+    })).resolves.toEqual({ saved: true });
+
+    expect(registrationTokens.seal).toHaveBeenCalledWith(expect.objectContaining({
+      onboardingProgress: expect.objectContaining({
+        externalAffiliation: 'Independent Research Practice',
+        externalBio: 'Research and professional background',
+      }),
+    }));
+    expect(registrationDrafts.save).toHaveBeenCalled();
+  });
+
   it('completes onboarding even if referral reward processing fails', async () => {
     users.findOne.mockResolvedValue({ ...user, isProfileComplete: false } as never);
     users.update.mockResolvedValue({ ...user, isProfileComplete: true } as never);
