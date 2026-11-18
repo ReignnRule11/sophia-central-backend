@@ -101,7 +101,7 @@ export class SupportService {
   async listMineTracking(userId: string) {
     return this.requests.find({
       where: { userId },
-      select: ['id', 'ticketNumber', 'subject', 'category', 'status', 'createdAt', 'updatedAt'],
+      select: ['id', 'ticketNumber', 'subject', 'category', 'status', 'escalatedToRole', 'createdAt', 'updatedAt'],
       order: { createdAt: 'DESC' },
     });
   }
@@ -175,7 +175,12 @@ export class SupportService {
     if (!request) throw new NotFoundException('Support ticket not found.');
     const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
     if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
-    await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/notifications')));
+    request.escalatedToRole = targetRole === UserRole.MODERATOR ? 'moderator' : 'admin';
+    await this.requests.save(request);
+    await Promise.all([
+      ...recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/notifications')),
+      this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for ${request.escalatedToRole === 'moderator' ? 'Moderator' : 'Admin'} review.`, '/my-activity'),
+    ]);
     return { success: true, ticketNumber: request.ticketNumber, notified: recipients.length };
   }
 }
