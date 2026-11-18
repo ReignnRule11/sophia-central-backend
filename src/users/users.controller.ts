@@ -56,7 +56,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Assign a dedicated platform Support, Moderator, or Admin role' })
   async setPlatformRole(@Param('id') id: string, @Body() body: { role: UserRole }) {
-    if (![UserRole.SUPPORT, UserRole.MODERATOR, UserRole.ADMIN].includes(body.role)) throw new BadRequestException('Only Support, Moderator, and Admin platform roles can be assigned here.');
+    if (body.role !== UserRole.SUPPORT) throw new BadRequestException('This endpoint can assign only the dedicated Support role.');
     return this.usersService.update(id, { role: body.role });
   }
 
