@@ -112,10 +112,23 @@ export class SupportService {
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
 
+  async updateStatus(id: string, actor: User, status: 'under_review' | 'reviewed') {
+    if (actor.role !== UserRole.SUPPORT || actor.isSuspended) throw new ForbiddenException('Only active Support accounts can update support tickets.');
+    const request = await this.requests.findOne({ where: { id } });
+    if (!request) throw new NotFoundException('Support ticket not found.');
+    if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A responded ticket cannot return to an earlier stage.');
+    if (status === 'reviewed' && request.status === 'pending') throw new BadRequestException('Move the ticket to Under review before marking it reviewed.');
+    request.status = status;
+    const saved = await this.requests.save(request);
+    try { await this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket status updated', `Ticket ${request.ticketNumber} is now ${status.replace(/_/g, ' ')}.`, '/my-activity'); }
+    catch (error) { this.logger.warn(`Support ticket ${request.ticketNumber} status changed but notification failed: ${String(error)}`); }
+    return saved;
+  }
+
   async conclude(id: string, reviewerId: string, dto: ConcludeSupportRequestDto) {
     const request = await this.requests.findOne({ where: { id }, relations: ['user'] });
     if (!request) throw new NotFoundException('Support request not found');
-    if (request.status === 'concluded') throw new ConflictException('This support request has already been concluded');
+    if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A response has already been sent for this support request.');
     const reviewer = await this.users.findOne({ where: { id: reviewerId } });
     if (!reviewer) throw new NotFoundException('Administrator account not found');
 
