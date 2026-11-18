@@ -98,7 +98,15 @@ export class SupportService {
     return { ...request, attachments } as T;
   }
 
-  async listMine(userId: string) {
+  async listMineTracking(userId: string) {
+    return this.requests.find({
+      where: { userId },
+      select: ['id', 'ticketNumber', 'subject', 'category', 'status', 'createdAt', 'updatedAt'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async listMineForActivity(userId: string) {
     const requests = await this.requests.find({ where: { userId }, order: { createdAt: 'DESC' } });
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
