@@ -55,8 +55,17 @@ export class AuthService {
     private readonly referralService: ReferralService,
   ) {}
 
+  private reviewerRegistrationAllowed(email: string): boolean {
+    if (process.env.REVIEWER_RECRUITMENT_OPEN === 'true') return true;
+    const testEmail = (process.env.REVIEWER_TEST_ACCOUNT_EMAIL || '').trim().toLowerCase();
+    return Boolean(testEmail && email.trim().toLowerCase() === testEmail);
+  }
+
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
+    if ((dto.role ?? UserRole.STUDENT) === UserRole.REVIEWER && !this.reviewerRegistrationAllowed(email)) {
+      throw new ForbiddenException('Academic Reviewer registration is coming soon. Recruitment is currently closed.');
+    }
     const academicHandle = dto.academicHandle.trim().replace(/^@/, '').toLowerCase();
     const existingUser = await this.usersService.findByEmail(email);
     let existingPreAccount = await this.preAccounts.findOne({ where: { email } });
@@ -215,6 +224,7 @@ export class AuthService {
       const firstName = String(registration.firstName || '').trim();
       const lastName = String(registration.lastName || '').trim();
       const role = registration.role as UserRole;
+      if (role === UserRole.REVIEWER && !this.reviewerRegistrationAllowed(email)) throw new ForbiddenException('Academic Reviewer registration is coming soon. Recruitment is currently closed.');
       if (!email || !academicHandle || !firstName || !lastName || !registration.jti || ![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(role)) {
         throw new UnauthorizedException('This verification link is invalid or has expired. Please restart registration.');
       }
@@ -309,6 +319,7 @@ export class AuthService {
     const firstName = String(metadata.firstName || '').trim();
     const lastName = String(metadata.lastName || '').trim();
     const role = metadata.role as UserRole;
+    if (role === UserRole.REVIEWER && !this.reviewerRegistrationAllowed(email)) throw new ForbiddenException('Academic Reviewer registration is coming soon. Recruitment is currently closed.');
     const passwordHash = preAccount.password;
     if (!academicHandle || !firstName || !lastName || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(role)) {
       throw new UnauthorizedException('Your pre-account details are incomplete. Please contact support.');
