@@ -29,6 +29,8 @@ describe('AuthService', () => {
   };
 
   beforeEach(() => {
+    process.env.REVIEWER_RECRUITMENT_OPEN = 'true';
+    delete process.env.REVIEWER_TEST_ACCOUNT_EMAIL;
     users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), createWithManager: jest.fn().mockResolvedValue({ ...user, id: 'new-account-id' }), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn() };
     jwt = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
     resetTokens = {
