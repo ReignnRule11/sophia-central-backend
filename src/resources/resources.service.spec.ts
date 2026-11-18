@@ -68,21 +68,21 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     } as any, false)).rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('allows a moderator to download pending platform resources', async () => {
-    const pending = resource({ downloadRestricted: true });
-    resourceRepository.findOne.mockResolvedValueOnce(pending).mockResolvedValueOnce(pending);
-    const savedRepository: any = { findOne: jest.fn().mockResolvedValue(null), create: jest.fn((value) => value), save: jest.fn(async (value) => value) };
-    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
-    await expect(downloadService.downloadForUser('resource-1', { id: 'moderator-1', role: UserRole.MODERATOR } as any))
-      .resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
-    expect(savedRepository.save).toHaveBeenCalledWith(expect.objectContaining({ userId: 'moderator-1', resourceId: 'resource-1', downloadedAt: expect.any(Date) }));
-  });
-
-  it('does not allow an academic reviewer to download resources', async () => {
+  it.each([UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN])('does not allow %s to download resources', async (role) => {
     const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
     const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
-    await expect(downloadService.downloadForUser('resource-1', { id: 'reviewer-1', role: UserRole.REVIEWER } as any))
+    await expect(downloadService.downloadForUser('resource-1', { id: 'privileged-1', role } as any))
       .rejects.toBeInstanceOf(ForbiddenException);
+    expect(resourceRepository.findOne).not.toHaveBeenCalled();
+    expect(savedRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('does not allow a student with reviewer access to download resources', async () => {
+    const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
+    await expect(downloadService.downloadForUser('resource-1', {
+      id: 'dual-role-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
+    } as any)).rejects.toBeInstanceOf(ForbiddenException);
     expect(resourceRepository.findOne).not.toHaveBeenCalled();
   });
 
@@ -175,6 +175,39 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     resourceRepository.findOne.mockResolvedValue(resource({ assignedReviewerId: 'reviewer-2' }));
     await expect(service.findOneForViewer('resource-1', { id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: false } as any, false))
       .rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('allows a dual-role student reviewer to inspect their assigned pending submission', async () => {
+    resourceRepository.findOne.mockResolvedValue(resource({ assignedReviewerId: 'reviewer-1' }));
+    await expect(service.findOneForViewer('resource-1', {
+      id: 'reviewer-1', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1', isSuspended: false,
+    } as any, false)).resolves.toMatchObject({ id: 'resource-1' });
+  });
+
+  it('allows an active Global Academic Reviewer to inspect pending queue items assigned to another reviewer', async () => {
+    resourceRepository.findOne.mockResolvedValue(resource({ assignedReviewerId: 'assigned-reviewer' }));
+    await expect(service.findOneForViewer('resource-1', {
+      id: 'global-reviewer', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true,
+      reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active',
+    } as any, false)).resolves.toMatchObject({ id: 'resource-1' });
+  });
+
+  it('allows an external Global Academic Reviewer to preview a pending file without an institution identity', async () => {
+    const pending = resource({ assignedReviewerId: 'assigned-reviewer' });
+    resourceRepository.findOne.mockResolvedValue(pending);
+    const s3 = {
+      getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/test.pdf'),
+      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/inline'),
+      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
+    };
+    const previewService = new ResourcesService(
+      resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup,
+    );
+    await expect(previewService.getFileUrl('resource-1', {
+      id: 'global-reviewer', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true,
+      reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active',
+    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/inline', filename: 'Test contribution.pdf' });
+    expect(s3.createPresignedDownloadUrl).toHaveBeenCalledWith('resources/test.pdf', 'Test contribution.pdf', 'inline');
   });
 
   it('blocks an unpaid student from recording a paid-resource download', async () => {
