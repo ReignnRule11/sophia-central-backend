@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -43,6 +43,13 @@ export class ModerationReportsController {
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
   list(@Query('status') status?: ContentReportStatus) {
     return this.reports.listForModeration(status);
+  }
+
+  @Patch(':id/escalate')
+  @Roles(UserRole.MODERATOR)
+  escalate(@Param('id', ParseUUIDPipe) id: string, @Body() body: { targetRole: 'support' | 'admin'; reason: string }, @Req() request: AuthenticatedRequest) {
+    if (!body.reason?.trim() || !['support', 'admin'].includes(body.targetRole)) throw new BadRequestException('Choose a valid escalation destination and provide a reason.');
+    return this.reports.escalate(id, request.user, body.targetRole === 'support' ? UserRole.SUPPORT : UserRole.ADMIN, body.reason);
   }
 
   @Patch(':id')
