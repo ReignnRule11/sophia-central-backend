@@ -50,6 +50,16 @@ export class UsersController {
     return this.usersService.findAllForManagement();
   }
 
+  @Patch(':id/platform-role')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Assign a dedicated platform Support, Moderator, or Admin role' })
+  async setPlatformRole(@Param('id') id: string, @Body() body: { role: UserRole }) {
+    if (![UserRole.SUPPORT, UserRole.MODERATOR, UserRole.ADMIN].includes(body.role)) throw new BadRequestException('Only Support, Moderator, and Admin platform roles can be assigned here.');
+    return this.usersService.update(id, { role: body.role });
+  }
+
   @Patch(':id/reviewer-access')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
