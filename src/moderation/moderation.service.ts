@@ -61,7 +61,9 @@ export class ModerationService {
         resource.reviewConflictDeclaration = rows[0]?.declaration ?? null;
       }
     }
-    return queue;
+    // Keep raw storage URLs out of the review queue response. The reader obtains
+    // a short-lived inline URL through the authenticated resource file endpoint.
+    return queue.map((resource) => ({ ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined }));
   }
 
   async getResourceReviewHistory(resourceId: string, viewer: User) {
