@@ -56,7 +56,7 @@ describe('ModerationService academic reviewer workflow', () => {
 
 
   it('gives the Global Academic Reviewer the platform-wide pending queue', async () => {
-    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true, isSuspended: false } as User;
+    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true, reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active' } as User;
     resourceRepository.find.mockResolvedValue([]);
     await expect(service.getQueue(reviewer)).resolves.toEqual([]);
     expect(resourceRepository.find).toHaveBeenCalledWith(expect.objectContaining({
@@ -65,7 +65,7 @@ describe('ModerationService academic reviewer workflow', () => {
   });
 
   it('allows the Global Academic Reviewer to inspect the full reviewer roster', async () => {
-    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, isGlobalReviewer: true } as User;
+    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, reviewerStatus: 'approved', isGlobalReviewer: true, accountStatus: 'active' } as User;
     userRepository.find.mockResolvedValue([]);
     await expect(service.getReviewerRoster(reviewer)).resolves.toEqual([]);
     expect(userRepository.find).toHaveBeenCalledWith(expect.objectContaining({ where: { hasReviewerAccess: true } }));
