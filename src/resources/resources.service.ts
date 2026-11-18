@@ -24,7 +24,7 @@ function hasReviewerCapability(viewer: Partial<User>): boolean {
 }
 
 function isPreviewOnlyResourceAccess(viewer: Partial<User>): boolean {
-  return hasReviewerCapability(viewer) || viewer.role === UserRole.MODERATOR || viewer.role === UserRole.ADMIN;
+  return viewer.role === UserRole.REVIEWER || hasReviewerCapability(viewer) || viewer.role === UserRole.MODERATOR || viewer.role === UserRole.ADMIN;
 }
 
 @Injectable()
@@ -216,6 +216,9 @@ export class ResourcesService {
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to this resource.');
     }
+    if (viewer.role === UserRole.REVIEWER && !hasReviewerCapability(viewer)) {
+      throw new ForbiddenException('Your academic reviewer access is no longer active.');
+    }
 
     const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
     const reviewerCapability = hasReviewerCapability(viewer);
@@ -249,7 +252,7 @@ export class ResourcesService {
     this.assertInstitutionIdentity(viewer);
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
     await this.assertPaidResourceAccess(authorizedResource, viewer);
-    if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
+    if (!download && !hasReviewerCapability(viewer) && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
       if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
     }
