@@ -73,6 +73,17 @@ export class ModerationService {
     });
   }
 
+  async getReviewerRoster(viewer: User) {
+    if (viewer.role !== UserRole.ADMIN && viewer.isGlobalReviewer !== true) {
+      throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect the reviewer roster.');
+    }
+    return this.userRepository.find({
+      where: { hasReviewerAccess: true },
+      select: ['id', 'firstName', 'lastName', 'email', 'academicHandle', 'role', 'reviewerStatus', 'reviewerExpertise', 'reviewerAcademicLevels', 'isSuspended', 'isGlobalReviewer', 'institution', 'faculty', 'department'],
+      order: { createdAt: 'ASC' },
+    });
+  }
+
   async getConflictDeclarations(viewer: User) {
     if (viewer.role !== UserRole.ADMIN && viewer.isGlobalReviewer !== true) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer conflict declarations.');
     return this.resourceRepository.manager.query(`
@@ -100,7 +111,10 @@ export class ModerationService {
     });
   }
 
-  async assignReviewer(resourceId: string, reviewerId: string, adminId: string) {
+  async assignReviewer(resourceId: string, reviewerId: string, adminId: string, actor?: User) {
+    if (actor && actor.role !== UserRole.ADMIN && actor.isGlobalReviewer !== true) {
+      throw new ForbiddenException('Only administrators or the Global Academic Reviewer can assign academic reviewers.');
+    }
     const assignment = await this.resourceRepository.manager.transaction(async manager => {
       const reviewer = await manager.findOne(User, {
         where: { id: reviewerId },
@@ -121,6 +135,7 @@ export class ModerationService {
       if (resource.uploaderId === reviewer.id) throw new BadRequestException('A reviewer cannot be assigned to review their own uploaded resource.');
       if (resource.contributorUserIds?.includes(reviewer.id)) throw new BadRequestException('A reviewer cannot be assigned to review material they co-authored or contributed to.');
 
+      if (reviewer.isGlobalReviewer !== true) {
       const approvedExpertise = Array.isArray(reviewer.reviewerExpertise) ? reviewer.reviewerExpertise : [];
       const resourceExpertise = [resource.title, resource.course, resource.topic, resource.type, ...(resource.tags ?? [])]
         .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
@@ -139,6 +154,7 @@ export class ModerationService {
         return normalizedLevel === 'all' || normalizedLevel === 'all levels' || normalizedLevel.includes(resourceLevel) || resourceLevel.includes(normalizedLevel);
       }))) {
         throw new BadRequestException('The selected reviewer is not approved for this material’s academic level.');
+      }
       }
 
       if (resource.assignedReviewerId && resource.reviewAssignmentId) {
