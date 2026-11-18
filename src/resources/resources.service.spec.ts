@@ -69,21 +69,24 @@ describe('ResourcesService.findOneForViewer authorization', () => {
   });
 
   it.each([UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN])('does not allow %s to download resources', async (role) => {
+    resourceRepository.findOne.mockResolvedValue(resource({ moderationStatus: ResourceModerationStatus.APPROVED }));
     const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
     const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
     await expect(downloadService.downloadForUser('resource-1', { id: 'privileged-1', role } as any))
       .rejects.toBeInstanceOf(ForbiddenException);
-    expect(resourceRepository.findOne).not.toHaveBeenCalled();
+    expect(resourceRepository.findOne).toHaveBeenCalledTimes(1);
     expect(savedRepository.save).not.toHaveBeenCalled();
   });
 
   it('does not allow a student with reviewer access to download resources', async () => {
+    resourceRepository.findOne.mockResolvedValue(resource({ moderationStatus: ResourceModerationStatus.APPROVED }));
     const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
     const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
     await expect(downloadService.downloadForUser('resource-1', {
       id: 'dual-role-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
     } as any)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(resourceRepository.findOne).not.toHaveBeenCalled();
+    expect(resourceRepository.findOne).toHaveBeenCalledTimes(1);
+    expect(savedRepository.save).not.toHaveBeenCalled();
   });
 
   it('allows a student to download their own pending contribution', async () => {
@@ -110,6 +113,26 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       id: 'student-owner', role: UserRole.STUDENT, institutionId: 'institution-1',
     } as any)).resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
 
+    expect(savedRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'student-owner', resourceId: 'resource-1', downloadedAt: expect.any(Date),
+    }));
+  });
+
+  it('preserves full download access for a lecturer reviewer on their own upload', async () => {
+    const pending = resource({ downloadRestricted: true });
+    resourceRepository.findOne.mockResolvedValueOnce(pending).mockResolvedValueOnce(pending);
+    const savedRepository: any = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => value),
+    };
+    const downloadService = new ResourcesService(
+      resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup,
+    );
+
+    await expect(downloadService.downloadForUser('resource-1', {
+      id: 'student-owner', role: UserRole.LECTURER, hasReviewerAccess: true, institutionId: 'institution-1',
+    } as any)).resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
     expect(savedRepository.save).toHaveBeenCalledWith(expect.objectContaining({
       userId: 'student-owner', resourceId: 'resource-1', downloadedAt: expect.any(Date),
     }));
