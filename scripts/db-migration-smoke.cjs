@@ -34,6 +34,8 @@ async function main() {
     assert.equal(pricingColumns.rowCount, 4, 'resource pricing and substantive-update columns should exist');
     const lifecycleColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name IN ('accountStatus', 'deletionRequestedAt', 'deletionScheduledAt', 'securityQuestionId', 'securityAnswerHash')");
     assert.equal(lifecycleColumns.rowCount, 5, 'account lifecycle and security-question columns should exist');
+    const globalReviewerColumn = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'isGlobalReviewer'");
+    assert.equal(globalReviewerColumn.rowCount, 1, 'global academic reviewer capability column should exist');
 
     const applied = await client.query('SELECT name FROM migrations ORDER BY timestamp');
     const migrationNames = applied.rows.map((row) => row.name);
@@ -57,6 +59,7 @@ async function main() {
     assert.ok(migrationNames.includes('AddResourceContributorIdentities2026111700005'), 'resource contributor identity migration should be applied');
     assert.ok(migrationNames.includes('AddReviewerApprovedScope2026111700006'), 'reviewer approved scope migration should be applied');
     assert.ok(migrationNames.includes('CreateReviewerAssignmentEvents2026111700008'), 'reviewer assignment event migration should be applied');
+    assert.ok(migrationNames.includes('AddGlobalAcademicReviewerCapability2026111800001'), 'global academic reviewer capability migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
