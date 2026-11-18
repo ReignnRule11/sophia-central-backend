@@ -126,7 +126,7 @@ describe('ReviewerApplicationsService', () => {
   });
 
   it('allows the Global Academic Reviewer to list applications and prevents self-approval', async () => {
-    const globalReviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, isGlobalReviewer: true } as User;
+    const globalReviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, isGlobalReviewer: true, hasReviewerAccess: true, reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active' } as User;
     applications.find.mockResolvedValue([]);
     await expect(service.listForAdmin(undefined, globalReviewer)).resolves.toEqual([]);
     expect(applications.find).toHaveBeenCalled();
