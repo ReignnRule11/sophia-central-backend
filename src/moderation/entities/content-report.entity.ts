@@ -8,6 +8,7 @@ export enum ContentReportStatus { PENDING = 'pending', REVIEWING = 'reviewing', 
 @Entity({ name: 'content_reports' })
 export class ContentReport {
   @PrimaryGeneratedColumn('uuid') id!: string;
+  @Column({ type: 'varchar', length: 32, unique: true }) ticketNumber!: string;
   @Column({ type: 'uuid', nullable: true }) reporterId?: string | null;
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'reporterId' }) reporter?: User | null;
