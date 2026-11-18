@@ -24,6 +24,7 @@ describe('ReviewerApplicationsService', () => {
   const dataSource = {
     transaction: jest.fn(async (callback: (manager: any) => Promise<unknown>) => callback(manager)),
   };
+  const notificationsService = { createNotification: jest.fn().mockResolvedValue(undefined) };
   let service: ReviewerApplicationsService;
 
   beforeEach(() => {
@@ -36,6 +37,7 @@ describe('ReviewerApplicationsService', () => {
       applications as unknown as Repository<ReviewerApplication>,
       decisions as unknown as Repository<ReviewerApplicationDecision>,
       dataSource as unknown as DataSource,
+      notificationsService as never,
     );
   });
 
@@ -176,5 +178,12 @@ describe('ReviewerApplicationsService', () => {
       reviewerAcademicLevels: ['Undergraduate'],
     });
     expect(manager.save).toHaveBeenCalledWith(User, user);
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      user.id,
+      'reviewer_application_decision',
+      'Academic Reviewer access approved',
+      'Your Academic Reviewer access has been approved. Your reviewer workspace is now available.',
+      '/moderation',
+    );
   });
 });
