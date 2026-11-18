@@ -51,8 +51,6 @@ export class ReviewerApplication {
   @Column({ type: 'jsonb', nullable: true })
   approvedAcademicLevels?: string[] | null;
 
-  @Column({ type: 'varchar', length: 40, nullable: true })
-
   @Column({ type: 'text' })
   reviewExperience!: string;
 
