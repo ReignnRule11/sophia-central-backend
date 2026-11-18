@@ -123,6 +123,17 @@ describe('ReviewerApplicationsService', () => {
     expect(manager.save).not.toHaveBeenCalled();
   });
 
+  it('allows the Global Academic Reviewer to list applications and prevents self-approval', async () => {
+    const globalReviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, isGlobalReviewer: true } as User;
+    applications.find.mockResolvedValue([]);
+    await expect(service.listForAdmin(undefined, globalReviewer)).resolves.toEqual([]);
+    expect(applications.find).toHaveBeenCalled();
+
+    applications.findOne.mockResolvedValue({ id: 'own-app', userId: globalReviewer.id });
+    await expect(service.decide('own-app', globalReviewer, { status: ReviewerApplicationStatus.APPROVED } as never))
+      .rejects.toThrow('The Global Academic Reviewer cannot decide their own reviewer application.');
+  });
+
   it('grants reviewer access without changing a Student primary identity', async () => {
     const application = {
       id: 'application-1',
