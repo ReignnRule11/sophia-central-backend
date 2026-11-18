@@ -141,7 +141,7 @@ export class ContentReportsService {
   async listMine(userId: string) {
     return this.reports.find({
       where: { reporterId: userId },
-      select: ['id', 'ticketNumber', 'targetType', 'targetLabel', 'reason', 'details', 'status', 'moderatorNote', 'createdAt', 'updatedAt'],
+      select: ['id', 'ticketNumber', 'targetType', 'targetLabel', 'targetSnapshot', 'reason', 'details', 'status', 'moderatorNote', 'createdAt', 'updatedAt'],
       order: { createdAt: 'DESC' },
       take: 50,
     });
