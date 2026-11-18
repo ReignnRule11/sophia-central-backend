@@ -17,6 +17,61 @@ import { FileUpload } from '../upload/entities/file-upload.entity';
 import { UserActivityEvent } from '../analytics/entities/user-activity-event.entity';
 import { ResourcePurchase } from '../payments/entities/resource-purchase.entity';
 import { ResourcePricingMode } from './entities/resource.entity';
+import { hasActiveGlobalReviewerAuthority } from '../users/reviewer-permissions';
+
+function hasReviewerCapability(viewer: Partial<User>): boolean {
+  return viewer.hasReviewerAccess === true || (viewer.hasReviewerAccess == null && viewer.role === UserRole.REVIEWER);
+}
+
+function isPreviewOnlyResourceAccess(viewer: Partial<User>): boolean {
+  return viewer.role === UserRole.REVIEWER || hasReviewerCapability(viewer) || viewer.role === UserRole.MODERATOR || viewer.role === UserRole.ADMIN;
+}
+
+function normalizeAcademicValue(value?: string | null): string {
+  return (value ?? '').trim().toLocaleLowerCase().replace(/\s+/g, ' ');
+}
+
+function sameAcademicValue(left?: string | null, right?: string | null): boolean {
+  const normalizedLeft = normalizeAcademicValue(left);
+  return Boolean(normalizedLeft && normalizedLeft === normalizeAcademicValue(right));
+}
+
+/**
+ * Department membership and a student's programme are not, by themselves,
+ * evidence of a conflict. A lecturer who currently teaches the exact course
+ * attached to a paid submission has a direct commercial/teaching interest and
+ * must be reassigned. Student course enrolment is not structured in the current
+ * account model, so paid-review preview additionally requires an assignment-
+ * specific no-conflict declaration (including course-enrolment disclosure).
+ */
+function reviewerAcademicRole(viewer: Partial<User>): UserRole | string | undefined {
+  return viewer.role === UserRole.REVIEWER
+    ? (viewer.reviewerBaseRole ?? viewer.academicAccountType) ?? undefined
+    : viewer.role;
+}
+
+function isLecturerUploader(viewer: Partial<User>, resource: Partial<Resource>): boolean {
+  const baseRole = reviewerAcademicRole(viewer);
+  return baseRole === UserRole.LECTURER
+    && [UserRole.LECTURER, UserRole.REVIEWER].includes(viewer.role as UserRole)
+    && Boolean(viewer.id && resource.uploaderId === viewer.id);
+}
+
+function hasPaidResourceReviewConflict(resource: Resource, viewer: Partial<User>): boolean {
+  if (reviewerAcademicRole(viewer) !== UserRole.LECTURER) return false;
+
+  return (viewer.teachingAssignments ?? []).some((assignment) =>
+    sameAcademicValue(assignment.courseName, resource.course)
+      || sameAcademicValue(assignment.courseCode, resource.course),
+  ) || (viewer.coursesTaught ?? []).some((course) => sameAcademicValue(course, resource.course));
+}
+
+function hasAuthorisedPendingReviewContext(resource: Resource, viewer: Partial<User>): boolean {
+  if (!hasReviewerCapability(viewer) || viewer.isSuspended === true
+    || resource.moderationStatus !== ResourceModerationStatus.PENDING) return false;
+
+  return resource.assignedReviewerId === viewer.id || hasActiveGlobalReviewerAuthority(viewer);
+}
 
 @Injectable()
 export class ResourcesService {
@@ -76,6 +131,9 @@ export class ResourcesService {
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to resources.');
     }
+    if (viewer.role === UserRole.REVIEWER && !hasReviewerCapability(viewer)) {
+      throw new ForbiddenException('Your academic reviewer access is no longer active.');
+    }
 
     // Only moderators and admins receive platform-wide resource visibility.
     // Reviewers use the assigned-review queue; their shared library remains approved-only.
@@ -89,7 +147,7 @@ export class ResourcesService {
   }
 
   private assertInstitutionIdentity(viewer: User): void {
-    if ([UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(viewer.role) && !viewer.institutionId) {
+    if ([UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && !viewer.institutionId) {
       throw new ForbiddenException('Complete your catalogue-backed institution setup before uploading or downloading academic materials.');
     }
   }
@@ -98,12 +156,15 @@ export class ResourcesService {
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to personal resources.');
     }
+    if (viewer.role === UserRole.REVIEWER && !hasReviewerCapability(viewer)) {
+      throw new ForbiddenException('Your academic reviewer access is no longer active.');
+    }
   }
 
   async findSavedForUser(viewer: User): Promise<Resource[]> {
     this.assertCanSave(viewer);
     const savedEntries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, isSaved: true, ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
+      where: { userId: viewer.id, isSaved: true, resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
       relations: ['resource', 'resource.uploader'],
       order: { createdAt: 'DESC' },
     });
@@ -119,7 +180,7 @@ export class ResourcesService {
     this.assertCanSave(viewer);
     this.assertInstitutionIdentity(viewer);
     const entries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
+      where: { userId: viewer.id, downloadedAt: Not(IsNull()), resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
       relations: ['resource', 'resource.uploader'],
       order: { downloadedAt: 'DESC' },
     });
@@ -129,7 +190,7 @@ export class ResourcesService {
   async saveForUser(id: string, viewer: User): Promise<{ saved: true; resourceId: string }> {
     this.assertCanSave(viewer);
     const resource = await this.findOneForViewer(id, viewer, false);
-    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) && !(viewer.role === UserRole.LECTURER && resource.uploaderId === viewer.id)) {
+    if (resource.moderationStatus !== ResourceModerationStatus.APPROVED) {
       throw new NotFoundException('Approved resource not found');
     }
 
@@ -146,6 +207,26 @@ export class ResourcesService {
   private async assertPaidResourceAccess(resource: Resource, viewer: User): Promise<void> {
     if (resource.pricingMode === ResourcePricingMode.FREE) return;
     if (resource.uploaderId === viewer.id || [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) return;
+
+    // Reviewer access is an exception for an active pending-review assignment only.
+    // It must never grant free preview of an approved paid item in the ordinary library.
+    if (hasAuthorisedPendingReviewContext(resource, viewer)) {
+      if (hasPaidResourceReviewConflict(resource, viewer)) {
+        throw new ForbiddenException('Recuse yourself and request reassignment. You currently teach this exact course and cannot access this paid review document.');
+      }
+      if (!resource.reviewAssignmentId) {
+        throw new ForbiddenException('Record an assignment-specific no-conflict declaration before previewing this paid review document.');
+      }
+      const declaration = await this.resourceRepository.manager.query(
+        'SELECT declaration FROM reviewer_conflict_declarations WHERE "assignmentId" = $1::uuid AND "reviewerId" = $2::uuid ORDER BY "createdAt" DESC LIMIT 1',
+        [resource.reviewAssignmentId, viewer.id],
+      );
+      if (declaration[0]?.declaration !== 'no_conflict') {
+        throw new ForbiddenException('Record a no-conflict declaration before previewing this paid review document. If you are enrolled in its course or have another competing interest, recuse yourself.');
+      }
+      return;
+    }
+
     const purchase = await this.resourcePurchaseRepository.findOne({ where: { userId: viewer.id, resourceId: resource.id } });
     if (!purchase) throw new ForbiddenException('Purchase this resource before accessing its file.');
   }
@@ -153,10 +234,11 @@ export class ResourcesService {
   async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
     this.assertCanSave(viewer);
     this.assertInstitutionIdentity(viewer);
-    if (viewer.role === UserRole.REVIEWER) {
-      throw new ForbiddenException('Academic reviewers can preview assigned resources but cannot download them.');
-    }
     const resource = await this.findOneForViewer(id, viewer, false);
+    const lecturerUploader = isLecturerUploader(viewer, resource);
+    if (isPreviewOnlyResourceAccess(viewer) && !lecturerUploader) {
+      throw new ForbiddenException('Academic reviewers and platform oversight accounts can preview authorised resources but cannot download them. Only a lecturer may download their own upload.');
+    }
     const ownUpload = resource.uploaderId === viewer.id;
     await this.assertPaidResourceAccess(resource, viewer);
     if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new NotFoundException('Approved resource not found');
@@ -207,10 +289,15 @@ export class ResourcesService {
     if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) {
       throw new ForbiddenException('You do not have access to this resource.');
     }
+    if (viewer.role === UserRole.REVIEWER && !hasReviewerCapability(viewer)) {
+      throw new ForbiddenException('Your academic reviewer access is no longer active.');
+    }
 
     const isPlatformModerator = [UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role);
-    const isAssignedReviewer = viewer.role === UserRole.REVIEWER && !viewer.isSuspended && resource.assignedReviewerId === viewer.id;
-    const hasModerationAccess = isPlatformModerator || isAssignedReviewer;
+    const reviewerCapability = hasReviewerCapability(viewer);
+    const isAssignedReviewer = reviewerCapability && !viewer.isSuspended && resource.assignedReviewerId === viewer.id;
+    const isGlobalReviewer = hasActiveGlobalReviewerAuthority(viewer) && resource.moderationStatus === ResourceModerationStatus.PENDING;
+    const hasModerationAccess = isPlatformModerator || isAssignedReviewer || isGlobalReviewer;
     const isUploader = resource.uploaderId === viewer.id;
 
     // Contributors may inspect their own submissions (including pending/rejected
@@ -233,23 +320,19 @@ export class ResourcesService {
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string; filename: string; contentType?: string }> {
     this.assertInstitutionIdentity(viewer);
-    if (download && viewer.role === UserRole.REVIEWER) {
-      throw new ForbiddenException('Academic reviewers can preview assigned resources but cannot download them.');
-    }
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
+    if (download && isPreviewOnlyResourceAccess(viewer) && !isLecturerUploader(viewer, authorizedResource)) {
+      throw new ForbiddenException('Academic reviewers and platform oversight accounts can preview authorised resources but cannot download them. Only a lecturer may download their own upload.');
+    }
     await this.assertPaidResourceAccess(authorizedResource, viewer);
-    if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
+    if (!download && !hasReviewerCapability(viewer) && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
       if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
     }
-    if (download && authorizedResource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
-    if (!download && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
-      const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
-      if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
-    }
+    if (download && authorizedResource.downloadRestricted && authorizedResource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
-    if (download && resource.downloadRestricted && authorizedResource.uploaderId !== viewer.id && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
+    if (download && resource.downloadRestricted && authorizedResource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
     if (download) {
