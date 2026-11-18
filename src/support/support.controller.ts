@@ -31,6 +31,13 @@ export class SupportController {
     return this.support.listForModeration(value);
   }
 
+  @Patch(':id/status')
+  @Roles(UserRole.SUPPORT)
+  updateStatus(@Param('id') id: string, @Body() body: { status: 'under_review' | 'reviewed' }, @Req() request: AuthenticatedRequest) {
+    if (!['under_review', 'reviewed'].includes(body.status)) throw new BadRequestException('Choose a valid support ticket status.');
+    return this.support.updateStatus(id, request.user, body.status);
+  }
+
   @Patch(':id/respond')
   @Roles(UserRole.SUPPORT)
   respond(@Param('id') id: string, @Body() dto: ConcludeSupportRequestDto, @Req() request: AuthenticatedRequest) {
