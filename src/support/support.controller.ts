@@ -1,6 +1,7 @@
 import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CsrfGuard } from '../common/guards/csrf.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -37,6 +38,7 @@ export class SupportController {
   }
 
   @Patch(':id/status')
+  @UseGuards(CsrfGuard)
   @Roles(UserRole.SUPPORT)
   updateStatus(@Param('id') id: string, @Body() body: { status: 'under_review' | 'reviewed' }, @Req() request: AuthenticatedRequest) {
     if (!['under_review', 'reviewed'].includes(body.status)) throw new BadRequestException('Choose a valid support ticket status.');
@@ -44,12 +46,14 @@ export class SupportController {
   }
 
   @Patch(':id/respond')
+  @UseGuards(CsrfGuard)
   @Roles(UserRole.SUPPORT)
   respond(@Param('id') id: string, @Body() dto: ConcludeSupportRequestDto, @Req() request: AuthenticatedRequest) {
     return this.support.conclude(id, request.user.id, dto);
   }
 
   @Patch(':id/escalate')
+  @UseGuards(CsrfGuard)
   @Roles(UserRole.SUPPORT)
   escalate(@Param('id') id: string, @Body() body: { targetRole: 'moderator' | 'admin'; reason: string }, @Req() request: AuthenticatedRequest) {
     if (!body.reason?.trim() || !['moderator', 'admin'].includes(body.targetRole)) throw new BadRequestException('Choose a valid escalation destination and provide a reason.');
