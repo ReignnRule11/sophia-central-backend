@@ -29,19 +29,19 @@ export class ReviewerApplicationsController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN)
-  list(@Query('status') status?: string) {
-    return this.applications.listForAdmin(status);
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  list(@Query('status') status: string | undefined, @Req() req: AuthenticatedRequest) {
+    return this.applications.listForAdmin(status, req.user);
   }
 
   @Get(':id/decisions')
-  @Roles(UserRole.ADMIN)
-  decisionHistory(@Param('id') id: string) {
-    return this.applications.decisionHistory(id);
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  decisionHistory(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
+    return this.applications.decisionHistory(id, req.user);
   }
 
   @Patch(':id/decision')
-  @Roles(UserRole.ADMIN)
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   decide(@Param('id') id: string, @Req() req: AuthenticatedRequest, @Body() dto: ReviewerApplicationDecisionDto) {
     return this.applications.decide(id, req.user, dto);
   }
