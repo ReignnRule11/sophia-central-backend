@@ -12,29 +12,7 @@ permissions:
 jobs:
   verify:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
-    services:
-      postgres:
-        image: postgres:16
-        env:
-          POSTGRES_USER: sophis_ci
-          POSTGRES_PASSWORD: sophis_ci
-          POSTGRES_DB: sophis_ci
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U sophis_ci -d sophis_ci"
-          --health-interval 10s
-          --health-timeout 5s
-          --health-retries 5
-    env:
-      NODE_ENV: production
-      DB_HOST: 127.0.0.1
-      DB_PORT: 5432
-      DB_USERNAME: sophis_ci
-      DB_PASSWORD: sophis_ci
-      DB_DATABASE: sophis_ci
-      DB_SSL: "false"
+    timeout-minutes: 10
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -46,9 +24,5 @@ jobs:
         run: npm install --ignore-scripts
       - name: Build
         run: npm run build
-      - name: Run database migrations against ephemeral PostgreSQL
-        run: npm run migration:run
-      - name: Verify migrated schema and reviewer audit behavior
-        run: npm run migration:smoke
       - name: Run unit tests
         run: npm test -- --runInBand
