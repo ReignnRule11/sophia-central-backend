@@ -550,6 +550,9 @@ export class AuthService {
   async completeOnboarding(userId: string, dto: OnboardingDto) {
     const currentUser = await this.usersService.findOne(userId);
     if (!currentUser) throw new UnauthorizedException('User not found');
+    if (![UserRole.STUDENT, UserRole.LECTURER].includes(currentUser.role)) {
+      throw new ForbiddenException('This academic profile endpoint is reserved for Student and Lecturer accounts. External Reviewers must use reviewer onboarding.');
+    }
     if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
       throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
     }
