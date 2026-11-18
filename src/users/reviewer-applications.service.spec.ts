@@ -27,6 +27,8 @@ describe('ReviewerApplicationsService', () => {
   let service: ReviewerApplicationsService;
 
   beforeEach(() => {
+    process.env.REVIEWER_RECRUITMENT_OPEN = 'true';
+    delete process.env.REVIEWER_TEST_ACCOUNT_EMAIL;
     jest.clearAllMocks();
     applications.findOne.mockResolvedValue(null);
     manager.findOne.mockReset().mockResolvedValue(null);
