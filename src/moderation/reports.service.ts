@@ -101,7 +101,6 @@ export class ContentReportsService {
     const target = await this.resolveTarget(reporter, dto);
     const duplicate = await this.reports.findOne({
       where: {
-        ticketNumber: `RPT-${new Date().getFullYear()}-${String(Number((await this.reports.query('SELECT nextval(\'sophis_report_ticket_seq\') AS value'))[0].value).padStart(6, '0'))}`,
       reporterId: reporter.id,
         targetType: dto.targetType,
         targetId: dto.targetId,
