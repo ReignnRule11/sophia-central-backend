@@ -20,6 +20,7 @@ export class AddSupportRoleTicketReferencesAndWorkflow2026111800001 implements M
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`UPDATE support_requests SET status = 'concluded' WHERE status = 'response_sent'`);
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_content_reports_ticketNumber"');
     await queryRunner.query('ALTER TABLE content_reports DROP COLUMN IF EXISTS "ticketNumber"');
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_support_requests_ticketNumber"');
