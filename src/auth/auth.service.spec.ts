@@ -3,6 +3,8 @@ import * as bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { AuthService } from './auth.service';
 import { UserRole } from '../users/entities/user.entity';
+import { ReviewerApplication, ReviewerApplicationStatus } from '../users/entities/reviewer-application.entity';
+import { ReviewerApplicationDecision } from '../users/entities/reviewer-application-decision.entity';
 import { PreAccount } from './entities/pre-account.entity';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -17,6 +19,8 @@ describe('AuthService', () => {
   let verificationTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock };
   let preAccounts: { findOne: jest.Mock; save: jest.Mock; delete: jest.Mock };
   let registrationDrafts: { findOne: jest.Mock; save: jest.Mock; delete: jest.Mock };
+  let reviewerApplications: { create: jest.Mock; save: jest.Mock };
+  let reviewerDecisions: { create: jest.Mock; save: jest.Mock };
   let dataSource: { transaction: jest.Mock };
   let registrationTokens: { seal: jest.Mock; open: jest.Mock; claimOnce: jest.Mock; releaseClaim: jest.Mock };
   let resetEmail: jest.Mocked<Pick<PasswordResetEmailService, 'sendResetLink'>>;
@@ -31,6 +35,7 @@ describe('AuthService', () => {
   beforeEach(() => {
     process.env.REVIEWER_RECRUITMENT_OPEN = 'true';
     delete process.env.REVIEWER_TEST_ACCOUNT_EMAIL;
+    delete process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL;
     users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), createWithManager: jest.fn().mockResolvedValue({ ...user, id: 'new-account-id' }), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn() };
     jwt = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
     resetTokens = {
@@ -43,7 +48,9 @@ describe('AuthService', () => {
     };
     preAccounts = { findOne: jest.fn().mockResolvedValue(null), save: jest.fn().mockResolvedValue({}), delete: jest.fn().mockResolvedValue({ affected: 1 }) };
     registrationDrafts = { findOne: jest.fn().mockResolvedValue(null), save: jest.fn().mockResolvedValue({}), delete: jest.fn().mockResolvedValue({ affected: 1 }) };
-    dataSource = { transaction: jest.fn(async (callback: (manager: any) => Promise<any>) => callback({ getRepository: (entity: unknown) => entity === PreAccount ? preAccounts : registrationDrafts })) };
+    reviewerApplications = { create: jest.fn((data) => data), save: jest.fn(async (data) => ({ id: 'global-reviewer-application', ...data })) };
+    reviewerDecisions = { create: jest.fn((data) => data), save: jest.fn(async (data) => ({ id: 'global-reviewer-decision', ...data })) };
+    dataSource = { transaction: jest.fn(async (callback: (manager: any) => Promise<any>) => callback({ getRepository: (entity: unknown) => entity === PreAccount ? preAccounts : entity === RegistrationDraft ? registrationDrafts : entity === ReviewerApplication ? reviewerApplications : reviewerDecisions })) };
     registrationTokens = {
       seal: jest.fn().mockReturnValue('encrypted-registration-token'),
       open: jest.fn(),
@@ -73,6 +80,93 @@ describe('AuthService', () => {
   });
 
   afterEach(() => jest.restoreAllMocks());
+
+  it('limits closed recruitment to the exact configured reviewer test email', async () => {
+    process.env.REVIEWER_RECRUITMENT_OPEN = 'false';
+    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral@gmail.com';
+    users.findByEmail.mockResolvedValue(null);
+    users.findByAcademicHandle.mockResolvedValue(null);
+
+    await expect(service.register({
+      firstName: 'Other',
+      lastName: 'Applicant',
+      email: 'other@example.com',
+      academicHandle: 'other.applicant',
+      role: UserRole.REVIEWER,
+    })).rejects.toBeInstanceOf(ForbiddenException);
+
+    await expect(service.register({
+      firstName: 'Sophis',
+      lastName: 'Reviewer',
+      email: 'SOPHISCENTRAL@gmail.com',
+      academicHandle: 'sophis',
+      role: UserRole.REVIEWER,
+    })).resolves.toEqual(expect.objectContaining({ emailSent: true }));
+  });
+
+  it('bootstraps the exact configured Global Academic Reviewer after verified registration', async () => {
+    process.env.REVIEWER_RECRUITMENT_OPEN = 'false';
+    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral@gmail.com';
+    process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL = 'sophiscentral@gmail.com';
+    const expiresAt = new Date(Date.now() + 60_000);
+    preAccounts.findOne.mockResolvedValue({ email: 'sophiscentral@gmail.com', password: 'password-hash' });
+    registrationDrafts.findOne.mockResolvedValue({ email: 'sophiscentral@gmail.com', expiresAt, encryptedPayload: 'encrypted-draft' });
+    registrationTokens.open
+      .mockReturnValueOnce({ stage: 'pre-account', email: 'sophiscentral@gmail.com', jti: 'resume-jti', expiresAt: expiresAt.getTime() })
+      .mockReturnValueOnce({
+        stage: 'pre-account-draft',
+        email: 'sophiscentral@gmail.com',
+        firstName: 'Sophis',
+        lastName: 'Reviewer',
+        academicHandle: 'sophis',
+        role: UserRole.REVIEWER,
+      });
+    users.findByEmail.mockResolvedValue(null);
+    users.findByAcademicHandle.mockResolvedValue(null);
+    users.createWithManager.mockResolvedValue({
+      id: 'global-reviewer-id',
+      email: 'sophiscentral@gmail.com',
+      role: UserRole.REVIEWER,
+      hasReviewerAccess: true,
+      isGlobalReviewer: true,
+      reviewerStatus: ReviewerApplicationStatus.APPROVED,
+      reviewerExpertise: ['*'],
+      reviewerAcademicLevels: ['*'],
+      isProfileComplete: true,
+    } as never);
+
+    await service.completePreAccountOnboarding('onboarding-token', { bio: 'Platform-wide academic review test account' } as never);
+
+    expect(users.createWithManager).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
+      email: 'sophiscentral@gmail.com',
+      firstName: 'Sophis',
+      lastName: 'Reviewer',
+      academicHandle: 'sophis',
+      role: UserRole.REVIEWER,
+      hasReviewerAccess: true,
+      isGlobalReviewer: true,
+      reviewerStatus: ReviewerApplicationStatus.APPROVED,
+      reviewerExpertise: ['*'],
+      reviewerAcademicLevels: ['*'],
+    }));
+    expect(reviewerApplications.save).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'global-reviewer-id',
+      status: ReviewerApplicationStatus.APPROVED,
+      qualifications: ['Platform-wide test authorization; no professional qualification or licence is being represented.'],
+      expertiseAreas: ['*'],
+      academicLevels: ['*'],
+      approvedExpertiseAreas: ['*'],
+      approvedAcademicLevels: ['*'],
+      supportingDocuments: ['https://example.com/qualification-evidence-placeholder'],
+      policyAccepted: true,
+    }));
+    expect(reviewerDecisions.save).toHaveBeenCalledWith(expect.objectContaining({
+      applicationId: 'global-reviewer-application',
+      actorId: null,
+      fromStatus: ReviewerApplicationStatus.SUBMITTED,
+      toStatus: ReviewerApplicationStatus.APPROVED,
+    }));
+  });
 
   it('routes an existing account to sign-in without disclosing its role', async () => {
     users.findByEmail.mockResolvedValue(user as never);
