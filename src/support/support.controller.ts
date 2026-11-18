@@ -7,6 +7,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import type { Request } from 'express';
 import { ConcludeSupportRequestDto } from './dto/conclude-support-request.dto';
+import { SupportEmailService } from './support-email.service';
 type AuthenticatedRequest = Request & { user: User };
 import { SupportService } from './support.service';
 import { CreateSupportRequestDto } from './dto/create-support-request.dto';
@@ -16,7 +17,11 @@ import { CreateSupportRequestDto } from './dto/create-support-request.dto';
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class SupportController {
-  constructor(private readonly support: SupportService) {}
+  constructor(private readonly support: SupportService, private readonly supportEmail: SupportEmailService) {}
+
+  @Get('email-status')
+  @Roles(UserRole.SUPPORT)
+  emailStatus() { return this.supportEmail.getConfigurationStatus(); }
 
   @Post()
   create(@CurrentUser() user: User, @Body() dto: CreateSupportRequestDto) {
