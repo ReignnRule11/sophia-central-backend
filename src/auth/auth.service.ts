@@ -328,6 +328,9 @@ export class AuthService {
     if (!academicHandle || !firstName || !lastName || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(role)) {
       throw new UnauthorizedException('Your pre-account details are incomplete. Please contact support.');
     }
+    if (role === UserRole.REVIEWER && !isConfiguredGlobalReviewer && (!dto.institution?.trim() || !dto.bio?.trim())) {
+      throw new BadRequestException('Ordinary External Reviewers must provide an institution or research affiliation and a research/professional summary.');
+    }
     if (role !== UserRole.REVIEWER && (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim())) {
       throw new BadRequestException('Institution, faculty and department are required to complete Student or Lecturer onboarding.');
     }
@@ -446,7 +449,7 @@ export class AuthService {
       'step', 'institutionId', 'institutionType', 'institutionManual', 'institutionSearch',
       'facultyId', 'facultySearch', 'facultyManual', 'department', 'departmentSearch',
       'departmentManual', 'program', 'studyLevel', 'teachingAssignments',
-      'courseTitleInput', 'courseCodeInput', 'courseLevelInput',
+      'courseTitleInput', 'courseCodeInput', 'courseLevelInput', 'externalAffiliation', 'externalBio',
     ];
     const safeProgress = Object.fromEntries(
       allowedKeys.filter((key) => Object.prototype.hasOwnProperty.call(progress ?? {}, key))
