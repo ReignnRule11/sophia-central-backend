@@ -180,7 +180,7 @@ export class ResourcesService {
     this.assertCanSave(viewer);
     this.assertInstitutionIdentity(viewer);
     const entries = await this.savedResourceRepository.find({
-      where: { userId: viewer.id, downloadedAt: Not(IsNull()), ...([UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role) ? {} : { resource: { moderationStatus: ResourceModerationStatus.APPROVED } }) },
+      where: { userId: viewer.id, downloadedAt: Not(IsNull()), resource: { moderationStatus: ResourceModerationStatus.APPROVED } },
       relations: ['resource', 'resource.uploader'],
       order: { downloadedAt: 'DESC' },
     });
