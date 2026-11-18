@@ -260,6 +260,40 @@ describe('AuthService', () => {
     expect(referrals.redeemReferral).not.toHaveBeenCalled();
   });
 
+  it('requires Lecturer rank, teaching areas and research interests', async () => {
+    users.findOne.mockResolvedValue({ ...user, role: UserRole.LECTURER, isProfileComplete: false } as never);
+    await expect(service.completeOnboarding(user.id, {
+      institutionId: '00000000-0000-4000-8000-000000000001',
+      institution: 'New University',
+      faculty: 'School of Computing',
+      department: 'Computer Science',
+      coursesTaught: ['CSC 301 — Data Structures'],
+      teachingAssignments: [{ courseName: 'Data Structures', courseCode: 'CSC 301', levels: ['300'] }],
+    } as never)).rejects.toBeInstanceOf(BadRequestException);
+    expect(users.update).not.toHaveBeenCalled();
+  });
+
+  it('persists Lecturer rank, teaching areas and research interests', async () => {
+    users.findOne.mockResolvedValue({ ...user, role: UserRole.LECTURER, isProfileComplete: false } as never);
+    users.update.mockResolvedValue({ ...user, role: UserRole.LECTURER, isProfileComplete: true } as never);
+    await service.completeOnboarding(user.id, {
+      institutionId: '00000000-0000-4000-8000-000000000001',
+      institution: 'New University',
+      faculty: 'School of Computing',
+      department: 'Computer Science',
+      coursesTaught: ['CSC 301 — Data Structures'],
+      teachingAssignments: [{ courseName: 'Data Structures', courseCode: 'CSC 301', levels: ['300'] }],
+      academicTitle: 'Lecturer II',
+      teachingAreas: ['Software Engineering', 'Databases'],
+      researchInterests: 'Applied AI in education',
+    } as never);
+    expect(users.update).toHaveBeenCalledWith(user.id, expect.objectContaining({
+      academicTitle: 'Lecturer II',
+      teachingAreas: ['Software Engineering', 'Databases'],
+      researchInterests: 'Applied AI in education',
+    }));
+  });
+
   it('rejects reviewer accounts from the Student/Lecturer profile completion endpoint', async () => {
     users.findOne.mockResolvedValue({ ...user, role: UserRole.REVIEWER, isProfileComplete: false } as never);
     await expect(service.completeOnboarding(user.id, {
