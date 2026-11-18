@@ -51,7 +51,7 @@ export class UsersController {
   }
 
   @Patch(':id/platform-role')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Assign a dedicated platform Support, Moderator, or Admin role' })
