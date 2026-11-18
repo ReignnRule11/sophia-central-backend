@@ -60,8 +60,13 @@ export class SupportController {
     return this.support.escalate(id, request.user, body.targetRole as UserRole.MODERATOR | UserRole.ADMIN, body.reason);
   }
 
+  @Get('mine/activity')
+  listMineForActivity(@CurrentUser() user: User) {
+    return this.support.listMineForActivity(user.id);
+  }
+
   @Get('mine')
   listMine(@CurrentUser() user: User) {
-    return this.support.listMine(user.id);
+    return this.support.listMineTracking(user.id);
   }
 }
