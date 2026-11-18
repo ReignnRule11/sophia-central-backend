@@ -220,12 +220,12 @@ export class ResourcesService {
 
   async downloadForUser(id: string, viewer: User): Promise<{ downloaded: true; resourceId: string }> {
     this.assertCanSave(viewer);
-    if (isPreviewOnlyResourceAccess(viewer)) {
-      throw new ForbiddenException('Academic reviewers and platform oversight accounts can preview authorised resources but cannot download them.');
-    }
     this.assertInstitutionIdentity(viewer);
     const resource = await this.findOneForViewer(id, viewer, false);
     const ownUpload = resource.uploaderId === viewer.id;
+    if (isPreviewOnlyResourceAccess(viewer) && !ownUpload) {
+      throw new ForbiddenException('Academic reviewers and platform oversight accounts can preview authorised resources but cannot download them.');
+    }
     await this.assertPaidResourceAccess(resource, viewer);
     if (resource.moderationStatus !== ResourceModerationStatus.APPROVED && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new NotFoundException('Approved resource not found');
     if (resource.downloadRestricted && !ownUpload && ![UserRole.MODERATOR, UserRole.ADMIN].includes(viewer.role)) throw new ForbiddenException('Downloads are disabled for this resource.');
@@ -305,11 +305,11 @@ export class ResourcesService {
   }
 
   async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string; filename: string; contentType?: string }> {
-    if (download && isPreviewOnlyResourceAccess(viewer)) {
-      throw new ForbiddenException('Academic reviewers and platform oversight accounts can preview authorised resources but cannot download them.');
-    }
     this.assertInstitutionIdentity(viewer);
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
+    if (download && isPreviewOnlyResourceAccess(viewer) && authorizedResource.uploaderId !== viewer.id) {
+      throw new ForbiddenException('Academic reviewers and platform oversight accounts can preview authorised resources but cannot download them.');
+    }
     await this.assertPaidResourceAccess(authorizedResource, viewer);
     if (!download && !hasReviewerCapability(viewer) && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
