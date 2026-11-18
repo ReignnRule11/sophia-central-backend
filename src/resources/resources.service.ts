@@ -212,7 +212,7 @@ export class ResourcesService {
     // It must never grant free preview of an approved paid item in the ordinary library.
     if (hasAuthorisedPendingReviewContext(resource, viewer)) {
       if (hasPaidResourceReviewConflict(resource, viewer)) {
-        throw new ForbiddenException('You currently teach this exact course. Recuse yourself and request reassignment before accessing this paid review document.');
+        throw new ForbiddenException('Recuse yourself and request reassignment. You currently teach this exact course and cannot access this paid review document.');
       }
       if (!resource.reviewAssignmentId) {
         throw new ForbiddenException('Record an assignment-specific no-conflict declaration before previewing this paid review document.');
