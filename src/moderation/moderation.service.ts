@@ -79,7 +79,11 @@ export class ModerationService {
       throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect the reviewer roster.');
     }
     return this.userRepository.find({
-      where: { hasReviewerAccess: true },
+      where: [
+        { hasReviewerAccess: true },
+        { reviewerStatus: 'suspended' },
+        { reviewerStatus: 'revoked' },
+      ],
       select: ['id', 'firstName', 'lastName', 'email', 'academicHandle', 'role', 'reviewerStatus', 'reviewerExpertise', 'reviewerAcademicLevels', 'isSuspended', 'isGlobalReviewer', 'institution', 'faculty', 'department'],
       order: { createdAt: 'ASC' },
     });
