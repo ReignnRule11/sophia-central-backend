@@ -10,6 +10,7 @@ import { PointsService } from '../points/points.service';
 import { ResourceRewardOutbox } from '../points/entities/resource-reward-outbox.entity';
 import { randomUUID } from 'node:crypto';
 import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declaration.dto';
+import { hasActiveGlobalReviewerAuthority } from '../users/reviewer-permissions';
 
 function hasReviewerCapability(user: User): boolean {
   return user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
@@ -41,7 +42,7 @@ export class ModerationService {
     }
     if (hasReviewerCapability(viewer) && viewer.isSuspended) return [];
     const queue = await this.resourceRepository.find({
-      where: viewer.role === UserRole.ADMIN || viewer.isGlobalReviewer === true
+      where: viewer.role === UserRole.ADMIN || hasActiveGlobalReviewerAuthority(viewer)
         ? { moderationStatus: ResourceModerationStatus.PENDING }
         : { moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: viewer.id },
       relations: ['uploader', 'assignedReviewer'],
@@ -112,7 +113,7 @@ export class ModerationService {
   }
 
   async assignReviewer(resourceId: string, reviewerId: string, adminId: string, actor?: User) {
-    if (actor && actor.role !== UserRole.ADMIN && actor.isGlobalReviewer !== true) {
+    if (actor && actor.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(actor)) {
       throw new ForbiddenException('Only administrators or the Global Academic Reviewer can assign academic reviewers.');
     }
     const assignment = await this.resourceRepository.manager.transaction(async manager => {
@@ -135,7 +136,7 @@ export class ModerationService {
       if (resource.uploaderId === reviewer.id) throw new BadRequestException('A reviewer cannot be assigned to review their own uploaded resource.');
       if (resource.contributorUserIds?.includes(reviewer.id)) throw new BadRequestException('A reviewer cannot be assigned to review material they co-authored or contributed to.');
 
-      if (reviewer.isGlobalReviewer !== true) {
+      if (!hasActiveGlobalReviewerAuthority(reviewer)) {
       const approvedExpertise = Array.isArray(reviewer.reviewerExpertise) ? reviewer.reviewerExpertise : [];
       const resourceExpertise = [resource.title, resource.course, resource.topic, resource.type, ...(resource.tags ?? [])]
         .filter((value): value is string => typeof value === 'string' && value.trim().length > 0)
@@ -212,7 +213,7 @@ export class ModerationService {
         throw new ForbiddenException('This resource is no longer awaiting academic review.');
       }
       if (resource.assignedReviewerId !== reviewer.id || !resource.reviewAssignmentId) {
-        if (reviewerRecord.isGlobalReviewer !== true) {
+        if (!hasActiveGlobalReviewerAuthority(reviewerRecord)) {
           throw new ForbiddenException('This resource is not currently assigned to your reviewer account.');
         }
         if (resource.assignedReviewerId && resource.reviewAssignmentId) {
