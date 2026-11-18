@@ -128,6 +128,18 @@ export class User {
   @Column({ nullable: true })
   studyLevel?: string;
 
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  academicTitle?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  teachingAreas?: string[];
+
+  @Column({ type: 'text', nullable: true })
+  researchInterests?: string;
+
+  @Column({ type: 'jsonb', nullable: true })
+  studentInterests?: string[];
+
   @Column({ nullable: true, type: 'text' })
   bio?: string;
 

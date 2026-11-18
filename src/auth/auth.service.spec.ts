@@ -207,7 +207,7 @@ describe('AuthService', () => {
     expect(verificationEmail.sendVerificationLink).toHaveBeenCalled();
   });
 
-  it('completes External Reviewer onboarding without a university affiliation', async () => {
+  it('requires ordinary External Reviewers to provide affiliation and a professional summary', async () => {
     const expiresAt = new Date(Date.now() + 60_000);
     preAccounts.findOne.mockResolvedValue({ email: 'reviewer@example.com', password: 'password-hash' });
     registrationDrafts.findOne.mockResolvedValue({ email: 'reviewer@example.com', expiresAt, encryptedPayload: 'encrypted-draft' });
@@ -231,7 +231,23 @@ describe('AuthService', () => {
       isProfileComplete: true,
     } as never);
 
-    await expect(service.completePreAccountOnboarding('onboarding-token', { bio: 'Independent research professional' } as never))
+    await expect(service.completePreAccountOnboarding('onboarding-token', { institution: 'Independent Research Practice' } as never))
+      .rejects.toBeInstanceOf(BadRequestException);
+    expect(users.createWithManager).not.toHaveBeenCalled();
+  });
+
+  it('completes ordinary External Reviewer onboarding when affiliation and summary are supplied', async () => {
+    const expiresAt = new Date(Date.now() + 60_000);
+    preAccounts.findOne.mockResolvedValue({ email: 'reviewer@example.com', password: 'password-hash' });
+    registrationDrafts.findOne.mockResolvedValue({ email: 'reviewer@example.com', expiresAt, encryptedPayload: 'encrypted-draft' });
+    registrationTokens.open
+      .mockReturnValueOnce({ stage: 'pre-account', email: 'reviewer@example.com', jti: 'resume-jti', expiresAt: expiresAt.getTime() })
+      .mockReturnValueOnce({ stage: 'pre-account-draft', email: 'reviewer@example.com', firstName: 'External', lastName: 'Reviewer', academicHandle: 'external.reviewer', role: UserRole.REVIEWER });
+    users.findByEmail.mockResolvedValue(null);
+    users.findByAcademicHandle.mockResolvedValue(null);
+    users.createWithManager.mockResolvedValue({ id: 'external-reviewer-id', email: 'reviewer@example.com', role: UserRole.REVIEWER, academicAccountType: 'external_reviewer', isProfileComplete: true } as never);
+
+    await expect(service.completePreAccountOnboarding('onboarding-token', { institution: 'Independent Research Practice', bio: 'Independent research professional' } as never))
       .resolves.toEqual(expect.objectContaining({
         accessToken: 'signed-access-token',
         user: expect.objectContaining({ role: UserRole.REVIEWER, academicAccountType: 'external_reviewer' }),
@@ -242,6 +258,73 @@ describe('AuthService', () => {
       role: UserRole.REVIEWER,
     }));
     expect(referrals.redeemReferral).not.toHaveBeenCalled();
+  });
+
+  it('requires Lecturer rank, teaching areas and research interests', async () => {
+    users.findOne.mockResolvedValue({ ...user, role: UserRole.LECTURER, isProfileComplete: false } as never);
+    await expect(service.completeOnboarding(user.id, {
+      institutionId: '00000000-0000-4000-8000-000000000001',
+      institution: 'New University',
+      faculty: 'School of Computing',
+      department: 'Computer Science',
+      coursesTaught: ['CSC 301 — Data Structures'],
+      teachingAssignments: [{ courseName: 'Data Structures', courseCode: 'CSC 301', levels: ['300'] }],
+    } as never)).rejects.toBeInstanceOf(BadRequestException);
+    expect(users.update).not.toHaveBeenCalled();
+  });
+
+  it('persists Lecturer rank, teaching areas and research interests', async () => {
+    users.findOne.mockResolvedValue({ ...user, role: UserRole.LECTURER, isProfileComplete: false } as never);
+    users.update.mockResolvedValue({ ...user, role: UserRole.LECTURER, isProfileComplete: true } as never);
+    await service.completeOnboarding(user.id, {
+      institutionId: '00000000-0000-4000-8000-000000000001',
+      institution: 'New University',
+      faculty: 'School of Computing',
+      department: 'Computer Science',
+      coursesTaught: ['CSC 301 — Data Structures'],
+      teachingAssignments: [{ courseName: 'Data Structures', courseCode: 'CSC 301', levels: ['300'] }],
+      academicTitle: 'Lecturer II',
+      teachingAreas: ['Software Engineering', 'Databases'],
+      researchInterests: 'Applied AI in education',
+    } as never);
+    expect(users.update).toHaveBeenCalledWith(user.id, expect.objectContaining({
+      academicTitle: 'Lecturer II',
+      teachingAreas: ['Software Engineering', 'Databases'],
+      researchInterests: 'Applied AI in education',
+    }));
+  });
+
+  it('rejects reviewer accounts from the Student/Lecturer profile completion endpoint', async () => {
+    users.findOne.mockResolvedValue({ ...user, role: UserRole.REVIEWER, isProfileComplete: false } as never);
+    await expect(service.completeOnboarding(user.id, {
+      institutionId: '00000000-0000-4000-8000-000000000001',
+      institution: 'Research Institute',
+      faculty: 'Research',
+      department: 'Methods',
+    } as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(users.update).not.toHaveBeenCalled();
+  });
+
+  it('persists External Reviewer affiliation and summary in encrypted onboarding progress', async () => {
+    const expiresAt = new Date(Date.now() + 60_000);
+    registrationTokens.open
+      .mockReturnValueOnce({ stage: 'pre-account', email: 'reviewer@example.com' })
+      .mockReturnValueOnce({ stage: 'pre-account-draft', email: 'reviewer@example.com', firstName: 'External' });
+    registrationDrafts.findOne.mockResolvedValue({ email: 'reviewer@example.com', expiresAt, encryptedPayload: 'encrypted-draft' });
+
+    await expect(service.savePreAccountProgress('pre-account-token', {
+      step: 1,
+      externalAffiliation: 'Independent Research Practice',
+      externalBio: 'Research and professional background',
+    })).resolves.toEqual({ saved: true });
+
+    expect(registrationTokens.seal).toHaveBeenCalledWith(expect.objectContaining({
+      onboardingProgress: expect.objectContaining({
+        externalAffiliation: 'Independent Research Practice',
+        externalBio: 'Research and professional background',
+      }),
+    }));
+    expect(registrationDrafts.save).toHaveBeenCalled();
   });
 
   it('completes onboarding even if referral reward processing fails', async () => {

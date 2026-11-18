@@ -328,6 +328,9 @@ export class AuthService {
     if (!academicHandle || !firstName || !lastName || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(role)) {
       throw new UnauthorizedException('Your pre-account details are incomplete. Please contact support.');
     }
+    if (role === UserRole.REVIEWER && !isConfiguredGlobalReviewer && (!dto.institution?.trim() || !dto.bio?.trim())) {
+      throw new BadRequestException('Ordinary External Reviewers must provide an institution or research affiliation and a research/professional summary.');
+    }
     if (role !== UserRole.REVIEWER && (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim())) {
       throw new BadRequestException('Institution, faculty and department are required to complete Student or Lecturer onboarding.');
     }
@@ -336,6 +339,9 @@ export class AuthService {
     }
     if (role === UserRole.LECTURER && (!dto.teachingAssignments?.length || !dto.coursesTaught?.length)) {
       throw new BadRequestException('Add at least one course taught, including its course code and academic level.');
+    }
+    if (role === UserRole.LECTURER && (!dto.academicTitle?.trim() || !dto.teachingAreas?.length || !dto.researchInterests?.trim())) {
+      throw new BadRequestException('Academic title, teaching areas and research interests are required for Lecturer onboarding.');
     }
     if (await this.usersService.findByEmail(email)) throw new ConflictException('An account already exists for this email. Sign in instead.');
     if (await this.usersService.findByAcademicHandle(academicHandle)) throw new ConflictException('Academic handle taken. Please contact support to update your saved handle.');
@@ -373,6 +379,10 @@ export class AuthService {
           department: dto.department?.trim() || undefined,
           program: dto.program?.trim() ?? '',
           studyLevel: dto.studyLevel?.trim(),
+          academicTitle: dto.academicTitle?.trim(),
+          teachingAreas: dto.teachingAreas,
+          researchInterests: dto.researchInterests?.trim(),
+          studentInterests: dto.studentInterests,
           coursesTaught: dto.coursesTaught,
           teachingAssignments: dto.teachingAssignments,
           bio: dto.bio?.trim(),
@@ -446,7 +456,7 @@ export class AuthService {
       'step', 'institutionId', 'institutionType', 'institutionManual', 'institutionSearch',
       'facultyId', 'facultySearch', 'facultyManual', 'department', 'departmentSearch',
       'departmentManual', 'program', 'studyLevel', 'teachingAssignments',
-      'courseTitleInput', 'courseCodeInput', 'courseLevelInput',
+      'courseTitleInput', 'courseCodeInput', 'courseLevelInput', 'academicTitle', 'teachingAreas', 'researchInterests', 'studentInterests', 'externalAffiliation', 'externalBio',
     ];
     const safeProgress = Object.fromEntries(
       allowedKeys.filter((key) => Object.prototype.hasOwnProperty.call(progress ?? {}, key))
@@ -547,6 +557,9 @@ export class AuthService {
   async completeOnboarding(userId: string, dto: OnboardingDto) {
     const currentUser = await this.usersService.findOne(userId);
     if (!currentUser) throw new UnauthorizedException('User not found');
+    if (![UserRole.STUDENT, UserRole.LECTURER].includes(currentUser.role)) {
+      throw new ForbiddenException('This academic profile endpoint is reserved for Student and Lecturer accounts. External Reviewers must use reviewer onboarding.');
+    }
     if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
       throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
     }
@@ -556,6 +569,9 @@ export class AuthService {
     if (currentUser.role === UserRole.LECTURER && (!dto.teachingAssignments?.length || !dto.coursesTaught?.length)) {
       throw new BadRequestException('Add at least one course taught, including its course code and academic level.');
     }
+    if (currentUser.role === UserRole.LECTURER && (!dto.academicTitle?.trim() || !dto.teachingAreas?.length || !dto.researchInterests?.trim())) {
+      throw new BadRequestException('Academic title, teaching areas and research interests are required for Lecturer onboarding.');
+    }
     const user = await this.usersService.update(userId, {
       ...(!currentUser.isProfileComplete ? { institutionId: dto.institutionId, institution: dto.institution } : {}),
       faculty: dto.faculty,
@@ -564,6 +580,10 @@ export class AuthService {
       coursesTaught: dto.coursesTaught,
       teachingAssignments: dto.teachingAssignments,
       studyLevel: dto.studyLevel,
+      academicTitle: dto.academicTitle?.trim(),
+      teachingAreas: dto.teachingAreas,
+      researchInterests: dto.researchInterests?.trim(),
+      studentInterests: dto.studentInterests,
       bio: dto.bio,
       ...(dto.academicHandle !== undefined ? { academicHandle: dto.academicHandle.trim().replace(/^@+/, '').toLowerCase() } : {}),
       socialHandle: dto.socialHandle,

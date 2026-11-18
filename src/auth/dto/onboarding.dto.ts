@@ -78,6 +78,31 @@ export class OnboardingDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(120)
+  academicTitle?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayNotEmpty()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @MaxLength(160, { each: true })
+  teachingAreas?: string[];
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(2000)
+  researchInterests?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  @IsNotEmpty({ each: true })
+  @MaxLength(160, { each: true })
+  studentInterests?: string[];
+
+  @IsOptional()
+  @IsString()
   @MaxLength(2000)
   bio?: string;
 
