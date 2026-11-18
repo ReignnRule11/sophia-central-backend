@@ -362,6 +362,26 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     } as any)).resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
   });
 
+  it('does not let an admin or moderator download their own uploaded resource', async () => {
+    resourceRepository.findOne.mockResolvedValue(resource({ uploaderId: 'privileged-owner', moderationStatus: ResourceModerationStatus.APPROVED }));
+    const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+    const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
+    await expect(downloadService.downloadForUser('resource-1', {
+      id: 'privileged-owner', role: UserRole.ADMIN,
+    } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(savedRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('does not allow admins or moderators to save pending review documents', async () => {
+    resourceRepository.findOne.mockResolvedValue(resource({ uploaderId: 'another-user' }));
+    const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
+    const saveService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
+    await expect(saveService.saveForUser('resource-1', {
+      id: 'admin-1', role: UserRole.ADMIN,
+    } as any)).rejects.toBeInstanceOf(NotFoundException);
+    expect(savedRepository.save).not.toHaveBeenCalled();
+  });
+
   it('rejects unsupported roles', async () => {
     resourceRepository.findOne.mockResolvedValue(resource({
       moderationStatus: ResourceModerationStatus.APPROVED,
