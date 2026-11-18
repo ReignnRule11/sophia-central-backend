@@ -105,7 +105,8 @@ export class ReviewerApplicationsService {
     return this.applications.find({ where: { userId: user.id }, order: { createdAt: 'DESC' } });
   }
 
-  async listForAdmin(status?: string) {
+  async listForAdmin(status?: string, actor?: User) {
+    if (actor && actor.role !== UserRole.ADMIN && actor.isGlobalReviewer !== true) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer applications.');
     const allowed = Object.values(ReviewerApplicationStatus);
     if (status && !allowed.includes(status as ReviewerApplicationStatus)) {
       throw new BadRequestException('Unknown reviewer application status.');
@@ -117,7 +118,8 @@ export class ReviewerApplicationsService {
     });
   }
 
-  async decisionHistory(applicationId: string) {
+  async decisionHistory(applicationId: string, actor?: User) {
+    if (actor && actor.role !== UserRole.ADMIN && actor.isGlobalReviewer !== true) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer decision history.');
     const application = await this.applications.findOne({ where: { id: applicationId }, select: ['id'] });
     if (!application) throw new NotFoundException('Reviewer application not found.');
     return this.decisions.find({
@@ -128,7 +130,10 @@ export class ReviewerApplicationsService {
   }
 
   async decide(applicationId: string, admin: User, dto: ReviewerApplicationDecisionDto) {
-    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only an administrator can decide reviewer applications.');
+    if (admin.role !== UserRole.ADMIN && admin.isGlobalReviewer !== true) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can decide reviewer applications.');
+    if (admin.isGlobalReviewer === true && admin.id === (await this.applications.findOne({ where: { id: applicationId }, select: ['id', 'userId'] }))?.userId) {
+      throw new ForbiddenException('The Global Academic Reviewer cannot decide their own reviewer application.');
+    }
     if ([ReviewerApplicationStatus.REJECTED, ReviewerApplicationStatus.SUSPENDED, ReviewerApplicationStatus.REVOKED].includes(dto.status) && !dto.note?.trim()) {
       throw new BadRequestException('A reason is required for rejection, suspension or revocation.');
     }
