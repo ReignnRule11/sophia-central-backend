@@ -7,6 +7,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
   const resourceRepository: any = {
     findOne: jest.fn(),
     save: jest.fn(async (value) => value),
+    manager: { query: jest.fn().mockResolvedValue([{ declaration: 'no_conflict' }]) },
   };
   const activityRepository: any = {
     create: jest.fn((value) => value),
@@ -270,7 +271,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
   });
 
-  it('requires a student reviewer to recuse from a paid review matching their own department or programme', async () => {
+  it('does not treat a student programme or shared department as an automatic conflict when a no-conflict declaration exists', async () => {
     const paid = resource({
       moderationStatus: ResourceModerationStatus.PENDING,
       pricingMode: ResourcePricingMode.FIXED,
@@ -278,16 +279,21 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       department: 'Computer Science',
       course: 'CSC 301',
       assignedReviewerId: 'student-reviewer',
+      reviewAssignmentId: 'assignment-1',
     });
     resourceRepository.findOne.mockResolvedValue(paid);
-    const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
+    const s3 = {
+      getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/review.pdf'),
+      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/review-inline'),
+      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
+    };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
 
     await expect(previewService.getFileUrl('resource-1', {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Computer Science', program: 'Computer Science',
-    } as any, false)).rejects.toThrow('Recuse yourself and request reassignment.');
-    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
+    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/review-inline' });
+    expect(resourceRepository.manager.query).toHaveBeenCalledWith(expect.stringContaining('reviewer_conflict_declarations'), ['assignment-1', 'student-reviewer']);
   });
 
   it('allows a conflict-free assigned student reviewer to preview a paid pending document without creating a purchase', async () => {
@@ -298,6 +304,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       department: 'Physics',
       course: 'PHY 401',
       assignedReviewerId: 'student-reviewer',
+      reviewAssignmentId: 'assignment-1',
     });
     resourceRepository.findOne.mockResolvedValue(paid);
     const s3 = {
