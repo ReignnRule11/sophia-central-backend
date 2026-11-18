@@ -234,6 +234,86 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     } as any, false)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+  it('does not grant a student reviewer free preview of an approved paid library resource', async () => {
+    const paid = resource({ moderationStatus: ResourceModerationStatus.APPROVED, pricingMode: ResourcePricingMode.FIXED, uploaderId: 'lecturer-1' });
+    resourceRepository.findOne.mockResolvedValue(paid);
+    resourcePurchaseRepository.findOne.mockResolvedValue(null);
+    const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
+    const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
+
+    await expect(previewService.getFileUrl('resource-1', {
+      id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
+    } as any, false)).rejects.toThrow('Purchase this resource before accessing its file.');
+    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  it('requires a student reviewer to recuse from a paid review matching their own department or programme', async () => {
+    const paid = resource({
+      moderationStatus: ResourceModerationStatus.PENDING,
+      pricingMode: ResourcePricingMode.FIXED,
+      uploaderId: 'lecturer-1',
+      department: 'Computer Science',
+      course: 'CSC 301',
+      assignedReviewerId: 'student-reviewer',
+    });
+    resourceRepository.findOne.mockResolvedValue(paid);
+    const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
+    const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
+
+    await expect(previewService.getFileUrl('resource-1', {
+      id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
+      department: 'Computer Science', program: 'Computer Science',
+    } as any, false)).rejects.toThrow('Recuse yourself and request reassignment.');
+    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
+  });
+
+  it('allows a conflict-free assigned student reviewer to preview a paid pending document without creating a purchase', async () => {
+    const paid = resource({
+      moderationStatus: ResourceModerationStatus.PENDING,
+      pricingMode: ResourcePricingMode.FIXED,
+      uploaderId: 'lecturer-1',
+      department: 'Physics',
+      course: 'PHY 401',
+      assignedReviewerId: 'student-reviewer',
+    });
+    resourceRepository.findOne.mockResolvedValue(paid);
+    const s3 = {
+      getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/review.pdf'),
+      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/review-inline'),
+      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
+    };
+    const purchaseRepository: any = { findOne: jest.fn().mockResolvedValue(null) };
+    const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, purchaseRepository, storageCleanup);
+
+    await expect(previewService.getFileUrl('resource-1', {
+      id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
+      department: 'Computer Science', program: 'Computer Science',
+      isSuspended: false,
+    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/review-inline' });
+    expect(purchaseRepository.findOne).not.toHaveBeenCalled();
+    expect(s3.createPresignedDownloadUrl).toHaveBeenCalledWith('resources/review.pdf', 'Test contribution.pdf', 'inline');
+  });
+
+  it('requires a lecturer reviewer to recuse from a paid review for a course they teach', async () => {
+    const paid = resource({
+      moderationStatus: ResourceModerationStatus.PENDING,
+      pricingMode: ResourcePricingMode.FIXED,
+      uploaderId: 'another-lecturer',
+      department: 'Engineering',
+      course: 'ENG 402',
+      assignedReviewerId: 'lecturer-reviewer',
+    });
+    resourceRepository.findOne.mockResolvedValue(paid);
+    const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
+    const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
+
+    await expect(previewService.getFileUrl('resource-1', {
+      id: 'lecturer-reviewer', role: UserRole.LECTURER, hasReviewerAccess: true, institutionId: 'institution-1',
+      department: 'Mathematics', teachingAssignments: [{ courseName: 'ENG 402', levels: ['400'] }],
+    } as any, false)).rejects.toThrow('Recuse yourself and request reassignment.');
+    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
+  });
+
   it('blocks an unpaid student from recording a paid-resource download', async () => {
     const paid = resource({ moderationStatus: ResourceModerationStatus.APPROVED, pricingMode: ResourcePricingMode.FIXED, uploaderId: 'lecturer-1' });
     resourceRepository.findOne.mockResolvedValue(paid);
