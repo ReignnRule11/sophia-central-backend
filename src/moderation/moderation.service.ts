@@ -48,7 +48,10 @@ export class ModerationService {
       relations: ['uploader', 'assignedReviewer'],
       order: { createdAt: 'ASC' },
     });
-    if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) {
+    if (viewer.role !== UserRole.ADMIN) {
+      // The Global Academic Reviewer can see the full pending queue, but their
+      // existing declaration must be hydrated just like an assigned reviewer's.
+      // Otherwise the client may attempt a duplicate PATCH and receive 409.
       for (const resource of queue) {
         if (!resource.reviewAssignmentId) { resource.reviewConflictDeclaration = null; continue; }
         const rows = await this.resourceRepository.manager.query(
