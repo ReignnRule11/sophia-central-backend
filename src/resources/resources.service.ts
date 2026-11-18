@@ -43,8 +43,20 @@ export class ResourcesService {
     }
     this.assertInstitutionIdentity(uploader);
 
+    const { coAuthorHandles = [], ...resourceData } = dto;
+    const normalizedCoAuthorHandles = [...new Set(coAuthorHandles.map(handle => handle.trim().replace(/^@+/, '').toLowerCase()).filter(Boolean))];
+    const coAuthors = normalizedCoAuthorHandles.length
+      ? await this.userRepository.createQueryBuilder('user')
+        .where('LOWER(user.academicHandle) IN (:...handles)', { handles: normalizedCoAuthorHandles })
+        .getMany()
+      : [];
+    if (coAuthors.length !== normalizedCoAuthorHandles.length) {
+      throw new BadRequestException('One or more co-author academic handles could not be matched to an existing Sophis Central account. Check the handles or omit external co-authors.');
+    }
+
     const resource = this.resourceRepository.create({
-      ...dto,
+      ...resourceData,
+      contributorUserIds: coAuthors.map(author => author.id),
       uploader,
       uploaderId,
       uploaderInstitutionId: uploader.institutionId ?? null,

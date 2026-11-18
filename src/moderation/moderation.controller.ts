@@ -2,12 +2,14 @@ import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nes
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CsrfGuard } from '../common/guards/csrf.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { User, UserRole } from '../users/entities/user.entity';
 import { ModerationService } from './moderation.service';
 import { ReviewResourceDto } from './dto/review-resource.dto';
 import { AssignReviewerDto } from './dto/assign-reviewer.dto';
+import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declaration.dto';
 import { SupportService } from '../support/support.service';
 import { ConcludeSupportRequestDto } from '../support/dto/conclude-support-request.dto';
 import { SupportEmailService } from '../support/support-email.service';
@@ -25,6 +27,24 @@ export class ModerationController {
   @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   getQueue(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getQueue(request.user);
+  }
+
+  @Get('resources/:id/review-history')
+  @Roles(UserRole.STUDENT, UserRole.LECTURER, UserRole.ADMIN)
+  getResourceReviewHistory(@Param('id') id: string, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.getResourceReviewHistory(id, request.user);
+  }
+
+  @Get('conflict-declarations')
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  getConflictDeclarations(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getConflictDeclarations(request.user);
+  }
+
+  @Get('reviewers')
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  getReviewerRoster(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getReviewerRoster(request.user);
   }
 
   @Get('history')
@@ -56,9 +76,16 @@ export class ModerationController {
   }
 
   @Patch('resources/:id/assign-reviewer')
-  @Roles(UserRole.ADMIN)
-  assignReviewer(@Param('id') id: string, @Body() dto: AssignReviewerDto) {
-    return this.moderationService.assignReviewer(id, dto.reviewerId);
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  assignReviewer(@Param('id') id: string, @Body() dto: AssignReviewerDto, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.assignReviewer(id, dto.reviewerId, request.user.id, request.user);
+  }
+
+  @Patch('resources/:id/conflict-declaration')
+  @Roles(UserRole.REVIEWER)
+  @UseGuards(CsrfGuard)
+  declareConflict(@Param('id') id: string, @Body() dto: ReviewerConflictDeclarationDto, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.declareConflict(id, dto, request.user);
   }
 
   @Patch('resources/:id/review')

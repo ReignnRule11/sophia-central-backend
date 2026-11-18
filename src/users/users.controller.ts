@@ -24,6 +24,7 @@ import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
 import { SetSecurityQuestionDto } from './dto/set-security-question.dto';
 import { DeactivateAccountDto } from './dto/deactivate-account.dto';
 import { RequestAccountDeletionDto } from './dto/request-account-deletion.dto';
+import { TransitionExternalReviewerDto } from './dto/transition-external-reviewer.dto';
 import { UsersService } from './users.service';
 
 @ApiTags('Users')
@@ -77,6 +78,14 @@ export class UsersController {
       throw new BadRequestException('isSuspended and a reason are required');
     }
     return this.usersService.update(id, { isSuspended: body.isSuspended, suspensionReason: body.isSuspended ? body.reason.trim() : undefined });
+  }
+
+  @Post('me/academic-account-transition')
+  @UseGuards(JwtAuthGuard, CsrfGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Convert an approved External Reviewer account once to either Student or Lecturer' })
+  transitionExternalReviewer(@CurrentUser() user: User, @Body() dto: TransitionExternalReviewerDto) {
+    return this.usersService.transitionExternalReviewer(user.id, dto);
   }
 
   @Get('me')

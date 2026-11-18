@@ -25,6 +25,7 @@ export class Resource {
   @Column({ nullable: true }) fileUrl?: string;
   @Column({ default: false }) downloadRestricted!: boolean;
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" }) tags!: string[];
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb" }) contributorUserIds!: string[];
   @Column({ type: 'enum', enum: ResourceModerationStatus, default: ResourceModerationStatus.PENDING }) moderationStatus!: ResourceModerationStatus;
   @Column({ default: false }) isVerified!: boolean;
   @Column({ type: 'enum', enum: ResourceLicense, nullable: true }) license?: ResourceLicense;
@@ -40,6 +41,8 @@ export class Resource {
   @Column({ type: 'text', nullable: true }) customPriceReviewNote?: string;
   @Column({ type: 'timestamptz', default: () => 'NOW()' }) lastSubstantiveUpdateAt!: Date;
   @Column({ type: 'uuid', nullable: true }) assignedReviewerId?: string | null;
+  @Column({ type: 'uuid', nullable: true }) reviewAssignmentId?: string | null;
+  reviewConflictDeclaration?: 'no_conflict' | 'recuse' | null;
   @ManyToOne(() => User, (user) => user.assignedReviews, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'assignedReviewerId' })
   assignedReviewer?: User;

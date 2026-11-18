@@ -8,6 +8,7 @@ import { Institution } from '../institutions/entities/institution.entity';
 import { generateInstitutionCode, institutionTypeCode } from '../institutions/institution-code';
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
 import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
+import { TransitionExternalReviewerDto } from './dto/transition-external-reviewer.dto';
 
 @Injectable()
 export class UsersService {
@@ -25,8 +26,9 @@ export class UsersService {
     const baseRole = accountRole === UserRole.REVIEWER ? data.reviewerBaseRole : accountRole;
     const roleCode = baseRole === UserRole.LECTURER ? 'LEC'
       : baseRole === UserRole.STUDENT ? 'STU'
+      : accountRole === UserRole.REVIEWER ? 'REV'
       : accountRole === UserRole.ADMIN ? 'ADM' : 'SYS';
-    if ([UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(accountRole) && !institution) {
+    if ([UserRole.STUDENT, UserRole.LECTURER].includes(accountRole) && !institution) {
       throw new BadRequestException('Choose an institution from the Sophis Central catalogue before creating your account.');
     }
     const institutionPart = institution
@@ -50,6 +52,7 @@ export class UsersService {
     return this.usersRepository.save(this.usersRepository.create({
       ...data,
       ...(institution ? { institution: institution.name } : {}),
+      academicAccountType: data.academicAccountType ?? (data.role === UserRole.STUDENT ? 'student' : data.role === UserRole.LECTURER ? 'lecturer' : data.role === UserRole.REVIEWER ? 'external_reviewer' : undefined),
       uniqueId,
     }));
   }
@@ -70,8 +73,56 @@ export class UsersService {
     return manager.getRepository(User).save(manager.getRepository(User).create({
       ...data,
       ...(institution ? { institution: institution.name } : {}),
+      academicAccountType: data.academicAccountType ?? (data.role === UserRole.STUDENT ? 'student' : data.role === UserRole.LECTURER ? 'lecturer' : data.role === UserRole.REVIEWER ? 'external_reviewer' : undefined),
       uniqueId,
     }));
+  }
+
+  async transitionExternalReviewer(userId: string, dto: TransitionExternalReviewerDto): Promise<User> {
+    return this.dataSource.transaction(async manager => {
+      const user = await manager.findOne(User, { where: { id: userId }, lock: { mode: 'pessimistic_write' } });
+      if (!user) throw new NotFoundException('User not found.');
+      if (user.role !== UserRole.REVIEWER || user.academicAccountType !== 'external_reviewer') {
+        throw new ConflictException('Only an External Reviewer account that has not previously selected an academic account type can use this transition.');
+      }
+      if (user.hasReviewerAccess !== true || user.reviewerStatus !== 'approved') {
+        throw new ForbiddenException('Your Academic Reviewer application must be approved before you can add a Student or Lecturer workspace.');
+      }
+      const institution = await manager.findOne(Institution, { where: { id: dto.institutionId } });
+      if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
+      if (!dto.faculty.trim() || !dto.department.trim()) {
+        throw new BadRequestException('Faculty and department are required for the selected academic account.');
+      }
+      if (dto.targetRole === UserRole.STUDENT && (!dto.program?.trim() || !dto.studyLevel?.trim())) {
+        throw new BadRequestException('Student access requires a programme and current academic level.');
+      }
+      if (dto.targetRole === UserRole.LECTURER && (!dto.coursesTaught?.length || !dto.teachingAssignments?.length)) {
+        throw new BadRequestException('Lecturer access requires at least one course taught with its course code and academic level.');
+      }
+
+      const fromAccountType = user.academicAccountType;
+      user.role = dto.targetRole;
+      user.academicAccountType = dto.targetRole;
+      user.institutionId = institution.id;
+      user.institution = institution.name;
+      user.faculty = dto.faculty.trim();
+      user.department = dto.department.trim();
+      user.program = dto.targetRole === UserRole.STUDENT ? dto.program?.trim() : undefined;
+      user.studyLevel = dto.targetRole === UserRole.STUDENT ? dto.studyLevel?.trim() : undefined;
+      user.coursesTaught = dto.targetRole === UserRole.LECTURER ? dto.coursesTaught : [];
+      user.teachingAssignments = dto.targetRole === UserRole.LECTURER ? dto.teachingAssignments : [];
+      user.isProfileComplete = true;
+      // Reviewer approval and expertise survive the one-way academic identity conversion.
+      user.hasReviewerAccess = true;
+      user.reviewerStatus = 'approved';
+
+      const saved = await manager.save(User, user);
+      await manager.query(
+        'INSERT INTO academic_account_transitions ("userId", "fromAccountType", "toAccountType", "actorId") VALUES ($1::uuid, $2, $3, $4::uuid)',
+        [user.id, fromAccountType, dto.targetRole, user.id],
+      );
+      return saved;
+    });
   }
 
   async findByEmail(email: string): Promise<User | null> {
@@ -121,7 +172,7 @@ export class UsersService {
     // The platform-owned moderator account is operational infrastructure, not a
     // managed user. Never expose moderator-role accounts through user management.
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.hasReviewerAccess', 'user.reviewerStatus', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
       .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
       .orderBy('user.createdAt', 'DESC')
       .getMany();
@@ -129,7 +180,7 @@ export class UsersService {
 
   async findAllForManagement(): Promise<User[]> {
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.hasReviewerAccess', 'user.reviewerStatus', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
       .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
       .andWhere('user.emailVerified = true')
       .andWhere('(user.role NOT IN (:...profileRoles) OR user.isProfileComplete = true)', {
@@ -140,34 +191,8 @@ export class UsersService {
   }
 
 
-  async setReviewerAccess(id: string, dto: SetReviewerAccessDto): Promise<User> {
-    return this.dataSource.transaction(async manager => {
-      const user = await manager.findOne(User, { where: { id } });
-      if (!user) throw new NotFoundException('User not found');
-
-      if (dto.enabled) {
-        if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
-          throw new BadRequestException('Only student or lecturer accounts can be granted academic reviewer access');
-        }
-        const expertiseAreas = [...new Set((dto.expertiseAreas ?? []).map(area => area.trim()).filter(Boolean))];
-        if (expertiseAreas.length === 0) {
-          throw new BadRequestException('At least one verified subject expertise area is required');
-        }
-        if (user.role !== UserRole.REVIEWER) user.reviewerBaseRole = user.role as 'student' | 'lecturer';
-        user.role = UserRole.REVIEWER;
-        user.reviewerExpertise = expertiseAreas;
-      } else {
-        if (user.role !== UserRole.REVIEWER) {
-          throw new BadRequestException('This account does not currently have reviewer access');
-        }
-        user.role = (user.reviewerBaseRole as UserRole | undefined) ?? UserRole.STUDENT;
-        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
-        user.reviewerBaseRole = undefined;
-        user.reviewerExpertise = [];
-      }
-
-      return manager.save(User, user);
-    });
+  async setReviewerAccess(_id: string, _dto: SetReviewerAccessDto): Promise<User> {
+    throw new ConflictException('Academic Reviewer access changes must go through the application decision workflow so every approval, suspension and revocation is audited.');
   }
 
   async update(id: string, data: Partial<User>): Promise<User> {
@@ -224,8 +249,12 @@ export class UsersService {
         if (existing || reserved.length) throw new ConflictException('Academic handle taken');
         updateData.academicHandle = normalized;
       }
-      if (updateData.isSuspended === true && user.role === UserRole.REVIEWER) {
-        await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
+      if (updateData.isSuspended === true && (user.role === UserRole.REVIEWER || user.hasReviewerAccess === true)) {
+        await manager.query(
+        'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") SELECT "reviewAssignmentId", "id", "assignedReviewerId", NULL, $2 FROM resources WHERE "assignedReviewerId" = $1::uuid AND "reviewAssignmentId" IS NOT NULL',
+        [user.id, 'released'],
+      );
+      await manager.query('UPDATE resources SET "assignedReviewerId" = NULL, "reviewAssignmentId" = NULL WHERE "assignedReviewerId" = $1::uuid', [user.id]);
       }
       const previousProfileImage = user.profileImage;
       Object.assign(user, updateData);
@@ -487,7 +516,7 @@ export class UsersService {
       await manager.query('UPDATE resources SET "uploaderId" = NULL WHERE "uploaderId" = $1::uuid AND "moderationStatus" = \'approved\'', [id]);
 
       // Release reviewer assignments before deleting the user to preserve resource records.
-      await manager.query('UPDATE resources SET "assignedReviewerId" = NULL WHERE "assignedReviewerId" = $1::uuid', [id]);
+      await manager.query('UPDATE resources SET "assignedReviewerId" = NULL, "reviewAssignmentId" = NULL WHERE "assignedReviewerId" = $1::uuid', [id]);
 
       // Preserve shared chat content while anonymizing the deleted account's identity.
       await manager.query('UPDATE chat_messages SET "senderId" = NULL, "senderHandle" = \'Deleted user\' WHERE "senderId" = $1::uuid', [id]);

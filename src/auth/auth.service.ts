@@ -25,6 +25,8 @@ import { PasswordResetEmailService } from './password-reset-email.service';
 import { EmailVerificationEmailService } from './email-verification-email.service';
 import { UsersService } from '../users/users.service';
 import { User, UserRole } from '../users/entities/user.entity';
+import { ReviewerApplication, ReviewerApplicationStatus } from '../users/entities/reviewer-application.entity';
+import { ReviewerApplicationDecision } from '../users/entities/reviewer-application-decision.entity';
 import { ReferralService } from '../referral/referral.service';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
@@ -55,8 +57,17 @@ export class AuthService {
     private readonly referralService: ReferralService,
   ) {}
 
+  private reviewerRegistrationAllowed(email: string): boolean {
+    if (process.env.REVIEWER_RECRUITMENT_OPEN === 'true') return true;
+    const testEmail = (process.env.REVIEWER_TEST_ACCOUNT_EMAIL || '').trim().toLowerCase();
+    return Boolean(testEmail && email.trim().toLowerCase() === testEmail);
+  }
+
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
+    if ((dto.role ?? UserRole.STUDENT) === UserRole.REVIEWER && !this.reviewerRegistrationAllowed(email)) {
+      throw new ForbiddenException('Academic Reviewer registration is coming soon. Recruitment is currently closed.');
+    }
     const academicHandle = dto.academicHandle.trim().replace(/^@/, '').toLowerCase();
     const existingUser = await this.usersService.findByEmail(email);
     let existingPreAccount = await this.preAccounts.findOne({ where: { email } });
@@ -215,7 +226,8 @@ export class AuthService {
       const firstName = String(registration.firstName || '').trim();
       const lastName = String(registration.lastName || '').trim();
       const role = registration.role as UserRole;
-      if (!email || !academicHandle || !firstName || !lastName || !registration.jti || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
+      if (role === UserRole.REVIEWER && !this.reviewerRegistrationAllowed(email)) throw new ForbiddenException('Academic Reviewer registration is coming soon. Recruitment is currently closed.');
+      if (!email || !academicHandle || !firstName || !lastName || !registration.jti || ![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(role)) {
         throw new UnauthorizedException('This verification link is invalid or has expired. Please restart registration.');
       }
       if (await this.usersService.findByEmail(email)) throw new ConflictException('An account already exists for this email. Sign in instead.');
@@ -309,12 +321,15 @@ export class AuthService {
     const firstName = String(metadata.firstName || '').trim();
     const lastName = String(metadata.lastName || '').trim();
     const role = metadata.role as UserRole;
+    if (role === UserRole.REVIEWER && !this.reviewerRegistrationAllowed(email)) throw new ForbiddenException('Academic Reviewer registration is coming soon. Recruitment is currently closed.');
     const passwordHash = preAccount.password;
-    if (!academicHandle || !firstName || !lastName || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER].includes(role)) {
+    const configuredGlobalReviewerEmail = (process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL || '').trim().toLowerCase();
+    const isConfiguredGlobalReviewer = role === UserRole.REVIEWER && Boolean(configuredGlobalReviewerEmail) && email === configuredGlobalReviewerEmail;
+    if (!academicHandle || !firstName || !lastName || !passwordHash || ![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(role)) {
       throw new UnauthorizedException('Your pre-account details are incomplete. Please contact support.');
     }
-    if (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim()) {
-      throw new BadRequestException('Institution, faculty and department are required to complete onboarding.');
+    if (role !== UserRole.REVIEWER && (!dto.institutionId || !dto.faculty?.trim() || !dto.department?.trim())) {
+      throw new BadRequestException('Institution, faculty and department are required to complete Student or Lecturer onboarding.');
     }
     if (role === UserRole.STUDENT && (!dto.studyLevel?.trim() || !dto.program?.trim())) {
       throw new BadRequestException('Your current academic level and program are required.');
@@ -345,10 +360,17 @@ export class AuthService {
           isVerified: false,
           isProfileComplete: true,
           accountStatus: 'active',
-          institutionId: dto.institutionId,
-          institution: dto.institution,
-          faculty: dto.faculty?.trim() ?? '',
-          department: dto.department?.trim() ?? '',
+          ...(isConfiguredGlobalReviewer ? {
+            hasReviewerAccess: true,
+            isGlobalReviewer: true,
+            reviewerStatus: ReviewerApplicationStatus.APPROVED,
+            reviewerExpertise: ['*'],
+            reviewerAcademicLevels: ['*'],
+          } : {}),
+          ...(dto.institutionId ? { institutionId: dto.institutionId } : {}),
+          institution: dto.institution?.trim() || undefined,
+          faculty: dto.faculty?.trim() || undefined,
+          department: dto.department?.trim() || undefined,
           program: dto.program?.trim() ?? '',
           studyLevel: dto.studyLevel?.trim(),
           coursesTaught: dto.coursesTaught,
@@ -357,6 +379,32 @@ export class AuthService {
           socialHandle: dto.socialHandle?.trim(),
           socialLinks: dto.socialLinks,
         });
+        if (isConfiguredGlobalReviewer) {
+          const applicationRepository = manager.getRepository(ReviewerApplication);
+          const application = await applicationRepository.save(applicationRepository.create({
+            userId: created.id,
+            status: ReviewerApplicationStatus.APPROVED,
+            qualifications: ['Platform-wide test authorization; no professional qualification or licence is being represented.'],
+            expertiseAreas: ['*'],
+            academicLevels: ['*'],
+            approvedExpertiseAreas: ['*'],
+            approvedAcademicLevels: ['*'],
+            reviewExperience: 'System-designated Global Academic Reviewer account for platform testing and academic-material review across all subjects and levels. This is a platform permission designation, not a claim of professional reviewing credentials.',
+            supportingDocuments: ['https://example.com/qualification-evidence-placeholder'],
+            conflictDeclaration: 'The account must disclose any personal, financial, institutional, authorship or other conflict and recuse itself where a conflict exists.',
+            policyAccepted: true,
+            decisionNote: 'Approved through the exact-email GLOBAL_ACADEMIC_REVIEWER_EMAIL bootstrap configuration after verified email registration. This grants academic-review governance only and does not grant moderator or administrator permissions.',
+            decidedAt: new Date(),
+          }));
+          const decisionRepository = manager.getRepository(ReviewerApplicationDecision);
+          await decisionRepository.save(decisionRepository.create({
+            applicationId: application.id,
+            actorId: null,
+            fromStatus: ReviewerApplicationStatus.SUBMITTED,
+            toStatus: ReviewerApplicationStatus.APPROVED,
+            note: 'System bootstrap: exact-email Global Academic Reviewer allowlist; email verification and normal password setup completed.',
+          }));
+        }
         await manager.getRepository(PreAccount).delete({ email });
         await manager.getRepository(RegistrationDraft).delete({ email });
         return created;
@@ -411,6 +459,27 @@ export class AuthService {
     });
     await this.registrationDrafts.save(draft);
     return { saved: true };
+  }
+
+  async checkReviewerRegistrationIntent(email: string, academicHandle: string): Promise<{ requiresSignIn: boolean; signInIdentifier?: string }> {
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedHandle = academicHandle.trim().replace(/^@+/, '').toLowerCase();
+    const [userByEmail, userByHandle, preAccount, draftByEmail] = await Promise.all([
+      this.usersService.findByEmail(normalizedEmail),
+      this.usersService.findByAcademicHandle(normalizedHandle),
+      this.preAccounts.findOne({ where: { email: normalizedEmail } }),
+      this.registrationDrafts.findOne({ where: { email: normalizedEmail } }),
+    ]);
+    const draftExpired = Boolean(draftByEmail && draftByEmail.expiresAt.getTime() <= Date.now());
+    if (draftExpired) {
+      await this.dataSource.transaction(async (manager) => {
+        await manager.getRepository(PreAccount).delete({ email: normalizedEmail });
+        await manager.getRepository(RegistrationDraft).delete({ email: normalizedEmail });
+      });
+    }
+    const existingEmailIdentity = Boolean(userByEmail || (preAccount && !draftExpired) || (draftByEmail && !draftExpired));
+    const signInIdentifier = existingEmailIdentity ? normalizedEmail : userByHandle ? normalizedHandle : undefined;
+    return { requiresSignIn: Boolean(signInIdentifier), ...(signInIdentifier ? { signInIdentifier } : {}) };
   }
 
   async checkAcademicHandleAvailability(handle: string): Promise<{ available: boolean; message: string }> {

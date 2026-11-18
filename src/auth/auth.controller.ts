@@ -6,6 +6,7 @@ import { randomBytes } from 'node:crypto';
 import type { Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { RegisterDto } from './dto/register.dto';
+import { ReviewerRegistrationIntentDto } from './dto/reviewer-registration-intent.dto';
 import { LoginDto } from './dto/login.dto';
 import { SocialSignInDto } from './dto/social-signin.dto';
 import { OnboardingDto } from './dto/onboarding.dto';
@@ -52,6 +53,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Check whether an academic handle is available for registration' })
   academicHandleAvailability(@Query('handle') handle = '') {
     return this.authService.checkAcademicHandleAvailability(handle);
+  }
+
+  @Post('reviewer-registration-check')
+  @ApiOperation({ summary: 'Route an applicant to sign-in when their email or academic handle is already registered' })
+  checkReviewerRegistrationIntent(@Body() dto: ReviewerRegistrationIntentDto) {
+    return this.authService.checkReviewerRegistrationIntent(dto.email, dto.academicHandle);
   }
 
   @Post('signup')
