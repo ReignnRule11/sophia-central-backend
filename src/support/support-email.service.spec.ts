@@ -35,6 +35,7 @@ describe('SupportEmailService', () => {
   it('sends a support-team alert and an acknowledgement to the requester', async () => {
     const request = {
       id: 'ticket-1',
+      ticketNumber: 'SUP-2026-000001',
       subject: 'Cannot open a resource',
       category: 'resources',
       description: 'The resource reader shows an error.',
