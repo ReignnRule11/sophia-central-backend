@@ -11,6 +11,9 @@ export class ChatConversationRead {
   @Column({ type: 'timestamp' })
   lastReadAt!: Date;
 
+  @Column({ type: 'bigint', default: '0' })
+  lastReadMessageOrder!: string;
+
   @UpdateDateColumn()
   updatedAt!: Date;
 }

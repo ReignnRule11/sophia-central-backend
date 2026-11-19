@@ -1,4 +1,5 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
+import { createHash, randomBytes } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SupportRequest } from './entities/support-request.entity';
@@ -28,6 +29,13 @@ export class SupportService {
     const attachments = await this.validateOwnedAttachments(user.id, dto.attachments ?? []);
     const request = this.requests.create({
       userId: user.id,
+      senderName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
+      senderEmail: user.email,
+      senderInstitution: user.institution || null,
+      senderFaculty: user.faculty || null,
+      senderDepartment: user.department || null,
+      senderAccountType: user.role,
+      emailVerifiedAt: user.emailVerified ? new Date() : null,
       subject: dto.subject.trim(),
       category: dto.category,
       description: dto.description.trim(),
@@ -50,6 +58,17 @@ export class SupportService {
       this.logger.warn(`Support request ${saved.ticketNumber} was saved but Support notifications could not be created: ${String(error)}`);
     }
     try {
+      await this.notifications.createNotification(
+        user.id,
+        'support_request_submitted',
+        'Your support request was submitted',
+        `Ticket ${saved.ticketNumber} has been submitted successfully. Track its status in My Activity.`,
+        '/my-activity',
+      );
+    } catch (error) {
+      this.logger.warn(`Support request ${saved.ticketNumber} was saved but the requester notification could not be created: ${String(error)}`);
+    }
+    try {
       await this.supportEmail.notifyNewRequest(saved, user);
     } catch (error) {
       this.logger.error(`Support request ${saved.id} was saved but support email delivery failed: ${String(error)}`);
@@ -59,6 +78,117 @@ export class SupportService {
       ...(await this.withSignedAttachmentUrls(saved)),
       confirmationMessage: `Your support ticket ${saved.ticketNumber} has been submitted. Track its status in this section; full responses will appear in My Activity.`,
     };
+  }
+
+  async createPublic(dto: import('./dto/create-public-support-request.dto').CreatePublicSupportRequestDto) {
+    const email = dto.email.trim().toLowerCase();
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const request = this.requests.create({
+      userId: null,
+      senderName: dto.name.trim(),
+      senderEmail: email,
+      senderInstitution: dto.institution?.trim() || null,
+      senderFaculty: dto.faculty?.trim() || null,
+      senderDepartment: dto.department?.trim() || null,
+      senderAccountType: null,
+      emailVerifiedAt: null,
+      emailVerificationTokenHash: tokenHash,
+      emailVerificationExpiresAt: new Date(Date.now() + 30 * 60 * 1000),
+      subject: dto.subject.trim(),
+      category: dto.category,
+      description: dto.description.trim(),
+      links: (dto.links ?? []).map(link => link.trim()).filter(Boolean),
+      attachments: [],
+      status: 'pending',
+      ticketNumber: `SUP-${new Date().getFullYear()}-${String((await this.requests.query("SELECT nextval('sophis_support_ticket_seq') AS value"))[0].value).padStart(6, '0')}`,
+    });
+    const saved = await this.requests.save(request);
+    try {
+      await this.supportEmail.sendGuestVerification(saved, token);
+    } catch (error) {
+      this.logger.error(`Guest support ticket ${saved.ticketNumber} was saved but verification email delivery failed: ${String(error)}`);
+      throw new BadRequestException('We could not send the verification email right now. Please try again shortly.');
+    }
+    return {
+      success: true,
+      message: 'If this email address can receive messages, a verification link will arrive shortly. Verify it to submit your ticket to Support.',
+    };
+  }
+
+  async verifyPublicEmail(token: string) {
+    if (!token || !/^[a-f0-9]{64}$/i.test(token)) throw new BadRequestException('This support verification link is invalid or has expired.');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const request = await this.requests.createQueryBuilder('request')
+      .addSelect(['request.emailVerificationTokenHash', 'request.emailVerificationExpiresAt'])
+      .where('request."emailVerificationTokenHash" = :tokenHash', { tokenHash })
+      .getOne();
+    if (!request) throw new BadRequestException('This support verification link is invalid or has expired. Please submit a new request.');
+    // Verification is idempotent so email clients and React development StrictMode
+    // can safely retry the landing request without duplicating tickets or alerts.
+    if (request.emailVerifiedAt) {
+      return { success: true, ticketNumber: request.ticketNumber, message: `Your email has already been verified and ticket ${request.ticketNumber} has been submitted to Sophis Central Support.` };
+    }
+    if (!request.emailVerificationExpiresAt || request.emailVerificationExpiresAt.getTime() <= Date.now()) {
+      throw new BadRequestException('This support verification link is invalid or has expired. Please submit a new request.');
+    }
+
+    const verifiedAt = new Date();
+    const account = request.senderEmail
+      ? await this.users.findOne({ where: { email: request.senderEmail, emailVerified: true } })
+      : null;
+    const linkableAccount = account &&
+      [UserRole.STUDENT, UserRole.LECTURER].includes(account.role) &&
+      !account.isSuspended &&
+      account.accountStatus === 'active'
+      ? account
+      : null;
+
+    request.emailVerifiedAt = verifiedAt;
+    // Keep only the hash as an idempotency key; the token is never stored in plaintext.
+    // Expiry is cleared once verified, and repeat calls return the same ticket reference.
+    request.emailVerificationExpiresAt = null;
+    if (linkableAccount) {
+      request.userId = linkableAccount.id;
+      request.senderName = [linkableAccount.firstName, linkableAccount.lastName].filter(Boolean).join(' ').trim() || request.senderName;
+      request.senderInstitution = linkableAccount.institution || request.senderInstitution;
+      request.senderFaculty = linkableAccount.faculty || request.senderFaculty;
+      request.senderDepartment = linkableAccount.department || request.senderDepartment;
+      request.senderAccountType = linkableAccount.role;
+    }
+    const saved = await this.requests.save(request);
+
+    try {
+      const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false } });
+      await Promise.all(supportUsers.map(account => this.notifications.createNotification(
+        account.id,
+        'support_request_new',
+        'New support ticket',
+        `Ticket ${saved.ticketNumber} has been email-verified and is awaiting Support review.`,
+        '/support/requests',
+      )));
+    } catch (error) {
+      this.logger.warn(`Verified support ticket ${saved.ticketNumber} was saved but Support notifications could not be created: ${String(error)}`);
+    }
+    if (linkableAccount) {
+      try {
+        await this.notifications.createNotification(
+          linkableAccount.id,
+          'support_request_submitted',
+          'Your support request was submitted',
+          `Ticket ${saved.ticketNumber} has been submitted. Track it in My Activity.`,
+          '/my-activity',
+        );
+      } catch (error) {
+        this.logger.warn(`Verified support ticket ${saved.ticketNumber} was saved but the requester notification failed: ${String(error)}`);
+      }
+    }
+    try {
+      await this.supportEmail.notifyNewGuestRequest(saved);
+    } catch (error) {
+      this.logger.error(`Verified support ticket ${saved.ticketNumber} was saved but confirmation email delivery failed: ${String(error)}`);
+    }
+    return { success: true, ticketNumber: saved.ticketNumber, message: `Your email has been verified and ticket ${saved.ticketNumber} has been submitted to Sophis Central Support.` };
   }
 
   private async validateOwnedAttachments(userId: string, values: string[]): Promise<string[]> {
@@ -112,11 +242,13 @@ export class SupportService {
   }
 
   async listForModeration(status: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded' = 'pending') {
-    const requests = await this.requests.find({
-      where: { status },
-      relations: ['user', 'reviewer'],
-      order: { createdAt: 'ASC' },
-    });
+    const requests = await this.requests.createQueryBuilder('request')
+      .leftJoinAndSelect('request.user', 'user')
+      .leftJoinAndSelect('request.reviewer', 'reviewer')
+      .where('request.status = :status', { status })
+      .andWhere('(request."userId" IS NOT NULL OR request."emailVerifiedAt" IS NOT NULL)')
+      .orderBy('request."createdAt"', 'ASC')
+      .getMany();
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
 
@@ -129,7 +261,7 @@ export class SupportService {
     if (status === 'reviewed' && request.status !== 'under_review') throw new BadRequestException('Move the ticket to Under review before marking it reviewed.');
     request.status = status;
     const saved = await this.requests.save(request);
-    try { await this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket status updated', `Ticket ${request.ticketNumber} is now ${status.replace(/_/g, ' ')}.`, '/my-activity'); }
+    try { if (request.userId) await this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket status updated', `Ticket ${request.ticketNumber} is now ${status.replace(/_/g, ' ')}.`, '/my-activity'); }
     catch (error) { this.logger.warn(`Support ticket ${request.ticketNumber} status changed but notification failed: ${String(error)}`); }
     return saved;
   }
@@ -149,7 +281,7 @@ export class SupportService {
     const saved = await this.requests.save(request);
 
     try {
-      await this.notifications.createNotification(
+      if (request.userId) await this.notifications.createNotification(
         request.userId,
         'support_request_resolved',
         'Your support request has a response',
@@ -159,12 +291,11 @@ export class SupportService {
     } catch (error) {
       this.logger.error(`Support request ${id} was concluded but its notification could not be created: ${String(error)}`);
     }
-    if (request.user) {
-      try {
-        await this.supportEmail.sendResolution(saved, request.user);
-      } catch (error) {
-        this.logger.error(`Support request ${id} was concluded but its email could not be sent: ${String(error)}`);
-      }
+    try {
+      if (request.user) await this.supportEmail.sendResolution(saved, request.user);
+      else if (request.senderEmail && request.emailVerifiedAt) await this.supportEmail.sendGuestResolution(saved);
+    } catch (error) {
+      this.logger.error(`Support request ${id} was concluded but its email could not be sent: ${String(error)}`);
     }
     return saved;
   }
@@ -179,7 +310,7 @@ export class SupportService {
     await this.requests.save(request);
     await Promise.all([
       ...recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/notifications')),
-      this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for ${request.escalatedToRole === 'moderator' ? 'Moderator' : 'Admin'} review.`, '/my-activity'),
+      ...(request.userId ? [this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for ${request.escalatedToRole === 'moderator' ? 'Moderator' : 'Admin'} review.`, '/my-activity')] : []),
     ]);
     return { success: true, ticketNumber: request.ticketNumber, notified: recipients.length };
   }

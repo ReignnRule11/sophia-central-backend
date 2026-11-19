@@ -233,7 +233,7 @@ export class ChatService {
             'NOT EXISTS (SELECT 1 FROM chat_message_user_hides hidden WHERE hidden."messageId" = message.id AND hidden."userId" = :viewerId)',
             { viewerId: id },
           )
-          .orderBy('message.createdAt', 'DESC')
+          .orderBy('message.messageOrder', 'DESC')
           .getOne(),
         this.reads.findOne({ where: { userId: id, roomKey } }),
       ]);
@@ -248,7 +248,7 @@ export class ChatService {
               kind: ChatKind.DIRECT,
               senderId: contact.id,
               isDeleted: false,
-              createdAt: MoreThan(readState?.lastReadAt ?? new Date(0)),
+              messageOrder: MoreThan(readState?.lastReadMessageOrder ?? '0'),
               expiresAt: Or(IsNull(), MoreThan(new Date())),
             },
           });
@@ -301,38 +301,36 @@ export class ChatService {
     const [latest, previousReadState] = await Promise.all([
       this.repo.findOne({
         where: { roomKey, kind: ChatKind.DIRECT },
-        order: { createdAt: 'DESC' },
+        order: { messageOrder: 'DESC' },
       }),
       this.reads.findOne({ where: { userId: id, roomKey } }),
     ]);
     const lastReadAt = latest?.createdAt ?? new Date();
+    const lastReadMessageOrder = latest?.messageOrder ?? '0';
 
-    // Read cursors are monotonic. Concurrent tabs/devices can mark the same
-    // conversation read out of order; never let an older request move the
-    // persisted cursor backwards and make already-read messages unread again.
+    // A database-assigned, monotonically increasing message order avoids
+    // timestamp collisions when several messages are created in the same
+    // millisecond. Concurrent tabs/devices can only advance this cursor.
     const persistedRows = await this.reads.query(
-      `INSERT INTO "chat_conversation_reads" ("userId", "roomKey", "lastReadAt", "updatedAt")
-       VALUES ($1, $2, $3, NOW())
+      `INSERT INTO "chat_conversation_reads" ("userId", "roomKey", "lastReadAt", "lastReadMessageOrder", "updatedAt")
+       VALUES ($1, $2, $3, $4, NOW())
        ON CONFLICT ("userId", "roomKey")
        DO UPDATE SET
-         "lastReadAt" = GREATEST("chat_conversation_reads"."lastReadAt", EXCLUDED."lastReadAt"),
+         "lastReadAt" = CASE WHEN EXCLUDED."lastReadMessageOrder" > "chat_conversation_reads"."lastReadMessageOrder" THEN EXCLUDED."lastReadAt" ELSE "chat_conversation_reads"."lastReadAt" END,
+         "lastReadMessageOrder" = GREATEST("chat_conversation_reads"."lastReadMessageOrder", EXCLUDED."lastReadMessageOrder"),
          "updatedAt" = NOW()
-       RETURNING "lastReadAt"`,
-      [id, roomKey, lastReadAt],
+       RETURNING "lastReadAt", "lastReadMessageOrder"`,
+      [id, roomKey, lastReadAt, lastReadMessageOrder],
     );
     const effectiveLastReadAt = persistedRows?.[0]?.lastReadAt
       ? new Date(persistedRows[0].lastReadAt)
       : lastReadAt;
+    const effectiveReadOrder = BigInt(persistedRows?.[0]?.lastReadMessageOrder ?? lastReadMessageOrder);
+    const previousReadOrder = BigInt(previousReadState?.lastReadMessageOrder ?? '0');
 
-    // The chat page refreshes history after every room event. Publishing on an
-    // unchanged read cursor would create a read -> event -> history -> read loop.
-    // Publish only when this request actually advances the recipient's cursor.
-    const previousLastReadAt = previousReadState?.lastReadAt
-      ? new Date(previousReadState.lastReadAt)
-      : null;
-    if (!previousLastReadAt || effectiveLastReadAt.getTime() > previousLastReadAt.getTime()) {
-      this.publishRoom(roomKey);
-    }
+    // Publish only when the durable message-order cursor advances, avoiding
+    // read -> event -> history -> read loops while handling same-time messages.
+    if (effectiveReadOrder > previousReadOrder) this.publishRoom(roomKey);
 
     return { success: true, lastReadAt: effectiveLastReadAt };
   }
@@ -384,12 +382,9 @@ export class ChatService {
     if (before) {
       const cursor = await this.repo.findOne({ where: { id: before, roomKey: room } });
       if (!cursor) throw new BadRequestException('Invalid pagination cursor.');
-      query.andWhere(
-        '(message.createdAt < :date OR (message.createdAt = :date AND message.id < :cursorId))',
-        { date: cursor.createdAt, cursorId: cursor.id },
-      );
+      query.andWhere('message.messageOrder < :cursorOrder', { cursorOrder: cursor.messageOrder });
     }
-    const rows = await query.orderBy('message.createdAt', 'DESC').addOrderBy('message.id', 'DESC').take(limit + 1).getMany();
+    const rows = await query.orderBy('message.messageOrder', 'DESC').take(limit + 1).getMany();
     const hasMore = rows.length > limit;
     const visibleRows = rows.slice(0, limit).reverse();
     const [items, hiddenRows, otherParticipantReadState] = await Promise.all([
@@ -409,8 +404,7 @@ export class ChatService {
       isRead: Boolean(
         kind === 'direct' &&
         visibleRows[index].senderId === id &&
-        otherParticipantReadState?.lastReadAt &&
-        otherParticipantReadState.lastReadAt >= visibleRows[index].createdAt,
+        BigInt(otherParticipantReadState?.lastReadMessageOrder ?? '0') >= BigInt(visibleRows[index].messageOrder),
       ),
     }));
     return {

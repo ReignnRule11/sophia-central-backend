@@ -7,6 +7,7 @@ describe('SupportService attachment ownership', () => {
   const reference = 'https://files.example.test/support-attachments/student-1/image.jpg';
   let requests: any;
   let s3: any;
+  let notifications: any;
   let service: SupportService;
 
   beforeEach(() => {
@@ -29,12 +30,31 @@ describe('SupportService attachment ownership', () => {
       }),
       createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/support-image'),
     };
+    notifications = { createNotification: jest.fn().mockResolvedValue({}) };
     service = new SupportService(
       requests,
       { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) } as any,
-      { createNotification: jest.fn() } as any,
+      notifications,
       s3,
       { notifyNewRequest: jest.fn().mockResolvedValue(false), sendResolution: jest.fn().mockResolvedValue(false) } as any,
+    );
+  });
+
+  it('notifies the registered requester after a support ticket is successfully saved', async () => {
+    const result = await service.create(user, {
+      subject: 'Help with my account',
+      category: 'technical',
+      description: 'I need help accessing my account.',
+      attachments: [],
+    } as any);
+
+    expect(result.ticketNumber).toBe('SUP-2026-000001');
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      user.id,
+      'support_request_submitted',
+      'Your support request was submitted',
+      expect.stringContaining(result.ticketNumber),
+      '/my-activity',
     );
   });
 

@@ -315,9 +315,9 @@ describe('ChatService access and message rules', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it('uses both timestamp and message ID for stable pagination cursors', async () => {
+  it('uses the monotonic message order for stable pagination cursors', async () => {
     const cursorDate = new Date('2026-11-01T10:00:00.000Z');
-    repo.findOne.mockResolvedValue({ id: 'cursor-id', roomKey: 'group:example university:science:biology', createdAt: cursorDate });
+    repo.findOne.mockResolvedValue({ id: 'cursor-id', roomKey: 'group:example university:science:biology', createdAt: cursorDate, messageOrder: '20' });
     const qb = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
@@ -331,11 +331,10 @@ describe('ChatService access and message rules', () => {
     await service.history(student.id, 'group', undefined, '20', 'cursor-id');
 
     expect(qb.andWhere).toHaveBeenCalledWith(
-      '(message.createdAt < :date OR (message.createdAt = :date AND message.id < :cursorId))',
-      { date: cursorDate, cursorId: 'cursor-id' },
+      'message.messageOrder < :cursorOrder',
+      { cursorOrder: '20' },
     );
-    expect(qb.orderBy).toHaveBeenCalledWith('message.createdAt', 'DESC');
-    expect(qb.addOrderBy).toHaveBeenCalledWith('message.id', 'DESC');
+    expect(qb.orderBy).toHaveBeenCalledWith('message.messageOrder', 'DESC');
   });
 
 
@@ -512,36 +511,36 @@ describe('ChatService access and message rules', () => {
     });
   });
 
-  it('persists the latest message timestamp when a private conversation is read', async () => {
+  it('keeps a later message-order cursor when a private conversation is read', async () => {
     const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
     users.findOne.mockImplementation(async id =>
       id === student.id ? { ...student } : id === recipient.id ? recipient : null,
     );
     const createdAt = new Date('2026-11-06T10:30:00.000Z');
     const existingLaterCursor = new Date('2026-11-06T11:00:00.000Z');
-    repo.findOne.mockResolvedValue({ roomKey: 'direct:student-1:student-2', createdAt });
-    reads.findOne.mockResolvedValueOnce({ lastReadAt: existingLaterCursor });
-    reads.query.mockResolvedValueOnce([{ lastReadAt: existingLaterCursor }]);
+    repo.findOne.mockResolvedValue({ roomKey: 'direct:student-1:student-2', createdAt, messageOrder: '41' });
+    reads.findOne.mockResolvedValueOnce({ lastReadAt: existingLaterCursor, lastReadMessageOrder: '42' });
+    reads.query.mockResolvedValueOnce([{ lastReadAt: existingLaterCursor, lastReadMessageOrder: '42' }]);
 
     const result = await service.markDirectRead(student.id, recipient.id);
 
     expect(reads.query).toHaveBeenCalledWith(
-      expect.stringContaining('GREATEST("chat_conversation_reads"."lastReadAt", EXCLUDED."lastReadAt")'),
-      [student.id, 'direct:student-1:student-2', createdAt],
+      expect.stringContaining('GREATEST("chat_conversation_reads"."lastReadMessageOrder", EXCLUDED."lastReadMessageOrder")'),
+      [student.id, 'direct:student-1:student-2', createdAt, '41'],
     );
     expect(result).toEqual({ success: true, lastReadAt: existingLaterCursor });
     expect(redis.publishRoom).not.toHaveBeenCalled();
   });
   it('publishes a room refresh only when a read cursor advances', async () => {
     const recipient = { ...student, id: 'student-2', academicHandle: 'reader2' };
-    const previousCursor = new Date('2026-11-06T10:00:00.000Z');
+    const previousCursor = new Date('2026-11-06T10:30:00.000Z');
     const nextCursor = new Date('2026-11-06T10:30:00.000Z');
     users.findOne.mockImplementation(async id =>
       id === student.id ? { ...student } : id === recipient.id ? recipient : null,
     );
-    reads.findOne.mockResolvedValueOnce({ lastReadAt: previousCursor });
-    repo.findOne.mockResolvedValue({ roomKey: 'direct:student-1:student-2', createdAt: nextCursor });
-    reads.query.mockResolvedValueOnce([{ lastReadAt: nextCursor }]);
+    reads.findOne.mockResolvedValueOnce({ lastReadAt: previousCursor, lastReadMessageOrder: '40' });
+    repo.findOne.mockResolvedValue({ roomKey: 'direct:student-1:student-2', createdAt: nextCursor, messageOrder: '41' });
+    reads.query.mockResolvedValueOnce([{ lastReadAt: nextCursor, lastReadMessageOrder: '41' }]);
 
     await service.markDirectRead(student.id, recipient.id);
 
