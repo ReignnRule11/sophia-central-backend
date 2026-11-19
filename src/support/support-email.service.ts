@@ -65,7 +65,7 @@ export class SupportEmailService {
       `Open My Activity: ${activityUrl}`,
       '',
       'Sophis Central Support',
-    ].join('\\n');
+    ].join('\n');
     const html = `<p>Hello ${this.escapeHtml(user.firstName || 'there')},</p><p>Our Support team has replied to your request <strong>${this.escapeHtml(request.subject)}</strong>.</p><p><strong>Ticket:</strong> ${this.escapeHtml(request.ticketNumber)}</p><p>Your full response is available securely in <strong>My Activity</strong>. Sign in to Sophis Central to read the details and continue tracking your request.</p><p><a href="${this.escapeHtml(activityUrl)}">Sign in and view My Activity</a></p><p>Sophis Central Support</p>`;
     await this.send(user.email, subject, text, html, supportEmail);
     return true;
@@ -139,8 +139,8 @@ export class SupportEmailService {
       `Explore Sophis Central and register: ${registrationUrl}`,
       '',
       'Sophis Central Support',
-    ].join('\\n');
-    const html = `<p>Hello ${this.escapeHtml(request.senderName || 'there')},</p><p>Our Support team has responded to your request.</p><p><strong>Ticket:</strong> ${this.escapeHtml(ticket)}</p><p><strong>Subject:</strong> ${this.escapeHtml(request.subject)}</p><p><strong>Support response</strong></p><p>${this.escapeHtml(resolution).replace(/\\n/g, '<br>')}</p><hr><h3>Make more of Sophis Central</h3><p>If you do not already have an account, you are invited to register for Sophis Central to access the platform’s student and lecturer features, keep your academic activity together, and use the services available to your account.</p><p><a href="${this.escapeHtml(registrationUrl)}">Explore Sophis Central and register</a></p><p>Sophis Central Support</p>`;
+    ].join('\n');
+    const html = `<p>Hello ${this.escapeHtml(request.senderName || 'there')},</p><p>Our Support team has responded to your request.</p><p><strong>Ticket:</strong> ${this.escapeHtml(ticket)}</p><p><strong>Subject:</strong> ${this.escapeHtml(request.subject)}</p><p><strong>Support response</strong></p><p>${this.escapeHtml(resolution).replace(/\n/g, '<br>')}</p><hr><h3>Make more of Sophis Central</h3><p>If you do not already have an account, you are invited to register for Sophis Central to access the platform’s student and lecturer features, keep your academic activity together, and use the services available to your account.</p><p><a href="${this.escapeHtml(registrationUrl)}">Explore Sophis Central and register</a></p><p>Sophis Central Support</p>`;
     await this.send(request.senderEmail, subject, text, html, supportEmail);
     return true;
   }
