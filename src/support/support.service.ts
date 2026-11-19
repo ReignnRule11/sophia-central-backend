@@ -112,7 +112,13 @@ export class SupportService {
       .addSelect(['request.emailVerificationTokenHash', 'request.emailVerificationExpiresAt'])
       .where('request."emailVerificationTokenHash" = :tokenHash', { tokenHash })
       .getOne();
-    if (!request || !request.emailVerificationExpiresAt || request.emailVerificationExpiresAt.getTime() <= Date.now()) {
+    if (!request) throw new BadRequestException('This support verification link is invalid or has expired. Please submit a new request.');
+    // Verification is idempotent so email clients and React development StrictMode
+    // can safely retry the landing request without duplicating tickets or alerts.
+    if (request.emailVerifiedAt) {
+      return { success: true, ticketNumber: request.ticketNumber, message: `Your email has already been verified and ticket ${request.ticketNumber} has been submitted to Sophis Central Support.` };
+    }
+    if (!request.emailVerificationExpiresAt || request.emailVerificationExpiresAt.getTime() <= Date.now()) {
       throw new BadRequestException('This support verification link is invalid or has expired. Please submit a new request.');
     }
 
@@ -128,7 +134,8 @@ export class SupportService {
       : null;
 
     request.emailVerifiedAt = verifiedAt;
-    request.emailVerificationTokenHash = null;
+    // Keep only the hash as an idempotency key; the token is never stored in plaintext.
+    // Expiry is cleared once verified, and repeat calls return the same ticket reference.
     request.emailVerificationExpiresAt = null;
     if (linkableAccount) {
       request.userId = linkableAccount.id;
