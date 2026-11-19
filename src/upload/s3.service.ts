@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { DeleteObjectCommand, GetObjectCommand, HeadObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import type { Readable } from 'node:stream';
 
 export interface StoredObjectMetadata {
   contentLength: number | undefined;
@@ -65,6 +66,20 @@ export class S3Service {
       ...(filename ? { ResponseContentDisposition: `${disposition}; filename*=UTF-8''${encodeURIComponent(filename)}` } : {}),
     });
     return getSignedUrl(this.client, command, { expiresIn });
+  }
+
+  async getObjectStream(key: string): Promise<{ body: Readable; contentType?: string; contentLength?: number }> {
+    this.assertAllowedObjectKey(key);
+    const response = await this.client.send(new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+    }));
+    if (!response.Body) throw new Error('Stored resource file is unavailable');
+    return {
+      body: response.Body as Readable,
+      contentType: response.ContentType,
+      contentLength: response.ContentLength,
+    };
   }
 
   getKeyFromPublicUrl(value: string): string | null {
