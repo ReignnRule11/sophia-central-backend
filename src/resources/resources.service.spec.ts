@@ -227,13 +227,13 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     const paid = resource({ moderationStatus: ResourceModerationStatus.APPROVED, pricingMode: ResourcePricingMode.FIXED, uploaderId: 'lecturer-1' });
     resourceRepository.findOne.mockResolvedValue(paid);
     resourcePurchaseRepository.findOne.mockResolvedValue(null);
-    const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
+    const s3 = { getKeyFromPublicUrl: jest.fn(), getObjectStream: jest.fn() };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
 
     await expect(previewService.getReaderFile('resource-1', {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
     } as any)).rejects.toThrow('Purchase this resource before accessing its file.');
-    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
+    expect(s3.getObjectStream).not.toHaveBeenCalled();
   });
 
   it('does not treat a student programme or shared department as an automatic conflict when a no-conflict declaration exists', async () => {
@@ -274,8 +274,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     resourceRepository.findOne.mockResolvedValue(paid);
     const s3 = {
       getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/review.pdf'),
-      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/review-inline'),
-      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
+      getObjectStream: jest.fn().mockResolvedValue({ body: { pipe: jest.fn(), on: jest.fn() }, contentLength: 1024 }),
     };
     const purchaseRepository: any = { findOne: jest.fn().mockResolvedValue(null) };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, purchaseRepository, storageCleanup);
