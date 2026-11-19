@@ -349,7 +349,7 @@ export class ResourcesService {
       eventType: 'file_access',
       resourceId: resource.id,
     }));
-    const safeTitle = (resource.title || 'resource').replace(/[\\/:*?"<>|\\u0000-\\u001F]/g, '-').trim() || 'resource';
+    const safeTitle = Array.from(resource.title || 'resource').filter(character => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127).join('').replace(/[:*?"<>|]/g, '-').split('/').join('-').split('\\\\').join('-').trim() || 'resource';
     return {
       body: file.body,
       filename: `${safeTitle}.${extension}`,
