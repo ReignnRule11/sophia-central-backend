@@ -1,4 +1,5 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, Res, UseGuards } from '@nestjs/common';
+import type { Response } from 'express';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -109,6 +110,26 @@ export class ResourcesController {
   @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.STUDENT, UserRole.LECTURER) @ApiBearerAuth()
   @ApiOperation({ summary: 'Get the authenticated contributor’s own submissions and review statuses' })
   findMine(@CurrentUser() user: User) { return this.resourcesService.findMine(user.id); }
+
+  @Get(':id/reader')
+  @UseGuards(JwtAuthGuard) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Stream an authorized PDF into the in-app reader without exposing a storage URL' })
+  async getReaderFile(@Param('id') id: string, @CurrentUser() user: User, @Res() response: Response) {
+    const file = await this.resourcesService.getReaderFile(id, user);
+    response.status(200).set({
+      'Content-Type': file.contentType,
+      'Content-Disposition': `inline; filename*=UTF-8''${encodeURIComponent(file.filename)}`,
+      'Cache-Control': 'private, no-store, no-cache, must-revalidate',
+      Pragma: 'no-cache',
+      Expires: '0',
+      'X-Content-Type-Options': 'nosniff',
+      'Cross-Origin-Resource-Policy': 'same-origin',
+      'Content-Security-Policy': 'sandbox',
+      ...(file.contentLength ? { 'Content-Length': String(file.contentLength) } : {}),
+    });
+    file.body.on('error', () => response.destroy());
+    file.body.pipe(response);
+  }
 
   @Get(':id/file-url')
   @UseGuards(JwtAuthGuard) @ApiBearerAuth()
