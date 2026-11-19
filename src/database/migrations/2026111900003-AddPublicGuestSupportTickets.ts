@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddPublicGuestSupportTickets202611190003 implements MigrationInterface {
-  name = 'AddPublicGuestSupportTickets202611190003';
+export class AddPublicGuestSupportTickets2026111900003 implements MigrationInterface {
+  name = 'AddPublicGuestSupportTickets2026111900003';
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query('ALTER TABLE support_requests ALTER COLUMN "userId" DROP NOT NULL');
