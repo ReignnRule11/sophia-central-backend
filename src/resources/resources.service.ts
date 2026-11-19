@@ -354,6 +354,35 @@ export class ResourcesService {
     return { url, filename, contentType: metadata?.contentType };
   }
 
+  async getReaderFile(id: string, viewer: User): Promise<{ body: NodeJS.ReadableStream; filename: string; contentType: string; contentLength?: number }> {
+    this.assertInstitutionIdentity(viewer);
+    const authorizedResource = await this.findOneForViewer(id, viewer, false);
+    await this.assertPaidResourceAccess(authorizedResource, viewer);
+    if (!hasReviewerCapability(viewer) && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
+      const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
+      if (!entry?.downloadedAt) throw new ForbiddenException('Save this resource to My Resources before viewing it.');
+    }
+    const resource = await this.resourceRepository.findOne({ where: { id } });
+    if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
+    const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
+    if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
+    const extension = key.split('.').pop()?.toLowerCase();
+    if (extension !== 'pdf') throw new ForbiddenException('Secure in-app preview currently supports PDF files only.');
+    const file = await this.s3Service.getObjectStream(key);
+    await this.activityRepository.save(this.activityRepository.create({
+      userId: viewer.id,
+      institutionId: viewer.institutionId ?? null,
+      eventType: 'file_access',
+      resourceId: resource.id,
+    }));
+    return {
+      body: file.body,
+      filename: `${resource.title}.pdf`,
+      contentType: file.contentType || 'application/pdf',
+      contentLength: file.contentLength,
+    };
+  }
+
   async update(id: string, dto: UpdateResourceDto): Promise<Resource> {
     return this.resourceRepository.manager.transaction(async manager => {
       const resource = await manager.findOne(Resource, { where: { id } });
