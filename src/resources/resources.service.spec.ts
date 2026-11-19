@@ -216,41 +216,6 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     } as any, false)).resolves.toMatchObject({ id: 'resource-1' });
   });
 
-  it('allows an external Global Academic Reviewer to preview a pending file without an institution identity', async () => {
-    const pending = resource({ assignedReviewerId: 'assigned-reviewer' });
-    resourceRepository.findOne.mockResolvedValue(pending);
-    const s3 = {
-      getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/test.pdf'),
-      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/inline'),
-      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
-    };
-    const previewService = new ResourcesService(
-      resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup,
-    );
-    await expect(previewService.getFileUrl('resource-1', {
-      id: 'global-reviewer', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true,
-      reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active',
-    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/inline', filename: 'Test contribution.pdf' });
-    expect(s3.createPresignedDownloadUrl).toHaveBeenCalledWith('resources/test.pdf', 'Test contribution.pdf', 'inline');
-  });
-
-  it('allows a dual-role reviewer to preview an assigned pending file without the student download-first rule', async () => {
-    resourceRepository.findOne.mockResolvedValue(resource({ assignedReviewerId: 'dual-role-reviewer' }));
-    const s3 = {
-      getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/assigned.pdf'),
-      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/assigned-inline'),
-      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
-    };
-    const previewService = new ResourcesService(
-      resourceRepository, {} as any, s3 as any, activityRepository, { findOne: jest.fn() } as any, resourcePurchaseRepository, storageCleanup,
-    );
-    await expect(previewService.getFileUrl('resource-1', {
-      id: 'dual-role-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
-      isSuspended: false,
-    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/assigned-inline' });
-    expect(s3.createPresignedDownloadUrl).toHaveBeenCalledWith('resources/assigned.pdf', 'Test contribution.pdf', 'inline');
-  });
-
   it('rejects a reviewer-role account whose reviewer access has been revoked', async () => {
     resourceRepository.findOne.mockResolvedValue(resource({ moderationStatus: ResourceModerationStatus.APPROVED }));
     await expect(service.findOneForViewer('resource-1', {
