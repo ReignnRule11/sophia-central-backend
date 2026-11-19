@@ -378,7 +378,7 @@ export class ResourcesService {
     return {
       body: file.body,
       filename: `${resource.title}.pdf`,
-      contentType: file.contentType || 'application/pdf',
+      contentType: 'application/pdf',
       contentLength: file.contentLength,
     };
   }
