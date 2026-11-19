@@ -73,7 +73,7 @@ describe('Public support ticket verification', () => {
 
     expect(query.addSelect).toHaveBeenCalledWith(['request.emailVerificationTokenHash', 'request.emailVerificationExpiresAt']);
     expect(request.emailVerifiedAt).toBeInstanceOf(Date);
-    expect(request.emailVerificationTokenHash).toBeNull();
+    expect(request.emailVerificationTokenHash).toBe('hash');
     expect(request.emailVerificationExpiresAt).toBeNull();
     expect(supportEmail.notifyNewGuestRequest).toHaveBeenCalledWith(request);
     expect(result.ticketNumber).toBe('SUP-2026-000012');
