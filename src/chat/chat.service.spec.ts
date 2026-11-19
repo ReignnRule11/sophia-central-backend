@@ -315,9 +315,9 @@ describe('ChatService access and message rules', () => {
     expect(repo.save).not.toHaveBeenCalled();
   });
 
-  it('uses both timestamp and message ID for stable pagination cursors', async () => {
+  it('uses the monotonic message order for stable pagination cursors', async () => {
     const cursorDate = new Date('2026-11-01T10:00:00.000Z');
-    repo.findOne.mockResolvedValue({ id: 'cursor-id', roomKey: 'group:example university:science:biology', createdAt: cursorDate });
+    repo.findOne.mockResolvedValue({ id: 'cursor-id', roomKey: 'group:example university:science:biology', createdAt: cursorDate, messageOrder: '20' });
     const qb = {
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
@@ -331,11 +331,10 @@ describe('ChatService access and message rules', () => {
     await service.history(student.id, 'group', undefined, '20', 'cursor-id');
 
     expect(qb.andWhere).toHaveBeenCalledWith(
-      '(message.createdAt < :date OR (message.createdAt = :date AND message.id < :cursorId))',
-      { date: cursorDate, cursorId: 'cursor-id' },
+      'message.messageOrder < :cursorOrder',
+      { cursorOrder: '20' },
     );
-    expect(qb.orderBy).toHaveBeenCalledWith('message.createdAt', 'DESC');
-    expect(qb.addOrderBy).toHaveBeenCalledWith('message.id', 'DESC');
+    expect(qb.orderBy).toHaveBeenCalledWith('message.messageOrder', 'DESC');
   });
 
 
