@@ -77,6 +77,11 @@ describe('Public support ticket verification', () => {
     expect(request.emailVerificationExpiresAt).toBeNull();
     expect(supportEmail.notifyNewGuestRequest).toHaveBeenCalledWith(request);
     expect(result.ticketNumber).toBe('SUP-2026-000012');
+
+    const repeated = await service.verifyPublicEmail('a'.repeat(64));
+    expect(repeated.ticketNumber).toBe(result.ticketNumber);
+    expect(supportEmail.notifyNewGuestRequest).toHaveBeenCalledTimes(1);
+    expect(notifications.createNotification).toHaveBeenCalledTimes(1);
   });
 
   it('links a public ticket to a verified student account only after email ownership is proven', async () => {
