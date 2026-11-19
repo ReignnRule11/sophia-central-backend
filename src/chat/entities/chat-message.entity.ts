@@ -5,6 +5,7 @@ export enum ChatContentType { TEXT = 'text', VOICE = 'voice', STICKER = 'sticker
 @Index('idx_chat_messages_room_created', ['roomKey', 'createdAt'])
 export class ChatMessage {
  @PrimaryGeneratedColumn('uuid') id!: string;
+ @Column({ type: 'bigint', default: () => "nextval('chat_messages_order_seq')" }) messageOrder!: string;
  @Column({ type: 'varchar', length: 12 }) kind!: ChatKind;
  @Column({ type: 'varchar', length: 255 }) roomKey!: string;
  @Column({ type: 'uuid', nullable: true }) senderId!: string | null;
