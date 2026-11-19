@@ -35,6 +35,7 @@ describe('SupportEmailService', () => {
   it('sends a support-team alert and an acknowledgement to the requester', async () => {
     const request = {
       id: 'ticket-1',
+      ticketNumber: 'SUP-2026-000001',
       subject: 'Cannot open a resource',
       category: 'resources',
       description: 'The resource reader shows an error.',
@@ -53,6 +54,44 @@ describe('SupportEmailService', () => {
     expect(firstMessage.reply_to).toBe('student@example.test');
     expect(secondMessage.to).toEqual(['student@example.test']);
     expect(secondMessage.reply_to).toBe('support@example.test');
+  });
+
+  it('sends a guest verification link and ticket-numbered correspondence after verification', async () => {
+    const request = {
+      ticketNumber: 'SUP-2026-000042',
+      senderName: 'Visitor',
+      senderEmail: 'visitor@example.test',
+      senderInstitution: 'Example University',
+      subject: 'Cannot access a resource',
+      category: 'resources',
+      description: 'The reader does not load.',
+      links: [],
+    } as any;
+
+    await service.sendGuestVerification(request, 'a'.repeat(64));
+    const verification = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(verification.to).toEqual(['visitor@example.test']);
+    expect(verification.subject).toContain(request.ticketNumber);
+    expect(verification.text).toContain('verifySupport=');
+
+    fetchMock.mockClear();
+    await service.notifyNewGuestRequest(request);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const supportMessage = JSON.parse(fetchMock.mock.calls[0][1].body);
+    const requesterMessage = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(supportMessage.to).toEqual(['support@example.test']);
+    expect(supportMessage.subject).toContain(request.ticketNumber);
+    expect(supportMessage.text).toContain('Example University');
+    expect(requesterMessage.to).toEqual(['visitor@example.test']);
+    expect(requesterMessage.subject).toContain(request.ticketNumber);
+
+    fetchMock.mockClear();
+    request.resolutionMessage = 'We have resolved the access issue.';
+    await service.sendGuestResolution(request);
+    const response = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(response.to).toEqual(['visitor@example.test']);
+    expect(response.subject).toContain(request.ticketNumber);
+    expect(response.text).toContain(request.ticketNumber);
   });
 
   it('does not send when the dedicated mailbox configuration is absent', async () => {
