@@ -398,3 +398,62 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     } as any, false)).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
+
+
+describe('ResourcesService.getReaderFile', () => {
+  const pdf = {
+    id: 'resource-reader-1',
+    title: 'Protected lecture notes',
+    uploaderId: 'lecturer-1',
+    moderationStatus: ResourceModerationStatus.APPROVED,
+    fileUrl: 'https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.pdf',
+    pricingMode: ResourcePricingMode.FREE,
+  };
+  const body = { pipe: jest.fn(), on: jest.fn() } as any;
+  const resourceRepository: any = {
+    findOne: jest.fn().mockResolvedValue(pdf),
+    save: jest.fn(async value => value),
+    manager: { query: jest.fn().mockResolvedValue([{ declaration: 'no_conflict' }]) },
+  };
+  const savedResourceRepository: any = { findOne: jest.fn().mockResolvedValue({ downloadedAt: new Date() }) };
+  const activityRepository: any = { create: jest.fn(value => value), save: jest.fn(async value => value) };
+  const storage: any = {
+    getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/00000000-0000-0000-0000-000000000001/notes.pdf'),
+    getObjectStream: jest.fn().mockResolvedValue({ body, contentType: 'application/pdf', contentLength: 2048 }),
+  };
+  const service = new ResourcesService(
+    resourceRepository, {} as any, storage, activityRepository, savedResourceRepository,
+    { findOne: jest.fn().mockResolvedValue(null) } as any, { enqueueWithManager: jest.fn() } as any,
+  );
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('streams an authorized PDF without generating or returning a storage URL', async () => {
+    const result = await service.getReaderFile('resource-reader-1', {
+      id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1',
+    } as any);
+
+    expect(result).toMatchObject({
+      filename: 'Protected lecture notes.pdf',
+      contentType: 'application/pdf',
+      contentLength: 2048,
+    });
+    expect(result.body).toBe(body);
+    expect(storage.getObjectStream).toHaveBeenCalledWith('resources/00000000-0000-0000-0000-000000000001/notes.pdf');
+    expect(storage.createPresignedDownloadUrl).toBeUndefined();
+    expect(activityRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'student-1', eventType: 'file_access', resourceId: 'resource-reader-1',
+    }));
+  });
+
+  it('does not stream non-PDF files into the protected PDF reader', async () => {
+    resourceRepository.findOne.mockResolvedValueOnce({ ...pdf, fileUrl: 'https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.docx' })
+      .mockResolvedValueOnce({ ...pdf, fileUrl: 'https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.docx' });
+    storage.getKeyFromPublicUrl.mockReturnValue('resources/00000000-0000-0000-0000-000000000001/notes.docx');
+
+    await expect(service.getReaderFile('resource-reader-1', {
+      id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1',
+    } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(storage.getObjectStream).not.toHaveBeenCalled();
+  });
+});
