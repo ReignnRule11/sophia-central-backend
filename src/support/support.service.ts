@@ -108,7 +108,10 @@ export class SupportService {
   async verifyPublicEmail(token: string) {
     if (!token || !/^[a-f0-9]{64}$/i.test(token)) throw new BadRequestException('This support verification link is invalid or has expired.');
     const tokenHash = createHash('sha256').update(token).digest('hex');
-    const request = await this.requests.findOne({ where: { emailVerificationTokenHash: tokenHash } });
+    const request = await this.requests.createQueryBuilder('request')
+      .addSelect(['request.emailVerificationTokenHash', 'request.emailVerificationExpiresAt'])
+      .where('request."emailVerificationTokenHash" = :tokenHash', { tokenHash })
+      .getOne();
     if (!request || !request.emailVerificationExpiresAt || request.emailVerificationExpiresAt.getTime() <= Date.now()) {
       throw new BadRequestException('This support verification link is invalid or has expired. Please submit a new request.');
     }
