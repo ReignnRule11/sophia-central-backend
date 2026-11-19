@@ -331,7 +331,17 @@ export class ResourcesService {
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
     const extension = key.split('.').pop()?.toLowerCase();
-    if (extension !== 'pdf') throw new ForbiddenException('Secure in-app preview currently supports PDF files only.');
+    const supportedTypes: Record<string, string> = {
+      pdf: 'application/pdf',
+      doc: 'application/msword',
+      docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      ppt: 'application/vnd.ms-powerpoint',
+      pptx: 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+      txt: 'text/plain; charset=utf-8',
+    };
+    if (!extension || !supportedTypes[extension]) {
+      throw new ForbiddenException('Secure in-app preview supports PDF, Word, PowerPoint, and plain-text documents only.');
+    }
     const file = await this.s3Service.getObjectStream(key);
     await this.activityRepository.save(this.activityRepository.create({
       userId: viewer.id,
@@ -339,10 +349,11 @@ export class ResourcesService {
       eventType: 'file_access',
       resourceId: resource.id,
     }));
+    const safeTitle = Array.from(resource.title || 'resource').filter(character => character.charCodeAt(0) >= 32 && character.charCodeAt(0) !== 127).join('').replace(/[:*?"<>|]/g, '-').split('/').join('-').split('\\\\').join('-').trim() || 'resource';
     return {
       body: file.body,
-      filename: `${resource.title}.pdf`,
-      contentType: 'application/pdf',
+      filename: `${safeTitle}.${extension}`,
+      contentType: supportedTypes[extension],
       contentLength: file.contentLength,
     };
   }

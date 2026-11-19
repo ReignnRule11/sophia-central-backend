@@ -410,10 +410,31 @@ describe('ResourcesService.getReaderFile', () => {
     }));
   });
 
-  it('does not stream non-PDF files into the protected PDF reader', async () => {
-    resourceRepository.findOne.mockResolvedValueOnce({ ...pdf, fileUrl: 'https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.docx' })
-      .mockResolvedValueOnce({ ...pdf, fileUrl: 'https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.docx' });
-    storage.getKeyFromPublicUrl.mockReturnValue('resources/00000000-0000-0000-0000-000000000001/notes.docx');
+  it.each([
+    ['doc', 'application/msword'],
+    ['docx', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'],
+    ['ppt', 'application/vnd.ms-powerpoint'],
+    ['pptx', 'application/vnd.openxmlformats-officedocument.presentationml.presentation'],
+    ['txt', 'text/plain; charset=utf-8'],
+  ])('streams an authorized .%s file with its correct content type', async (extension, contentType) => {
+    const fileUrl = `https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.${extension}`;
+    const objectKey = `resources/00000000-0000-0000-0000-000000000001/notes.${extension}`;
+    resourceRepository.findOne.mockResolvedValueOnce({ ...pdf, fileUrl }).mockResolvedValueOnce({ ...pdf, fileUrl });
+    storage.getKeyFromPublicUrl.mockReturnValue(objectKey);
+
+    const result = await service.getReaderFile('resource-reader-1', {
+      id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1',
+    } as any);
+
+    expect(result).toMatchObject({ filename: `Protected lecture notes.${extension}`, contentType });
+    expect(result.body).toBe(body);
+    expect(storage.getObjectStream).toHaveBeenCalledWith(objectKey);
+  });
+
+  it('rejects unsupported reader file extensions before streaming from storage', async () => {
+    const fileUrl = 'https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.exe';
+    resourceRepository.findOne.mockResolvedValueOnce({ ...pdf, fileUrl }).mockResolvedValueOnce({ ...pdf, fileUrl });
+    storage.getKeyFromPublicUrl.mockReturnValue('resources/00000000-0000-0000-0000-000000000001/notes.exe');
 
     await expect(service.getReaderFile('resource-reader-1', {
       id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1',
