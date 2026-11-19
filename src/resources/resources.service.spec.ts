@@ -298,14 +298,14 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       assignedReviewerId: 'lecturer-reviewer',
     });
     resourceRepository.findOne.mockResolvedValue(paid);
-    const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
+    const s3 = { getKeyFromPublicUrl: jest.fn(), getObjectStream: jest.fn() };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
 
     await expect(previewService.getReaderFile('resource-1', {
       id: 'lecturer-reviewer', role: UserRole.LECTURER, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Mathematics', teachingAssignments: [{ courseName: 'ENG 402', levels: ['400'] }],
     } as any)).rejects.toThrow('Recuse yourself and request reassignment.');
-    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
+    expect(s3.getObjectStream).not.toHaveBeenCalled();
   });
 
   it('blocks an unpaid student from recording a paid-resource download', async () => {
