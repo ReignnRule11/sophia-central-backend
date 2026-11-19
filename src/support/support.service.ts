@@ -58,6 +58,17 @@ export class SupportService {
       this.logger.warn(`Support request ${saved.ticketNumber} was saved but Support notifications could not be created: ${String(error)}`);
     }
     try {
+      await this.notifications.createNotification(
+        user.id,
+        'support_request_submitted',
+        'Your support request was submitted',
+        `Ticket ${saved.ticketNumber} has been submitted successfully. Track its status in My Activity.`,
+        '/my-activity',
+      );
+    } catch (error) {
+      this.logger.warn(`Support request ${saved.ticketNumber} was saved but the requester notification could not be created: ${String(error)}`);
+    }
+    try {
       await this.supportEmail.notifyNewRequest(saved, user);
     } catch (error) {
       this.logger.error(`Support request ${saved.id} was saved but support email delivery failed: ${String(error)}`);
