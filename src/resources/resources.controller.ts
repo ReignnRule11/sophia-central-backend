@@ -113,7 +113,7 @@ export class ResourcesController {
 
   @Get(':id/reader')
   @UseGuards(JwtAuthGuard) @ApiBearerAuth()
-  @ApiOperation({ summary: 'Stream an authorized PDF into the in-app reader without exposing a storage URL' })
+  @ApiOperation({ summary: 'Stream an authorized PDF, Word, PowerPoint, or text resource into the protected in-app reader without exposing a storage URL' })
   async getReaderFile(@Param('id') id: string, @CurrentUser() user: User, @Res() response: Response) {
     const file = await this.resourcesService.getReaderFile(id, user);
     response.status(200).set({
