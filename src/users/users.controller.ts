@@ -4,6 +4,7 @@ import {
   Delete,
   ForbiddenException,
   BadRequestException,
+  ConflictException,
   Get,
   Param,
   Patch,
@@ -48,6 +49,18 @@ export class UsersController {
   @ApiOperation({ summary: 'List account details for authorized moderation management' })
   managementList() {
     return this.usersService.findAllForManagement();
+  }
+
+  @Patch(':id/platform-role')
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Assign the dedicated Support role to an existing staff account' })
+  async setPlatformRole(@Param('id') id: string, @Body() body: { role: UserRole }) {
+    if (body.role !== UserRole.SUPPORT) throw new BadRequestException('This endpoint can assign only the dedicated Support role.');
+    const existingSupport = (await this.usersService.findAll()).find(account => account.role === UserRole.SUPPORT && account.id !== id);
+    if (existingSupport) throw new ConflictException('A Support account is already assigned. Reassign that account before choosing another.');
+    return this.usersService.update(id, { role: body.role });
   }
 
   @Patch(':id/reviewer-access')

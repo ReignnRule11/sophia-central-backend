@@ -21,7 +21,7 @@ async function main() {
       'users', 'resources', 'institutions', 'faculties', 'departments',
       'courses', 'course_topics', 'moderation_reviews', 'point_wallets',
       'point_transactions', 'file_uploads', 'referrals', 'notifications',
-      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events',
+      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'content_reports', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events',
     ];
     for (const table of requiredTables) {
       const result = await client.query('SELECT to_regclass($1) AS name', [`public.${table}`]);
@@ -34,6 +34,11 @@ async function main() {
     assert.equal(pricingColumns.rowCount, 4, 'resource pricing and substantive-update columns should exist');
     const lifecycleColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name IN ('accountStatus', 'deletionRequestedAt', 'deletionScheduledAt', 'securityQuestionId', 'securityAnswerHash')");
     assert.equal(lifecycleColumns.rowCount, 5, 'account lifecycle and security-question columns should exist');
+    const ticketColumns = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'support_requests' AND column_name = 'ticketNumber') OR (table_name = 'content_reports' AND column_name = 'ticketNumber') OR (table_name = 'support_requests' AND column_name = 'escalatedToRole'))");
+    assert.equal(ticketColumns.rowCount, 3, 'support and report ticket references and escalation tracking should exist');
+    const singleSupportRoleIndex = await client.query(`SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'IDX_users_single_support_role'`);
+    assert.equal(singleSupportRoleIndex.rowCount, 1, 'only one dedicated Support account should be assignable');
+
     const globalReviewerColumn = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'isGlobalReviewer'");
     assert.equal(globalReviewerColumn.rowCount, 1, 'global academic reviewer capability column should exist');
 
@@ -60,6 +65,7 @@ async function main() {
     assert.ok(migrationNames.includes('AddReviewerApprovedScope2026111700006'), 'reviewer approved scope migration should be applied');
     assert.ok(migrationNames.includes('CreateReviewerAssignmentEvents2026111700008'), 'reviewer assignment event migration should be applied');
     assert.ok(migrationNames.includes('AddGlobalAcademicReviewerCapability2026111800001'), 'global academic reviewer capability migration should be applied');
+    assert.ok(migrationNames.includes('AddSupportRoleTicketReferencesAndWorkflow2026111800003'), 'Support and report ticket workflow migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
@@ -133,8 +139,8 @@ async function main() {
     approvedResourceId = approvedResource.rows[0].id;
     sessionId = session.rows[0].id;
     const supportRequest = await client.query(
-      `INSERT INTO support_requests (\"userId\", subject, category, description) VALUES ($1, 'CI support request', 'account', 'Migration smoke support request') RETURNING id`,
-      [userId],
+      `INSERT INTO support_requests (\"userId\", subject, category, description, \"ticketNumber\") VALUES ($1, 'CI support request', 'account', 'Migration smoke support request', $2) RETURNING id`,
+      [userId, `SUP-CI-${Date.now()}`],
     );
     supportRequestId = supportRequest.rows[0].id;
     await client.query(

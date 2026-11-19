@@ -16,6 +16,7 @@ export enum UserRole {
   LECTURER = 'lecturer',
   REVIEWER = 'reviewer',
   MODERATOR = 'moderator',
+  SUPPORT = 'support',
   ADMIN = 'admin',
 }
 

@@ -34,22 +34,20 @@ export class SupportService {
       links: (dto.links ?? []).map((link) => link.trim()).filter(Boolean),
       attachments,
       status: 'pending',
+      ticketNumber: `SUP-${new Date().getFullYear()}-${String((await this.requests.query("SELECT nextval('sophis_support_ticket_seq') AS value"))[0].value).padStart(6, '0')}`,
     });
     const saved = await this.requests.save(request);
 
-    // Notify the moderator workspace and the dedicated support mailbox without
-    // making ticket creation depend on email-provider availability.
+    // Support tickets belong to the dedicated Support role only. Moderators and
+    // administrators are notified only when Support explicitly escalates a case.
     try {
-      const moderators = await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false } });
-      await Promise.all(moderators.map(moderator => this.notifications.createNotification(
-        moderator.id,
-        'support_request_new',
-        'New support request received',
-        `${user.firstName || user.email} submitted “${saved.subject}”.`,
-        '/moderation/support',
+      const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false } });
+      await Promise.all(supportUsers.map(account => this.notifications.createNotification(
+        account.id, 'support_request_new', 'New support ticket',
+        `Ticket ${saved.ticketNumber} has been submitted and is awaiting Support review.`, '/support/requests',
       )));
     } catch (error) {
-      this.logger.warn(`Support request ${saved.id} was saved but moderator notifications could not be created: ${String(error)}`);
+      this.logger.warn(`Support request ${saved.ticketNumber} was saved but Support notifications could not be created: ${String(error)}`);
     }
     try {
       await this.supportEmail.notifyNewRequest(saved, user);
@@ -59,7 +57,7 @@ export class SupportService {
 
     return {
       ...(await this.withSignedAttachmentUrls(saved)),
-      confirmationMessage: 'Your message has been sent to Support. The Sophis Central Support team will review your request and provide an update through your notifications.',
+      confirmationMessage: `Your support ticket ${saved.ticketNumber} has been submitted. Track its status in this section; full responses will appear in My Activity.`,
     };
   }
 
@@ -100,12 +98,20 @@ export class SupportService {
     return { ...request, attachments } as T;
   }
 
-  async listMine(userId: string) {
+  async listMineTracking(userId: string) {
+    return this.requests.find({
+      where: { userId },
+      select: ['id', 'ticketNumber', 'subject', 'category', 'status', 'escalatedToRole', 'createdAt', 'updatedAt'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async listMineForActivity(userId: string) {
     const requests = await this.requests.find({ where: { userId }, order: { createdAt: 'DESC' } });
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
 
-  async listForModeration(status: 'pending' | 'concluded' = 'pending') {
+  async listForModeration(status: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded' = 'pending') {
     const requests = await this.requests.find({
       where: { status },
       relations: ['user', 'reviewer'],
@@ -114,14 +120,29 @@ export class SupportService {
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
 
+  async updateStatus(id: string, actor: User, status: 'under_review' | 'reviewed') {
+    if (actor.role !== UserRole.SUPPORT || actor.isSuspended) throw new ForbiddenException('Only active Support accounts can update support tickets.');
+    const request = await this.requests.findOne({ where: { id } });
+    if (!request) throw new NotFoundException('Support ticket not found.');
+    if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A responded ticket cannot return to an earlier stage.');
+    if (status === 'under_review' && request.status !== 'pending') throw new BadRequestException('Only submitted tickets can move to Under review.');
+    if (status === 'reviewed' && request.status !== 'under_review') throw new BadRequestException('Move the ticket to Under review before marking it reviewed.');
+    request.status = status;
+    const saved = await this.requests.save(request);
+    try { await this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket status updated', `Ticket ${request.ticketNumber} is now ${status.replace(/_/g, ' ')}.`, '/my-activity'); }
+    catch (error) { this.logger.warn(`Support ticket ${request.ticketNumber} status changed but notification failed: ${String(error)}`); }
+    return saved;
+  }
+
   async conclude(id: string, reviewerId: string, dto: ConcludeSupportRequestDto) {
     const request = await this.requests.findOne({ where: { id }, relations: ['user'] });
     if (!request) throw new NotFoundException('Support request not found');
-    if (request.status === 'concluded') throw new ConflictException('This support request has already been concluded');
+    if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A response has already been sent for this support request.');
+    if (request.status !== 'reviewed') throw new BadRequestException('Mark the ticket as Reviewed before sending a response.');
     const reviewer = await this.users.findOne({ where: { id: reviewerId } });
-    if (!reviewer) throw new NotFoundException('Administrator account not found');
+    if (!reviewer) throw new NotFoundException('Support account not found');
 
-    request.status = 'concluded';
+    request.status = 'response_sent';
     request.resolutionMessage = dto.resolutionMessage.trim();
     request.reviewerId = reviewerId;
     request.concludedAt = new Date();
@@ -131,9 +152,9 @@ export class SupportService {
       await this.notifications.createNotification(
         request.userId,
         'support_request_resolved',
-        'Your support request has been concluded',
-        `Our Sophis Central Support team has reviewed “${request.subject}”. ${request.resolutionMessage}`,
-        '/notifications',
+        'Your support request has a response',
+        `Support has responded to ticket ${request.ticketNumber}. Open My Activity to read the full response.`,
+        '/my-activity',
       );
     } catch (error) {
       this.logger.error(`Support request ${id} was concluded but its notification could not be created: ${String(error)}`);
@@ -146,5 +167,20 @@ export class SupportService {
       }
     }
     return saved;
+  }
+
+  async escalate(id: string, actor: User, targetRole: UserRole.SUPPORT | UserRole.MODERATOR | UserRole.ADMIN, reason: string) {
+    if (actor.role !== UserRole.SUPPORT || actor.isSuspended) throw new ForbiddenException('Only active Support accounts can escalate support tickets.');
+    const request = await this.requests.findOne({ where: { id } });
+    if (!request) throw new NotFoundException('Support ticket not found.');
+    const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
+    if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
+    request.escalatedToRole = targetRole === UserRole.MODERATOR ? 'moderator' : 'admin';
+    await this.requests.save(request);
+    await Promise.all([
+      ...recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/notifications')),
+      this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for ${request.escalatedToRole === 'moderator' ? 'Moderator' : 'Admin'} review.`, '/my-activity'),
+    ]);
+    return { success: true, ticketNumber: request.ticketNumber, notified: recipients.length };
   }
 }

@@ -109,7 +109,10 @@ export class ContentReportsService {
     });
     if (duplicate) throw new ConflictException('You already have an open report for this item.');
 
+    const ticketSequence = await this.reports.query("SELECT nextval('sophis_report_ticket_seq') AS value");
+    const ticketNumber = `RPT-${new Date().getFullYear()}-${String(Number(ticketSequence[0].value)).padStart(6, '0')}`;
     const report = await this.reports.save(this.reports.create({
+      ticketNumber,
       reporterId: reporter.id,
       reporter,
       targetType: dto.targetType,
@@ -121,7 +124,7 @@ export class ContentReportsService {
     }));
 
     try {
-      const moderators = await this.users.find({ where: { role: In([UserRole.MODERATOR, UserRole.ADMIN]), isSuspended: false } });
+      const moderators = await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false } });
       await Promise.all(moderators.map(moderator => this.notifications.createNotification(
         moderator.id,
         'content_report_submitted',
@@ -138,10 +141,20 @@ export class ContentReportsService {
   async listMine(userId: string) {
     return this.reports.find({
       where: { reporterId: userId },
-      select: ['id', 'targetType', 'targetLabel', 'reason', 'details', 'status', 'moderatorNote', 'createdAt', 'updatedAt'],
+      select: ['id', 'ticketNumber', 'targetType', 'targetLabel', 'targetSnapshot', 'reason', 'details', 'status', 'moderatorNote', 'createdAt', 'updatedAt'],
       order: { createdAt: 'DESC' },
       take: 50,
     });
+  }
+
+  async escalate(id: string, actor: User, targetRole: UserRole.SUPPORT | UserRole.ADMIN, reason: string) {
+    if (actor.role !== UserRole.MODERATOR || actor.isSuspended) throw new ForbiddenException('Only active Moderators can escalate reports.');
+    const report = await this.reports.findOne({ where: { id } });
+    if (!report) throw new NotFoundException('Report not found.');
+    const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
+    if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
+    await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'moderation_report_escalated', 'Moderation report escalated', `Report ${report.ticketNumber} (${report.targetType}: ${report.targetLabel}) was escalated by the Moderator. Reason: ${report.reason}. Details: ${(report.details || JSON.stringify(report.targetSnapshot)).slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/notifications')));
+    return { success: true, ticketNumber: report.ticketNumber, notified: recipients.length };
   }
 
   async listForModeration(status?: ContentReportStatus) {
@@ -177,8 +190,8 @@ export class ContentReportsService {
           report.reporterId,
           'content_report_updated',
           'Your report has been updated',
-          `Your report about ${report.targetLabel} is now ${dto.status.replace(/_/g, ' ')}.`,
-          '/reports',
+          `Ticket ${report.ticketNumber} is now ${dto.status.replace(/_/g, ' ')}. Open My Activity for the full update.`,
+          '/my-activity',
         );
       } catch (error) {
         this.logger.warn(`Report ${report.id} was updated but reporter notification failed: ${String(error)}`);

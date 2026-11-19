@@ -6,6 +6,9 @@ export class SupportRequest {
   @PrimaryGeneratedColumn('uuid')
   id!: string;
 
+  @Column({ type: 'varchar', length: 32, unique: true })
+  ticketNumber!: string;
+
   @Column()
   userId!: string;
 
@@ -28,8 +31,11 @@ export class SupportRequest {
   @Column({ type: 'jsonb', default: () => "'[]'::jsonb" })
   attachments!: string[];
 
-  @Column({ type: 'varchar', length: 20, default: 'pending' })
-  status!: 'pending' | 'concluded';
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  escalatedToRole?: 'moderator' | 'admin' | null;
+
+  @Column({ type: 'varchar', length: 24, default: 'pending' })
+  status!: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded';
 
   @Column({ type: 'text', nullable: true })
   resolutionMessage?: string | null;

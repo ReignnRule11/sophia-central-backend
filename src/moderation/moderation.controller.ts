@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -10,9 +10,6 @@ import { ModerationService } from './moderation.service';
 import { ReviewResourceDto } from './dto/review-resource.dto';
 import { AssignReviewerDto } from './dto/assign-reviewer.dto';
 import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declaration.dto';
-import { SupportService } from '../support/support.service';
-import { ConcludeSupportRequestDto } from '../support/dto/conclude-support-request.dto';
-import { SupportEmailService } from '../support/support-email.service';
 
 type AuthenticatedRequest = Request & { user: User };
 
@@ -21,7 +18,7 @@ type AuthenticatedRequest = Request & { user: User };
 @UseGuards(JwtAuthGuard, RolesGuard)
 @ApiBearerAuth()
 export class ModerationController {
-  constructor(private readonly moderationService: ModerationService, private readonly supportService: SupportService, private readonly supportEmail: SupportEmailService) {}
+  constructor(private readonly moderationService: ModerationService) {}
 
   @Get('queue')
   @Roles(UserRole.ADMIN, UserRole.REVIEWER)
@@ -51,28 +48,6 @@ export class ModerationController {
   @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   getHistory(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getHistory(request.user);
-  }
-
-  @Get('support-email-status')
-  @Roles(UserRole.MODERATOR)
-  getSupportEmailStatus() {
-    return this.supportEmail.getConfigurationStatus();
-  }
-
-  @Get('support-requests')
-  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  getSupportRequests(@Query('status') status?: string) {
-    return this.supportService.listForModeration(status === 'concluded' ? 'concluded' : 'pending');
-  }
-
-  @Patch('support-requests/:id/conclude')
-  @Roles(UserRole.MODERATOR)
-  concludeSupportRequest(
-    @Param('id') id: string,
-    @Body() dto: ConcludeSupportRequestDto,
-    @Req() request: AuthenticatedRequest,
-  ) {
-    return this.supportService.conclude(id, request.user.id, dto);
   }
 
   @Patch('resources/:id/assign-reviewer')
