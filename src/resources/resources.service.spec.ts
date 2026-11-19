@@ -230,9 +230,9 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
 
-    await expect(previewService.getFileUrl('resource-1', {
+    await expect(previewService.getReaderFile('resource-1', {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
-    } as any, false)).rejects.toThrow('Purchase this resource before accessing its file.');
+    } as any)).rejects.toThrow('Purchase this resource before accessing its file.');
     expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
   });
 
@@ -249,15 +249,15 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     resourceRepository.findOne.mockResolvedValue(paid);
     const s3 = {
       getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/review.pdf'),
-      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/review-inline'),
-      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
+      getObjectStream: jest.fn().mockResolvedValue({ body: { pipe: jest.fn(), on: jest.fn() }, contentLength: 1024 }),
     };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
 
-    await expect(previewService.getFileUrl('resource-1', {
+    await expect(previewService.getReaderFile('resource-1', {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Computer Science', program: 'Computer Science',
-    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/review-inline' });
+    } as any)).resolves.toMatchObject({ contentType: 'application/pdf' });
+    expect(s3.getObjectStream).toHaveBeenCalledWith('resources/review.pdf');
     expect(resourceRepository.manager.query).toHaveBeenCalledWith(expect.stringContaining('reviewer_conflict_declarations'), ['assignment-1', 'student-reviewer']);
   });
 
@@ -280,13 +280,13 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     const purchaseRepository: any = { findOne: jest.fn().mockResolvedValue(null) };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, purchaseRepository, storageCleanup);
 
-    await expect(previewService.getFileUrl('resource-1', {
+    await expect(previewService.getReaderFile('resource-1', {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Computer Science', program: 'Computer Science',
       isSuspended: false,
-    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/review-inline' });
+    } as any)).resolves.toMatchObject({ contentType: 'application/pdf' });
     expect(purchaseRepository.findOne).not.toHaveBeenCalled();
-    expect(s3.createPresignedDownloadUrl).toHaveBeenCalledWith('resources/review.pdf', 'Test contribution.pdf', 'inline');
+    expect(s3.getObjectStream).toHaveBeenCalledWith('resources/review.pdf');
   });
 
   it('requires a lecturer reviewer to recuse from a paid review for a course they teach', async () => {
@@ -302,10 +302,10 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
 
-    await expect(previewService.getFileUrl('resource-1', {
+    await expect(previewService.getReaderFile('resource-1', {
       id: 'lecturer-reviewer', role: UserRole.LECTURER, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Mathematics', teachingAssignments: [{ courseName: 'ENG 402', levels: ['400'] }],
-    } as any, false)).rejects.toThrow('Recuse yourself and request reassignment.');
+    } as any)).rejects.toThrow('Recuse yourself and request reassignment.');
     expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
   });
 
