@@ -53,7 +53,7 @@ describe('Public support ticket verification', () => {
   });
 
   it('requires a valid, unexpired verification token before exposing the ticket to Support', async () => {
-    const request = {
+    const request: any = {
       id: 'request-1',
       ticketNumber: 'SUP-2026-000012',
       senderEmail: 'guest@example.test',
@@ -92,7 +92,7 @@ describe('Public support ticket verification', () => {
       institution: 'Example University',
     };
     users.findOne.mockResolvedValue(account);
-    const request = {
+    const request: any = {
       id: 'request-1',
       ticketNumber: 'SUP-2026-000013',
       senderEmail: account.email,
