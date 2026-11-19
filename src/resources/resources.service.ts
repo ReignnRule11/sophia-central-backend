@@ -318,40 +318,33 @@ export class ResourcesService {
     return { ...resource, hasFile: Boolean(resource.fileUrl), fileUrl: undefined } as Resource;
   }
 
-  async getFileUrl(id: string, viewer: User, download = false): Promise<{ url: string; filename: string; contentType?: string }> {
+  async getReaderFile(id: string, viewer: User): Promise<{ body: NodeJS.ReadableStream; filename: string; contentType: string; contentLength?: number }> {
     this.assertInstitutionIdentity(viewer);
     const authorizedResource = await this.findOneForViewer(id, viewer, false);
-    if (download && isPreviewOnlyResourceAccess(viewer) && !isLecturerUploader(viewer, authorizedResource)) {
-      throw new ForbiddenException('Academic reviewers and platform oversight accounts can preview authorised resources but cannot download them. Only a lecturer may download their own upload.');
-    }
     await this.assertPaidResourceAccess(authorizedResource, viewer);
-    if (!download && !hasReviewerCapability(viewer) && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
+    if (!hasReviewerCapability(viewer) && [UserRole.STUDENT, UserRole.LECTURER].includes(viewer.role) && authorizedResource.uploaderId !== viewer.id) {
       const entry = await this.savedResourceRepository.findOne({ where: { userId: viewer.id, resourceId: id } });
-      if (!entry?.downloadedAt) throw new ForbiddenException('Download this resource in-app before viewing it.');
+      if (!entry?.downloadedAt) throw new ForbiddenException('Save this resource to My Resources before viewing it.');
     }
-    if (download && authorizedResource.downloadRestricted && authorizedResource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
     const resource = await this.resourceRepository.findOne({ where: { id } });
     if (!resource?.fileUrl) throw new NotFoundException('Resource file not found');
-    if (download && resource.downloadRestricted && authorizedResource.uploaderId !== viewer.id) throw new ForbiddenException('Downloads are disabled for this resource.');
     const key = this.s3Service.getKeyFromPublicUrl(resource.fileUrl);
     if (!key) throw new ForbiddenException('This file is not stored in the authorized private storage.');
-    if (download) {
-      resource.downloads = Number(resource.downloads || 0) + 1;
-      await this.resourceRepository.save(resource);
-    }
+    const extension = key.split('.').pop()?.toLowerCase();
+    if (extension !== 'pdf') throw new ForbiddenException('Secure in-app preview currently supports PDF files only.');
+    const file = await this.s3Service.getObjectStream(key);
     await this.activityRepository.save(this.activityRepository.create({
       userId: viewer.id,
       institutionId: viewer.institutionId ?? null,
-      eventType: download ? 'download' : 'file_access',
+      eventType: 'file_access',
       resourceId: resource.id,
     }));
-    const extension = key.split('.').pop();
-    const filename = extension ? `${resource.title}.${extension}` : resource.title;
-    const [url, metadata] = await Promise.all([
-      this.s3Service.createPresignedDownloadUrl(key, filename, download ? 'attachment' : 'inline'),
-      this.s3Service.getObjectMetadata(key),
-    ]);
-    return { url, filename, contentType: metadata?.contentType };
+    return {
+      body: file.body,
+      filename: `${resource.title}.pdf`,
+      contentType: 'application/pdf',
+      contentLength: file.contentLength,
+    };
   }
 
   async update(id: string, dto: UpdateResourceDto): Promise<Resource> {

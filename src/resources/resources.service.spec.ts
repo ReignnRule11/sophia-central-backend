@@ -216,41 +216,6 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     } as any, false)).resolves.toMatchObject({ id: 'resource-1' });
   });
 
-  it('allows an external Global Academic Reviewer to preview a pending file without an institution identity', async () => {
-    const pending = resource({ assignedReviewerId: 'assigned-reviewer' });
-    resourceRepository.findOne.mockResolvedValue(pending);
-    const s3 = {
-      getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/test.pdf'),
-      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/inline'),
-      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
-    };
-    const previewService = new ResourcesService(
-      resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup,
-    );
-    await expect(previewService.getFileUrl('resource-1', {
-      id: 'global-reviewer', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true,
-      reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active',
-    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/inline', filename: 'Test contribution.pdf' });
-    expect(s3.createPresignedDownloadUrl).toHaveBeenCalledWith('resources/test.pdf', 'Test contribution.pdf', 'inline');
-  });
-
-  it('allows a dual-role reviewer to preview an assigned pending file without the student download-first rule', async () => {
-    resourceRepository.findOne.mockResolvedValue(resource({ assignedReviewerId: 'dual-role-reviewer' }));
-    const s3 = {
-      getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/assigned.pdf'),
-      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/assigned-inline'),
-      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
-    };
-    const previewService = new ResourcesService(
-      resourceRepository, {} as any, s3 as any, activityRepository, { findOne: jest.fn() } as any, resourcePurchaseRepository, storageCleanup,
-    );
-    await expect(previewService.getFileUrl('resource-1', {
-      id: 'dual-role-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
-      isSuspended: false,
-    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/assigned-inline' });
-    expect(s3.createPresignedDownloadUrl).toHaveBeenCalledWith('resources/assigned.pdf', 'Test contribution.pdf', 'inline');
-  });
-
   it('rejects a reviewer-role account whose reviewer access has been revoked', async () => {
     resourceRepository.findOne.mockResolvedValue(resource({ moderationStatus: ResourceModerationStatus.APPROVED }));
     await expect(service.findOneForViewer('resource-1', {
@@ -262,13 +227,13 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     const paid = resource({ moderationStatus: ResourceModerationStatus.APPROVED, pricingMode: ResourcePricingMode.FIXED, uploaderId: 'lecturer-1' });
     resourceRepository.findOne.mockResolvedValue(paid);
     resourcePurchaseRepository.findOne.mockResolvedValue(null);
-    const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
+    const s3 = { getKeyFromPublicUrl: jest.fn(), getObjectStream: jest.fn() };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
 
-    await expect(previewService.getFileUrl('resource-1', {
+    await expect(previewService.getReaderFile('resource-1', {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
-    } as any, false)).rejects.toThrow('Purchase this resource before accessing its file.');
-    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
+    } as any)).rejects.toThrow('Purchase this resource before accessing its file.');
+    expect(s3.getObjectStream).not.toHaveBeenCalled();
   });
 
   it('does not treat a student programme or shared department as an automatic conflict when a no-conflict declaration exists', async () => {
@@ -284,15 +249,15 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     resourceRepository.findOne.mockResolvedValue(paid);
     const s3 = {
       getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/review.pdf'),
-      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/review-inline'),
-      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
+      getObjectStream: jest.fn().mockResolvedValue({ body: { pipe: jest.fn(), on: jest.fn() }, contentLength: 1024 }),
     };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
 
-    await expect(previewService.getFileUrl('resource-1', {
+    await expect(previewService.getReaderFile('resource-1', {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Computer Science', program: 'Computer Science',
-    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/review-inline' });
+    } as any)).resolves.toMatchObject({ contentType: 'application/pdf' });
+    expect(s3.getObjectStream).toHaveBeenCalledWith('resources/review.pdf');
     expect(resourceRepository.manager.query).toHaveBeenCalledWith(expect.stringContaining('reviewer_conflict_declarations'), ['assignment-1', 'student-reviewer']);
   });
 
@@ -309,19 +274,18 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     resourceRepository.findOne.mockResolvedValue(paid);
     const s3 = {
       getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/review.pdf'),
-      createPresignedDownloadUrl: jest.fn().mockResolvedValue('https://signed.example.test/review-inline'),
-      getObjectMetadata: jest.fn().mockResolvedValue({ contentType: 'application/pdf' }),
+      getObjectStream: jest.fn().mockResolvedValue({ body: { pipe: jest.fn(), on: jest.fn() }, contentLength: 1024 }),
     };
     const purchaseRepository: any = { findOne: jest.fn().mockResolvedValue(null) };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, purchaseRepository, storageCleanup);
 
-    await expect(previewService.getFileUrl('resource-1', {
+    await expect(previewService.getReaderFile('resource-1', {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Computer Science', program: 'Computer Science',
       isSuspended: false,
-    } as any, false)).resolves.toMatchObject({ url: 'https://signed.example.test/review-inline' });
+    } as any)).resolves.toMatchObject({ contentType: 'application/pdf' });
     expect(purchaseRepository.findOne).not.toHaveBeenCalled();
-    expect(s3.createPresignedDownloadUrl).toHaveBeenCalledWith('resources/review.pdf', 'Test contribution.pdf', 'inline');
+    expect(s3.getObjectStream).toHaveBeenCalledWith('resources/review.pdf');
   });
 
   it('requires a lecturer reviewer to recuse from a paid review for a course they teach', async () => {
@@ -334,14 +298,14 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       assignedReviewerId: 'lecturer-reviewer',
     });
     resourceRepository.findOne.mockResolvedValue(paid);
-    const s3 = { getKeyFromPublicUrl: jest.fn(), createPresignedDownloadUrl: jest.fn(), getObjectMetadata: jest.fn() };
+    const s3 = { getKeyFromPublicUrl: jest.fn(), getObjectStream: jest.fn() };
     const previewService = new ResourcesService(resourceRepository, {} as any, s3 as any, activityRepository, {} as any, resourcePurchaseRepository, storageCleanup);
 
-    await expect(previewService.getFileUrl('resource-1', {
+    await expect(previewService.getReaderFile('resource-1', {
       id: 'lecturer-reviewer', role: UserRole.LECTURER, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Mathematics', teachingAssignments: [{ courseName: 'ENG 402', levels: ['400'] }],
-    } as any, false)).rejects.toThrow('Recuse yourself and request reassignment.');
-    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
+    } as any)).rejects.toThrow('Recuse yourself and request reassignment.');
+    expect(s3.getObjectStream).not.toHaveBeenCalled();
   });
 
   it('blocks an unpaid student from recording a paid-resource download', async () => {
@@ -396,5 +360,64 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     await expect(service.findOneForViewer('resource-1', {
       id: 'outsider', role: 'guest',
     } as any, false)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+});
+
+
+describe('ResourcesService.getReaderFile', () => {
+  const pdf = {
+    id: 'resource-reader-1',
+    title: 'Protected lecture notes',
+    uploaderId: 'lecturer-1',
+    moderationStatus: ResourceModerationStatus.APPROVED,
+    fileUrl: 'https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.pdf',
+    pricingMode: ResourcePricingMode.FREE,
+  };
+  const body = { pipe: jest.fn(), on: jest.fn() } as any;
+  const resourceRepository: any = {
+    findOne: jest.fn().mockResolvedValue(pdf),
+    save: jest.fn(async value => value),
+    manager: { query: jest.fn().mockResolvedValue([{ declaration: 'no_conflict' }]) },
+  };
+  const savedResourceRepository: any = { findOne: jest.fn().mockResolvedValue({ downloadedAt: new Date() }) };
+  const activityRepository: any = { create: jest.fn(value => value), save: jest.fn(async value => value) };
+  const storage: any = {
+    getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/00000000-0000-0000-0000-000000000001/notes.pdf'),
+    getObjectStream: jest.fn().mockResolvedValue({ body, contentType: 'application/pdf', contentLength: 2048 }),
+  };
+  const service = new ResourcesService(
+    resourceRepository, {} as any, storage, activityRepository, savedResourceRepository,
+    { findOne: jest.fn().mockResolvedValue(null) } as any, { enqueueWithManager: jest.fn() } as any,
+  );
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it('streams an authorized PDF without generating or returning a storage URL', async () => {
+    const result = await service.getReaderFile('resource-reader-1', {
+      id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1',
+    } as any);
+
+    expect(result).toMatchObject({
+      filename: 'Protected lecture notes.pdf',
+      contentType: 'application/pdf',
+      contentLength: 2048,
+    });
+    expect(result.body).toBe(body);
+    expect(storage.getObjectStream).toHaveBeenCalledWith('resources/00000000-0000-0000-0000-000000000001/notes.pdf');
+    expect(storage.createPresignedDownloadUrl).toBeUndefined();
+    expect(activityRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'student-1', eventType: 'file_access', resourceId: 'resource-reader-1',
+    }));
+  });
+
+  it('does not stream non-PDF files into the protected PDF reader', async () => {
+    resourceRepository.findOne.mockResolvedValueOnce({ ...pdf, fileUrl: 'https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.docx' })
+      .mockResolvedValueOnce({ ...pdf, fileUrl: 'https://storage.example.test/private/resources/00000000-0000-0000-0000-000000000001/notes.docx' });
+    storage.getKeyFromPublicUrl.mockReturnValue('resources/00000000-0000-0000-0000-000000000001/notes.docx');
+
+    await expect(service.getReaderFile('resource-reader-1', {
+      id: 'student-1', role: UserRole.STUDENT, institutionId: 'institution-1',
+    } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(storage.getObjectStream).not.toHaveBeenCalled();
   });
 });
