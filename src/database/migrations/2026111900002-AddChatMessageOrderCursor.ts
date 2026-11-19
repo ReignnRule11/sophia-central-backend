@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddChatMessageOrderCursor202611190002 implements MigrationInterface {
-  name = 'AddChatMessageOrderCursor202611190002';
+export class AddChatMessageOrderCursor2026111900002 implements MigrationInterface {
+  name = 'AddChatMessageOrderCursor2026111900002';
 
   async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query('CREATE SEQUENCE IF NOT EXISTS chat_messages_order_seq START WITH 1');
