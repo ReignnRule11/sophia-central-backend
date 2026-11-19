@@ -124,7 +124,6 @@ export class ResourcesController {
       Expires: '0',
       'X-Content-Type-Options': 'nosniff',
       'Cross-Origin-Resource-Policy': 'same-origin',
-      'Content-Security-Policy': 'sandbox',
       ...(file.contentLength ? { 'Content-Length': String(file.contentLength) } : {}),
     });
     file.body.on('error', () => response.destroy());
