@@ -35,7 +35,8 @@ export class NotificationsService {
     const query = this.notificationRepository
       .createQueryBuilder('notification')
       .where('notification.userId = :userId', { userId })
-      .andWhere('notification.type != :excludedType', { excludedType: 'chat_message' });
+      .andWhere('notification.type != :excludedType', { excludedType: 'chat_message' })
+      .andWhere('notification.title != :excludedRetentionTitle', { excludedRetentionTitle: 'Disappearing messages enabled' });
 
     if (unreadOnly) {
       query.andWhere('notification.isRead = :isRead', { isRead: false });
@@ -51,6 +52,7 @@ export class NotificationsService {
       .where('notification.userId = :userId', { userId })
       .andWhere('notification.isRead = :isRead', { isRead: false })
       .andWhere('notification.type != :excludedType', { excludedType: 'chat_message' })
+      .andWhere('notification.title != :excludedRetentionTitle', { excludedRetentionTitle: 'Disappearing messages enabled' })
       .getCount();
 
     return {
