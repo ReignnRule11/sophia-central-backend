@@ -101,19 +101,6 @@ export class ChatService {
       .execute();
     const retention = await this.retentions.findOne({ where: { roomKey } });
     if (!retention) throw new Error('Could not initialize private conversation retention settings.');
-    if (initialPeriod === '90_days' && Array.isArray(inserted.raw) && inserted.raw.length > 0) {
-      await Promise.all(participantIds.map((userId, index) =>
-        this.notifications.createNotification(
-          userId,
-          'chat_retention',
-          'Disappearing messages enabled',
-          'This new private conversation is set to automatically clear messages after 90 days. Either participant can change this setting.',
-          index === 0
-            ? `/messages?userId=${encodeURIComponent(participantIds[1])}`
-            : `/messages?userId=${encodeURIComponent(participantIds[0])}`,
-        ).catch(() => undefined),
-      ));
-    }
     return retention;
   }
 

@@ -40,9 +40,17 @@ describe('NotificationsService', () => {
       'notification.type != :excludedType',
       { excludedType: 'chat_message' },
     );
+    expect(listQuery.andWhere).toHaveBeenCalledWith(
+      'notification.title != :excludedRetentionTitle',
+      { excludedRetentionTitle: 'Disappearing messages enabled' },
+    );
     expect(countQuery.andWhere).toHaveBeenCalledWith(
       'notification.type != :excludedType',
       { excludedType: 'chat_message' },
+    );
+    expect(countQuery.andWhere).toHaveBeenCalledWith(
+      'notification.title != :excludedRetentionTitle',
+      { excludedRetentionTitle: 'Disappearing messages enabled' },
     );
   });
 
@@ -56,6 +64,10 @@ describe('NotificationsService', () => {
     expect(listQuery.andWhere).toHaveBeenCalledWith(
       'notification.type != :excludedType',
       { excludedType: 'chat_message' },
+    );
+    expect(listQuery.andWhere).toHaveBeenCalledWith(
+      'notification.title != :excludedRetentionTitle',
+      { excludedRetentionTitle: 'Disappearing messages enabled' },
     );
   });
 });

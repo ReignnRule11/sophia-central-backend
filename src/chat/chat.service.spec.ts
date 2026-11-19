@@ -370,11 +370,7 @@ describe('ChatService access and message rules', () => {
 
     expect(retentions.createQueryBuilder).toHaveBeenCalled();
     expect(result.retentionPeriod).toBe('90_days');
-    expect(notifications.createNotification).toHaveBeenCalledTimes(2);
-    expect(notifications.createNotification).toHaveBeenCalledWith(
-      student.id, 'chat_retention', 'Disappearing messages enabled',
-      expect.stringContaining('90 days'), '/messages?userId=student-2',
-    );
+    expect(notifications.createNotification).not.toHaveBeenCalled();
   });
 
   it('rejects invalid private DM retention values', async () => {
