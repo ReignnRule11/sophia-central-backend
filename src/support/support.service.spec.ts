@@ -15,6 +15,7 @@ describe('SupportService attachment ownership', () => {
       create: jest.fn(value => value),
       query: jest.fn().mockResolvedValue([{ value: 1 }]),
       findOne: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
       save: jest.fn(async value => ({ id: 'request-1', ...value })),
     };
     s3 = {
@@ -69,6 +70,17 @@ describe('SupportService attachment ownership', () => {
 
     expect(result.attachments).toEqual(['https://signed.example.test/support-image']);
     expect(s3.getObjectMetadata).toHaveBeenCalledWith('support-attachments/student-1/image.jpg');
+  });
+
+  it('does not expose untrusted external attachment URLs in ticket history', async () => {
+    requests.find.mockResolvedValueOnce([{
+      id: 'request-legacy',
+      userId: user.id,
+      attachments: ['https://untrusted.example.test/private-image.jpg'],
+    }]);
+    const result = await service.listMineForActivity(user.id);
+    expect(result[0].attachments).toEqual([]);
+    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
   });
 
   it('rejects an attachment belonging to another account', async () => {
