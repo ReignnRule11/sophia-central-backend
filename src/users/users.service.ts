@@ -168,6 +168,43 @@ export class UsersService {
     return query.orderBy('user.academicHandle', 'ASC').take(50).getMany();
   }
 
+  async getPlatformAccounts() {
+    return this.usersRepository.createQueryBuilder('user')
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.createdAt'])
+      .where('user.role IN (:...roles)', { roles: [UserRole.SUPPORT, UserRole.MODERATOR] })
+      .orderBy('user.role', 'ASC')
+      .getMany();
+  }
+
+  async assignPlatformRole(actorId: string, targetId: string, role: UserRole.SUPPORT | UserRole.MODERATOR): Promise<User> {
+    return this.dataSource.transaction(async manager => {
+      // Serialize assignments per platform role; the partial unique indexes are the final
+      // database-level guarantee if another writer bypasses this service.
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sophis-central-platform-role:${role}`]);
+      const target = await manager.findOne(User, { where: { id: targetId }, lock: { mode: 'pessimistic_write' } });
+      if (!target) throw new NotFoundException('The selected account was not found.');
+      if (target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
+        throw new ForbiddenException('Only an active account with a verified email can be linked to a platform role.');
+      }
+      if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, role].includes(target.role)) {
+        throw new ConflictException('An Admin, Support or Moderator account cannot be reassigned through this action.');
+      }
+      const existing = await manager.findOne(User, { where: { role }, lock: { mode: 'pessimistic_write' } });
+      if (existing && existing.id !== target.id) {
+        throw new ConflictException(`A platform ${role} account is already linked. The existing account must be reviewed before another account can be assigned.`);
+      }
+      if (target.role === role) return target;
+      const previousRole = target.role;
+      target.role = role;
+      const saved = await manager.save(User, target);
+      await manager.query(
+        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole") VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)',
+        [actorId, target.id, role, 'assigned', previousRole, role],
+      );
+      return saved;
+    });
+  }
+
   async findAll(): Promise<User[]> {
     // The platform-owned moderator account is operational infrastructure, not a
     // managed user. Never expose moderator-role accounts through user management.
