@@ -194,7 +194,16 @@ export class UsersService {
       if (existing && existing.id !== target.id) {
         throw new ConflictException(`A platform ${role} account is already linked. The existing account must be reviewed before another account can be assigned.`);
       }
-      if (target.role === role) return target;
+      if (target.role === role) {
+        if (target.isVerified === true) return target;
+        target.isVerified = true;
+        const verified = await manager.save(User, target);
+        await manager.query(
+          'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole") VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)',
+          [actorId, target.id, role, 'verified', role, role],
+        );
+        return verified;
+      }
       const previousRole = target.role;
       target.role = role;
       // This Admin-only action is the platform verification decision for this staff account.
