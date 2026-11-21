@@ -49,8 +49,8 @@ export class InstitutionsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
-  listSubmissions() {
-    return this.institutionsService.listSubmissions();
+  listSubmissions(@CurrentUser() user: User) {
+    return this.institutionsService.listSubmissions(user);
   }
 
   @Get(':id')
