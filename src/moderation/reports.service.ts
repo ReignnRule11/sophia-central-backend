@@ -148,7 +148,9 @@ export class ContentReportsService {
   }
 
   async escalate(id: string, actor: User, targetRole: UserRole.SUPPORT | UserRole.ADMIN, reason: string) {
-    if (actor.role !== UserRole.MODERATOR || actor.isSuspended) throw new ForbiddenException('Only active Moderators can escalate reports.');
+    if (actor.role !== UserRole.MODERATOR || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Moderators can escalate reports.');
+    if (![UserRole.SUPPORT, UserRole.ADMIN].includes(targetRole)) throw new BadRequestException('Reports may only be escalated to Support or Admin.');
+    if (!reason?.trim()) throw new BadRequestException('An escalation reason is required.');
     const report = await this.reports.findOne({ where: { id } });
     if (!report) throw new NotFoundException('Report not found.');
     const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
@@ -157,7 +159,8 @@ export class ContentReportsService {
     return { success: true, ticketNumber: report.ticketNumber, notified: recipients.length };
   }
 
-  async listForModeration(status?: ContentReportStatus) {
+  async listForModeration(actor: User, status?: ContentReportStatus) {
+    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active moderators and administrators can access reports.');
     const allowed = Object.values(ContentReportStatus);
     if (status && !allowed.includes(status)) throw new BadRequestException('Invalid report status filter.');
     return this.reports.find({
@@ -169,7 +172,7 @@ export class ContentReportsService {
   }
 
   async update(id: string, moderator: User, dto: UpdateContentReportDto) {
-    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(moderator.role) || moderator.isSuspended) {
+    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(moderator.role) || moderator.isSuspended || moderator.accountStatus !== 'active' || moderator.emailVerified !== true) {
       throw new ForbiddenException('Only active moderators and administrators can process reports.');
     }
     const report = await this.reports.findOne({ where: { id }, relations: ['reporter'] });

@@ -42,8 +42,8 @@ export class ModerationReportsController {
 
   @Get()
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  list(@Query('status') status?: ContentReportStatus) {
-    return this.reports.listForModeration(status);
+  list(@Query('status') status?: ContentReportStatus, @Req() request?: AuthenticatedRequest) {
+    return this.reports.listForModeration(request!.user, status);
   }
 
   @Patch(':id/escalate')
