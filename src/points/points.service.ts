@@ -186,7 +186,9 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async adjustPoints(userId: string, amount: number, reason: string, moderatorId: string) {
+  async adjustPoints(userId: string, amount: number, reason: string, actor: User) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may adjust Wisdom Points.');
+    const moderatorId = actor.id;
     const wallet = await this.getOrCreateWallet(userId);
     if (wallet.balance + amount < 0) throw new BadRequestException('Adjustment would make the wallet balance negative.');
     if (amount < 0) await this.consumeReferralRewards(userId, Math.abs(amount));
@@ -198,7 +200,8 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
     }));
   }
 
-  async awardPoints(dto: AwardPointsDto) {
+  async awardPoints(dto: AwardPointsDto, actor: User) {
+    if (actor.role !== UserRole.ADMIN || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active administrators may award Wisdom Points.');
     const wallet = await this.getOrCreateWallet(dto.userId);
     if (wallet.balance + dto.amount < 0) throw new BadRequestException('Insufficient Wisdom Points balance.');
     if (dto.amount < 0) await this.consumeReferralRewards(dto.userId, Math.abs(dto.amount));
