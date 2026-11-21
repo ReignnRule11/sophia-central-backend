@@ -302,19 +302,19 @@ export class SupportService {
     return saved;
   }
 
-  async escalate(id: string, actor: User, targetRole: UserRole.MODERATOR | UserRole.ADMIN, reason: string) {
+  async escalate(id: string, actor: User, targetRole: UserRole.ADMIN, reason: string) {
     if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
-    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(targetRole)) throw new BadRequestException('Escalations may only be directed to Moderator or Admin.');
+    if (targetRole !== UserRole.ADMIN) throw new BadRequestException('Support escalations may only be directed to Admin.');
     if (!reason?.trim()) throw new BadRequestException('An escalation reason is required.');
     const request = await this.requests.findOne({ where: { id } });
     if (!request) throw new NotFoundException('Support ticket not found.');
     const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
     if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
-    request.escalatedToRole = targetRole === UserRole.MODERATOR ? 'moderator' : 'admin';
+    request.escalatedToRole = 'admin';
     await this.requests.save(request);
     await Promise.all([
       ...recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/notifications')),
-      ...(request.userId ? [this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for ${request.escalatedToRole === 'moderator' ? 'Moderator' : 'Admin'} review.`, '/my-activity')] : []),
+      ...(request.userId ? [this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for Admin review.`, '/my-activity')] : []),
     ]);
     return { success: true, ticketNumber: request.ticketNumber, notified: recipients.length };
   }
