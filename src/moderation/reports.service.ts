@@ -147,9 +147,9 @@ export class ContentReportsService {
     });
   }
 
-  async escalate(id: string, actor: User, targetRole: UserRole.SUPPORT | UserRole.ADMIN, reason: string) {
+  async escalate(id: string, actor: User, targetRole: UserRole.ADMIN, reason: string) {
     if (actor.role !== UserRole.MODERATOR || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Moderators can escalate reports.');
-    if (![UserRole.SUPPORT, UserRole.ADMIN].includes(targetRole)) throw new BadRequestException('Reports may only be escalated to Support or Admin.');
+    if (targetRole !== UserRole.ADMIN) throw new BadRequestException('Moderation escalations may only be directed to Admin.');
     if (!reason?.trim()) throw new BadRequestException('An escalation reason is required.');
     const report = await this.reports.findOne({ where: { id } });
     if (!report) throw new NotFoundException('Report not found.');
