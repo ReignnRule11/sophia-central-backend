@@ -215,6 +215,28 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
     }));
   }
 
+ 
+  async chargeForAiUsage(userId: string, amount: number, reason: string) {
+    if (!Number.isInteger(amount) || amount <= 0 || amount > 5 || !reason?.trim()) {
+      throw new BadRequestException('A valid AI usage charge is required.');
+    }
+    const account = await this.userRepository.findOne({ where: { id: userId } });
+    if (!account || account.isSuspended || account.accountStatus !== 'active' || account.emailVerified !== true) {
+      throw new ForbiddenException('Only active, verified accounts may use AI credits.');
+    }
+    const wallet = await this.getOrCreateWallet(userId);
+    if (wallet.balance < amount) throw new BadRequestException('Insufficient Wisdom Points balance.');
+    await this.consumeReferralRewards(userId, amount);
+    wallet.balance -= amount;
+    await this.walletRepository.save(wallet);
+    return this.transactionRepository.save(this.transactionRepository.create({
+      userId,
+      type: PointTransactionType.SPENT,
+      amount: -amount,
+      reason: reason.trim(),
+    }));
+  }
+
 
   async awardReferralReward(referrerId: string, referralId: string, amount: number): Promise<void> {
     // Reject ineligible owners before wallet initialization can grant starter points.
