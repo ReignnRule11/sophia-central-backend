@@ -85,8 +85,8 @@ export class SupportEmailService {
       `Subject: ${enquiry.subject}`,
       '',
       enquiry.message,
-    ].join('\\n');
-    const html = `<h2>New Sophis Central website enquiry</h2><p><strong>Name:</strong> ${this.escapeHtml(enquiry.name)}</p><p><strong>Email:</strong> ${this.escapeHtml(enquiry.email)}</p><p><strong>Category:</strong> ${this.escapeHtml(enquiry.category)}</p><p><strong>Subject:</strong> ${this.escapeHtml(enquiry.subject)}</p><p>${this.escapeHtml(enquiry.message).replace(/\\n/g, '<br>')}</p>`;
+    ].join('\n');
+    const html = `<h2>New Sophis Central website enquiry</h2><p><strong>Name:</strong> ${this.escapeHtml(enquiry.name)}</p><p><strong>Email:</strong> ${this.escapeHtml(enquiry.email)}</p><p><strong>Category:</strong> ${this.escapeHtml(enquiry.category)}</p><p><strong>Subject:</strong> ${this.escapeHtml(enquiry.subject)}</p><p>${this.escapeHtml(enquiry.message).replace(/\n/g, '<br>')}</p>`;
     await this.send(recipient, subject, text, html, enquiry.email);
   }
 
