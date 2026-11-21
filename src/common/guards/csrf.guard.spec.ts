@@ -9,7 +9,9 @@ describe('CsrfGuard', () => {
     headers?: { cookie?: string };
     header: (name: string) => string | undefined;
   }) => ({
-    switchToHttp: () => ({ getRequest: () => request }),
+    ...request,
+    headers: request.headers ?? {},
+    switchToHttp: () => ({ getRequest: () => ({ ...request, headers: request.headers ?? {} }) }),
   }) as unknown as ExecutionContext;
 
   it('allows safe methods without a CSRF token', () => {
