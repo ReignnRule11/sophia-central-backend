@@ -30,7 +30,7 @@ export class InstitutionsController {
   @ApiBearerAuth()
   reviewSubmission(@Param('id') id: string, @Body() body: { status: AcademicEntryStatus.APPROVED | AcademicEntryStatus.REJECTED; reviewNote?: string; sourceUrl?: string; verifiedAt?: string }, @CurrentUser() user: User) {
     if (![AcademicEntryStatus.APPROVED, AcademicEntryStatus.REJECTED].includes(body.status)) throw new BadRequestException('Invalid review status');
-    return this.institutionsService.reviewSubmission(id, user.id, body.status, body.reviewNote, body.sourceUrl, body.verifiedAt);
+    return this.institutionsService.reviewSubmission(id, user, body.status, body.reviewNote, body.sourceUrl, body.verifiedAt);
   }
 
   @Post()
