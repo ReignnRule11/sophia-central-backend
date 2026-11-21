@@ -30,6 +30,9 @@ export class EnforceRegisteredSupportAndPlatformRoleAccounts2026112100001 implem
     await queryRunner.query(
       'CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_single_moderator_role" ON users (role) WHERE role = \'moderator\'',
     );
+    await queryRunner.query(
+      'CREATE UNIQUE INDEX IF NOT EXISTS "IDX_users_single_support_role" ON users (role) WHERE role = \'support\'',
+    );
     await queryRunner.query(`CREATE TABLE IF NOT EXISTS platform_role_audit_events (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       "actorId" uuid REFERENCES users(id) ON DELETE SET NULL,
@@ -52,6 +55,7 @@ export class EnforceRegisteredSupportAndPlatformRoleAccounts2026112100001 implem
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_platform_role_audit_target"');
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_platform_role_audit_created"');
     await queryRunner.query('DROP TABLE IF EXISTS platform_role_audit_events');
+    await queryRunner.query('DROP INDEX IF EXISTS "IDX_users_single_support_role"');
     await queryRunner.query('DROP INDEX IF EXISTS "IDX_users_single_moderator_role"');
     // Deliberately do not make Support userId nullable or recreate guest-ticket columns.
     // Rolling back must not re-enable the retired public guest-ticket workflow.
