@@ -55,9 +55,9 @@ export class SupportController {
   @Patch(':id/escalate')
   @UseGuards(CsrfGuard)
   @Roles(UserRole.SUPPORT)
-  escalate(@Param('id') id: string, @Body() body: { targetRole: 'moderator' | 'admin'; reason: string }, @Req() request: AuthenticatedRequest) {
-    if (!body.reason?.trim() || !['moderator', 'admin'].includes(body.targetRole)) throw new BadRequestException('Choose a valid escalation destination and provide a reason.');
-    return this.support.escalate(id, request.user, body.targetRole as UserRole.MODERATOR | UserRole.ADMIN, body.reason);
+  escalate(@Param('id') id: string, @Body() body: { targetRole: 'admin'; reason: string }, @Req() request: AuthenticatedRequest) {
+    if (!body.reason?.trim() || body.targetRole !== 'admin') throw new BadRequestException('Choose a valid escalation destination and provide a reason.');
+    return this.support.escalate(id, request.user, UserRole.ADMIN, body.reason);
   }
 
   @Get('mine/activity')
