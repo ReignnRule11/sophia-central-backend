@@ -14,7 +14,7 @@ export class SupportRequest {
 
   @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
-  user?: User | null;
+  user!: User;
 
   @Column({ type: 'varchar', length: 180 })
   subject!: string;
