@@ -14,6 +14,7 @@ describe('SupportService attachment ownership', () => {
     requests = {
       create: jest.fn(value => value),
       query: jest.fn().mockResolvedValue([{ value: 1 }]),
+      findOne: jest.fn(),
       save: jest.fn(async value => ({ id: 'request-1', ...value })),
     };
     s3 = {
