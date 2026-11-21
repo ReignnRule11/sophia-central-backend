@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { UserRole } from '../users/entities/user.entity';
 
