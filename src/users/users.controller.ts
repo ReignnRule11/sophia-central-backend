@@ -66,7 +66,7 @@ export class UsersController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Admin-link one verified existing account to the Support or Moderator platform role' })
   async setPlatformRole(@Param('id') id: string, @Body() body: { role: UserRole }, @CurrentUser() actor: User) {
-    if (![UserRole.SUPPORT, UserRole.MODERATOR].includes(body.role)) {
+    if (body.role !== UserRole.SUPPORT && body.role !== UserRole.MODERATOR) {
       throw new BadRequestException('Only the dedicated Support or Moderator platform role can be assigned here.');
     }
     return this.usersService.assignPlatformRole(actor.id, id, body.role);
