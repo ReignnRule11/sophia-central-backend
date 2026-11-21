@@ -149,7 +149,7 @@ describe('ModerationService academic reviewer workflow', () => {
   });
 
   it('records recusal and releases the assignment atomically', async () => {
-    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
     const resource = {
       id: 'resource-1',
       title: 'Cell Biology',
@@ -176,7 +176,7 @@ describe('ModerationService academic reviewer workflow', () => {
   });
 
   it('prevents a reviewer from deciding on an unassigned resource', async () => {
-    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
     transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce({
       id: 'resource-1',
       moderationStatus: ResourceModerationStatus.PENDING,
@@ -206,7 +206,7 @@ describe('ModerationService academic reviewer workflow', () => {
       uploaderId: 'student-1',
       uploader: { id: 'student-1', role: UserRole.STUDENT, accountStatus: 'active', emailVerified: true },
     };
-    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
     transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource).mockResolvedValueOnce(resource.uploader);
     resourceRepository.save.mockImplementation(async value => value);
 
@@ -252,7 +252,7 @@ describe('ModerationService academic reviewer workflow', () => {
       uploaderId: 'lecturer-1',
       uploader: { id: 'lecturer-1', role: UserRole.LECTURER, accountStatus: 'active', emailVerified: true },
     };
-    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
     resource.assignedReviewerId = reviewer.id;
     transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource).mockResolvedValueOnce(resource.uploader);
     resourceRepository.save.mockImplementation(async value => value);
@@ -283,7 +283,7 @@ describe('ModerationService academic reviewer workflow', () => {
       uploaderId: 'lecturer-1',
       uploader: { id: 'lecturer-1' },
     };
-    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER } as User;
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
     transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource).mockResolvedValueOnce(resource.uploader);
     userRepository.find.mockResolvedValue([{ id: 'moderator-1' }]);
     resourceRepository.save.mockImplementation(async (value) => value);
