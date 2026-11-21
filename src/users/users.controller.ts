@@ -85,7 +85,12 @@ export class UsersController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reactivate a voluntarily deactivated account without overriding moderator suspension' })
-  reactivateDeactivatedAccount(@Param('id') id: string) {
+  async reactivateDeactivatedAccount(@Param('id') id: string, @CurrentUser() actor: User) {
+    const target = await this.usersService.findOne(id);
+    if (actor.role === UserRole.MODERATOR && target &&
+      (target.role === UserRole.ADMIN || target.role === UserRole.SUPPORT || target.role === UserRole.MODERATOR)) {
+      throw new ForbiddenException('Moderators cannot change the lifecycle of platform-owned accounts.');
+    }
     return this.usersService.reactivateDeactivatedAccount(id);
   }
 
@@ -94,9 +99,14 @@ export class UsersController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Suspend or restore an account with a recorded reason' })
-  async setStatus(@Param('id') id: string, @Body() body: { isSuspended?: boolean; reason?: string }) {
+  async setStatus(@Param('id') id: string, @Body() body: { isSuspended?: boolean; reason?: string }, @CurrentUser() actor: User) {
     if (typeof body.isSuspended !== 'boolean' || !body.reason?.trim()) {
       throw new BadRequestException('isSuspended and a reason are required');
+    }
+    const target = await this.usersService.findOne(id);
+    if (actor.role === UserRole.MODERATOR && target &&
+      (target.role === UserRole.ADMIN || target.role === UserRole.SUPPORT || target.role === UserRole.MODERATOR)) {
+      throw new ForbiddenException('Moderators cannot change the lifecycle of platform-owned accounts.');
     }
     return this.usersService.update(id, { isSuspended: body.isSuspended, suspensionReason: body.isSuspended ? body.reason.trim() : undefined });
   }
