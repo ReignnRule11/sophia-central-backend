@@ -106,7 +106,12 @@ describe('SupportService attachment ownership', () => {
       await expect(service.conclude('ticket-1', nonSupport, { resolutionMessage: 'A sufficiently long resolution message.' } as any)).rejects.toBeInstanceOf(ForbiddenException);
     });
 
-    it('rejects Moderator escalation so Moderators do not enter the Support workflow', async () => {\n      await expect(service.escalate('ticket-1', { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any, UserRole.MODERATOR, 'Escalation reason')).rejects.toBeInstanceOf(BadRequestException);\n    });\n\n    it('rejects inactive Support actors from escalating tickets', async () => {
+    it('rejects Moderator escalation so Moderators do not enter the Support workflow', async () => {
+      const activeSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+      await expect(service.escalate('ticket-1', activeSupport, UserRole.MODERATOR, 'Escalation reason')).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+    it('rejects inactive Support actors from escalating tickets', async () => {
       await expect(service.escalate('ticket-1', inactiveSupport, UserRole.ADMIN, 'Escalation reason')).rejects.toBeInstanceOf(ForbiddenException);
     });
   });
