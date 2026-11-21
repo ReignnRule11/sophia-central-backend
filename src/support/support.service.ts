@@ -302,7 +302,7 @@ export class SupportService {
     return saved;
   }
 
-  async escalate(id: string, actor: User, targetRole: UserRole.ADMIN, reason: string) {
+  async escalate(id: string, actor: User, targetRole: UserRole, reason: string) {
     if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
     if (targetRole !== UserRole.ADMIN) throw new BadRequestException('Support escalations may only be directed to Admin.');
     if (!reason?.trim()) throw new BadRequestException('An escalation reason is required.');
