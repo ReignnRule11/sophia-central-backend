@@ -12,7 +12,7 @@ export class SupportRequest {
   @Column({ type: 'uuid' })
   userId!: string;
 
-  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
   user?: User | null;
 
