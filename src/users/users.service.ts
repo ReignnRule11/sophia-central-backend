@@ -183,8 +183,8 @@ export class UsersService {
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sophis-central-platform-role:${role}`]);
       const target = await manager.findOne(User, { where: { id: targetId }, lock: { mode: 'pessimistic_write' } });
       if (!target) throw new NotFoundException('The selected account was not found.');
-      if (target.isVerified !== true || target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
-        throw new ForbiddenException('Only an Admin-verified, email-verified, active account can be linked to a platform role.');
+      if (target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
+        throw new ForbiddenException('Only an email-verified, active account can be linked to a platform role.');
       }
       const eligibleAcademicRole = target.role === UserRole.STUDENT || target.role === UserRole.LECTURER;
       if (!eligibleAcademicRole || target.hasReviewerAccess === true) {
@@ -197,6 +197,8 @@ export class UsersService {
       if (target.role === role) return target;
       const previousRole = target.role;
       target.role = role;
+      // This Admin-only action is the platform verification decision for this staff account.
+      target.isVerified = true;
       const saved = await manager.save(User, target);
       await manager.query(
         'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole") VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)',
