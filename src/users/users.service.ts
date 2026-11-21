@@ -186,10 +186,13 @@ export class UsersService {
       if (target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
         throw new ForbiddenException('Only an email-verified, active account can be linked to a platform role.');
       }
+      if (target.hasReviewerAccess === true) {
+        throw new ConflictException('Accounts with separate Academic Reviewer privileges cannot hold a Support or Moderator platform role.');
+      }
       if (target.role !== role) {
         const eligibleAcademicRole = target.role === UserRole.STUDENT || target.role === UserRole.LECTURER;
-        if (!eligibleAcademicRole || target.hasReviewerAccess === true) {
-          throw new ConflictException('Only a Student or Lecturer account without separate Academic Reviewer privileges can be linked to a platform role.');
+        if (!eligibleAcademicRole) {
+          throw new ConflictException('Only a Student or Lecturer account can be linked to a platform role.');
         }
       }
       const existing = await manager.findOne(User, { where: { role }, lock: { mode: 'pessimistic_write' } });
