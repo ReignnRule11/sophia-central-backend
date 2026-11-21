@@ -1,11 +1,20 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
 import type { Request } from 'express';
 
+function decodeCookieValue(value: string): string | null {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    // Malformed cookie encoding is untrusted input; treat it as absent.
+    return null;
+  }
+}
+
 function readCookie(request: Request, name: string): string | null {
   const header = request.headers.cookie;
   if (!header) return null;
   const value = header.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${name}=`))?.slice(name.length + 1);
-  return value ? decodeURIComponent(value) : null;
+  return value ? decodeCookieValue(value) : null;
 }
 
 @Injectable()
