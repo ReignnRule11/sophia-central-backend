@@ -50,4 +50,16 @@ describe('RolesGuard reviewer capability', () => {
     expect(guard.canActivate(contextFor({ role: UserRole.LECTURER, hasReviewerAccess: false }))).toBe(true);
     expect(guard.canActivate(contextFor({ role: UserRole.STUDENT, hasReviewerAccess: true }))).toBe(false);
   });
+  it('blocks the existing Moderator until an Admin approves its platform identity', () => {
+    reflector.getAllAndOverride.mockReturnValue([UserRole.MODERATOR]);
+    expect(guard.canActivate(contextFor({ role: UserRole.MODERATOR }))).toBe(false);
+    expect(guard.canActivate(contextFor({ role: UserRole.MODERATOR, platformRoleVerifiedAt: new Date() }))).toBe(true);
+  });
+
+  it('blocks Support accounts until an Admin approves their platform identity', () => {
+    reflector.getAllAndOverride.mockReturnValue([UserRole.SUPPORT]);
+    expect(guard.canActivate(contextFor({ role: UserRole.SUPPORT }))).toBe(false);
+    expect(guard.canActivate(contextFor({ role: UserRole.SUPPORT, platformRoleVerifiedAt: new Date() }))).toBe(true);
+  });
+
 });

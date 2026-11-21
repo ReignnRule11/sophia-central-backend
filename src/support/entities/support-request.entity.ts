@@ -9,39 +9,12 @@ export class SupportRequest {
   @Column({ type: 'varchar', length: 32, unique: true })
   ticketNumber!: string;
 
-  @Column({ type: 'uuid', nullable: true })
-  userId!: string | null;
+  @Column({ type: 'uuid' })
+  userId!: string;
 
-  @ManyToOne(() => User, { nullable: true, onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'userId' })
-  user?: User | null;
-
-  @Column({ type: 'varchar', length: 120, nullable: true })
-  senderName?: string | null;
-
-  @Column({ type: 'varchar', length: 320, nullable: true })
-  senderEmail?: string | null;
-
-  @Column({ type: 'varchar', length: 180, nullable: true })
-  senderInstitution?: string | null;
-
-  @Column({ type: 'varchar', length: 180, nullable: true })
-  senderFaculty?: string | null;
-
-  @Column({ type: 'varchar', length: 180, nullable: true })
-  senderDepartment?: string | null;
-
-  @Column({ type: 'varchar', length: 24, nullable: true })
-  senderAccountType?: string | null;
-
-  @Column({ type: 'timestamptz', nullable: true })
-  emailVerifiedAt?: Date | null;
-
-  @Column({ type: 'varchar', length: 64, nullable: true, select: false })
-  emailVerificationTokenHash?: string | null;
-
-  @Column({ type: 'timestamptz', nullable: true, select: false })
-  emailVerificationExpiresAt?: Date | null;
+  user!: User;
 
   @Column({ type: 'varchar', length: 180 })
   subject!: string;

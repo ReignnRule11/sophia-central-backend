@@ -168,11 +168,53 @@ export class UsersService {
     return query.orderBy('user.academicHandle', 'ASC').take(50).getMany();
   }
 
+  async getPlatformAccounts() {
+    return this.usersRepository.createQueryBuilder('user')
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.platformRoleVerifiedAt', 'user.createdAt'])
+      .where('user.role IN (:...roles)', { roles: [UserRole.SUPPORT, UserRole.MODERATOR] })
+      .orderBy('user.role', 'ASC')
+      .getMany();
+  }
+
+  async assignPlatformRole(actorId: string, targetId: string, role: UserRole.SUPPORT | UserRole.MODERATOR): Promise<User> {
+    return this.dataSource.transaction(async manager => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sophis-central-platform-role:${role}`]);
+      const target = await manager.findOne(User, { where: { id: targetId }, lock: { mode: 'pessimistic_write' } });
+      if (!target) throw new NotFoundException('The selected platform account was not found.');
+
+      // Platform identity is provisioned separately. Admin approval must never convert
+      // an ordinary academic account into a shared platform account.
+      if (target.role !== role) {
+        throw new ConflictException(`Only an already-provisioned ${role} account can be Admin-verified here. Ordinary accounts cannot be promoted through account linking.`);
+      }
+      if (target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
+        throw new ForbiddenException('Only an email-verified, active, unsuspended platform account can be approved.');
+      }
+      if (target.hasReviewerAccess === true) {
+        throw new ConflictException('An account with separate Academic Reviewer privileges cannot be a Support or Moderator platform account.');
+      }
+
+      const existing = await manager.findOne(User, { where: { role }, lock: { mode: 'pessimistic_write' } });
+      if (!existing || existing.id !== target.id) {
+        throw new ConflictException(`The designated ${role} account could not be confirmed. Review platform account provisioning.`);
+      }
+      if (target.platformRoleVerifiedAt) return target;
+
+      target.platformRoleVerifiedAt = new Date();
+      const saved = await manager.save(User, target);
+      await manager.query(
+        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole") VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)',
+        [actorId, target.id, role, 'verified', role, role],
+      );
+      return saved;
+    });
+  }
+
   async findAll(): Promise<User[]> {
     // The platform-owned moderator account is operational infrastructure, not a
     // managed user. Never expose moderator-role accounts through user management.
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.hasReviewerAccess', 'user.reviewerStatus', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.hasReviewerAccess', 'user.reviewerStatus', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.isProfileComplete', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
       .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
       .orderBy('user.createdAt', 'DESC')
       .getMany();
@@ -181,7 +223,9 @@ export class UsersService {
   async findAllForManagement(): Promise<User[]> {
     return this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.hasReviewerAccess', 'user.reviewerStatus', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
-      .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
+      .where('user.role NOT IN (:...excludedPlatformRoles)', {
+        excludedPlatformRoles: [UserRole.ADMIN, UserRole.MODERATOR, UserRole.SUPPORT],
+      })
       .andWhere('user.emailVerified = true')
       .andWhere('(user.role NOT IN (:...profileRoles) OR user.isProfileComplete = true)', {
         profileRoles: [UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER],

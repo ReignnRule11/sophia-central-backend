@@ -4,7 +4,6 @@ import {
   Delete,
   ForbiddenException,
   BadRequestException,
-  ConflictException,
   Get,
   Param,
   Patch,
@@ -51,16 +50,25 @@ export class UsersController {
     return this.usersService.findAllForManagement();
   }
 
+  @Get('platform-accounts')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'View the single designated Support and Moderator accounts' })
+  getPlatformAccounts() {
+    return this.usersService.getPlatformAccounts();
+  }
+
   @Patch(':id/platform-role')
   @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  @ApiOperation({ summary: 'Assign the dedicated Support role to an existing staff account' })
-  async setPlatformRole(@Param('id') id: string, @Body() body: { role: UserRole }) {
-    if (body.role !== UserRole.SUPPORT) throw new BadRequestException('This endpoint can assign only the dedicated Support role.');
-    const existingSupport = (await this.usersService.findAll()).find(account => account.role === UserRole.SUPPORT && account.id !== id);
-    if (existingSupport) throw new ConflictException('A Support account is already assigned. Reassign that account before choosing another.');
-    return this.usersService.update(id, { role: body.role });
+  @ApiOperation({ summary: 'Admin-link one verified existing account to the Support or Moderator platform role' })
+  async setPlatformRole(@Param('id') id: string, @Body() body: { role: UserRole }, @CurrentUser() actor: User) {
+    if (body.role !== UserRole.SUPPORT && body.role !== UserRole.MODERATOR) {
+      throw new BadRequestException('Only the dedicated Support or Moderator platform role can be assigned here.');
+    }
+    return this.usersService.assignPlatformRole(actor.id, id, body.role);
   }
 
   @Patch(':id/reviewer-access')
@@ -77,7 +85,12 @@ export class UsersController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reactivate a voluntarily deactivated account without overriding moderator suspension' })
-  reactivateDeactivatedAccount(@Param('id') id: string) {
+  async reactivateDeactivatedAccount(@Param('id') id: string, @CurrentUser() actor: User) {
+    const target = await this.usersService.findOne(id);
+    if (actor.role === UserRole.MODERATOR && target &&
+      (target.role === UserRole.ADMIN || target.role === UserRole.SUPPORT || target.role === UserRole.MODERATOR)) {
+      throw new ForbiddenException('Moderators cannot change the lifecycle of platform-owned accounts.');
+    }
     return this.usersService.reactivateDeactivatedAccount(id);
   }
 
@@ -86,9 +99,14 @@ export class UsersController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Suspend or restore an account with a recorded reason' })
-  async setStatus(@Param('id') id: string, @Body() body: { isSuspended?: boolean; reason?: string }) {
+  async setStatus(@Param('id') id: string, @Body() body: { isSuspended?: boolean; reason?: string }, @CurrentUser() actor: User) {
     if (typeof body.isSuspended !== 'boolean' || !body.reason?.trim()) {
       throw new BadRequestException('isSuspended and a reason are required');
+    }
+    const target = await this.usersService.findOne(id);
+    if (actor.role === UserRole.MODERATOR && target &&
+      (target.role === UserRole.ADMIN || target.role === UserRole.SUPPORT || target.role === UserRole.MODERATOR)) {
+      throw new ForbiddenException('Moderators cannot change the lifecycle of platform-owned accounts.');
     }
     return this.usersService.update(id, { isSuspended: body.isSuspended, suspensionReason: body.isSuspended ? body.reason.trim() : undefined });
   }

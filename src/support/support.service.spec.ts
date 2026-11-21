@@ -1,4 +1,4 @@
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { UserRole } from '../users/entities/user.entity';
 
@@ -14,6 +14,8 @@ describe('SupportService attachment ownership', () => {
     requests = {
       create: jest.fn(value => value),
       query: jest.fn().mockResolvedValue([{ value: 1 }]),
+      findOne: jest.fn(),
+      find: jest.fn().mockResolvedValue([]),
       save: jest.fn(async value => ({ id: 'request-1', ...value })),
     };
     s3 = {
@@ -70,6 +72,17 @@ describe('SupportService attachment ownership', () => {
     expect(s3.getObjectMetadata).toHaveBeenCalledWith('support-attachments/student-1/image.jpg');
   });
 
+  it('does not expose untrusted external attachment URLs in ticket history', async () => {
+    requests.find.mockResolvedValueOnce([{
+      id: 'request-legacy',
+      userId: user.id,
+      attachments: ['https://untrusted.example.test/private-image.jpg'],
+    }]);
+    const result = await service.listMineForActivity(user.id);
+    expect(result[0].attachments).toEqual([]);
+    expect(s3.createPresignedDownloadUrl).not.toHaveBeenCalled();
+  });
+
   it('rejects an attachment belonging to another account', async () => {
     await expect(service.create(user, {
       subject: 'Help',
@@ -104,6 +117,19 @@ describe('SupportService attachment ownership', () => {
 
     it('rejects non-Support actors from concluding tickets', async () => {
       await expect(service.conclude('ticket-1', nonSupport, { resolutionMessage: 'A sufficiently long resolution message.' } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects Moderator escalation so Moderators do not enter the Support workflow', async () => {
+      const activeSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+      await expect(service.escalate('ticket-1', activeSupport, UserRole.MODERATOR, 'Escalation reason')).rejects.toBeInstanceOf(BadRequestException);
+    });
+
+
+    it('rejects duplicate Admin escalations for a ticket', async () => {
+      const activeSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+      requests.findOne.mockResolvedValueOnce({ id: 'ticket-1', ticketNumber: 'SUP-2026-000001', subject: 'Test', category: 'technical', description: 'Issue', escalatedToRole: 'admin' });
+      await expect(service.escalate('ticket-1', activeSupport, UserRole.ADMIN, 'Escalation reason')).rejects.toBeInstanceOf(ConflictException);
+      expect(requests.save).not.toHaveBeenCalled();
     });
 
     it('rejects inactive Support actors from escalating tickets', async () => {

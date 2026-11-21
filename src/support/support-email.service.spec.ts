@@ -56,44 +56,6 @@ describe('SupportEmailService', () => {
     expect(secondMessage.reply_to).toBe('support@example.test');
   });
 
-  it('sends a guest verification link and ticket-numbered correspondence after verification', async () => {
-    const request = {
-      ticketNumber: 'SUP-2026-000042',
-      senderName: 'Visitor',
-      senderEmail: 'visitor@example.test',
-      senderInstitution: 'Example University',
-      subject: 'Cannot access a resource',
-      category: 'resources',
-      description: 'The reader does not load.',
-      links: [],
-    } as any;
-
-    await service.sendGuestVerification(request, 'a'.repeat(64));
-    const verification = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(verification.to).toEqual(['visitor@example.test']);
-    expect(verification.subject).toContain(request.ticketNumber);
-    expect(verification.text).toContain('verifySupport=');
-
-    fetchMock.mockClear();
-    await service.notifyNewGuestRequest(request);
-    expect(fetchMock).toHaveBeenCalledTimes(2);
-    const supportMessage = JSON.parse(fetchMock.mock.calls[0][1].body);
-    const requesterMessage = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(supportMessage.to).toEqual(['support@example.test']);
-    expect(supportMessage.subject).toContain(request.ticketNumber);
-    expect(supportMessage.text).toContain('Example University');
-    expect(requesterMessage.to).toEqual(['visitor@example.test']);
-    expect(requesterMessage.subject).toContain(request.ticketNumber);
-
-    fetchMock.mockClear();
-    request.resolutionMessage = 'We have resolved the access issue.';
-    await service.sendGuestResolution(request);
-    const response = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(response.to).toEqual(['visitor@example.test']);
-    expect(response.subject).toContain(request.ticketNumber);
-    expect(response.text).toContain(request.ticketNumber);
-  });
-
   it('sends registered users an email alert that links to My Activity without exposing the full response', async () => {
     const request = {
       ticketNumber: 'SUP-2026-000051',
@@ -114,24 +76,21 @@ describe('SupportEmailService', () => {
     expect(message.html).not.toContain('PRIVATE FULL SUPPORT RESPONSE');
   });
 
-  it('sends unregistered visitors the full response and a separate registration invitation', async () => {
-    const request = {
-      ticketNumber: 'SUP-2026-000052',
-      senderName: 'Visitor',
-      senderEmail: 'visitor@example.test',
-      subject: 'Resource access issue',
-      resolutionMessage: 'Here are the complete steps to resolve your issue.',
-    } as any;
-
-    await expect(service.sendGuestResolution(request)).resolves.toBe(true);
+  it('sends a public Contact Us enquiry directly to the configured mailbox without verification', async () => {
+    await service.sendContactEnquiry({
+      name: 'Visitor',
+      email: 'visitor@example.test',
+      category: 'partnerships',
+      subject: 'Institutional collaboration',
+      message: 'We would like to discuss a partnership with Sophis Central.',
+    });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const message = JSON.parse(fetchMock.mock.calls[0][1].body);
-    expect(message.to).toEqual(['visitor@example.test']);
-    expect(message.subject).toContain(request.ticketNumber);
-    expect(message.text).toContain('Here are the complete steps to resolve your issue.');
-    expect(message.html).toContain('Make more of Sophis Central');
-    expect(message.text).toContain('Explore Sophis Central and register: https://sophiscentral.vercel.app/');
-    expect(message.html).toContain('Explore Sophis Central and register');
+    expect(message.to).toEqual(['support@example.test']);
+    expect(message.reply_to).toBe('visitor@example.test');
+    expect(message.subject).toContain('Institutional collaboration');
+    expect(message.text).toContain('We would like to discuss a partnership');
+    expect(message.text).not.toContain('verifySupport');
   });
 
   it('does not send when the dedicated mailbox configuration is absent', async () => {

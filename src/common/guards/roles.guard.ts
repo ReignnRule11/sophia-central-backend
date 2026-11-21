@@ -21,8 +21,17 @@ export class RolesGuard implements CanActivate {
 
     const { user } = context.switchToHttp().getRequest();
     if (!user) return false;
-    return requiredRoles.some((requiredRole) => requiredRole === UserRole.REVIEWER
-      ? user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER)
-      : requiredRole === user.role);
+    return requiredRoles.some((requiredRole) => {
+      if (requiredRole === UserRole.REVIEWER) {
+        return user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
+      }
+      if (requiredRole === UserRole.SUPPORT || requiredRole === UserRole.MODERATOR) {
+        // Platform-owned workspaces remain inaccessible until an Admin explicitly
+        // approves the already-provisioned account. JwtStrategy reloads this user
+        // from the database for each request, so this is not a stale token claim.
+        return requiredRole === user.role && Boolean(user.platformRoleVerifiedAt);
+      }
+      return requiredRole === user.role;
+    });
   }
 }

@@ -1,5 +1,4 @@
 import { BadRequestException, ConflictException, Injectable, Logger, NotFoundException, ForbiddenException } from '@nestjs/common';
-import { createHash, randomBytes } from 'crypto';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SupportRequest } from './entities/support-request.entity';
@@ -29,13 +28,6 @@ export class SupportService {
     const attachments = await this.validateOwnedAttachments(user.id, dto.attachments ?? []);
     const request = this.requests.create({
       userId: user.id,
-      senderName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
-      senderEmail: user.email,
-      senderInstitution: user.institution || null,
-      senderFaculty: user.faculty || null,
-      senderDepartment: user.department || null,
-      senderAccountType: user.role,
-      emailVerifiedAt: user.emailVerified ? new Date() : null,
       subject: dto.subject.trim(),
       category: dto.category,
       description: dto.description.trim(),
@@ -80,117 +72,6 @@ export class SupportService {
     };
   }
 
-  async createPublic(dto: import('./dto/create-public-support-request.dto').CreatePublicSupportRequestDto) {
-    const email = dto.email.trim().toLowerCase();
-    const token = randomBytes(32).toString('hex');
-    const tokenHash = createHash('sha256').update(token).digest('hex');
-    const request = this.requests.create({
-      userId: null,
-      senderName: dto.name.trim(),
-      senderEmail: email,
-      senderInstitution: dto.institution?.trim() || null,
-      senderFaculty: dto.faculty?.trim() || null,
-      senderDepartment: dto.department?.trim() || null,
-      senderAccountType: null,
-      emailVerifiedAt: null,
-      emailVerificationTokenHash: tokenHash,
-      emailVerificationExpiresAt: new Date(Date.now() + 30 * 60 * 1000),
-      subject: dto.subject.trim(),
-      category: dto.category,
-      description: dto.description.trim(),
-      links: (dto.links ?? []).map(link => link.trim()).filter(Boolean),
-      attachments: [],
-      status: 'pending',
-      ticketNumber: `SUP-${new Date().getFullYear()}-${String((await this.requests.query("SELECT nextval('sophis_support_ticket_seq') AS value"))[0].value).padStart(6, '0')}`,
-    });
-    const saved = await this.requests.save(request);
-    try {
-      await this.supportEmail.sendGuestVerification(saved, token);
-    } catch (error) {
-      this.logger.error(`Guest support ticket ${saved.ticketNumber} was saved but verification email delivery failed: ${String(error)}`);
-      throw new BadRequestException('We could not send the verification email right now. Please try again shortly.');
-    }
-    return {
-      success: true,
-      message: 'If this email address can receive messages, a verification link will arrive shortly. Verify it to submit your ticket to Support.',
-    };
-  }
-
-  async verifyPublicEmail(token: string) {
-    if (!token || !/^[a-f0-9]{64}$/i.test(token)) throw new BadRequestException('This support verification link is invalid or has expired.');
-    const tokenHash = createHash('sha256').update(token).digest('hex');
-    const request = await this.requests.createQueryBuilder('request')
-      .addSelect(['request.emailVerificationTokenHash', 'request.emailVerificationExpiresAt'])
-      .where('request."emailVerificationTokenHash" = :tokenHash', { tokenHash })
-      .getOne();
-    if (!request) throw new BadRequestException('This support verification link is invalid or has expired. Please submit a new request.');
-    // Verification is idempotent so email clients and React development StrictMode
-    // can safely retry the landing request without duplicating tickets or alerts.
-    if (request.emailVerifiedAt) {
-      return { success: true, ticketNumber: request.ticketNumber, message: `Your email has already been verified and ticket ${request.ticketNumber} has been submitted to Sophis Central Support.` };
-    }
-    if (!request.emailVerificationExpiresAt || request.emailVerificationExpiresAt.getTime() <= Date.now()) {
-      throw new BadRequestException('This support verification link is invalid or has expired. Please submit a new request.');
-    }
-
-    const verifiedAt = new Date();
-    const account = request.senderEmail
-      ? await this.users.findOne({ where: { email: request.senderEmail, emailVerified: true } })
-      : null;
-    const linkableAccount = account &&
-      [UserRole.STUDENT, UserRole.LECTURER].includes(account.role) &&
-      !account.isSuspended &&
-      account.accountStatus === 'active'
-      ? account
-      : null;
-
-    request.emailVerifiedAt = verifiedAt;
-    // Keep only the hash as an idempotency key; the token is never stored in plaintext.
-    // Expiry is cleared once verified, and repeat calls return the same ticket reference.
-    request.emailVerificationExpiresAt = null;
-    if (linkableAccount) {
-      request.userId = linkableAccount.id;
-      request.senderName = [linkableAccount.firstName, linkableAccount.lastName].filter(Boolean).join(' ').trim() || request.senderName;
-      request.senderInstitution = linkableAccount.institution || request.senderInstitution;
-      request.senderFaculty = linkableAccount.faculty || request.senderFaculty;
-      request.senderDepartment = linkableAccount.department || request.senderDepartment;
-      request.senderAccountType = linkableAccount.role;
-    }
-    const saved = await this.requests.save(request);
-
-    try {
-      const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false } });
-      await Promise.all(supportUsers.map(account => this.notifications.createNotification(
-        account.id,
-        'support_request_new',
-        'New support ticket',
-        `Ticket ${saved.ticketNumber} has been email-verified and is awaiting Support review.`,
-        '/support/requests',
-      )));
-    } catch (error) {
-      this.logger.warn(`Verified support ticket ${saved.ticketNumber} was saved but Support notifications could not be created: ${String(error)}`);
-    }
-    if (linkableAccount) {
-      try {
-        await this.notifications.createNotification(
-          linkableAccount.id,
-          'support_request_submitted',
-          'Your support request was submitted',
-          `Ticket ${saved.ticketNumber} has been submitted. Track it in My Activity.`,
-          '/my-activity',
-        );
-      } catch (error) {
-        this.logger.warn(`Verified support ticket ${saved.ticketNumber} was saved but the requester notification failed: ${String(error)}`);
-      }
-    }
-    try {
-      await this.supportEmail.notifyNewGuestRequest(saved);
-    } catch (error) {
-      this.logger.error(`Verified support ticket ${saved.ticketNumber} was saved but confirmation email delivery failed: ${String(error)}`);
-    }
-    return { success: true, ticketNumber: saved.ticketNumber, message: `Your email has been verified and ticket ${saved.ticketNumber} has been submitted to Sophis Central Support.` };
-  }
-
   private async validateOwnedAttachments(userId: string, values: string[]): Promise<string[]> {
     const attachments = [...new Set(values.map(value => value.trim()).filter(Boolean))];
     if (attachments.length > 5) {
@@ -220,11 +101,13 @@ export class SupportService {
   }
 
   private async withSignedAttachmentUrls<T extends SupportRequest>(request: T): Promise<T> {
-    const attachments = await Promise.all((request.attachments ?? []).map(async reference => {
+    const attachments = (await Promise.all((request.attachments ?? []).map(async reference => {
       const key = this.s3.getKeyFromPublicUrl(reference);
-      if (!key) return reference;
+      // Never return an untrusted or legacy external attachment URL. Only keys
+      // in this application's private object store receive short-lived access.
+      if (!key) return null;
       return this.s3.createPresignedDownloadUrl(key, undefined, 'inline', 900);
-    }));
+    }))).filter((url): url is string => Boolean(url));
     return { ...request, attachments } as T;
   }
 
@@ -247,7 +130,7 @@ export class SupportService {
       .leftJoinAndSelect('request.user', 'user')
       .leftJoinAndSelect('request.reviewer', 'reviewer')
       .where('request.status = :status', { status })
-      .andWhere('(request."userId" IS NOT NULL OR request."emailVerifiedAt" IS NOT NULL)')
+      .andWhere('request."userId" IS NOT NULL')
       .orderBy('request."createdAt"', 'ASC')
       .getMany();
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
@@ -295,26 +178,26 @@ export class SupportService {
     }
     try {
       if (request.user) await this.supportEmail.sendResolution(saved, request.user);
-      else if (request.senderEmail && request.emailVerifiedAt) await this.supportEmail.sendGuestResolution(saved);
     } catch (error) {
       this.logger.error(`Support request ${id} was concluded but its email could not be sent: ${String(error)}`);
     }
     return saved;
   }
 
-  async escalate(id: string, actor: User, targetRole: UserRole.MODERATOR | UserRole.ADMIN, reason: string) {
+  async escalate(id: string, actor: User, targetRole: UserRole, reason: string) {
     if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
-    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(targetRole)) throw new BadRequestException('Escalations may only be directed to Moderator or Admin.');
+    if (targetRole !== UserRole.ADMIN) throw new BadRequestException('Support escalations may only be directed to Admin.');
     if (!reason?.trim()) throw new BadRequestException('An escalation reason is required.');
     const request = await this.requests.findOne({ where: { id } });
     if (!request) throw new NotFoundException('Support ticket not found.');
+    if (request.escalatedToRole === 'admin') throw new ConflictException('This support ticket has already been escalated to Admin.');
     const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
     if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
-    request.escalatedToRole = targetRole === UserRole.MODERATOR ? 'moderator' : 'admin';
+    request.escalatedToRole = 'admin';
     await this.requests.save(request);
     await Promise.all([
       ...recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/notifications')),
-      ...(request.userId ? [this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for ${request.escalatedToRole === 'moderator' ? 'Moderator' : 'Admin'} review.`, '/my-activity')] : []),
+      ...(request.userId ? [this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for Admin review.`, '/my-activity')] : []),
     ]);
     return { success: true, ticketNumber: request.ticketNumber, notified: recipients.length };
   }
