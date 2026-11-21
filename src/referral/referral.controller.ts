@@ -17,8 +17,8 @@ export class ReferralController {
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List referral rewards requiring manual fraud review' })
-  async getReviewQueue() {
-    return this.referralService.getReferralReviewQueue();
+  async getReviewQueue(@CurrentUser() user: User) {
+    return this.referralService.getReferralReviewQueue(user);
   }
 
   @Get(':userId/referrals')
@@ -50,6 +50,6 @@ export class ReferralController {
     if (body.decision !== 'approve' && body.decision !== 'reject') {
       throw new BadRequestException('decision must be approve or reject.');
     }
-    return this.referralService.reviewReferral(referralId, body.decision, body.reason ?? '', reviewer.id);
+    return this.referralService.reviewReferral(referralId, body.decision, body.reason ?? '', reviewer);
   }
 }

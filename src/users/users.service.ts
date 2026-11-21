@@ -216,6 +216,9 @@ export class UsersService {
       if (updateData.institution !== undefined && user.institutionId && updateData.institutionId !== user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {
         throw new ForbiddenException('Your original institution is permanent and cannot be changed on this account.');
       }
+      if (updateData.isSuspended !== undefined && user.role === UserRole.ADMIN && data.isSuspended === true) {
+        throw new ForbiddenException('Administrator accounts cannot be suspended through moderator account management.');
+      }
       if (user.role === UserRole.MODERATOR && updateData.isSuspended !== undefined) {
         throw new ForbiddenException('The platform moderator account is protected from user-management status changes.');
       }
