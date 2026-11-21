@@ -31,10 +31,10 @@ export class SupportController {
 
   @Get('queue')
   @Roles(UserRole.SUPPORT)
-  queue(@Query('status') status?: string) {
+  queue(@Query('status') status?: string, @CurrentUser() user?: User) {
     const allowed = ['pending', 'under_review', 'reviewed', 'response_sent', 'concluded'] as const;
     const value = allowed.find(item => item === status) || 'pending';
-    return this.support.listForModeration(value);
+    return this.support.listForModeration(user!, value);
   }
 
   @Patch(':id/status')
@@ -49,7 +49,7 @@ export class SupportController {
   @UseGuards(CsrfGuard)
   @Roles(UserRole.SUPPORT)
   respond(@Param('id') id: string, @Body() dto: ConcludeSupportRequestDto, @Req() request: AuthenticatedRequest) {
-    return this.support.conclude(id, request.user.id, dto);
+    return this.support.conclude(id, request.user, dto);
   }
 
   @Patch(':id/escalate')
