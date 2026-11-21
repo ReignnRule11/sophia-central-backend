@@ -17,8 +17,8 @@ export class PaymentsReconciliationService {
   ) {}
 
   async reconcile(user: User, input: { from: string; to: string; provider?: string }) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role)) {
-      throw new ForbiddenException('Only administrators and moderators may run payment reconciliation.');
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role) || user.isSuspended || user.accountStatus !== 'active' || user.emailVerified !== true) {
+      throw new ForbiddenException('Only active administrators and moderators may run payment reconciliation.');
     }
     const start = new Date(input.from);
     const end = new Date(input.to);
@@ -116,7 +116,7 @@ export class PaymentsReconciliationService {
   }
 
   async history(user: User) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role)) throw new ForbiddenException('Only administrators and moderators may inspect reconciliation history.');
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role) || user.isSuspended || user.accountStatus !== 'active' || user.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may inspect reconciliation history.');
     const rows = await this.runs.find({ order: { createdAt: 'DESC' }, take: 50 });
     return rows.map(({ id, provider, periodStart, periodEnd, status, providerTransactions, localPayments, providerRefunds, localRefunds, discrepancies, createdAt }) =>
       ({ id, provider, periodStart, periodEnd, status, counts: { providerTransactions, localPayments, providerRefunds, localRefunds }, discrepancyCount: discrepancies.length, discrepancies, createdAt }));
