@@ -186,8 +186,8 @@ export class UsersService {
       if (target.isVerified !== true || target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
         throw new ForbiddenException('Only an Admin-verified, email-verified, active account can be linked to a platform role.');
       }
-      if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, role].includes(target.role)) {
-        throw new ConflictException('An Admin, Support or Moderator account cannot be reassigned through this action.');
+      if (![UserRole.STUDENT, UserRole.LECTURER, role].includes(target.role) || target.hasReviewerAccess === true) {
+        throw new ConflictException('Only a Student or Lecturer account without separate Academic Reviewer privileges can be linked to a platform role.');
       }
       const existing = await manager.findOne(User, { where: { role }, lock: { mode: 'pessimistic_write' } });
       if (existing && existing.id !== target.id) {
