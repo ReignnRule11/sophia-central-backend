@@ -12,7 +12,13 @@ function extractCookieToken(req: { headers?: { cookie?: string } }): string | nu
     .map((part) => part.trim())
     .find((part) => part.startsWith('sophia_access_token='))
     ?.slice('sophia_access_token='.length);
-  return token ? decodeURIComponent(token) : null;
+  if (!token) return null;
+  try {
+    return decodeURIComponent(token);
+  } catch {
+    // Malformed cookie encoding must fail authentication, not throw a URIError.
+    return null;
+  }
 }
 
 @Injectable()
