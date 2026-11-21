@@ -53,7 +53,7 @@ export class ModerationController {
   @Patch('resources/:id/assign-reviewer')
   @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   assignReviewer(@Param('id') id: string, @Body() dto: AssignReviewerDto, @Req() request: AuthenticatedRequest) {
-    return this.moderationService.assignReviewer(id, dto.reviewerId, request.user.id, request.user);
+    return this.moderationService.assignReviewer(id, dto.reviewerId, request.user);
   }
 
   @Patch('resources/:id/conflict-declaration')
