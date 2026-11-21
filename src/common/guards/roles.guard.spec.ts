@@ -50,6 +50,7 @@ describe('RolesGuard reviewer capability', () => {
     expect(guard.canActivate(contextFor({ role: UserRole.LECTURER, hasReviewerAccess: false }))).toBe(true);
     expect(guard.canActivate(contextFor({ role: UserRole.STUDENT, hasReviewerAccess: true }))).toBe(false);
   });
+
   it('blocks the existing Moderator until an Admin approves its platform identity', () => {
     reflector.getAllAndOverride.mockReturnValue([UserRole.MODERATOR]);
     expect(guard.canActivate(contextFor({ role: UserRole.MODERATOR }))).toBe(false);
@@ -62,4 +63,19 @@ describe('RolesGuard reviewer capability', () => {
     expect(guard.canActivate(contextFor({ role: UserRole.SUPPORT, platformRoleVerifiedAt: new Date() }))).toBe(true);
   });
 
+  it('never converts reviewer capability into Admin, Moderator, or Support access', () => {
+    const reviewer = { id: 'reviewer-1', role: UserRole.STUDENT, hasReviewerAccess: true };
+    for (const privilegedRole of [UserRole.ADMIN, UserRole.MODERATOR, UserRole.SUPPORT]) {
+      reflector.getAllAndOverride.mockReturnValue([privilegedRole]);
+      expect(guard.canActivate(contextFor(reviewer))).toBe(false);
+    }
+  });
+
+  it('does not let a Reviewer primary role inherit Admin or platform-workspace access', () => {
+    const reviewer = { id: 'reviewer-2', role: UserRole.REVIEWER, hasReviewerAccess: true };
+    for (const privilegedRole of [UserRole.ADMIN, UserRole.MODERATOR, UserRole.SUPPORT]) {
+      reflector.getAllAndOverride.mockReturnValue([privilegedRole]);
+      expect(guard.canActivate(contextFor(reviewer))).toBe(false);
+    }
+  });
 });
