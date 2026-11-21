@@ -241,7 +241,8 @@ export class SupportService {
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
 
-  async listForModeration(status: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded' = 'pending') {
+  async listForModeration(actor: User, status: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded' = 'pending') {
+    if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
     const requests = await this.requests.createQueryBuilder('request')
       .leftJoinAndSelect('request.user', 'user')
       .leftJoinAndSelect('request.reviewer', 'reviewer')
@@ -253,7 +254,7 @@ export class SupportService {
   }
 
   async updateStatus(id: string, actor: User, status: 'under_review' | 'reviewed') {
-    if (actor.role !== UserRole.SUPPORT || actor.isSuspended) throw new ForbiddenException('Only active Support accounts can update support tickets.');
+    if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
     const request = await this.requests.findOne({ where: { id } });
     if (!request) throw new NotFoundException('Support ticket not found.');
     if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A responded ticket cannot return to an earlier stage.');
@@ -266,17 +267,18 @@ export class SupportService {
     return saved;
   }
 
-  async conclude(id: string, reviewerId: string, dto: ConcludeSupportRequestDto) {
+  async conclude(id: string, actor: User, dto: ConcludeSupportRequestDto) {
+    if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
     const request = await this.requests.findOne({ where: { id }, relations: ['user'] });
     if (!request) throw new NotFoundException('Support request not found');
     if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A response has already been sent for this support request.');
     if (request.status !== 'reviewed') throw new BadRequestException('Mark the ticket as Reviewed before sending a response.');
-    const reviewer = await this.users.findOne({ where: { id: reviewerId } });
-    if (!reviewer) throw new NotFoundException('Support account not found');
+    const reviewer = await this.users.findOne({ where: { id: actor.id, role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } });
+    if (!reviewer) throw new ForbiddenException('The authenticated Support account is no longer active or authorized.');
 
     request.status = 'response_sent';
     request.resolutionMessage = dto.resolutionMessage.trim();
-    request.reviewerId = reviewerId;
+    request.reviewerId = actor.id;
     request.concludedAt = new Date();
     const saved = await this.requests.save(request);
 
@@ -300,8 +302,10 @@ export class SupportService {
     return saved;
   }
 
-  async escalate(id: string, actor: User, targetRole: UserRole.SUPPORT | UserRole.MODERATOR | UserRole.ADMIN, reason: string) {
-    if (actor.role !== UserRole.SUPPORT || actor.isSuspended) throw new ForbiddenException('Only active Support accounts can escalate support tickets.');
+  async escalate(id: string, actor: User, targetRole: UserRole.MODERATOR | UserRole.ADMIN, reason: string) {
+    if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
+    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(targetRole)) throw new BadRequestException('Escalations may only be directed to Moderator or Admin.');
+    if (!reason?.trim()) throw new BadRequestException('An escalation reason is required.');
     const request = await this.requests.findOne({ where: { id } });
     if (!request) throw new NotFoundException('Support ticket not found.');
     const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
