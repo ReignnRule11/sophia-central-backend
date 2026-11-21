@@ -42,8 +42,8 @@ async function bootstrap() {
   app.use('/payments/webhooks', authRateLimit(120));
   app.use('/payments/initialize', authRateLimit(10));
   app.use('/payments/verify', authRateLimit(30));
-  // Public support submissions are email-verified and additionally rate-limited by IP.
-  app.use('/support-requests/public', authRateLimit(5));
+  // Public Contact Us submissions are rate-limited by IP.
+  app.use('/contact', authRateLimit(5));
 
   app.useGlobalGuards(new CsrfGuard());
 
