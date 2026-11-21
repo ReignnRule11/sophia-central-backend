@@ -308,6 +308,7 @@ export class SupportService {
     if (!reason?.trim()) throw new BadRequestException('An escalation reason is required.');
     const request = await this.requests.findOne({ where: { id } });
     if (!request) throw new NotFoundException('Support ticket not found.');
+    if (request.escalatedToRole === 'admin') throw new ConflictException('This support ticket has already been escalated to Admin.');
     const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
     if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
     request.escalatedToRole = 'admin';
