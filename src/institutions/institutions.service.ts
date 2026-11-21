@@ -95,7 +95,8 @@ export class InstitutionsService {
     return this.submissionRepository.save(submission);
   }
 
-  async listSubmissions(status?: AcademicEntryStatus) {
+  async listSubmissions(actor: User, status?: AcademicEntryStatus) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may inspect catalogue submissions.');
     const submissions = await this.submissionRepository.find({ where: status ? { status } : {}, order: { createdAt: 'ASC' } });
     return Promise.all(submissions.map(async submission => {
       let parentInstitutionName: string | undefined;
@@ -129,7 +130,9 @@ export class InstitutionsService {
     }));
   }
 
-  async reviewSubmission(id: string, reviewerId: string, status: AcademicEntryStatus, reviewNote?: string, sourceUrl?: string, verifiedAt?: string) {
+  async reviewSubmission(id: string, actor: User, status: AcademicEntryStatus, reviewNote?: string, sourceUrl?: string, verifiedAt?: string) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may review catalogue submissions.');
+    const reviewerId = actor.id;
     const submission = await this.submissionRepository.findOne({ where: { id } });
     if (!submission) throw new NotFoundException('Catalogue submission not found.');
     if (submission.status !== AcademicEntryStatus.PENDING) throw new ConflictException('This submission has already been reviewed.');
