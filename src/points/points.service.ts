@@ -186,7 +186,9 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
-  async adjustPoints(userId: string, amount: number, reason: string, moderatorId: string) {
+  async adjustPoints(userId: string, amount: number, reason: string, actor: User) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may adjust Wisdom Points.');
+    const moderatorId = actor.id;
     const wallet = await this.getOrCreateWallet(userId);
     if (wallet.balance + amount < 0) throw new BadRequestException('Adjustment would make the wallet balance negative.');
     if (amount < 0) await this.consumeReferralRewards(userId, Math.abs(amount));
@@ -198,7 +200,8 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
     }));
   }
 
-  async awardPoints(dto: AwardPointsDto) {
+  async awardPoints(dto: AwardPointsDto, actor: User) {
+    if (actor.role !== UserRole.ADMIN || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active administrators may award Wisdom Points.');
     const wallet = await this.getOrCreateWallet(dto.userId);
     if (wallet.balance + dto.amount < 0) throw new BadRequestException('Insufficient Wisdom Points balance.');
     if (dto.amount < 0) await this.consumeReferralRewards(dto.userId, Math.abs(dto.amount));
@@ -209,6 +212,28 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
       type: dto.amount < 0 ? PointTransactionType.SPENT : PointTransactionType.EARNED,
       amount: dto.amount,
       reason: dto.reason,
+    }));
+  }
+
+ 
+  async chargeForAiUsage(userId: string, amount: number, reason: string) {
+    if (!Number.isInteger(amount) || amount <= 0 || amount > 5 || !reason?.trim()) {
+      throw new BadRequestException('A valid AI usage charge is required.');
+    }
+    const account = await this.userRepository.findOne({ where: { id: userId } });
+    if (!account || account.isSuspended || account.accountStatus !== 'active' || account.emailVerified !== true) {
+      throw new ForbiddenException('Only active, verified accounts may use AI credits.');
+    }
+    const wallet = await this.getOrCreateWallet(userId);
+    if (wallet.balance < amount) throw new BadRequestException('Insufficient Wisdom Points balance.');
+    await this.consumeReferralRewards(userId, amount);
+    wallet.balance -= amount;
+    await this.walletRepository.save(wallet);
+    return this.transactionRepository.save(this.transactionRepository.create({
+      userId,
+      type: PointTransactionType.SPENT,
+      amount: -amount,
+      reason: reason.trim(),
     }));
   }
 

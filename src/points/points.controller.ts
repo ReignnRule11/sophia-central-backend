@@ -51,14 +51,14 @@ export class PointsController {
   @ApiBearerAuth()
   async adjustPoints(@Body() body: { userId?: string; amount?: number; reason?: string }, @CurrentUser() currentUser: User) {
     if (!body.userId || typeof body.amount !== 'number' || !Number.isInteger(body.amount) || body.amount === 0 || !body.reason?.trim()) throw new BadRequestException('userId, a non-zero integer amount, and a reason are required');
-    return this.pointsService.adjustPoints(body.userId, body.amount as number, body.reason.trim(), currentUser.id);
+    return this.pointsService.adjustPoints(body.userId, body.amount as number, body.reason.trim(), currentUser);
   }
 
   @Post('award')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
-  awardPoints(@Body() dto: AwardPointsDto) {
-    return this.pointsService.awardPoints(dto);
+  awardPoints(@Body() dto: AwardPointsDto, @CurrentUser() user: User) {
+    return this.pointsService.awardPoints(dto, user);
   }
 }

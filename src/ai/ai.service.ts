@@ -102,11 +102,7 @@ export class AiService {
     if (targetIndex === 0) session.title = `Chat about ${question.substring(0, 50)}...`;
     await this.sessionRepository.save(session);
 
-    await this.pointsService.awardPoints({
-      userId,
-      amount: -this.AI_USAGE_COST,
-      reason: `AI tutor question edited - resource: ${session.resourceId || 'general'}`,
-    });
+    await this.pointsService.chargeForAiUsage(userId, this.AI_USAGE_COST, `AI tutor question edited - resource: ${session.resourceId || 'general'}`);
 
     return {
       sessionId,
@@ -205,11 +201,7 @@ export class AiService {
       content: aiResponse,
     }));
 
-    await this.pointsService.awardPoints({
-      userId,
-      amount: -this.AI_USAGE_COST,
-      reason: `AI tutor query - resource: ${dto.resourceId || 'general'}`,
-    });
+    await this.pointsService.chargeForAiUsage(userId, this.AI_USAGE_COST, `AI tutor query - resource: ${dto.resourceId || 'general'}`);
 
     return {
       sessionId: session.id,
@@ -252,11 +244,7 @@ export class AiService {
       ].join('\n'),
     );
 
-    await this.pointsService.awardPoints({
-      userId,
-      amount: -this.SUMMARY_USAGE_COST,
-      reason: `Resource summary - ${resource.title}`,
-    });
+    await this.pointsService.chargeForAiUsage(userId, this.SUMMARY_USAGE_COST, `Resource summary - ${resource.title}`);
 
     return {
       resourceId: resource.id,
