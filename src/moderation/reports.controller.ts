@@ -49,9 +49,9 @@ export class ModerationReportsController {
   @Patch(':id/escalate')
   @UseGuards(CsrfGuard)
   @Roles(UserRole.MODERATOR)
-  escalate(@Param('id', ParseUUIDPipe) id: string, @Body() body: { targetRole: 'support' | 'admin'; reason: string }, @Req() request: AuthenticatedRequest) {
-    if (!body.reason?.trim() || !['support', 'admin'].includes(body.targetRole)) throw new BadRequestException('Choose a valid escalation destination and provide a reason.');
-    return this.reports.escalate(id, request.user, body.targetRole === 'support' ? UserRole.SUPPORT : UserRole.ADMIN, body.reason);
+  escalate(@Param('id', ParseUUIDPipe) id: string, @Body() body: { targetRole: 'admin'; reason: string }, @Req() request: AuthenticatedRequest) {
+    if (!body.reason?.trim() || body.targetRole !== 'admin') throw new BadRequestException('Choose a valid escalation destination and provide a reason.');
+    return this.reports.escalate(id, request.user, UserRole.ADMIN, body.reason);
   }
 
   @Patch(':id')
