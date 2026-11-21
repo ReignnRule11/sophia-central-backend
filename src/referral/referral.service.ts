@@ -183,7 +183,8 @@ export class ReferralService {
     await this.pointsService.awardReferralReward(event.referrerId, event.id, this.REFERRER_BONUS);
   }
 
-  async getReferralReviewQueue() {
+  async getReferralReviewQueue(actor: User) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may inspect referral review queue.');
     return this.referralRepository.find({
       where: { isCodeOwnerRecord: false, rewardStatus: 'under_review' },
       relations: ['referrer', 'referredUser'],
@@ -191,7 +192,9 @@ export class ReferralService {
     });
   }
 
-  async reviewReferral(referralId: string, decision: 'approve' | 'reject', reason: string, reviewerId: string) {
+  async reviewReferral(referralId: string, decision: 'approve' | 'reject', reason: string, reviewer: User) {
+    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(reviewer.role) || reviewer.isSuspended || reviewer.accountStatus !== 'active' || reviewer.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may review referrals.');
+    const reviewerId = reviewer.id;
     if (!reason?.trim()) throw new BadRequestException('A review reason is required.');
     const event = await this.referralRepository.findOne({
       where: { id: referralId, isCodeOwnerRecord: false },
