@@ -16,6 +16,10 @@ function hasReviewerCapability(user: User): boolean {
   return user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
 }
 
+function isActiveVerified(user: User): boolean {
+  return user.isSuspended !== true && user.accountStatus === 'active' && user.emailVerified === true;
+}
+
 function normalizeReviewScope(value: string): string {
   return value.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
 }
@@ -37,6 +41,8 @@ export class ModerationService {
   ) {}
 
   async getQueue(viewer: User) {
+    if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
+    if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
     if (viewer.role !== UserRole.ADMIN && !hasReviewerCapability(viewer)) {
       throw new ForbiddenException('Only approved academic reviewers and admins can access the academic resource queue.');
     }
@@ -69,6 +75,7 @@ export class ModerationService {
   async getResourceReviewHistory(resourceId: string, viewer: User) {
     const resource = await this.resourceRepository.findOne({ where: { id: resourceId } });
     if (!resource) throw new NotFoundException('Resource not found.');
+    if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
     if (viewer.role !== UserRole.ADMIN && resource.uploaderId !== viewer.id) {
       throw new ForbiddenException('Only the original uploader or an administrator can inspect this review history.');
     }
@@ -80,6 +87,7 @@ export class ModerationService {
   }
 
   async getReviewerRoster(viewer: User) {
+    if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
     if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) {
       throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect the reviewer roster.');
     }
@@ -95,6 +103,7 @@ export class ModerationService {
   }
 
   async getConflictDeclarations(viewer: User) {
+    if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
     if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer conflict declarations.');
     return this.resourceRepository.manager.query(`
       SELECT d."id", d."assignmentId", d."resourceId", d."reviewerId", d."declaration", d."reason", d."createdAt",
@@ -122,7 +131,7 @@ export class ModerationService {
   }
 
   async assignReviewer(resourceId: string, reviewerId: string, adminId: string, actor?: User) {
-    if (actor && actor.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(actor)) {
+    if (actor && (!isActiveVerified(actor) || (actor.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(actor)))) {
       throw new ForbiddenException('Only administrators or the Global Academic Reviewer can assign academic reviewers.');
     }
     const assignment = await this.resourceRepository.manager.transaction(async manager => {
@@ -130,7 +139,7 @@ export class ModerationService {
         where: { id: reviewerId },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!reviewer || !hasReviewerCapability(reviewer) || reviewer.isSuspended) {
+      if (!reviewer || !hasReviewerCapability(reviewer) || !isActiveVerified(reviewer)) {
         throw new BadRequestException('Select an active, administrator-approved academic reviewer');
       }
 
@@ -198,7 +207,7 @@ export class ModerationService {
   }
 
   async declareConflict(id: string, dto: ReviewerConflictDeclarationDto, reviewer: User) {
-    if (!hasReviewerCapability(reviewer) || reviewer.isSuspended) {
+    if (!isActiveVerified(reviewer) || !hasReviewerCapability(reviewer)) {
       throw new ForbiddenException('Only active, approved academic reviewers can declare assignment conflicts.');
     }
     if (dto.declaration === 'recuse' && !dto.reason?.trim()) {
@@ -210,7 +219,7 @@ export class ModerationService {
         where: { id: reviewer.id },
         lock: { mode: 'pessimistic_read' },
       });
-      if (!reviewerRecord || !hasReviewerCapability(reviewerRecord) || reviewerRecord.isSuspended) {
+      if (!reviewerRecord || !hasReviewerCapability(reviewerRecord) || !isActiveVerified(reviewerRecord)) {
         throw new ForbiddenException('Your reviewer access is no longer active.');
       }
       const resource = await manager.findOne(Resource, {
