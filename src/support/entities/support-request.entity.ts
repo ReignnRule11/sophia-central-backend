@@ -34,15 +34,6 @@ export class SupportRequest {
   @Column({ type: 'varchar', length: 24, nullable: true })
   senderAccountType?: string | null;
 
-  @Column({ type: 'timestamptz', nullable: true })
-  emailVerifiedAt?: Date | null;
-
-  @Column({ type: 'varchar', length: 64, nullable: true, select: false })
-  emailVerificationTokenHash?: string | null;
-
-  @Column({ type: 'timestamptz', nullable: true, select: false })
-  emailVerificationExpiresAt?: Date | null;
-
   @Column({ type: 'varchar', length: 180 })
   subject!: string;
 
