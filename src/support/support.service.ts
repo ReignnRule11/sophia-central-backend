@@ -34,7 +34,6 @@ export class SupportService {
       senderFaculty: user.faculty || null,
       senderDepartment: user.department || null,
       senderAccountType: user.role,
-      emailVerifiedAt: user.emailVerified ? new Date() : null,
       subject: dto.subject.trim(),
       category: dto.category,
       description: dto.description.trim(),
