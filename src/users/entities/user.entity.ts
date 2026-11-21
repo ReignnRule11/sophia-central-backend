@@ -147,6 +147,10 @@ export class User {
   @Column({ default: false })
   isVerified!: boolean;
 
+  // Separate Admin approval for the dedicated platform Support/Moderator identity.
+  @Column({ type: 'timestamptz', nullable: true })
+  platformRoleVerifiedAt?: Date | null;
+
   @Column({ default: false })
   emailVerified!: boolean;
 
