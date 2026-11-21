@@ -29,7 +29,7 @@ export class SupportEmailService {
     if (!this.isConfigured()) return false;
     const supportEmail = this.config.get<string>('SUPPORT_EMAIL')!;
     const appUrl = this.config.get<string>('FRONTEND_URL') || 'https://sophiscentral.vercel.app';
-    const requestUrl = new URL('/moderation/support', appUrl).toString();
+    const requestUrl = new URL('/support', appUrl).toString();
     const subject = `New Sophis Central support request [${request.ticketNumber}]: ${request.subject}`;
     const text = [
       'A new support request has been submitted.',
