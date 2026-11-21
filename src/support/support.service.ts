@@ -28,12 +28,6 @@ export class SupportService {
     const attachments = await this.validateOwnedAttachments(user.id, dto.attachments ?? []);
     const request = this.requests.create({
       userId: user.id,
-      senderName: [user.firstName, user.lastName].filter(Boolean).join(' ').trim() || user.email,
-      senderEmail: user.email,
-      senderInstitution: user.institution || null,
-      senderFaculty: user.faculty || null,
-      senderDepartment: user.department || null,
-      senderAccountType: user.role,
       subject: dto.subject.trim(),
       category: dto.category,
       description: dto.description.trim(),
