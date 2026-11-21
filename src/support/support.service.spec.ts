@@ -111,6 +111,14 @@ describe('SupportService attachment ownership', () => {
       await expect(service.escalate('ticket-1', activeSupport, UserRole.MODERATOR, 'Escalation reason')).rejects.toBeInstanceOf(BadRequestException);
     });
 
+
+    it('rejects duplicate Admin escalations for a ticket', async () => {
+      const activeSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+      requests.findOne.mockResolvedValueOnce({ id: 'ticket-1', ticketNumber: 'SUP-2026-000001', subject: 'Test', category: 'technical', description: 'Issue', escalatedToRole: 'admin' });
+      await expect(service.escalate('ticket-1', activeSupport, UserRole.ADMIN, 'Escalation reason')).rejects.toBeInstanceOf(ConflictException);
+      expect(requests.save).not.toHaveBeenCalled();
+    });
+
     it('rejects inactive Support actors from escalating tickets', async () => {
       await expect(service.escalate('ticket-1', inactiveSupport, UserRole.ADMIN, 'Escalation reason')).rejects.toBeInstanceOf(ForbiddenException);
     });
