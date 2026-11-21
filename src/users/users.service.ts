@@ -183,8 +183,8 @@ export class UsersService {
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sophis-central-platform-role:${role}`]);
       const target = await manager.findOne(User, { where: { id: targetId }, lock: { mode: 'pessimistic_write' } });
       if (!target) throw new NotFoundException('The selected account was not found.');
-      if (target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
-        throw new ForbiddenException('Only an active account with a verified email can be linked to a platform role.');
+      if (target.isVerified !== true || target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
+        throw new ForbiddenException('Only an Admin-verified, email-verified, active account can be linked to a platform role.');
       }
       if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER, role].includes(target.role)) {
         throw new ConflictException('An Admin, Support or Moderator account cannot be reassigned through this action.');
