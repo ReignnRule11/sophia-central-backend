@@ -130,11 +130,11 @@ export class ModerationService {
     });
   }
 
-  async assignReviewer(resourceId: string, reviewerId: string, adminId: string, actor?: User) {
+  async assignReviewer(resourceId: string, reviewerId: string, actor: User) {
     if (!actor || !isActiveVerified(actor) || (actor.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(actor))) {
       throw new ForbiddenException('Only administrators or the Global Academic Reviewer can assign academic reviewers.');
     }
-    adminId = actor.id;
+    const adminId = actor.id;
     const assignment = await this.resourceRepository.manager.transaction(async manager => {
       const reviewer = await manager.findOne(User, {
         where: { id: reviewerId },
