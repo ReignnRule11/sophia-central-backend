@@ -178,45 +178,33 @@ export class UsersService {
 
   async assignPlatformRole(actorId: string, targetId: string, role: UserRole.SUPPORT | UserRole.MODERATOR): Promise<User> {
     return this.dataSource.transaction(async manager => {
-      // Serialize assignments per platform role; the partial unique indexes are the final
-      // database-level guarantee if another writer bypasses this service.
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sophis-central-platform-role:${role}`]);
       const target = await manager.findOne(User, { where: { id: targetId }, lock: { mode: 'pessimistic_write' } });
-      if (!target) throw new NotFoundException('The selected account was not found.');
+      if (!target) throw new NotFoundException('The selected platform account was not found.');
+
+      // Platform identity is provisioned separately. Admin approval must never convert
+      // an ordinary academic account into a shared platform account.
+      if (target.role !== role) {
+        throw new ConflictException(`Only an already-provisioned ${role} account can be Admin-verified here. Ordinary accounts cannot be promoted through account linking.`);
+      }
       if (target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
-        throw new ForbiddenException('Only an email-verified, active account can be linked to a platform role.');
+        throw new ForbiddenException('Only an email-verified, active, unsuspended platform account can be approved.');
       }
       if (target.hasReviewerAccess === true) {
-        throw new ConflictException('Accounts with separate Academic Reviewer privileges cannot hold a Support or Moderator platform role.');
+        throw new ConflictException('An account with separate Academic Reviewer privileges cannot be a Support or Moderator platform account.');
       }
-      if (target.role !== role) {
-        const eligibleAcademicRole = target.role === UserRole.STUDENT || target.role === UserRole.LECTURER;
-        if (!eligibleAcademicRole) {
-          throw new ConflictException('Only a Student or Lecturer account can be linked to a platform role.');
-        }
-      }
+
       const existing = await manager.findOne(User, { where: { role }, lock: { mode: 'pessimistic_write' } });
-      if (existing && existing.id !== target.id) {
-        throw new ConflictException(`A platform ${role} account is already linked. The existing account must be reviewed before another account can be assigned.`);
+      if (!existing || existing.id !== target.id) {
+        throw new ConflictException(`The designated ${role} account could not be confirmed. Review platform account provisioning.`);
       }
-      if (target.role === role) {
-        if (target.isVerified === true) return target;
-        target.isVerified = true;
-        const verified = await manager.save(User, target);
-        await manager.query(
-          'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole") VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)',
-          [actorId, target.id, role, 'verified', role, role],
-        );
-        return verified;
-      }
-      const previousRole = target.role;
-      target.role = role;
-      // This Admin-only action is the platform verification decision for this staff account.
+      if (target.isVerified === true) return target;
+
       target.isVerified = true;
       const saved = await manager.save(User, target);
       await manager.query(
         'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole") VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)',
-        [actorId, target.id, role, 'assigned', previousRole, role],
+        [actorId, target.id, role, 'verified', role, role],
       );
       return saved;
     });
