@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { SupportService } from './support.service';
 import { UserRole } from '../users/entities/user.entity';
 
@@ -90,4 +90,25 @@ describe('SupportService attachment ownership', () => {
     } as any)).rejects.toBeInstanceOf(BadRequestException);
     expect(requests.save).not.toHaveBeenCalled();
   });
+  describe('service-level Support authorization', () => {
+    const nonSupport = { id: 'student-1', role: UserRole.STUDENT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    const inactiveSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'deactivated', emailVerified: true } as any;
+
+    it('rejects non-Support actors from the moderation queue', async () => {
+      await expect(service.listForModeration(nonSupport)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects inactive Support actors from status changes', async () => {
+      await expect(service.updateStatus('ticket-1', inactiveSupport, 'under_review')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects non-Support actors from concluding tickets', async () => {
+      await expect(service.conclude('ticket-1', nonSupport, { resolutionMessage: 'A sufficiently long resolution message.' } as any)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+    it('rejects inactive Support actors from escalating tickets', async () => {
+      await expect(service.escalate('ticket-1', inactiveSupport, UserRole.ADMIN, 'Escalation reason')).rejects.toBeInstanceOf(ForbiddenException);
+    });
+  });
+
 });
