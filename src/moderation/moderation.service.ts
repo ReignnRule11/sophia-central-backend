@@ -42,7 +42,6 @@ export class ModerationService {
 
   async getQueue(viewer: User) {
     if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
-    if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
     if (viewer.role !== UserRole.ADMIN && !hasReviewerCapability(viewer)) {
       throw new ForbiddenException('Only approved academic reviewers and admins can access the academic resource queue.');
     }
@@ -119,6 +118,7 @@ export class ModerationService {
   }
 
   async getHistory(viewer: User) {
+    if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
     if (viewer.role !== UserRole.ADMIN && !hasReviewerCapability(viewer)) {
       throw new ForbiddenException('Only approved academic reviewers and admins can access academic review history.');
     }
@@ -131,9 +131,10 @@ export class ModerationService {
   }
 
   async assignReviewer(resourceId: string, reviewerId: string, adminId: string, actor?: User) {
-    if (actor && (!isActiveVerified(actor) || (actor.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(actor)))) {
+    if (!actor || !isActiveVerified(actor) || (actor.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(actor))) {
       throw new ForbiddenException('Only administrators or the Global Academic Reviewer can assign academic reviewers.');
     }
+    adminId = actor.id;
     const assignment = await this.resourceRepository.manager.transaction(async manager => {
       const reviewer = await manager.findOne(User, {
         where: { id: reviewerId },
