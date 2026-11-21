@@ -220,11 +220,13 @@ export class SupportService {
   }
 
   private async withSignedAttachmentUrls<T extends SupportRequest>(request: T): Promise<T> {
-    const attachments = await Promise.all((request.attachments ?? []).map(async reference => {
+    const attachments = (await Promise.all((request.attachments ?? []).map(async reference => {
       const key = this.s3.getKeyFromPublicUrl(reference);
-      if (!key) return reference;
+      // Never return an untrusted or legacy external attachment URL. Only keys
+      // in this application's private object store receive short-lived access.
+      if (!key) return null;
       return this.s3.createPresignedDownloadUrl(key, undefined, 'inline', 900);
-    }));
+    }))).filter((url): url is string => Boolean(url));
     return { ...request, attachments } as T;
   }
 
