@@ -170,7 +170,7 @@ export class UsersService {
 
   async getPlatformAccounts() {
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.createdAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.platformRoleVerifiedAt', 'user.createdAt'])
       .where('user.role IN (:...roles)', { roles: [UserRole.SUPPORT, UserRole.MODERATOR] })
       .orderBy('user.role', 'ASC')
       .getMany();
@@ -198,9 +198,9 @@ export class UsersService {
       if (!existing || existing.id !== target.id) {
         throw new ConflictException(`The designated ${role} account could not be confirmed. Review platform account provisioning.`);
       }
-      if (target.isVerified === true) return target;
+      if (target.platformRoleVerifiedAt) return target;
 
-      target.isVerified = true;
+      target.platformRoleVerifiedAt = new Date();
       const saved = await manager.save(User, target);
       await manager.query(
         'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole") VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)',
