@@ -30,6 +30,14 @@ describe('AdminMfaService', () => {
     expect(hashes).not.toContain(codes[0]);
   });
 
+  it('consumes a recovery code once and rejects reuse', () => {
+    const code = service.generateRecoveryCodes()[0];
+    const user = { adminMfaRecoveryCodeHashes: [service.hashRecoveryCode(code)] } as any;
+    expect(service.consumeRecoveryCode(user, code)).toBe(true);
+    expect(user.adminMfaRecoveryCodeHashes).toEqual([]);
+    expect(service.consumeRecoveryCode(user, code)).toBe(false);
+  });
+
   it('generates valid Base32 secrets and provisioning URIs', () => {
     const secret = service.generateSecret();
     expect(secret).toMatch(/^[A-Z2-7]+$/);
