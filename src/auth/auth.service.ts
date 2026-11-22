@@ -188,11 +188,11 @@ export class AuthService {
     if (user.accountStatus === 'deactivated') {
       user = await this.usersService.update(user.id, { accountStatus: 'active' });
     }
-    user = await this.usersService.update(user.id, { lastLoginAt: new Date() });
     if (user.role === UserRole.ADMIN) {
       const stage = user.adminMfaEnabled ? 'admin-mfa-login' : 'admin-mfa-enroll';
       return { adminMfaRequired: true as const, setupRequired: !user.adminMfaEnabled, challengeToken: await this.adminMfa.createChallenge(user, stage) };
     }
+    user = await this.usersService.update(user.id, { lastLoginAt: new Date() });
     return this.buildAuthResponse(user);
   }
 
