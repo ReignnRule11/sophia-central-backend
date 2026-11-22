@@ -92,6 +92,59 @@ describe('UsersService institution identity updates', () => {
     );
   });
 
+  it('suspends an approved platform account and records the reason', async () => {
+    const moderator = {
+      id: 'moderator-1',
+      role: UserRole.MODERATOR,
+      emailVerified: true,
+      accountStatus: 'active',
+      isSuspended: false,
+      hasReviewerAccess: false,
+      isGlobalReviewer: false,
+      platformRoleStatus: 'approved',
+      platformRoleVerifiedAt: new Date(),
+    };
+    manager.findOne.mockResolvedValue({ ...moderator });
+
+    const updated = await service.updatePlatformRoleAccess('admin-1', 'moderator-1', 'suspend', 'Security review');
+
+    expect(updated).toMatchObject({
+      platformRoleStatus: 'suspended',
+      isSuspended: true,
+      suspensionReason: 'Security review',
+    });
+    expect(manager.query).toHaveBeenLastCalledWith(
+      expect.stringContaining('INSERT INTO platform_role_audit_events'),
+      ['admin-1', 'moderator-1', UserRole.MODERATOR, 'suspend', UserRole.MODERATOR, UserRole.MODERATOR, 'Security review'],
+    );
+  });
+
+  it('revokes platform workspace access without deleting the account', async () => {
+    const support = {
+      id: 'support-1',
+      role: UserRole.SUPPORT,
+      emailVerified: true,
+      accountStatus: 'active',
+      isSuspended: false,
+      hasReviewerAccess: false,
+      isGlobalReviewer: false,
+      platformRoleStatus: 'approved',
+      platformRoleVerifiedAt: new Date(),
+    };
+    manager.findOne.mockResolvedValue({ ...support });
+
+    const updated = await service.updatePlatformRoleAccess('admin-1', 'support-1', 'revoke', 'Role no longer required');
+
+    expect(updated).toMatchObject({
+      id: 'support-1',
+      role: UserRole.SUPPORT,
+      platformRoleStatus: 'revoked',
+      platformRoleVerifiedAt: null,
+      isSuspended: false,
+    });
+    expect(manager.save).toHaveBeenCalledWith(User, expect.objectContaining({ platformRoleStatus: 'revoked' }));
+  });
+
   it('rejects a manually typed institution without a catalogue reference', async () => {
     await expect(service.update('student-1', {
       institution: 'Unlisted University',
