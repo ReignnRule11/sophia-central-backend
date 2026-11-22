@@ -188,7 +188,7 @@ export class ContentReportsService {
        ORDER BY "sourceId", "createdAt" DESC`,
       [reports.map(report => report.id)],
     );
-    const latestById = new Map(decisions.map((decision: any) => [decision.sourceId, decision]));
+    const latestById = new Map<string, any>(decisions.map((decision: any) => [decision.sourceId, decision] as [string, any]));
     return reports.map(report => ({ ...report, adminDecision: latestById.get(report.id) ?? null }));
   }
 
