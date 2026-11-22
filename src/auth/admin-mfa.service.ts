@@ -2,7 +2,7 @@ import { Injectable, ServiceUnavailableException, UnauthorizedException } from '
 import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { RegistrationTokenService } from './registration-token.service';
 
@@ -19,8 +19,8 @@ export class AdminMfaService {
     private readonly dataSource: DataSource,
   ) {}
 
-  private async audit(user: User, action: string, method?: string): Promise<void> {
-    await this.dataSource.query(
+  private async audit(manager: EntityManager, user: User, action: string, method?: string): Promise<void> {
+    await manager.query(
       'INSERT INTO admin_mfa_audit_events ("targetId", email, action, method, "actorEmail") VALUES ($1::uuid, $2, $3, $4, $5)',
       [user.id, user.email, action, method ?? null, user.email],
     );
@@ -153,8 +153,10 @@ export class AdminMfaService {
     user.adminMfaEnabled = true;
     user.adminMfaRecoveryCodeHashes = recoveryCodes.map(code => this.hashRecoveryCode(code));
     user.lastLoginAt = new Date();
-    await this.users.save(user);
-    await this.audit(user, 'mfa_enrolled', 'totp');
+    await this.dataSource.transaction(async manager => {
+      await manager.getRepository(User).save(user);
+      await this.audit(manager, user, 'mfa_enrolled', 'totp');
+    });
     return { user, recoveryCodes };
   }
 
@@ -171,8 +173,10 @@ export class AdminMfaService {
     const claimed = await this.registrationTokens.claimOnce(String(payload.jti), 600);
     if (!claimed) throw new UnauthorizedException('This login challenge has already been used.');
     user.lastLoginAt = new Date();
-    await this.users.save(user);
-    await this.audit(user, method === 'recovery' ? 'recovery_code_used' : 'mfa_login_verified', method);
+    await this.dataSource.transaction(async manager => {
+      await manager.getRepository(User).save(user);
+      await this.audit(manager, user, method === 'recovery' ? 'recovery_code_used' : 'mfa_login_verified', method);
+    });
     return user;
   }
 
