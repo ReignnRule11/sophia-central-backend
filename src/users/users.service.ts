@@ -163,6 +163,10 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
+  async hasGlobalReviewerAccount(): Promise<boolean> {
+    return this.usersRepository.exist({ where: { isGlobalReviewer: true } });
+  }
+
   async findChatContacts(currentUserId: string, search?: string) {
     const currentUser = await this.usersRepository.findOne({
       where: { id: currentUserId },
@@ -177,8 +181,7 @@ export class UsersService {
       .andWhere('LOWER(TRIM(user.institution)) = LOWER(TRIM(:institution))', { institution })
       .andWhere('user.role IN (:...roles)', { roles: [UserRole.STUDENT, UserRole.LECTURER] })
       .andWhere('user.isSuspended = false')
-      .andWhere("user.accountStatus = 'active'")
-      .andWhere('user.academicHandle IS NOT NULL');
+      .andWhere("user.accountStatus = 'active'")      .andWhere('user.academicHandle IS NOT NULL');
     const normalizedSearch = search?.trim().replace(/^@+/, '').toLowerCase();
     if (normalizedSearch) query.andWhere('LOWER(user.academicHandle) LIKE :search', { search: `%${normalizedSearch}%` });
     return query.orderBy('user.academicHandle', 'ASC').take(50).getMany();
@@ -357,8 +360,7 @@ export class UsersService {
           NULLIF(CONCAT_WS(' ', actor."firstName", actor."lastName"), '') AS "actorName",
           actor.email AS "actorEmail",
           assignment."reviewerId"::text AS "targetId",
-          NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "targetName",
-          reviewer.email AS "targetEmail",
+          NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "targetName",          reviewer.email AS "targetEmail",
           assignment."createdAt" AS "createdAt",
           assignment."reviewStatus"::text AS note,
           assignment.id::text AS id
@@ -537,7 +539,6 @@ export class UsersService {
   async setReviewerAccess(_id: string, _dto: SetReviewerAccessDto): Promise<User> {
     throw new ConflictException('Academic Reviewer access changes must go through the application decision workflow so every approval, suspension and revocation is audited.');
   }
-
   async update(id: string, data: Partial<User>): Promise<User> {
     return this.dataSource.transaction(async manager => {
       const user = await manager.findOne(User, { where: { id } });
@@ -717,8 +718,7 @@ export class UsersService {
       throw new BadRequestException('Set up your account security question before requesting deletion.');
     }
     if (!(await bcrypt.compare(this.normalizeSecurityAnswer(securityAnswer), user.securityAnswerHash))) {
-      throw new UnauthorizedException('The security answer is incorrect.');
-    }
+      throw new UnauthorizedException('The security answer is incorrect.');    }
     if (user.accountStatus === 'pending_deletion') {
       throw new ConflictException('A deletion request is already pending for this account.');
     }
