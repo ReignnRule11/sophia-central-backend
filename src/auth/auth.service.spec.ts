@@ -98,7 +98,7 @@ describe('AuthService', () => {
     await expect(service.register({
       firstName: 'Sophis',
       lastName: 'Reviewer',
-      email: 'SOPHISCENTRAL@gmail.com',
+      email: 'SOPHISCENTRAL+reviewer@gmail.com',
       academicHandle: 'sophis',
       role: UserRole.REVIEWER,
     })).resolves.toEqual(expect.objectContaining({ emailSent: true }));
@@ -177,8 +177,7 @@ describe('AuthService', () => {
       isVerified: false,
       isSuspended: false,
       accountStatus: 'active',
-    } as User;    const manager = {
-      query: jest.fn().mockResolvedValue([]),
+    } as User;    const manager = {      query: jest.fn().mockResolvedValue([]),
       getRepository: jest.fn().mockReturnValue({ count: jest.fn().mockResolvedValue(1) }),
       findOne: jest.fn().mockResolvedValue(admin),
       save: jest.fn().mockImplementation(async (_entity, value) => value),
@@ -357,8 +356,7 @@ describe('AuthService', () => {
     await expect(service.completeOnboarding(user.id, {
       institutionId: '00000000-0000-4000-8000-000000000001',
       institution: 'Research Institute',      faculty: 'Research',
-      department: 'Methods',
-    } as never)).rejects.toBeInstanceOf(ForbiddenException);
+      department: 'Methods',    } as never)).rejects.toBeInstanceOf(ForbiddenException);
     expect(users.update).not.toHaveBeenCalled();
   });
 
@@ -537,8 +535,7 @@ describe('AuthService', () => {
     expect(users.create).not.toHaveBeenCalled();
     expect(jwt.signAsync).not.toHaveBeenCalled();  });
 
-  it('saves partial onboarding progress inside the encrypted registration draft', async () => {
-    const draft = {
+  it('saves partial onboarding progress inside the encrypted registration draft', async () => {    const draft = {
       email: user.email,
       academicHandle: 'learner.one',
       encryptedPayload: 'old-encrypted-draft',
