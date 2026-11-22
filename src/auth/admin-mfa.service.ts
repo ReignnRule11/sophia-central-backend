@@ -16,6 +16,7 @@ export class AdminMfaService {
     private readonly config: ConfigService,
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly registrationTokens: RegistrationTokenService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private async audit(user: User, action: string, method?: string): Promise<void> {
