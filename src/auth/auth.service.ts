@@ -692,7 +692,12 @@ export class AuthService {
   }
 
   private toSafeUser(user: User) {
-    const { password: _password, ...safeUser } = user;
+    const {
+      password: _password,
+      adminMfaSecretEncrypted: _adminMfaSecret,
+      adminMfaRecoveryCodeHashes: _adminMfaRecoveryHashes,
+      ...safeUser
+    } = user;
     return safeUser;
   }
 
