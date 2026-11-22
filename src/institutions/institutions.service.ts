@@ -212,7 +212,19 @@ export class InstitutionsService {
     return this.submissionRepository.save(submission);
   }
 
-  async create(dto: CreateInstitutionDto): Promise<Institution> {
+  private async assertActiveAdmin(actor: User): Promise<void> {
+    const current = await this.usersRepository.findOne({
+      where: { id: actor.id },
+      select: ['id', 'role', 'emailVerified', 'isSuspended', 'accountStatus'],
+    });
+    if (!current || current.role !== UserRole.ADMIN || current.emailVerified !== true ||
+        current.isSuspended === true || current.accountStatus !== 'active') {
+      throw new ForbiddenException('Only an active, email-verified Admin may manage the academic catalogue.');
+    }
+  }
+
+  async create(dto: CreateInstitutionDto, actor: User): Promise<Institution> {
+    await this.assertActiveAdmin(actor);
     const institution = this.institutionRepository.create(dto);
     return this.institutionRepository.save(institution);
   }
@@ -230,7 +242,8 @@ export class InstitutionsService {
     return institution;
   }
 
-  async update(id: string, dto: UpdateInstitutionDto): Promise<Institution> {
+  async update(id: string, dto: UpdateInstitutionDto, actor: User): Promise<Institution> {
+    await this.assertActiveAdmin(actor);
     const institution = await this.findOne(id);
     if (dto.institutionType && dto.institutionType !== institution.institutionType) {
       const hasAccounts = await this.usersRepository.exist({ where: { institutionId: id } });
@@ -241,7 +254,8 @@ export class InstitutionsService {
     return this.institutionRepository.save(institution);
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actor: User): Promise<void> {
+    await this.assertActiveAdmin(actor);
     const institution = await this.findOne(id);
     await this.institutionRepository.remove(institution);
   }
