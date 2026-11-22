@@ -9,6 +9,7 @@ import { generateInstitutionCode, institutionTypeCode } from '../institutions/in
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
 import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
 import { TransitionExternalReviewerDto } from './dto/transition-external-reviewer.dto';
+import { isAllowedPlatformLoginAlias, PLATFORM_LOGIN_ALIASES } from './platform-login-aliases';
 
 @Injectable()
 export class UsersService {
@@ -43,7 +44,17 @@ export class UsersService {
     throw new ConflictException('A unique Sophis Central Institution ID could not be generated. Please retry registration.');
   }
 
+  private assertReservedLoginAlias(data: Partial<User>): void {
+    if (!data.email || isAllowedPlatformLoginAlias(data.email, data.role, data.isGlobalReviewer)) return;
+    throw new ConflictException('This email address is reserved for its designated Sophis Central platform account.');
+  }
+
   async create(data: Partial<User>): Promise<User> {
+    this.assertReservedLoginAlias(data);
+    if (data.email?.trim().toLowerCase() === PLATFORM_LOGIN_ALIASES.reviewer && data.isGlobalReviewer === true
+      && await this.usersRepository.exist({ where: { isGlobalReviewer: true } })) {
+      throw new ConflictException('The Global Reviewer identity already exists. Its login alias must be transferred to that account, not used to create another one.');
+    }
     const institution = data.institutionId
       ? await this.institutionRepository.findOne({ where: { id: data.institutionId } })
       : null;
@@ -58,6 +69,11 @@ export class UsersService {
   }
 
   async createWithManager(manager: EntityManager, data: Partial<User>): Promise<User> {
+    this.assertReservedLoginAlias(data);
+    if (data.email?.trim().toLowerCase() === PLATFORM_LOGIN_ALIASES.reviewer && data.isGlobalReviewer === true
+      && await manager.getRepository(User).exist({ where: { isGlobalReviewer: true } })) {
+      throw new ConflictException('The Global Reviewer identity already exists. Its login alias must be transferred to that account, not used to create another one.');
+    }
     if (data.academicHandle && data.email) {
       const reserved = await manager.query(
         'SELECT email FROM registration_drafts WHERE LOWER("academicHandle") = $1 AND email <> $2 LIMIT 1',
@@ -178,7 +194,6 @@ export class UsersService {
         COUNT(*) FILTER (WHERE role = 'reviewer')::int AS "externalReviewerAccounts",
         COUNT(*) FILTER (WHERE role = 'admin')::int AS administrators
        FROM users       WHERE role NOT IN ('moderator', 'support')`,    );
-
     const [platform] = await this.dataSource.query(
       `SELECT
         COUNT(*)::int AS total,
@@ -357,8 +372,7 @@ export class UsersService {
           'resource_review'::text AS "eventType",
           review.status::text AS action,
           'reviewer'::text AS role,          review."reviewerId"::text AS "actorId",          NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "actorName",
-          reviewer.email AS "actorEmail",
-          review."resourceId"::text AS "targetId",
+          reviewer.email AS "actorEmail",          review."resourceId"::text AS "targetId",
           resource.title::text AS "targetName",
           NULL::text AS "targetEmail",
           review."createdAt" AS "createdAt",
@@ -537,8 +551,7 @@ export class UsersService {
         if (user.institutionId && user.institutionId !== updateData.institutionId) {
           throw new ForbiddenException('Your original Institution ID is permanent. Additional institution memberships must be managed separately.');
         }
-        const institution = await manager.findOne(Institution, { where: { id: updateData.institutionId } });
-        if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
+        const institution = await manager.findOne(Institution, { where: { id: updateData.institutionId } });        if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
         if (!user.institutionId) updateData.uniqueId = await this.generateUniqueId(user, institution);
         updateData.institution = institution.name;      }
       if (updateData.institution !== undefined && user.institutionId && updateData.institutionId !== user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {        throw new ForbiddenException('Your original institution is permanent and cannot be changed on this account.');
@@ -717,8 +730,7 @@ export class UsersService {
     return { success: true, accountStatus: user.accountStatus, deletionRequestedAt: user.deletionRequestedAt, deletionScheduledAt: user.deletionScheduledAt, gracePeriodDays: 30 };
   }
 
-  async cancelPendingDeletion(email: string, password: string, securityAnswer: string) {
-    const normalizedEmail = email.trim().toLowerCase();    const user = await this.usersRepository.createQueryBuilder('user')
+  async cancelPendingDeletion(email: string, password: string, securityAnswer: string) {    const normalizedEmail = email.trim().toLowerCase();    const user = await this.usersRepository.createQueryBuilder('user')
       .addSelect('user.password')
       .addSelect('user.securityAnswerHash')      .where('LOWER(user.email) = :email', { email: normalizedEmail })
       .getOne();
