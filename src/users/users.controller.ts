@@ -56,8 +56,8 @@ export class UsersController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'View the single designated Support and Moderator accounts' })
-  getPlatformAccounts() {
-    return this.usersService.getPlatformAccounts();
+  getPlatformAccounts(@CurrentUser() actor: User) {
+    return this.usersService.getPlatformAccounts(actor.id);
   }
 
   @Get('admin/overview')
@@ -74,12 +74,12 @@ export class UsersController {
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get recent immutable platform-role and reviewer decision audit events' })
-  getAdminAuditEvents(@Query('limit') limit?: string) {
+  getAdminAuditEvents(@CurrentUser() actor: User, @Query('limit') limit?: string) {
     const parsedLimit = limit === undefined ? 50 : Number(limit);
     if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
       throw new BadRequestException('limit must be an integer between 1 and 100.');
     }
-    return this.usersService.getAdminAuditEvents(parsedLimit);
+    return this.usersService.getAdminAuditEvents(actor.id, parsedLimit);
   }
 
   @Patch(':id/platform-role')
@@ -95,7 +95,7 @@ export class UsersController {
   }
 
   @Patch(':id/reviewer-access')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Grant or revoke academic reviewer access; administrator approval is required' })
@@ -123,7 +123,7 @@ export class UsersController {
   }
 
   @Post(':id/reactivate')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Reactivate a voluntarily deactivated account without overriding moderator suspension' })
@@ -137,7 +137,7 @@ export class UsersController {
   }
 
   @Patch(':id/status')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Suspend or restore an account with a recorded reason' })
@@ -174,7 +174,7 @@ export class UsersController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Update own profile (administrators may update any profile)' })
   update(
@@ -233,11 +233,11 @@ export class UsersController {
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a user' })
-  remove(@Param('id') id: string) {
-    return this.usersService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() actor: User) {
+    return this.usersService.remove(id, actor);
   }
 }

@@ -1,6 +1,7 @@
 import { Controller, Get, Patch, Param, Query, UseGuards, Body, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CsrfGuard } from '../common/guards/csrf.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -29,7 +30,7 @@ export class NotificationsController {
   }
 
   @Patch(':id/read')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark notification as read' })
   async markAsRead(@Param('id') id: string, @CurrentUser() user: User) {
@@ -37,7 +38,7 @@ export class NotificationsController {
   }
 
   @Patch('mark-all-read')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Mark all notifications as read' })
   async markAllAsRead(@CurrentUser() user: User) {
@@ -45,7 +46,7 @@ export class NotificationsController {
   }
 
   @Post('send')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Send a notification (admin/test only)' })

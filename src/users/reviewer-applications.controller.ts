@@ -2,6 +2,7 @@ import { Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CsrfGuard } from '../common/guards/csrf.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { User, UserRole } from './entities/user.entity';
@@ -19,6 +20,7 @@ export class ReviewerApplicationsController {
   constructor(private readonly applications: ReviewerApplicationsService) {}
 
   @Post()
+  @UseGuards(CsrfGuard)
   submit(@Req() req: AuthenticatedRequest, @Body() dto: SubmitReviewerApplicationDto) {
     return this.applications.submit(req.user, dto);
   }
@@ -41,6 +43,7 @@ export class ReviewerApplicationsController {
   }
 
   @Patch(':id/decision')
+  @UseGuards(CsrfGuard)
   @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   decide(@Param('id') id: string, @Req() req: AuthenticatedRequest, @Body() dto: ReviewerApplicationDecisionDto) {
     return this.applications.decide(id, req.user, dto);

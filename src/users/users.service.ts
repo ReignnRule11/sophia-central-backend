@@ -187,7 +187,22 @@ export class UsersService {
     return query.orderBy('user.academicHandle', 'ASC').take(50).getMany();
   }
 
+  private async assertActiveAdmin(adminId: string, manager?: EntityManager): Promise<void> {
+    const admin = await (manager ? manager.findOne(User, {
+      where: { id: adminId },
+      select: ['id', 'role', 'emailVerified', 'isSuspended', 'accountStatus'],
+    }) : this.usersRepository.findOne({
+      where: { id: adminId },
+      select: ['id', 'role', 'emailVerified', 'isSuspended', 'accountStatus'],
+    }));
+    if (!admin || admin.role !== UserRole.ADMIN || admin.emailVerified !== true ||
+        admin.isSuspended === true || admin.accountStatus !== 'active') {
+      throw new ForbiddenException('An active, email-verified Admin account is required for this operation.');
+    }
+  }
+
   async getAdminOverview(adminId: string) {
+    await this.assertActiveAdmin(adminId);
     const [totals] = await this.dataSource.query(
       `SELECT
         COUNT(*)::int AS "registeredAccounts",
@@ -267,9 +282,6 @@ export class UsersService {
       where: { id: adminId },
       select: ['id', 'email', 'firstName', 'lastName', 'role', 'emailVerified', 'isSuspended', 'accountStatus'],
     });
-    if (!admin || admin.role !== UserRole.ADMIN || admin.isSuspended || admin.accountStatus !== 'active') {
-      throw new ForbiddenException('An active Admin account is required to view administration data.');
-    }
 
     return {
       generatedAt: new Date().toISOString(),
@@ -291,7 +303,8 @@ export class UsersService {
     };
   }
 
-  async getAdminAuditEvents(limit = 50) {
+  async getAdminAuditEvents(adminId: string, limit = 50) {
+    await this.assertActiveAdmin(adminId);
     const safeLimit = Math.min(100, Math.max(1, Math.trunc(Number(limit) || 50)));
     return this.dataSource.query(
       `SELECT * FROM (
@@ -407,7 +420,8 @@ export class UsersService {
     );
   }
 
-  async getPlatformAccounts() {
+  async getPlatformAccounts(adminId: string) {
+    await this.assertActiveAdmin(adminId);
     return this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.platformRoleVerifiedAt', 'user.platformRoleStatus', 'user.createdAt'])
       .where('user.role IN (:...roles)', { roles: [UserRole.SUPPORT, UserRole.MODERATOR] })
@@ -417,6 +431,7 @@ export class UsersService {
 
   async assignPlatformRole(actorId: string, targetId: string, role: UserRole.SUPPORT | UserRole.MODERATOR): Promise<User> {
     return this.dataSource.transaction(async manager => {
+      await this.assertActiveAdmin(actorId, manager);
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', [`sophis-central-platform-role:${role}`]);
       const target = await manager.findOne(User, { where: { id: targetId }, lock: { mode: 'pessimistic_write' } });
       if (!target) throw new NotFoundException('The selected platform account was not found.');
@@ -463,6 +478,7 @@ export class UsersService {
     reason?: string,
   ): Promise<User> {
     return this.dataSource.transaction(async manager => {
+      await this.assertActiveAdmin(actorId, manager);
       await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['sophis-central-platform-role-access']);
       const target = await manager.findOne(User, { where: { id: targetId }, lock: { mode: 'pessimistic_write' } });
       if (!target) throw new NotFoundException('The platform account was not found.');
@@ -622,7 +638,8 @@ export class UsersService {
     });
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actor: User): Promise<void> {
+    await this.assertActiveAdmin(actor.id);
     const user = await this.findOne(id);
     if (!user) throw new NotFoundException('User not found');
     if (user.role === UserRole.MODERATOR) {

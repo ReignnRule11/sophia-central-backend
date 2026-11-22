@@ -1,6 +1,7 @@
 import { Controller, Get, Post, Param, Body, Query, UseGuards, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CsrfGuard } from '../common/guards/csrf.guard';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -46,7 +47,7 @@ export class PointsController {
   }
 
   @Post('adjust')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   async adjustPoints(@Body() body: { userId?: string; amount?: number; reason?: string }, @CurrentUser() currentUser: User) {
@@ -55,7 +56,7 @@ export class PointsController {
   }
 
   @Post('award')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
   @ApiBearerAuth()
   awardPoints(@Body() dto: AwardPointsDto, @CurrentUser() user: User) {

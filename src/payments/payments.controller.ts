@@ -4,6 +4,7 @@ import type { RawBodyRequest } from '@nestjs/common';
 import type { Request } from 'express';
 import { CurrentUser } from '../common/decorators/current-user.decorator';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CsrfGuard } from '../common/guards/csrf.guard';
 import { User } from '../users/entities/user.entity';
 import { InitializePaymentDto } from './dto/initialize-payment.dto';
 import { CreateRefundDto } from './dto/create-refund.dto';
@@ -17,7 +18,7 @@ export class PaymentsController {
   constructor(private readonly payments: PaymentsService, private readonly reconciliation: PaymentsReconciliationService, private readonly payouts: LecturerPayoutsService) {}
 
   @Post('initialize')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Initialize a server-priced payment checkout' })
   initialize(@CurrentUser() user: User, @Body() dto: InitializePaymentDto, @Headers('idempotency-key') idempotencyKey?: string) {
@@ -25,7 +26,7 @@ export class PaymentsController {
   }
 
   @Get('verify/:reference')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify payment status and apply value exactly once' })
   verify(@CurrentUser() user: User, @Param('reference') reference: string) {
@@ -34,7 +35,7 @@ export class PaymentsController {
 
 
   @Post(':reference/refunds')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Initiate an authorized full or partial refund' })
   createRefund(@CurrentUser() user: User, @Param('reference') reference: string, @Body() dto: CreateRefundDto) {
@@ -50,7 +51,7 @@ export class PaymentsController {
   }
 
   @Get('refunds/:id/verify')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify a refund with the payment provider' })
   verifyRefund(@CurrentUser() user: User, @Param('id') id: string) {
@@ -58,7 +59,7 @@ export class PaymentsController {
   }
 
   @Post('reconciliation/run')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Compare local payments and refunds with a selected provider without mutating financial records' })
   reconcile(@CurrentUser() user: User, @Body() body: { from: string; to: string; provider?: string }) {
@@ -74,7 +75,7 @@ export class PaymentsController {
   }
 
   @Post('payouts/beneficiary')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify and save a lecturer Nigerian bank beneficiary' })
   setPayoutBeneficiary(@CurrentUser() user: User, @Body() body: { accountNumber: string; bankCode: string }) {
@@ -90,7 +91,7 @@ export class PaymentsController {
   }
 
   @Post('payouts')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Request a lecturer earnings payout for admin approval' })
   requestPayout(@CurrentUser() user: User, @Body() body: { amountMinor: string }) {
@@ -106,7 +107,7 @@ export class PaymentsController {
   }
 
   @Post('payouts/:id/approve')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Approve and initiate a lecturer payout transfer' })
   approvePayout(@CurrentUser() user: User, @Param('id') id: string) {
@@ -114,7 +115,7 @@ export class PaymentsController {
   }
 
   @Post('payouts/reconciliation/run')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Compare lecturer payouts with a selected provider without mutating financial records' })
   reconcilePayouts(@CurrentUser() user: User, @Body() body: { from: string; to: string; provider?: string }) {
@@ -130,7 +131,7 @@ export class PaymentsController {
   }
 
   @Get('payouts/verify/:reference')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Verify an in-flight lecturer transfer with its recorded provider' })
   verifyPayout(@CurrentUser() user: User, @Param('reference') reference: string) {

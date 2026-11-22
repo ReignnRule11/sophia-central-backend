@@ -1,5 +1,6 @@
 import { Controller, Get, Post, Body, Param, Patch, Delete, UseGuards, BadRequestException } from '@nestjs/common';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
+import { CsrfGuard } from '../common/guards/csrf.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { UserRole } from '../users/entities/user.entity';
@@ -18,14 +19,14 @@ export class InstitutionsController {
   constructor(private readonly institutionsService: InstitutionsService) {}
 
   @Post('submissions')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard)
   @ApiBearerAuth()
   submit(@Body() dto: CreateAcademicCatalogueSubmissionDto, @CurrentUser() user: User) {
     return this.institutionsService.submit(dto, user.id);
   }
 
   @Patch('submissions/:id/review')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
   @ApiBearerAuth()
   reviewSubmission(@Param('id') id: string, @Body() body: { status: AcademicEntryStatus.APPROVED | AcademicEntryStatus.REJECTED; reviewNote?: string; sourceUrl?: string; verifiedAt?: string }, @CurrentUser() user: User) {
@@ -34,10 +35,10 @@ export class InstitutionsController {
   }
 
   @Post()
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  create(@Body() dto: CreateInstitutionDto) {
-    return this.institutionsService.create(dto);
+  create(@Body() dto: CreateInstitutionDto, @CurrentUser() user: User) {
+    return this.institutionsService.create(dto, user);
   }
 
   @Get()
@@ -59,16 +60,16 @@ export class InstitutionsController {
   }
 
   @Patch(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() dto: UpdateInstitutionDto) {
-    return this.institutionsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateInstitutionDto, @CurrentUser() user: User) {
+    return this.institutionsService.update(id, dto, user);
   }
 
   @Delete(':id')
-  @UseGuards(JwtAuthGuard, RolesGuard)
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string) {
-    return this.institutionsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.institutionsService.remove(id, user);
   }
 }

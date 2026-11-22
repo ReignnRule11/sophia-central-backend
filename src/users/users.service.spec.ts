@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { DataSource, Repository } from 'typeorm';
 import { UsersService } from './users.service';
 import { User, UserRole } from './entities/user.entity';
@@ -104,7 +104,8 @@ describe('UsersService institution identity updates', () => {
       platformRoleStatus: 'approved',
       platformRoleVerifiedAt: new Date(),
     };
-    manager.findOne.mockResolvedValue({ ...moderator });
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, emailVerified: true, accountStatus: 'active', isSuspended: false };
+    manager.findOne.mockImplementation(async (_entity, options) => options?.where?.id === 'admin-1' ? { ...admin } : { ...moderator });
 
     const updated = await service.updatePlatformRoleAccess('admin-1', 'moderator-1', 'suspend', 'Security review');
 
@@ -131,7 +132,8 @@ describe('UsersService institution identity updates', () => {
       platformRoleStatus: 'approved',
       platformRoleVerifiedAt: new Date(),
     };
-    manager.findOne.mockResolvedValue({ ...support });
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, emailVerified: true, accountStatus: 'active', isSuspended: false };
+    manager.findOne.mockImplementation(async (_entity, options) => options?.where?.id === 'admin-1' ? { ...admin } : { ...support });
 
     const updated = await service.updatePlatformRoleAccess('admin-1', 'support-1', 'revoke', 'Role no longer required');
 
@@ -143,6 +145,16 @@ describe('UsersService institution identity updates', () => {
       isSuspended: false,
     });
     expect(manager.save).toHaveBeenCalledWith(User, expect.objectContaining({ platformRoleStatus: 'revoked' }));
+  });
+
+  it('rejects platform lifecycle changes when the actor is not an active, verified Admin', async () => {
+    manager.findOne.mockResolvedValue({
+      id: 'admin-1', role: UserRole.MODERATOR, emailVerified: true,
+      accountStatus: 'active', isSuspended: false,
+    });
+    await expect(service.updatePlatformRoleAccess('admin-1', 'moderator-1', 'revoke', 'Reason'))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(manager.save).not.toHaveBeenCalled();
   });
 
   it('rejects a manually typed institution without a catalogue reference', async () => {
