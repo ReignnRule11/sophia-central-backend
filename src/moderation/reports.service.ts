@@ -182,14 +182,22 @@ export class ContentReportsService {
     });
     if (!reports.length) return [];
     const decisions = await this.reports.query(
-      `SELECT DISTINCT ON ("sourceId") "sourceId", action, note, "actorEmail", "createdAt"
+      `SELECT "sourceId", action, note, "actorEmail", "createdAt"
        FROM admin_escalation_decisions
        WHERE "sourceType" = 'moderation' AND "sourceId" = ANY($1::uuid[])
        ORDER BY "sourceId", "createdAt" DESC`,
       [reports.map(report => report.id)],
     );
-    const latestById = new Map<string, any>(decisions.map((decision: any) => [decision.sourceId, decision] as [string, any]));
-    return reports.map(report => ({ ...report, adminDecision: latestById.get(report.id) ?? null }));
+    const historyById = new Map<string, any[]>();
+    for (const decision of decisions as any[]) {
+      const history = historyById.get(decision.sourceId) ?? [];
+      history.push(decision);
+      historyById.set(decision.sourceId, history);
+    }
+    return reports.map(report => {
+      const history = historyById.get(report.id) ?? [];
+      return { ...report, adminDecision: history[0] ?? null, adminDecisionHistory: history };
+    });
   }
 
   async recordAdminEscalationDecision(id: string, actor: User, dto: AdminEscalationDecisionDto) {
