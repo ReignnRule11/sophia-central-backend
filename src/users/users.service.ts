@@ -441,10 +441,10 @@ export class UsersService {
       }
 
       if (action === 'suspend') {
+        if (target.platformRoleStatus === 'suspended') return target;
         if (target.platformRoleStatus !== 'approved' || !target.platformRoleVerifiedAt) {
           throw new ConflictException('Only an Admin-approved platform account can be suspended.');
         }
-        if (target.platformRoleStatus === 'suspended') return target;
         target.isSuspended = true;
         target.suspensionReason = reason!.trim();
         target.platformRoleStatus = 'suspended';
