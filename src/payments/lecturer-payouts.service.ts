@@ -154,7 +154,7 @@ export class LecturerPayoutsService {
   }
 
   async approve(admin: User, payoutId: string) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(admin.role) || admin.isSuspended || admin.accountStatus !== 'active' || admin.emailVerified !== true) throw new ForbiddenException('Only active administrators or moderators may approve lecturer payouts.');
+    if (admin.role !== UserRole.ADMIN || admin.isSuspended || admin.accountStatus !== 'active' || admin.emailVerified !== true) throw new ForbiddenException('Only active, verified administrators may approve lecturer payouts.');
     const payout = await this.dataSource.transaction(async manager => {
       const record = await manager.findOne(PaymentPayout, { where: { id: payoutId }, lock: { mode: 'pessimistic_write' } });
       if (!record) throw new NotFoundException('Payout request not found.');
@@ -188,7 +188,7 @@ export class LecturerPayoutsService {
   }
 
   async verify(admin: User, reference: string) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(admin.role) || admin.isSuspended || admin.accountStatus !== 'active' || admin.emailVerified !== true) throw new ForbiddenException('Only active administrators or moderators may verify payouts.');
+    if (admin.role !== UserRole.ADMIN || admin.isSuspended || admin.accountStatus !== 'active' || admin.emailVerified !== true) throw new ForbiddenException('Only active, verified administrators may verify payouts.');
     const payout = await this.payouts.findOne({ where: { reference } });
     if (!payout) throw new NotFoundException('Payout not found.');
     if ([PaymentPayoutStatus.SUCCESS, PaymentPayoutStatus.FAILED, PaymentPayoutStatus.REVERSED].includes(payout.status)) return this.publicPayout(payout);
@@ -238,7 +238,7 @@ export class LecturerPayoutsService {
   }
 
   async reconcilePayouts(admin: User, input: { from: string; to: string; provider?: string }) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(admin.role) || admin.isSuspended || admin.accountStatus !== 'active' || admin.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may reconcile payouts.');
+    if (admin.role !== UserRole.ADMIN || admin.isSuspended || admin.accountStatus !== 'active' || admin.emailVerified !== true) throw new ForbiddenException('Only active, verified administrators may reconcile payouts.');
     const start = new Date(input.from), end = new Date(input.to);
     if (!Number.isFinite(start.getTime()) || !Number.isFinite(end.getTime()) || end <= start ||
         end.getTime() - start.getTime() > 31 * 24 * 60 * 60 * 1000) {
@@ -295,7 +295,7 @@ export class LecturerPayoutsService {
   }
 
   async payoutReconciliationHistory(admin: User) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(admin.role)) throw new ForbiddenException('Only administrators and moderators may inspect payout reconciliation history.');
+    if (admin.role !== UserRole.ADMIN || admin.isSuspended || admin.accountStatus !== 'active' || admin.emailVerified !== true) throw new ForbiddenException('Only active, verified administrators may inspect payout reconciliation history.');
     const rows = await this.payoutRuns.find({ order: { createdAt: 'DESC' }, take: 50 });
     return rows.map(run => ({ id: run.id, provider: run.provider, periodStart: run.periodStart, periodEnd: run.periodEnd,
       status: run.status, counts: { providerTransfers: run.providerTransfers, localPayouts: run.localPayouts },
@@ -303,7 +303,7 @@ export class LecturerPayoutsService {
   }
 
   async listRequests(admin: User) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(admin.role) || admin.isSuspended || admin.accountStatus !== 'active' || admin.emailVerified !== true) throw new ForbiddenException('Only active administrators or moderators may inspect payout requests.');
+    if (admin.role !== UserRole.ADMIN || admin.isSuspended || admin.accountStatus !== 'active' || admin.emailVerified !== true) throw new ForbiddenException('Only active, verified administrators may inspect payout requests.');
     const records = await this.payouts.find({ order: { createdAt: 'DESC' }, take: 100 });
     return records.map(record => this.publicPayout(record));
   }
