@@ -177,8 +177,7 @@ export class UsersService {
         COUNT(*) FILTER (WHERE role = 'lecturer')::int AS lecturers,
         COUNT(*) FILTER (WHERE role = 'reviewer')::int AS "externalReviewerAccounts",
         COUNT(*) FILTER (WHERE role = 'admin')::int AS administrators
-       FROM users       WHERE role NOT IN ('moderator', 'support')`,
-    );
+       FROM users       WHERE role NOT IN ('moderator', 'support')`,    );
 
     const [platform] = await this.dataSource.query(
       `SELECT
@@ -357,8 +356,7 @@ export class UsersService {
         SELECT
           'resource_review'::text AS "eventType",
           review.status::text AS action,
-          'reviewer'::text AS role,          review."reviewerId"::text AS "actorId",
-          NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "actorName",
+          'reviewer'::text AS role,          review."reviewerId"::text AS "actorId",          NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "actorName",
           reviewer.email AS "actorEmail",
           review."resourceId"::text AS "targetId",
           resource.title::text AS "targetName",
@@ -411,6 +409,12 @@ export class UsersService {
       // an ordinary academic account into a shared platform account.
       if (target.role !== role) {
         throw new ConflictException(`Only an already-provisioned ${role} account can be Admin-verified here. Ordinary accounts cannot be promoted through account linking.`);
+      }
+      const designatedLoginEmail = role === UserRole.MODERATOR
+        ? 'sophiscentral+moderator@gmail.com'
+        : 'sophiscentral+support@gmail.com';
+      if (target.email.trim().toLowerCase() !== designatedLoginEmail) {
+        throw new ConflictException(`The designated ${role} account must use its reserved Sophis Central login alias before Admin approval.`);
       }
       if (target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
         throw new ForbiddenException('Only an email-verified, active, unsuspended platform account can be approved.');
@@ -537,8 +541,7 @@ export class UsersService {
         if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
         if (!user.institutionId) updateData.uniqueId = await this.generateUniqueId(user, institution);
         updateData.institution = institution.name;      }
-      if (updateData.institution !== undefined && user.institutionId && updateData.institutionId !== user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {
-        throw new ForbiddenException('Your original institution is permanent and cannot be changed on this account.');
+      if (updateData.institution !== undefined && user.institutionId && updateData.institutionId !== user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {        throw new ForbiddenException('Your original institution is permanent and cannot be changed on this account.');
       }
       if (updateData.isSuspended !== undefined && user.role === UserRole.ADMIN && data.isSuspended === true) {
         throw new ForbiddenException('Administrator accounts cannot be suspended through moderator account management.');
@@ -717,8 +720,7 @@ export class UsersService {
   async cancelPendingDeletion(email: string, password: string, securityAnswer: string) {
     const normalizedEmail = email.trim().toLowerCase();    const user = await this.usersRepository.createQueryBuilder('user')
       .addSelect('user.password')
-      .addSelect('user.securityAnswerHash')
-      .where('LOWER(user.email) = :email', { email: normalizedEmail })
+      .addSelect('user.securityAnswerHash')      .where('LOWER(user.email) = :email', { email: normalizedEmail })
       .getOne();
     if (!user || user.accountStatus !== 'pending_deletion' || !user.deletionScheduledAt || user.deletionScheduledAt.getTime() <= Date.now()) {
       throw new UnauthorizedException('The account could not be restored with the supplied details.');
