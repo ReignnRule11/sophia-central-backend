@@ -638,7 +638,8 @@ export class UsersService {
     });
   }
 
-  async remove(id: string): Promise<void> {
+  async remove(id: string, actor: User): Promise<void> {
+    await this.assertActiveAdmin(actor.id);
     const user = await this.findOne(id);
     if (!user) throw new NotFoundException('User not found');
     if (user.role === UserRole.MODERATOR) {
