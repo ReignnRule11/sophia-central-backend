@@ -14,7 +14,7 @@ export class NotificationsController {
   constructor(private readonly notificationsService: NotificationsService) {}
 
   @Get()
-  @UseGuards(JwtAuthGuard, CsrfGuard)
+  @UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get user notifications' })
   async getNotifications(
