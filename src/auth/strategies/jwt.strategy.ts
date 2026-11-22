@@ -46,7 +46,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   async validate(payload: { sub?: string; adminMfaVerified?: boolean }) {
     if (!payload?.sub) return null;
     const user = await this.usersService.findOne(payload.sub);
-    if (!user || user.isSuspended || user.accountStatus !== 'active') return null;\n    if (user.role === 'admin' && payload.adminMfaVerified !== true) return null;
+    if (!user || user.isSuspended || user.accountStatus !== 'active') return null;
+    if (user.role === 'admin' && payload.adminMfaVerified !== true) return null;
     // Email/password accounts must have completed mailbox verification before any JWT-protected route.
     if (user.emailVerified !== true) return null;
     return user;
