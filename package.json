@@ -21,7 +21,8 @@
     "account-deletion:purge": "node dist/database/purge-pending-account-deletions.js",
     "import:nuc": "ts-node --transpile-only src/database/import-nuc-universities.ts",
     "import:other-institutions": "ts-node --transpile-only src/database/import-other-institutions.ts",
-    "import:academic-catalogue": "ts-node --transpile-only src/database/import-nigeria-academic-catalogue.ts"
+    "import:academic-catalogue": "ts-node --transpile-only src/database/import-nigeria-academic-catalogue.ts",
+    "admin:bootstrap": "ts-node --transpile-only scripts/bootstrap-admin.ts"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.703.0",

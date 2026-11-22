@@ -147,16 +147,38 @@ export class ContentReportsService {
     });
   }
 
-  async escalate(id: string, actor: User, targetRole: UserRole.SUPPORT | UserRole.ADMIN, reason: string) {
+  async escalate(id: string, actor: User, targetRole: UserRole.ADMIN, reason: string) {
     if (actor.role !== UserRole.MODERATOR || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Moderators can escalate reports.');
-    if (![UserRole.SUPPORT, UserRole.ADMIN].includes(targetRole)) throw new BadRequestException('Reports may only be escalated to Support or Admin.');
+    if (targetRole !== UserRole.ADMIN) throw new BadRequestException('Moderation reports may only be escalated to Admin.');
     if (!reason?.trim()) throw new BadRequestException('An escalation reason is required.');
     const report = await this.reports.findOne({ where: { id } });
     if (!report) throw new NotFoundException('Report not found.');
-    const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
-    if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
-    await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'moderation_report_escalated', 'Moderation report escalated', `Report ${report.ticketNumber} (${report.targetType}: ${report.targetLabel}) was escalated by the Moderator. Reason: ${report.reason}. Details: ${(report.details || JSON.stringify(report.targetSnapshot)).slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/notifications')));
+    if (report.escalatedToRole === 'admin') throw new ConflictException('This moderation report has already been escalated to Admin.');
+    const recipients = await this.users.find({ where: { role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } });
+    if (!recipients.length) throw new BadRequestException('No active Admin account is configured for this escalation.');
+    report.escalatedToRole = 'admin';
+    report.escalationReason = reason.trim();
+    report.escalatedAt = new Date();
+    report.escalatedById = actor.id;
+    await this.reports.save(report);
+    await this.reports.query(
+      'INSERT INTO admin_escalation_events ("sourceType", "sourceId", "ticketNumber", "actorId", "actorEmail", reason) VALUES ($1, $2::uuid, $3, $4::uuid, $5, $6)',
+      ['moderation', report.id, report.ticketNumber, actor.id, actor.email, reason.trim()],
+    );
+    await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'moderation_report_escalated', 'Moderation report escalated', `Report ${report.ticketNumber} (${report.targetType}: ${report.targetLabel}) was escalated by the Moderator. Reason: ${report.reason}. Details: ${(report.details || JSON.stringify(report.targetSnapshot)).slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/admin/escalations')));
     return { success: true, ticketNumber: report.ticketNumber, notified: recipients.length };
+  }
+
+  async listAdminEscalations(actor: User) {
+    if (actor.role !== UserRole.ADMIN || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) {
+      throw new ForbiddenException('Only an active, verified Admin can inspect escalated moderation reports.');
+    }
+    return this.reports.find({
+      where: { escalatedToRole: 'admin' },
+      relations: ['reporter', 'assignedModerator'],
+      order: { escalatedAt: 'DESC' },
+      take: 100,
+    });
   }
 
   async listForModeration(actor: User, status?: ContentReportStatus) {

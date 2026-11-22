@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Unauthorize
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { AuthService } from './auth.service';
-import { UserRole } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { ReviewerApplication, ReviewerApplicationStatus } from '../users/entities/reviewer-application.entity';
 import { PreAccount } from './entities/pre-account.entity';
 import { RegistrationDraft } from './entities/registration-draft.entity';
@@ -13,7 +13,7 @@ import { EmailVerificationEmailService } from './email-verification-email.servic
 
 describe('AuthService', () => {
   let service: AuthService;
-  let users: jest.Mocked<Pick<UsersService, 'findByEmail' | 'findByAcademicHandle' | 'findByUniqueId' | 'create' | 'createWithManager' | 'update' | 'findOne'>>;
+  let users: jest.Mocked<Pick<UsersService, 'findByEmail' | 'findByAcademicHandle' | 'findByUniqueId' | 'create' | 'createWithManager' | 'update' | 'findOne' | 'hasGlobalReviewerAccount'>>;
   let jwt: jest.Mocked<Pick<JwtService, 'signAsync'>>;
   let resetTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock; createQueryBuilder: jest.Mock };
   let verificationTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock };
@@ -36,7 +36,7 @@ describe('AuthService', () => {
     process.env.REVIEWER_RECRUITMENT_OPEN = 'true';
     delete process.env.REVIEWER_TEST_ACCOUNT_EMAIL;
     delete process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL;
-    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), createWithManager: jest.fn().mockResolvedValue({ ...user, id: 'new-account-id' }), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn() };
+    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), createWithManager: jest.fn().mockResolvedValue({ ...user, id: 'new-account-id' }), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn(), hasGlobalReviewerAccount: jest.fn().mockResolvedValue(false) };
     jwt = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
     resetTokens = {
       delete: jest.fn().mockResolvedValue({ affected: 1 }), save: jest.fn().mockResolvedValue({}),
@@ -83,7 +83,8 @@ describe('AuthService', () => {
 
   it('limits closed recruitment to the exact configured reviewer test email', async () => {
     process.env.REVIEWER_RECRUITMENT_OPEN = 'false';
-    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral@gmail.com';
+    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral+reviewer@gmail.com';
+    process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL = 'sophiscentral+reviewer@gmail.com';
     users.findByEmail.mockResolvedValue(null);
     users.findByAcademicHandle.mockResolvedValue(null);
 
@@ -98,7 +99,7 @@ describe('AuthService', () => {
     await expect(service.register({
       firstName: 'Sophis',
       lastName: 'Reviewer',
-      email: 'SOPHISCENTRAL@gmail.com',
+      email: 'SOPHISCENTRAL+reviewer@gmail.com',
       academicHandle: 'sophis',
       role: UserRole.REVIEWER,
     })).resolves.toEqual(expect.objectContaining({ emailSent: true }));
@@ -106,16 +107,16 @@ describe('AuthService', () => {
 
   it('bootstraps the exact configured Global Academic Reviewer after verified registration', async () => {
     process.env.REVIEWER_RECRUITMENT_OPEN = 'false';
-    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral@gmail.com';
-    process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL = 'sophiscentral@gmail.com';
+    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral+reviewer@gmail.com';
+    process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL = 'sophiscentral+reviewer@gmail.com';
     const expiresAt = new Date(Date.now() + 60_000);
-    preAccounts.findOne.mockResolvedValue({ email: 'sophiscentral@gmail.com', password: 'password-hash' });
-    registrationDrafts.findOne.mockResolvedValue({ email: 'sophiscentral@gmail.com', expiresAt, encryptedPayload: 'encrypted-draft' });
+    preAccounts.findOne.mockResolvedValue({ email: 'sophiscentral+reviewer@gmail.com', password: 'password-hash' });
+    registrationDrafts.findOne.mockResolvedValue({ email: 'sophiscentral+reviewer@gmail.com', expiresAt, encryptedPayload: 'encrypted-draft' });
     registrationTokens.open
-      .mockReturnValueOnce({ stage: 'pre-account', email: 'sophiscentral@gmail.com', jti: 'resume-jti', expiresAt: expiresAt.getTime() })
+      .mockReturnValueOnce({ stage: 'pre-account', email: 'sophiscentral+reviewer@gmail.com', jti: 'resume-jti', expiresAt: expiresAt.getTime() })
       .mockReturnValueOnce({
         stage: 'pre-account-draft',
-        email: 'sophiscentral@gmail.com',
+        email: 'sophiscentral+reviewer@gmail.com',
         firstName: 'Sophis',
         lastName: 'Reviewer',
         academicHandle: 'sophis',
@@ -125,7 +126,7 @@ describe('AuthService', () => {
     users.findByAcademicHandle.mockResolvedValue(null);
     users.createWithManager.mockResolvedValue({
       id: 'global-reviewer-id',
-      email: 'sophiscentral@gmail.com',
+      email: 'sophiscentral+reviewer@gmail.com',
       role: UserRole.REVIEWER,
       hasReviewerAccess: true,
       isGlobalReviewer: true,
@@ -138,7 +139,7 @@ describe('AuthService', () => {
     await service.completePreAccountOnboarding('onboarding-token', { bio: 'Platform-wide academic review test account' } as never);
 
     expect(users.createWithManager).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
-      email: 'sophiscentral@gmail.com',
+      email: 'sophiscentral+reviewer@gmail.com',
       firstName: 'Sophis',
       lastName: 'Reviewer',
       academicHandle: 'sophis',
@@ -166,6 +167,61 @@ describe('AuthService', () => {
       fromStatus: ReviewerApplicationStatus.SUBMITTED,
       toStatus: ReviewerApplicationStatus.APPROVED,
     }));
+  });
+
+  it('verifies and sets a password for the single provisioned Admin bootstrap account', async () => {
+    const admin = {
+      id: 'admin-bootstrap-id',
+      email: 'sophiscentral+admin@gmail.com',
+      role: UserRole.ADMIN,
+      emailVerified: false,
+      isVerified: false,
+      isSuspended: false,
+      accountStatus: 'active',
+    } as User;    const manager = {      query: jest.fn().mockResolvedValue([]),      getRepository: jest.fn().mockReturnValue({ count: jest.fn().mockResolvedValue(1) }),      findOne: jest.fn().mockResolvedValue(admin),
+      save: jest.fn().mockImplementation(async (_entity, value) => value),
+    };
+    dataSource.transaction.mockImplementationOnce(async callback => callback(manager));
+
+    registrationTokens.open.mockReturnValue({
+      stage: 'admin-bootstrap',
+      userId: admin.id,
+      email: admin.email,
+      jti: 'single-use-admin-jti',
+      expiresAt: Date.now() + 60_000,
+    });
+
+    await expect(service.confirmEmailVerification('admin-bootstrap-token', 'a-strong-test-password'))
+      .resolves.toEqual({
+        message: 'Your Admin email is verified and your password is set. You can now sign in to Sophis Central.',
+      });
+
+    expect(registrationTokens.claimOnce).toHaveBeenCalledWith('single-use-admin-jti', expect.any(Number));
+    expect(manager.save).toHaveBeenCalledWith(User, expect.objectContaining({
+      id: admin.id,
+      emailVerified: true,
+      isVerified: true,
+      password: expect.any(String),
+    }));
+    expect(manager.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO admin_bootstrap_audit_events'),
+      [admin.id, admin.email, 'email_verified'],
+    );
+  });
+
+  it('rejects a replayed Admin bootstrap verification token', async () => {
+    registrationTokens.open.mockReturnValue({
+      stage: 'admin-bootstrap',
+      userId: 'admin-bootstrap-id',
+      email: 'sophiscentral+admin@gmail.com',
+      jti: 'already-used-admin-jti',
+      expiresAt: Date.now() + 60_000,
+    });
+    registrationTokens.claimOnce.mockResolvedValue(false);
+
+    await expect(service.confirmEmailVerification('replayed-admin-token', 'a-strong-test-password'))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
   it('routes an existing account to sign-in without disclosing its role', async () => {
@@ -298,13 +354,9 @@ describe('AuthService', () => {
     users.findOne.mockResolvedValue({ ...user, role: UserRole.REVIEWER, isProfileComplete: false } as never);
     await expect(service.completeOnboarding(user.id, {
       institutionId: '00000000-0000-4000-8000-000000000001',
-      institution: 'Research Institute',
-      faculty: 'Research',
-      department: 'Methods',
-    } as never)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(users.update).not.toHaveBeenCalled();
-  });
-
+      institution: 'Research Institute',      faculty: 'Research',
+      department: 'Methods',    } as never)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(users.update).not.toHaveBeenCalled();  });
   it('persists External Reviewer affiliation and summary in encrypted onboarding progress', async () => {
     const expiresAt = new Date(Date.now() + 60_000);
     registrationTokens.open
@@ -478,17 +530,13 @@ describe('AuthService', () => {
       email: 'learner@example.com', academicHandle: 'learner.one', encryptedPayload: expect.any(String), expiresAt: expect.any(Date),
     }));
     expect(users.create).not.toHaveBeenCalled();
-    expect(jwt.signAsync).not.toHaveBeenCalled();
-  });
+    expect(jwt.signAsync).not.toHaveBeenCalled();  });
 
-  it('saves partial onboarding progress inside the encrypted registration draft', async () => {
-    const draft = {
+  it('saves partial onboarding progress inside the encrypted registration draft', async () => {    const draft = {
       email: user.email,
-      academicHandle: 'learner.one',
-      encryptedPayload: 'old-encrypted-draft',
+      academicHandle: 'learner.one',      encryptedPayload: 'old-encrypted-draft',
       expiresAt: new Date(Date.now() + 60_000),
-    };
-    registrationTokens.open
+    };    registrationTokens.open
       .mockReturnValueOnce({ stage: 'pre-account', email: user.email, jti: 'resume-jti', expiresAt: Date.now() + 60_000 })
       .mockReturnValueOnce({ stage: 'pre-account-draft', email: user.email, firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one', role: UserRole.STUDENT, expiresAt: Date.now() + 60_000 });
     registrationDrafts.findOne.mockResolvedValue(draft);

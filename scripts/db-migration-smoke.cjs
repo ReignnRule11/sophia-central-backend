@@ -21,7 +21,7 @@ async function main() {
       'users', 'resources', 'institutions', 'faculties', 'departments',
       'courses', 'course_topics', 'moderation_reviews', 'point_wallets',
       'point_transactions', 'file_uploads', 'referrals', 'notifications',
-      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'content_reports', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events',
+      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'content_reports', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events', 'platform_role_audit_events', 'admin_bootstrap_audit_events', 'admin_escalation_events',
     ];
     for (const table of requiredTables) {
       const result = await client.query('SELECT to_regclass($1) AS name', [`public.${table}`]);
@@ -41,6 +41,12 @@ async function main() {
 
     const globalReviewerColumn = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'isGlobalReviewer'");
     assert.equal(globalReviewerColumn.rowCount, 1, 'global academic reviewer capability column should exist');
+    const adminColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'platformRoleStatus'");
+    assert.equal(adminColumns.rowCount, 1, 'platform role lifecycle status should exist');
+    const escalationColumns = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'support_requests' AND column_name IN ('escalationReason', 'escalatedAt', 'escalatedById')) OR (table_name = 'content_reports' AND column_name IN ('escalatedToRole', 'escalationReason', 'escalatedAt', 'escalatedById')))");
+    assert.equal(escalationColumns.rowCount, 7, 'Support and Moderation escalation metadata should exist');
+    const platformAuditSnapshots = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'platform_role_audit_events' AND column_name IN ('actorEmail', 'targetEmail', 'reason')");
+    assert.equal(platformAuditSnapshots.rowCount, 3, 'platform audit actor and target snapshots should exist');
 
     const applied = await client.query('SELECT name FROM migrations ORDER BY timestamp');
     const migrationNames = applied.rows.map((row) => row.name);
@@ -66,6 +72,10 @@ async function main() {
     assert.ok(migrationNames.includes('CreateReviewerAssignmentEvents2026111700008'), 'reviewer assignment event migration should be applied');
     assert.ok(migrationNames.includes('AddGlobalAcademicReviewerCapability2026111800001'), 'global academic reviewer capability migration should be applied');
     assert.ok(migrationNames.includes('AddSupportRoleTicketReferencesAndWorkflow2026111800003'), 'Support and report ticket workflow migration should be applied');
+    assert.ok(migrationNames.includes('ImmutablePlatformRoleAuditEvents2026112200001'), 'Admin and platform audit immutability migration should be applied');
+    assert.ok(migrationNames.includes('AddPlatformRoleLifecycleState2026112200002'), 'platform role lifecycle migration should be applied');
+    assert.ok(migrationNames.includes('PersistAdminEscalationRecords2026112200003'), 'Admin escalation persistence migration should be applied');
+    assert.ok(migrationNames.includes('PreservePlatformAuditSnapshots2026112200004'), 'platform audit snapshot migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
@@ -136,6 +146,21 @@ async function main() {
        VALUES ('CI approved shared resource', 'other', 'approved', $1) RETURNING id`,
       [userId],
     );
+    const smokeEmail = `ci-smoke-${Date.now()}@example.invalid`;
+    const platformAudit = await client.query(
+      `INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", "actorEmail", "targetEmail", reason)
+       VALUES ($1, $1, 'moderator', 'approved', 'moderator', 'moderator', $2, $2, 'CI audit snapshot') RETURNING id`,
+      [userId, smokeEmail],
+    );
+    const bootstrapAudit = await client.query(
+      `INSERT INTO admin_bootstrap_audit_events ("targetId", email, action) VALUES ($1, $2, 'created') RETURNING id`,
+      [userId, smokeEmail],
+    );
+    const escalationAudit = await client.query(
+      `INSERT INTO admin_escalation_events ("sourceType", "sourceId", "ticketNumber", "actorId", "actorEmail", reason)
+       VALUES ('support', $1, 'SUP-CI-000001', $2, $3, 'CI escalation reason') RETURNING id`,
+      [approvedResource.rows[0].id, userId, smokeEmail],
+    );
     approvedResourceId = approvedResource.rows[0].id;
     sessionId = session.rows[0].id;
     const supportRequest = await client.query(
@@ -167,7 +192,10 @@ async function main() {
            'reviewer_application_decisions',
            'academic_account_transitions',
            'reviewer_conflict_declarations',
-           'reviewer_assignment_events'
+           'reviewer_assignment_events',
+           'platform_role_audit_events',
+           'admin_bootstrap_audit_events',
+           'admin_escalation_events'
          )`,
     );
     assert.equal(immutableAuditForeignKeys.rowCount, 0, 'append-only audit records must not block account or resource deletion through foreign keys');
@@ -179,6 +207,30 @@ async function main() {
     assert.equal(conflictAudit.rowCount, 1, 'conflict audit should survive resource and user deletion');
     const assignmentAudit = await client.query('SELECT id FROM reviewer_assignment_events WHERE "resourceId" = $1', [resource.rows[0].id]);
     assert.equal(assignmentAudit.rowCount, 1, 'assignment audit should survive resource and user deletion');
+    const retainedPlatformAudit = await client.query('SELECT "actorEmail", "targetEmail" FROM platform_role_audit_events WHERE id = $1', [platformAudit.rows[0].id]);
+    assert.equal(retainedPlatformAudit.rowCount, 1, 'platform audit should survive account deletion');
+    assert.equal(retainedPlatformAudit.rows[0].actorEmail, smokeEmail, 'platform audit should retain actor email snapshot');
+    assert.equal(retainedPlatformAudit.rows[0].targetEmail, smokeEmail, 'platform audit should retain target email snapshot');
+    const retainedBootstrapAudit = await client.query('SELECT email FROM admin_bootstrap_audit_events WHERE id = $1', [bootstrapAudit.rows[0].id]);
+    assert.equal(retainedBootstrapAudit.rowCount, 1, 'Admin bootstrap audit should survive account deletion');
+    const retainedEscalationAudit = await client.query('SELECT "actorEmail", reason FROM admin_escalation_events WHERE id = $1', [escalationAudit.rows[0].id]);
+    assert.equal(retainedEscalationAudit.rowCount, 1, 'Admin escalation audit should survive account deletion');
+    assert.equal(retainedEscalationAudit.rows[0].actorEmail, smokeEmail, 'escalation audit should retain actor email snapshot');
+    await assert.rejects(
+      client.query('UPDATE platform_role_audit_events SET action = \'tampered\' WHERE id = $1', [platformAudit.rows[0].id]),
+      (error) => error.message.includes('Audit records are append-only'),
+      'platform role audit rows must be immutable',
+    );
+    await assert.rejects(
+      client.query('DELETE FROM admin_bootstrap_audit_events WHERE id = $1', [bootstrapAudit.rows[0].id]),
+      (error) => error.message.includes('Audit records are append-only'),
+      'Admin bootstrap audit rows must be immutable',
+    );
+    await assert.rejects(
+      client.query('UPDATE admin_escalation_events SET reason = \'tampered\' WHERE id = $1', [escalationAudit.rows[0].id]),
+      (error) => error.message.includes('Audit records are append-only'),
+      'Admin escalation audit rows must be immutable',
+    );
     const supportRow = await client.query('SELECT id FROM support_requests WHERE id = $1', [supportRequestId]);
     assert.equal(supportRow.rowCount, 0, 'deleting a user should cascade-delete support requests');
     const resetToken = await client.query('SELECT id FROM password_reset_tokens WHERE id = $1', [reset.rows[0].id]);

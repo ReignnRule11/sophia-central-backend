@@ -151,6 +151,9 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   platformRoleVerifiedAt?: Date | null;
 
+  @Column({ type: 'varchar', length: 16, default: 'pending' })
+  platformRoleStatus!: 'pending' | 'approved' | 'suspended' | 'revoked';
+
   @Column({ default: false })
   emailVerified!: boolean;
 
@@ -161,7 +164,7 @@ export class User {
   isSuspended!: boolean;
 
   @Column({ type: 'text', nullable: true })
-  suspensionReason?: string;
+  suspensionReason?: string | null;
 
   @Column({ type: 'varchar', length: 24, default: 'active' })
   accountStatus!: 'active' | 'deactivated' | 'pending_deletion';

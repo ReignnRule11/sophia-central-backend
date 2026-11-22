@@ -9,6 +9,7 @@ import { generateInstitutionCode, institutionTypeCode } from '../institutions/in
 import { StorageCleanupService } from '../upload/storage-cleanup.service';
 import { SetReviewerAccessDto } from './dto/set-reviewer-access.dto';
 import { TransitionExternalReviewerDto } from './dto/transition-external-reviewer.dto';
+import { isAllowedPlatformLoginAlias, PLATFORM_LOGIN_ALIASES } from './platform-login-aliases';
 
 @Injectable()
 export class UsersService {
@@ -43,7 +44,17 @@ export class UsersService {
     throw new ConflictException('A unique Sophis Central Institution ID could not be generated. Please retry registration.');
   }
 
+  private assertReservedLoginAlias(data: Partial<User>): void {
+    if (!data.email || isAllowedPlatformLoginAlias(data.email, data.role, data.isGlobalReviewer)) return;
+    throw new ConflictException('This email address is reserved for its designated Sophis Central platform account.');
+  }
+
   async create(data: Partial<User>): Promise<User> {
+    this.assertReservedLoginAlias(data);
+    if (data.email?.trim().toLowerCase() === PLATFORM_LOGIN_ALIASES.reviewer && data.isGlobalReviewer === true
+      && await this.usersRepository.exist({ where: { isGlobalReviewer: true } })) {
+      throw new ConflictException('The Global Reviewer identity already exists. Its login alias must be transferred to that account, not used to create another one.');
+    }
     const institution = data.institutionId
       ? await this.institutionRepository.findOne({ where: { id: data.institutionId } })
       : null;
@@ -58,6 +69,11 @@ export class UsersService {
   }
 
   async createWithManager(manager: EntityManager, data: Partial<User>): Promise<User> {
+    this.assertReservedLoginAlias(data);
+    if (data.email?.trim().toLowerCase() === PLATFORM_LOGIN_ALIASES.reviewer && data.isGlobalReviewer === true
+      && await manager.getRepository(User).exist({ where: { isGlobalReviewer: true } })) {
+      throw new ConflictException('The Global Reviewer identity already exists. Its login alias must be transferred to that account, not used to create another one.');
+    }
     if (data.academicHandle && data.email) {
       const reserved = await manager.query(
         'SELECT email FROM registration_drafts WHERE LOWER("academicHandle") = $1 AND email <> $2 LIMIT 1',
@@ -147,6 +163,10 @@ export class UsersService {
     return this.usersRepository.findOne({ where: { id } });
   }
 
+  async hasGlobalReviewerAccount(): Promise<boolean> {
+    return this.usersRepository.exist({ where: { isGlobalReviewer: true } });
+  }
+
   async findChatContacts(currentUserId: string, search?: string) {
     const currentUser = await this.usersRepository.findOne({
       where: { id: currentUserId },
@@ -161,16 +181,235 @@ export class UsersService {
       .andWhere('LOWER(TRIM(user.institution)) = LOWER(TRIM(:institution))', { institution })
       .andWhere('user.role IN (:...roles)', { roles: [UserRole.STUDENT, UserRole.LECTURER] })
       .andWhere('user.isSuspended = false')
-      .andWhere("user.accountStatus = 'active'")
-      .andWhere('user.academicHandle IS NOT NULL');
+      .andWhere("user.accountStatus = 'active'")      .andWhere('user.academicHandle IS NOT NULL');
     const normalizedSearch = search?.trim().replace(/^@+/, '').toLowerCase();
     if (normalizedSearch) query.andWhere('LOWER(user.academicHandle) LIKE :search', { search: `%${normalizedSearch}%` });
     return query.orderBy('user.academicHandle', 'ASC').take(50).getMany();
   }
 
+  async getAdminOverview(adminId: string) {
+    const [totals] = await this.dataSource.query(
+      `SELECT
+        COUNT(*)::int AS "registeredAccounts",
+        COUNT(*) FILTER (WHERE "emailVerified" = true AND "accountStatus" = 'active' AND "isSuspended" = false)::int AS "activeVerifiedAccounts",
+        COUNT(*) FILTER (WHERE role = 'student')::int AS students,
+        COUNT(*) FILTER (WHERE role = 'lecturer')::int AS lecturers,
+        COUNT(*) FILTER (WHERE role = 'reviewer')::int AS "externalReviewerAccounts",
+        COUNT(*) FILTER (WHERE role = 'admin')::int AS administrators
+       FROM users       WHERE role NOT IN ('moderator', 'support')`,    );
+    const [platform] = await this.dataSource.query(
+      `SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE "platformRoleStatus" = 'pending')::int AS "pendingApproval",
+        COUNT(*) FILTER (WHERE "platformRoleStatus" = 'approved')::int AS "approved",
+        COUNT(*) FILTER (WHERE "platformRoleStatus" = 'suspended')::int AS suspended,
+        COUNT(*) FILTER (WHERE "platformRoleStatus" = 'revoked')::int AS revoked,
+        COUNT(*) FILTER (WHERE "isSuspended" = true OR "accountStatus" <> 'active')::int AS "unavailable"
+       FROM users WHERE role IN ('moderator', 'support')`,
+    );
+
+    const reviewerStatuses = await this.dataSource.query(
+      `SELECT status, COUNT(*)::int AS count
+       FROM reviewer_applications
+       GROUP BY status`,
+    );
+    const globalReviewerRows = await this.dataSource.query(
+      `SELECT id, email, "firstName", "lastName", role, "hasReviewerAccess",
+              "isGlobalReviewer", "reviewerStatus", "emailVerified", "isSuspended",
+              "accountStatus", "createdAt", "lastLoginAt"
+       FROM users
+       WHERE "isGlobalReviewer" = true
+       ORDER BY "createdAt" ASC
+       LIMIT 1`,
+      [],
+    );
+    const globalReviewer = globalReviewerRows[0] ?? null;
+    let globalReviewerApplicationHistory = 0;
+    let globalReviewerModerationReviewCount = 0;
+    let globalReviewerAssignmentEventCount = 0;
+    let globalReviewerLatestApplication: Record<string, unknown> | null = null;
+    let globalReviewerLatestModerationReview: Record<string, unknown> | null = null;
+    if (globalReviewer?.id) {
+      const [history] = await this.dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM reviewer_applications WHERE "userId" = $1::uuid`,
+        [globalReviewer.id],
+      );
+      globalReviewerApplicationHistory = Number(history?.count ?? 0);
+      const [latest] = await this.dataSource.query(
+        `SELECT id, status, "createdAt", "updatedAt", "decidedAt", "decisionNote"
+         FROM reviewer_applications WHERE "userId" = $1::uuid
+         ORDER BY "createdAt" DESC LIMIT 1`,
+        [globalReviewer.id],
+      );
+      globalReviewerLatestApplication = latest ?? null;
+      const [reviewCounts] = await this.dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM moderation_reviews WHERE "reviewerId" = $1::uuid`,
+        [globalReviewer.id],
+      );
+      globalReviewerModerationReviewCount = Number(reviewCounts?.count ?? 0);
+      const [assignmentCounts] = await this.dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM reviewer_assignment_events WHERE "reviewerId" = $1::uuid`,
+        [globalReviewer.id],
+      );
+      globalReviewerAssignmentEventCount = Number(assignmentCounts?.count ?? 0);
+      const [latestReview] = await this.dataSource.query(
+        `SELECT review.id, review.status, review."createdAt", resource.id AS "resourceId", resource.title AS "resourceTitle"
+         FROM moderation_reviews review
+         LEFT JOIN resources resource ON resource.id = review."resourceId"
+         WHERE review."reviewerId" = $1::uuid
+         ORDER BY review."createdAt" DESC LIMIT 1`,
+        [globalReviewer.id],
+      );
+      globalReviewerLatestModerationReview = latestReview ?? null;
+    }
+
+    const admin = await this.usersRepository.findOne({
+      where: { id: adminId },
+      select: ['id', 'email', 'firstName', 'lastName', 'role', 'emailVerified', 'isSuspended', 'accountStatus'],
+    });
+    if (!admin || admin.role !== UserRole.ADMIN || admin.isSuspended || admin.accountStatus !== 'active') {
+      throw new ForbiddenException('An active Admin account is required to view administration data.');
+    }
+
+    return {
+      generatedAt: new Date().toISOString(),
+      admin,
+      accounts: totals,
+      platformAccounts: platform,
+      reviewerApplications: reviewerStatuses.reduce((result: Record<string, number>, row: { status: string; count: number }) => {
+        result[row.status] = Number(row.count);
+        return result;
+      }, {}),
+      globalReviewer: globalReviewer ? {
+        ...globalReviewer,
+        applicationHistoryCount: globalReviewerApplicationHistory,
+        moderationReviewCount: globalReviewerModerationReviewCount,
+        assignmentEventCount: globalReviewerAssignmentEventCount,
+        latestApplication: globalReviewerLatestApplication,
+        latestModerationReview: globalReviewerLatestModerationReview,
+      } : null,
+    };
+  }
+
+  async getAdminAuditEvents(limit = 50) {
+    const safeLimit = Math.min(100, Math.max(1, Math.trunc(Number(limit) || 50)));
+    return this.dataSource.query(
+      `SELECT * FROM (
+        SELECT
+          'platform_role'::text AS "eventType",
+          event.action::text AS action,
+          event.role::text AS role,
+          event."actorId"::text AS "actorId",
+          NULLIF(CONCAT_WS(' ', actor."firstName", actor."lastName"), '') AS "actorName",
+          COALESCE(actor.email, event."actorEmail") AS "actorEmail",
+          event."targetId"::text AS "targetId",
+          NULLIF(CONCAT_WS(' ', target."firstName", target."lastName"), '') AS "targetName",
+          COALESCE(target.email, event."targetEmail") AS "targetEmail",
+          event."createdAt" AS "createdAt",
+          event.reason::text AS note,
+          event.id::text AS id
+        FROM platform_role_audit_events event
+        LEFT JOIN users actor ON actor.id = event."actorId"
+        LEFT JOIN users target ON target.id = event."targetId"
+
+        UNION ALL
+
+        SELECT
+          'reviewer_application'::text AS "eventType",
+          decision."toStatus"::text AS action,
+          'reviewer'::text AS role,
+          decision."actorId"::text AS "actorId",
+          NULLIF(CONCAT_WS(' ', actor."firstName", actor."lastName"), '') AS "actorName",
+          actor.email AS "actorEmail",
+          application."userId"::text AS "targetId",
+          NULLIF(CONCAT_WS(' ', applicant."firstName", applicant."lastName"), '') AS "targetName",
+          applicant.email AS "targetEmail",
+          decision."createdAt" AS "createdAt",
+          decision.note AS note,
+          decision.id::text AS id
+        FROM reviewer_application_decisions decision
+        INNER JOIN reviewer_applications application ON application.id = decision."applicationId"
+        LEFT JOIN users actor ON actor.id = decision."actorId"
+        LEFT JOIN users applicant ON applicant.id = application."userId"
+
+        UNION ALL
+
+        SELECT
+          'admin_bootstrap'::text AS "eventType",
+          bootstrap.action::text AS action,
+          'admin'::text AS role,
+          NULL::text AS "actorId",
+          'Controlled bootstrap'::text AS "actorName",
+          NULL::text AS "actorEmail",
+          bootstrap."targetId"::text AS "targetId",
+          NULLIF(CONCAT_WS(' ', target."firstName", target."lastName"), '') AS "targetName",
+          COALESCE(target.email, bootstrap.email) AS "targetEmail",
+          bootstrap."createdAt" AS "createdAt",
+          NULL::text AS note,
+          bootstrap.id::text AS id
+        FROM admin_bootstrap_audit_events bootstrap
+        LEFT JOIN users target ON target.id = bootstrap."targetId"
+
+        UNION ALL
+
+        SELECT
+          'reviewer_assignment'::text AS "eventType",
+          assignment."eventType"::text AS action,
+          'reviewer'::text AS role,
+          assignment."actorId"::text AS "actorId",
+          NULLIF(CONCAT_WS(' ', actor."firstName", actor."lastName"), '') AS "actorName",
+          actor.email AS "actorEmail",
+          assignment."reviewerId"::text AS "targetId",
+          NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "targetName",          reviewer.email AS "targetEmail",
+          assignment."createdAt" AS "createdAt",
+          assignment."reviewStatus"::text AS note,
+          assignment.id::text AS id
+        FROM reviewer_assignment_events assignment
+        LEFT JOIN users actor ON actor.id = assignment."actorId"
+        LEFT JOIN users reviewer ON reviewer.id = assignment."reviewerId"
+
+        UNION ALL
+
+        SELECT
+          'resource_review'::text AS "eventType",
+          review.status::text AS action,
+          'reviewer'::text AS role,          review."reviewerId"::text AS "actorId",          NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "actorName",
+          reviewer.email AS "actorEmail",          review."resourceId"::text AS "targetId",
+          resource.title::text AS "targetName",
+          NULL::text AS "targetEmail",
+          review."createdAt" AS "createdAt",
+          review.note AS note,
+          review.id::text AS id
+        FROM moderation_reviews review
+        LEFT JOIN users reviewer ON reviewer.id = review."reviewerId"
+        LEFT JOIN resources resource ON resource.id = review."resourceId"
+
+        UNION ALL
+
+        SELECT
+          'admin_escalation'::text AS "eventType",
+          escalation."sourceType"::text AS action,
+          escalation."sourceType"::text AS role,
+          escalation."actorId"::text AS "actorId",
+          NULL::text AS "actorName",
+          escalation."actorEmail" AS "actorEmail",
+          escalation."sourceId"::text AS "targetId",
+          escalation."ticketNumber"::text AS "targetName",
+          NULL::text AS "targetEmail",
+          escalation."createdAt" AS "createdAt",
+          escalation.reason AS note,
+          escalation.id::text AS id
+        FROM admin_escalation_events escalation
+      ) events
+      ORDER BY "createdAt" DESC
+      LIMIT $1`,
+      [safeLimit],
+    );
+  }
+
   async getPlatformAccounts() {
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.platformRoleVerifiedAt', 'user.createdAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.platformRoleVerifiedAt', 'user.platformRoleStatus', 'user.createdAt'])
       .where('user.role IN (:...roles)', { roles: [UserRole.SUPPORT, UserRole.MODERATOR] })
       .orderBy('user.role', 'ASC')
       .getMany();
@@ -187,6 +426,12 @@ export class UsersService {
       if (target.role !== role) {
         throw new ConflictException(`Only an already-provisioned ${role} account can be Admin-verified here. Ordinary accounts cannot be promoted through account linking.`);
       }
+      const designatedLoginEmail = role === UserRole.MODERATOR
+        ? 'sophiscentral+moderator@gmail.com'
+        : 'sophiscentral+support@gmail.com';
+      if (target.email.trim().toLowerCase() !== designatedLoginEmail) {
+        throw new ConflictException(`The designated ${role} account must use its reserved Sophis Central login alias before Admin approval.`);
+      }
       if (target.emailVerified !== true || target.accountStatus !== 'active' || target.isSuspended === true) {
         throw new ForbiddenException('Only an email-verified, active, unsuspended platform account can be approved.');
       }
@@ -198,13 +443,69 @@ export class UsersService {
       if (!existing || existing.id !== target.id) {
         throw new ConflictException(`The designated ${role} account could not be confirmed. Review platform account provisioning.`);
       }
-      if (target.platformRoleVerifiedAt) return target;
+      if (target.platformRoleStatus === 'approved' && target.platformRoleVerifiedAt) return target;
 
       target.platformRoleVerifiedAt = new Date();
+      target.platformRoleStatus = 'approved';
       const saved = await manager.save(User, target);
       await manager.query(
-        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole") VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)',
-        [actorId, target.id, role, 'verified', role, role],
+        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", reason, "actorEmail", "targetEmail") SELECT $1::uuid, $2::uuid, $3, $4, $5, $6, $7, actor.email, target.email FROM users actor CROSS JOIN users target WHERE actor.id = $1::uuid AND target.id = $2::uuid',
+        [actorId, target.id, role, 'approved', role, role, null],
+      );
+      return saved;
+    });
+  }
+
+  async updatePlatformRoleAccess(
+    actorId: string,
+    targetId: string,
+    action: 'suspend' | 'restore' | 'revoke',
+    reason?: string,
+  ): Promise<User> {
+    return this.dataSource.transaction(async manager => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['sophis-central-platform-role-access']);
+      const target = await manager.findOne(User, { where: { id: targetId }, lock: { mode: 'pessimistic_write' } });
+      if (!target) throw new NotFoundException('The platform account was not found.');
+      if (![UserRole.SUPPORT, UserRole.MODERATOR].includes(target.role)) {
+        throw new ConflictException('Only the dedicated Support or Moderator account can be managed here.');
+      }
+      if (action !== 'restore' && !reason?.trim()) {
+        throw new BadRequestException('A reason is required for suspension or revocation.');
+      }
+      if (target.hasReviewerAccess === true || target.isGlobalReviewer === true) {
+        throw new ConflictException('An account with separate Academic Reviewer authority cannot be managed as a Support or Moderator identity.');
+      }
+
+      if (action === 'suspend') {
+        if (target.platformRoleStatus === 'suspended') return target;
+        if (target.platformRoleStatus !== 'approved' || !target.platformRoleVerifiedAt) {
+          throw new ConflictException('Only an Admin-approved platform account can be suspended.');
+        }
+        target.isSuspended = true;
+        target.suspensionReason = reason!.trim();
+        target.platformRoleStatus = 'suspended';
+      } else if (action === 'restore') {
+        if (target.platformRoleStatus !== 'suspended' || !target.platformRoleVerifiedAt) {
+          throw new ConflictException('Only a suspended, previously approved platform account can be restored.');
+        }
+        if (target.accountStatus !== 'active') {
+          throw new ConflictException('The account lifecycle must be active before platform access can be restored.');
+        }
+        target.isSuspended = false;
+        target.suspensionReason = null;
+        target.platformRoleStatus = 'approved';
+      } else {
+        if (target.platformRoleStatus === 'revoked') return target;
+        target.platformRoleVerifiedAt = null;
+        target.platformRoleStatus = 'revoked';
+        target.isSuspended = false;
+        target.suspensionReason = null;
+      }
+
+      const saved = await manager.save(User, target);
+      await manager.query(
+        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", reason, "actorEmail", "targetEmail") SELECT $1::uuid, $2::uuid, $3, $4, $5, $6, $7, actor.email, target.email FROM users actor CROSS JOIN users target WHERE actor.id = $1::uuid AND target.id = $2::uuid',
+        [actorId, target.id, target.role, action, target.role, target.role, reason?.trim() || null],
       );
       return saved;
     });
@@ -214,7 +515,7 @@ export class UsersService {
     // The platform-owned moderator account is operational infrastructure, not a
     // managed user. Never expose moderator-role accounts through user management.
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.hasReviewerAccess', 'user.reviewerStatus', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.isProfileComplete', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.academicHandle', 'user.role', 'user.reviewerExpertise', 'user.hasReviewerAccess', 'user.isGlobalReviewer', 'user.reviewerStatus', 'user.authProvider', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.suspensionReason', 'user.accountStatus', 'user.isProfileComplete', 'user.deletionScheduledAt', 'user.institution', 'user.lastLoginAt', 'user.createdAt', 'user.updatedAt'])
       .where('user.role != :platformModeratorRole', { platformModeratorRole: UserRole.MODERATOR })
       .orderBy('user.createdAt', 'DESC')
       .getMany();
@@ -238,7 +539,6 @@ export class UsersService {
   async setReviewerAccess(_id: string, _dto: SetReviewerAccessDto): Promise<User> {
     throw new ConflictException('Academic Reviewer access changes must go through the application decision workflow so every approval, suspension and revocation is audited.');
   }
-
   async update(id: string, data: Partial<User>): Promise<User> {
     return this.dataSource.transaction(async manager => {
       const user = await manager.findOne(User, { where: { id } });
@@ -252,13 +552,10 @@ export class UsersService {
         if (user.institutionId && user.institutionId !== updateData.institutionId) {
           throw new ForbiddenException('Your original Institution ID is permanent. Additional institution memberships must be managed separately.');
         }
-        const institution = await manager.findOne(Institution, { where: { id: updateData.institutionId } });
-        if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
+        const institution = await manager.findOne(Institution, { where: { id: updateData.institutionId } });        if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
         if (!user.institutionId) updateData.uniqueId = await this.generateUniqueId(user, institution);
-        updateData.institution = institution.name;
-      }
-      if (updateData.institution !== undefined && user.institutionId && updateData.institutionId !== user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {
-        throw new ForbiddenException('Your original institution is permanent and cannot be changed on this account.');
+        updateData.institution = institution.name;      }
+      if (updateData.institution !== undefined && user.institutionId && updateData.institutionId !== user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {        throw new ForbiddenException('Your original institution is permanent and cannot be changed on this account.');
       }
       if (updateData.isSuspended !== undefined && user.role === UserRole.ADMIN && data.isSuspended === true) {
         throw new ForbiddenException('Administrator accounts cannot be suspended through moderator account management.');
@@ -421,8 +718,7 @@ export class UsersService {
       throw new BadRequestException('Set up your account security question before requesting deletion.');
     }
     if (!(await bcrypt.compare(this.normalizeSecurityAnswer(securityAnswer), user.securityAnswerHash))) {
-      throw new UnauthorizedException('The security answer is incorrect.');
-    }
+      throw new UnauthorizedException('The security answer is incorrect.');    }
     if (user.accountStatus === 'pending_deletion') {
       throw new ConflictException('A deletion request is already pending for this account.');
     }
@@ -434,12 +730,9 @@ export class UsersService {
     return { success: true, accountStatus: user.accountStatus, deletionRequestedAt: user.deletionRequestedAt, deletionScheduledAt: user.deletionScheduledAt, gracePeriodDays: 30 };
   }
 
-  async cancelPendingDeletion(email: string, password: string, securityAnswer: string) {
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await this.usersRepository.createQueryBuilder('user')
+  async cancelPendingDeletion(email: string, password: string, securityAnswer: string) {    const normalizedEmail = email.trim().toLowerCase();    const user = await this.usersRepository.createQueryBuilder('user')
       .addSelect('user.password')
-      .addSelect('user.securityAnswerHash')
-      .where('LOWER(user.email) = :email', { email: normalizedEmail })
+      .addSelect('user.securityAnswerHash')      .where('LOWER(user.email) = :email', { email: normalizedEmail })
       .getOne();
     if (!user || user.accountStatus !== 'pending_deletion' || !user.deletionScheduledAt || user.deletionScheduledAt.getTime() <= Date.now()) {
       throw new UnauthorizedException('The account could not be restored with the supplied details.');

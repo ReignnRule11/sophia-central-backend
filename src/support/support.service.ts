@@ -124,6 +124,20 @@ export class SupportService {
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
 
+  async listAdminEscalations(actor: User) {
+    if (actor.role !== UserRole.ADMIN || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) {
+      throw new ForbiddenException('Only an active, verified Admin can inspect escalated Support tickets.');
+    }
+    const requests = await this.requests.createQueryBuilder('request')
+      .leftJoinAndSelect('request.user', 'user')
+      .leftJoinAndSelect('request.reviewer', 'reviewer')
+      .where('request."escalatedToRole" = :role', { role: 'admin' })
+      .orderBy('request."escalatedAt"', 'DESC')
+      .take(100)
+      .getMany();
+    return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
+  }
+
   async listForModeration(actor: User, status: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded' = 'pending') {
     if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
     const requests = await this.requests.createQueryBuilder('request')
@@ -191,12 +205,19 @@ export class SupportService {
     const request = await this.requests.findOne({ where: { id } });
     if (!request) throw new NotFoundException('Support ticket not found.');
     if (request.escalatedToRole === 'admin') throw new ConflictException('This support ticket has already been escalated to Admin.');
-    const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false } });
+    const recipients = await this.users.find({ where: { role: targetRole, isSuspended: false, accountStatus: 'active', emailVerified: true } });
     if (!recipients.length) throw new BadRequestException('No active recipient account is configured for this escalation.');
     request.escalatedToRole = 'admin';
+    request.escalationReason = reason.trim();
+    request.escalatedAt = new Date();
+    request.escalatedById = actor.id;
     await this.requests.save(request);
+    await this.requests.query(
+      'INSERT INTO admin_escalation_events ("sourceType", "sourceId", "ticketNumber", "actorId", "actorEmail", reason) VALUES ($1, $2::uuid, $3, $4::uuid, $5, $6)',
+      ['support', request.id, request.ticketNumber, actor.id, actor.email, reason.trim()],
+    );
     await Promise.all([
-      ...recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/notifications')),
+      ...recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/admin/escalations')),
       ...(request.userId ? [this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for Admin review.`, '/my-activity')] : []),
     ]);
     return { success: true, ticketNumber: request.ticketNumber, notified: recipients.length };

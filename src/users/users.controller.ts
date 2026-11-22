@@ -8,6 +8,7 @@ import {
   Param,
   Patch,
   Post,
+  Query,
   UseGuards,
   Res,
 } from '@nestjs/common';
@@ -59,6 +60,28 @@ export class UsersController {
     return this.usersService.getPlatformAccounts();
   }
 
+  @Get('admin/overview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the authenticated Admin dashboard overview' })
+  getAdminOverview(@CurrentUser() actor: User) {
+    return this.usersService.getAdminOverview(actor.id);
+  }
+
+  @Get('admin/audit-events')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get recent immutable platform-role and reviewer decision audit events' })
+  getAdminAuditEvents(@Query('limit') limit?: string) {
+    const parsedLimit = limit === undefined ? 50 : Number(limit);
+    if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
+      throw new BadRequestException('limit must be an integer between 1 and 100.');
+    }
+    return this.usersService.getAdminAuditEvents(parsedLimit);
+  }
+
   @Patch(':id/platform-role')
   @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
@@ -78,6 +101,25 @@ export class UsersController {
   @ApiOperation({ summary: 'Grant or revoke academic reviewer access; administrator approval is required' })
   setReviewerAccess(@Param('id') id: string, @Body() dto: SetReviewerAccessDto) {
     return this.usersService.setReviewerAccess(id, dto);
+  }
+
+  @Patch(':id/platform-access')
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Suspend, restore or revoke the designated Support or Moderator workspace access' })
+  updatePlatformAccess(
+    @Param('id') id: string,
+    @Body() body: { action: 'suspend' | 'restore' | 'revoke'; reason?: string },
+    @CurrentUser() actor: User,
+  ) {
+    if (!['suspend', 'restore', 'revoke'].includes(body.action)) {
+      throw new BadRequestException('action must be suspend, restore or revoke.');
+    }
+    if (body.action !== 'restore' && !body.reason?.trim()) {
+      throw new BadRequestException('A reason is required for suspension or revocation.');
+    }
+    return this.usersService.updatePlatformRoleAccess(actor.id, id, body.action, body.reason);
   }
 
   @Post(':id/reactivate')
@@ -107,6 +149,10 @@ export class UsersController {
     if (actor.role === UserRole.MODERATOR && target &&
       (target.role === UserRole.ADMIN || target.role === UserRole.SUPPORT || target.role === UserRole.MODERATOR)) {
       throw new ForbiddenException('Moderators cannot change the lifecycle of platform-owned accounts.');
+    }
+    if (actor.role === UserRole.ADMIN && target &&
+      (target.role === UserRole.SUPPORT || target.role === UserRole.MODERATOR)) {
+      return this.usersService.updatePlatformRoleAccess(actor.id, id, body.isSuspended ? 'suspend' : 'restore', body.reason);
     }
     return this.usersService.update(id, { isSuspended: body.isSuspended, suspensionReason: body.isSuspended ? body.reason.trim() : undefined });
   }
