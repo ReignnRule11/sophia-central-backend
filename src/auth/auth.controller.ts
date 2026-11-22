@@ -16,7 +16,7 @@ import { ResendEmailVerificationDto } from './dto/resend-email-verification.dto'
 import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dto';
 import { CompletePreAccountOnboardingDto } from './dto/complete-pre-account-onboarding.dto';
 import { SavePreAccountProgressDto } from './dto/save-pre-account-progress.dto';
-import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';\nimport { AdminMfaVerifyDto } from './dto/admin-mfa.dto';
+import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';\nimport { AdminMfaChallengeDto, AdminMfaVerifyDto } from './dto/admin-mfa.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
 import { User } from '../users/entities/user.entity';
@@ -90,7 +90,7 @@ export class AuthController {
 
   @Post('admin-mfa/enrollment/start')
   @ApiOperation({ summary: 'Start required MFA enrollment for the initial Admin login' })
-  adminMfaEnrollmentStart(@Body() dto: AdminMfaVerifyDto) {
+  adminMfaEnrollmentStart(@Body() dto: AdminMfaChallengeDto) {
     return this.authService.beginAdminMfaEnrollment(dto.challengeToken);
   }
 
