@@ -56,6 +56,27 @@ The global reviewer application records that its evidence URL is a placeholder a
 ### Other application areas
 The frontend also includes AI tutor, wallet, analytics, and administration views. Availability of these capabilities depends on the corresponding backend endpoints, provider configuration, and authorization rules; do not infer a fully configured production integration from the presence of a frontend screen.
 
+## Admin MFA
+
+Administrator authentication requires a password followed by authenticator-app TOTP verification. An initial Admin without MFA receives a short-lived enrollment challenge instead of an authenticated session. Enrollment is confirmed with a valid six-digit code; the API then issues the Admin session and returns ten single-use recovery codes once.
+
+- TOTP secrets are encrypted at rest with AES-256-GCM using `ADMIN_MFA_ENCRYPTION_KEY`.
+- Configure a unique 32-byte encryption key as 64 hexadecimal characters in the deployment environment. Do not commit it or reuse `JWT_SECRET`.
+- Login and enrollment challenges are encrypted, short-lived, and single-use, using Redis-backed replay protection.
+- Recovery codes are stored as SHA-256 hashes and consumed once.
+- Admin JWTs must contain the verified MFA claim; the JWT strategy rejects Admin tokens without it.
+- MFA challenge, enrollment, and verification endpoints are rate-limited.
+
+Routes:
+- `POST /auth/login` — returns an Admin MFA challenge rather than a session for Admin accounts.
+- `POST /auth/admin-mfa/enrollment/start` — returns the authenticator provisioning URI for an initial setup challenge.
+- `POST /auth/admin-mfa/enrollment/confirm` — confirms enrollment, issues a session, and returns recovery codes once.
+- `POST /auth/admin-mfa/verify` — completes login using TOTP or a recovery code.
+
+Do not bootstrap the production Admin until the encryption key is configured and the complete enrollment/login/recovery flow has been tested in a non-production environment. Recovery/reset procedures must be owner-authorized and audited; there is no self-service MFA disable route.
+
+If the Admin loses both their authenticator and all recovery codes, an authorized operator may use the offline `npm run admin:mfa-reset` command after migrations are applied. It requires `ADMIN_MFA_RESET_ENABLED=true`, exact email confirmation, operator email, and a reason of at least 30 characters. The command only resets the one existing Admin's MFA, records an immutable audit event with operator and reason, and forces fresh MFA enrollment at the next password login. It is not a public endpoint or self-service reset.
+
 ## Technology stack
 
 - NestJS and TypeScript

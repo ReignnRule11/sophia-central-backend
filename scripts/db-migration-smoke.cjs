@@ -21,7 +21,7 @@ async function main() {
       'users', 'resources', 'institutions', 'faculties', 'departments',
       'courses', 'course_topics', 'moderation_reviews', 'point_wallets',
       'point_transactions', 'file_uploads', 'referrals', 'notifications',
-      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'support_request_guest_archive', 'content_reports', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events', 'platform_role_audit_events', 'admin_bootstrap_audit_events', 'admin_escalation_events',
+      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'support_request_guest_archive', 'content_reports', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events', 'platform_role_audit_events', 'admin_bootstrap_audit_events', 'admin_mfa_audit_events', 'admin_escalation_events',
     ];
     for (const table of requiredTables) {
       const result = await client.query('SELECT to_regclass($1) AS name', [`public.${table}`]);
@@ -30,6 +30,14 @@ async function main() {
 
     const identityColumn = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'uniqueId'");
     assert.equal(identityColumn.rowCount, 1, 'users.uniqueId should exist');
+    const adminMfaColumns = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name IN ('adminMfaEnabled', 'adminMfaSecretEncrypted', 'adminMfaRecoveryCodeHashes')`,
+    );
+    assert.equal(adminMfaColumns.rowCount, 3, 'Admin MFA persistence columns should exist after migrations');
+    const adminMfaAuditColumns = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_mfa_audit_events' AND column_name IN ('actorEmail', 'reason')`,
+    );
+    assert.equal(adminMfaAuditColumns.rowCount, 2, 'Admin MFA audit actor and reason snapshots should exist');
     const pricingColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'resources' AND column_name IN ('pricingMode', 'priceAmount', 'customPriceStatus', 'lastSubstantiveUpdateAt')");
     assert.equal(pricingColumns.rowCount, 4, 'resource pricing and substantive-update columns should exist');
     const lifecycleColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name IN ('accountStatus', 'deletionRequestedAt', 'deletionScheduledAt', 'securityQuestionId', 'securityAnswerHash')");
@@ -161,6 +169,10 @@ async function main() {
       `INSERT INTO admin_bootstrap_audit_events ("targetId", email, action) VALUES ($1, $2, 'created') RETURNING id`,
       [userId, smokeEmail],
     );
+    const mfaAudit = await client.query(
+      `INSERT INTO admin_mfa_audit_events ("targetId", email, action, method) VALUES ($1, $2, 'mfa_login_verified', 'totp') RETURNING id`,
+      [userId, smokeEmail],
+    );
     const escalationAudit = await client.query(
       `INSERT INTO admin_escalation_events ("sourceType", "sourceId", "ticketNumber", "actorId", "actorEmail", reason)
        VALUES ('support', $1, 'SUP-CI-000001', $2, $3, 'CI escalation reason') RETURNING id`,
@@ -230,6 +242,11 @@ async function main() {
       client.query('DELETE FROM admin_bootstrap_audit_events WHERE id = $1', [bootstrapAudit.rows[0].id]),
       (error) => error.message.includes('Audit records are append-only'),
       'Admin bootstrap audit rows must be immutable',
+    );
+    await assert.rejects(
+      client.query(`UPDATE admin_mfa_audit_events SET method = 'totp' WHERE id = $1`, [mfaAudit.rows[0].id]),
+      (error) => error.message.includes('Admin MFA audit events are immutable'),
+      'Admin MFA audit rows must be immutable',
     );
     await assert.rejects(
       client.query('UPDATE admin_escalation_events SET reason = \'tampered\' WHERE id = $1', [escalationAudit.rows[0].id]),

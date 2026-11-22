@@ -17,6 +17,7 @@ import { ConfirmEmailVerificationDto } from './dto/confirm-email-verification.dt
 import { CompletePreAccountOnboardingDto } from './dto/complete-pre-account-onboarding.dto';
 import { SavePreAccountProgressDto } from './dto/save-pre-account-progress.dto';
 import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';
+import { AdminMfaChallengeDto, AdminMfaVerifyDto } from './dto/admin-mfa.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
 import { User } from '../users/entities/user.entity';
@@ -84,6 +85,28 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.login(dto);
     if (!('accessToken' in result)) return result;
+    this.setSessionCookies(response, result.accessToken);
+    return { user: result.user };
+  }
+
+  @Post('admin-mfa/enrollment/start')
+  @ApiOperation({ summary: 'Start required MFA enrollment for the initial Admin login' })
+  adminMfaEnrollmentStart(@Body() dto: AdminMfaChallengeDto) {
+    return this.authService.beginAdminMfaEnrollment(dto.challengeToken);
+  }
+
+  @Post('admin-mfa/enrollment/confirm')
+  @ApiOperation({ summary: 'Confirm Admin MFA enrollment and create the verified Admin session' })
+  async adminMfaEnrollmentConfirm(@Body() dto: AdminMfaVerifyDto, @Res({ passthrough: true }) response: Response) {
+    const result = await this.authService.confirmAdminMfaEnrollment(dto.challengeToken, dto.code);
+    this.setSessionCookies(response, result.accessToken);
+    return { user: result.user, recoveryCodes: result.recoveryCodes };
+  }
+
+  @Post('admin-mfa/verify')
+  @ApiOperation({ summary: 'Complete Admin login using authenticator or one-time recovery code' })
+  async adminMfaVerify(@Body() dto: AdminMfaVerifyDto, @Res({ passthrough: true }) response: Response) {
+    const result = await this.authService.verifyAdminMfaLogin(dto.challengeToken, dto.code);
     this.setSessionCookies(response, result.accessToken);
     return { user: result.user };
   }

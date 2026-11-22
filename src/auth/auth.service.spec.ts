@@ -26,6 +26,7 @@ describe('AuthService', () => {
   let resetEmail: jest.Mocked<Pick<PasswordResetEmailService, 'sendResetLink'>>;
   let verificationEmail: jest.Mocked<Pick<EmailVerificationEmailService, 'sendVerificationLink'>>;
   let referrals: { validateReferralCode: jest.Mock; redeemReferral: jest.Mock; processPendingReferralForUser: jest.Mock };
+  let adminMfa: { createChallenge: jest.Mock; beginEnrollment: jest.Mock; confirmEnrollment: jest.Mock; verifyLogin: jest.Mock };
   const user = {
     id: 'user-123', email: 'learner@example.com', firstName: 'Learner', lastName: 'One',
     password: '', role: 'student' as const, authProvider: 'email' as const,
@@ -64,6 +65,7 @@ describe('AuthService', () => {
       redeemReferral: jest.fn().mockResolvedValue({ success: true, message: 'Referral recorded.' }),
       processPendingReferralForUser: jest.fn().mockResolvedValue(undefined),
     };
+    adminMfa = { createChallenge: jest.fn().mockResolvedValue('admin-mfa-challenge'), beginEnrollment: jest.fn(), confirmEnrollment: jest.fn(), verifyLogin: jest.fn() };
     service = new AuthService(
       users as unknown as UsersService,
       jwt as unknown as JwtService,
@@ -76,10 +78,50 @@ describe('AuthService', () => {
       resetEmail as unknown as PasswordResetEmailService,
       verificationEmail as unknown as EmailVerificationEmailService,
       referrals as never,
+      adminMfa as never,
     );
   });
 
   afterEach(() => jest.restoreAllMocks());
+
+  it('returns an enrollment challenge instead of a JWT for an Admin without MFA', async () => {
+    const admin = {
+      ...user,
+      id: 'admin-123',
+      email: 'sophiscentral+admin@gmail.com',
+      role: UserRole.ADMIN,
+      emailVerified: true,
+      accountStatus: 'active',
+      isSuspended: false,
+      adminMfaEnabled: false,
+      password: await bcrypt.hash('AdminPassword123!', 4),
+    } as User;
+    users.findByEmail.mockResolvedValue(admin);
+    users.update.mockResolvedValue(admin);
+
+    const result = await service.login({ identifier: admin.email, password: 'AdminPassword123!' } as never);
+
+    expect(result).toMatchObject({ adminMfaRequired: true, setupRequired: true, challengeToken: 'admin-mfa-challenge' });
+    expect(adminMfa.createChallenge).toHaveBeenCalledWith(expect.objectContaining({ id: admin.id }), 'admin-mfa-enroll');
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+  });
+
+  it('issues an Admin session with the verified MFA claim after challenge verification', async () => {
+    const admin = {
+      ...user,
+      id: 'admin-123',
+      email: 'sophiscentral+admin@gmail.com',
+      role: UserRole.ADMIN,
+      emailVerified: true,
+      accountStatus: 'active',
+      isSuspended: false,
+      adminMfaEnabled: true,
+    } as User;
+    adminMfa.verifyLogin.mockResolvedValue(admin);
+    const result = await service.verifyAdminMfaLogin('challenge', '123456');
+    expect(jwt.signAsync).toHaveBeenCalledWith(expect.objectContaining({ sub: admin.id, role: UserRole.ADMIN, adminMfaVerified: true }));
+    expect(result.accessToken).toBe('signed-access-token');
+  });
 
   it('limits closed recruitment to the exact configured reviewer test email', async () => {
     process.env.REVIEWER_RECRUITMENT_OPEN = 'false';

@@ -16,13 +16,15 @@ import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ReferralModule } from '../referral/referral.module';
 import { RegistrationTokenService } from './registration-token.service';
+import { AdminMfaService } from './admin-mfa.service';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
     PassportModule,
     UsersModule,
     ReferralModule,
-    TypeOrmModule.forFeature([PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft]),
+    TypeOrmModule.forFeature([PasswordResetToken, EmailVerificationToken, PreAccount, RegistrationDraft, User]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       inject: [ConfigService],
@@ -43,7 +45,7 @@ import { RegistrationTokenService } from './registration-token.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PasswordResetEmailService, EmailVerificationEmailService, RegistrationTokenService],
+  providers: [AuthService, JwtStrategy, PasswordResetEmailService, EmailVerificationEmailService, RegistrationTokenService, AdminMfaService],
   exports: [AuthService],
 })
 export class AuthModule {}

@@ -366,6 +366,23 @@ export class UsersService {
         UNION ALL
 
         SELECT
+          'admin_mfa'::text AS "eventType",
+          mfa.action::text AS action,
+          'admin'::text AS role,
+          mfa."targetId"::text AS "actorId",
+          'Admin MFA'::text AS "actorName",
+          COALESCE(mfa."actorEmail", mfa.email)::text AS "actorEmail",
+          mfa."targetId"::text AS "targetId",
+          NULL::text AS "targetName",
+          mfa.email::text AS "targetEmail",
+          mfa."createdAt" AS "createdAt",
+          COALESCE(mfa.reason, mfa.method)::text AS note,
+          mfa.id::text AS id
+        FROM admin_mfa_audit_events mfa
+
+        UNION ALL
+
+        SELECT
           'reviewer_assignment'::text AS "eventType",
           assignment."eventType"::text AS action,
           'reviewer'::text AS role,

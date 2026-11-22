@@ -28,6 +28,9 @@ async function bootstrap() {
   // CSRF bootstrap endpoint usable during normal page loads and retries.
   app.use('/auth/csrf', authRateLimit(120));
   app.use('/auth/login', authRateLimit(30));
+  app.use('/auth/admin-mfa/verify', authRateLimit(10));
+  app.use('/auth/admin-mfa/enrollment/start', authRateLimit(10));
+  app.use('/auth/admin-mfa/enrollment/confirm', authRateLimit(10));
   app.use('/auth/signup', authRateLimit(5));
   app.use('/auth/reviewer-registration-check', authRateLimit(5));
   app.use('/auth/email-verification/resend', authRateLimit(5));

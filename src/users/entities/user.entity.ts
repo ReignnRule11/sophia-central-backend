@@ -157,6 +157,15 @@ export class User {
   @Column({ default: false })
   emailVerified!: boolean;
 
+  @Column({ type: 'boolean', default: false })
+  adminMfaEnabled!: boolean;
+
+  @Column({ type: 'text', nullable: true, select: false })
+  adminMfaSecretEncrypted?: string | null;
+
+  @Column({ type: 'jsonb', default: () => "'[]'::jsonb", select: false })
+  adminMfaRecoveryCodeHashes!: string[];
+
   @Column({ type: 'timestamptz', nullable: true })
   lastLoginAt?: Date | null;
 
