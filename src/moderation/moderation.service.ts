@@ -87,8 +87,8 @@ export class ModerationService {
 
   async getReviewerRoster(viewer: User) {
     if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
-    if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) {
-      throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect the reviewer roster.');
+    if (viewer.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only Admin can inspect the reviewer roster.');
     }
     return this.userRepository.find({
       where: [
@@ -103,7 +103,7 @@ export class ModerationService {
 
   async getConflictDeclarations(viewer: User) {
     if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
-    if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer conflict declarations.');
+    if (viewer.role !== UserRole.ADMIN) throw new ForbiddenException('Only Admin can inspect reviewer conflict declarations.');
     return this.resourceRepository.manager.query(`
       SELECT d."id", d."assignmentId", d."resourceId", d."reviewerId", d."declaration", d."reason", d."createdAt",
              r."title" AS "resourceTitle", u."firstName" AS "reviewerFirstName",
