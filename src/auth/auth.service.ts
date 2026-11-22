@@ -690,11 +690,27 @@ export class AuthService {
     return safeUser;
   }
 
-  private async buildAuthResponse(user: User) {
+  async beginAdminMfaEnrollment(challengeToken: string) {
+    return this.adminMfa.beginEnrollment(challengeToken);
+  }
+
+  async confirmAdminMfaEnrollment(challengeToken: string, code: string) {
+    const result = await this.adminMfa.confirmEnrollment(challengeToken, code);
+    const auth = await this.buildAuthResponse(result.user, true);
+    return { ...auth, recoveryCodes: result.recoveryCodes };
+  }
+
+  async verifyAdminMfaLogin(challengeToken: string, code: string) {
+    const user = await this.adminMfa.verifyLogin(challengeToken, code);
+    return this.buildAuthResponse(user, true);
+  }
+
+  private async buildAuthResponse(user: User, adminMfaVerified = false) {
     const accessToken = await this.jwtService.signAsync({
       sub: user.id,
       email: user.email,
       role: user.role,
+      ...(user.role === UserRole.ADMIN ? { adminMfaVerified } : {}),
     });
     return { accessToken, user: this.toSafeUser(user) };
   }
