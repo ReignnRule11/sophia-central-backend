@@ -151,6 +151,9 @@ export class User {
   @Column({ type: 'timestamptz', nullable: true })
   platformRoleVerifiedAt?: Date | null;
 
+  @Column({ type: 'varchar', length: 16, default: 'pending' })
+  platformRoleStatus!: 'pending' | 'approved' | 'suspended' | 'revoked';
+
   @Column({ default: false })
   emailVerified!: boolean;
 
