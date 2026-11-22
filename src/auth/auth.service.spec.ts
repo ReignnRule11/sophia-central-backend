@@ -2,7 +2,7 @@ import { BadRequestException, ConflictException, ForbiddenException, Unauthorize
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'node:crypto';
 import { AuthService } from './auth.service';
-import { UserRole } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';
 import { ReviewerApplication, ReviewerApplicationStatus } from '../users/entities/reviewer-application.entity';
 import { PreAccount } from './entities/pre-account.entity';
 import { RegistrationDraft } from './entities/registration-draft.entity';
@@ -166,6 +166,65 @@ describe('AuthService', () => {
       fromStatus: ReviewerApplicationStatus.SUBMITTED,
       toStatus: ReviewerApplicationStatus.APPROVED,
     }));
+  });
+
+  it('verifies and sets a password for the single provisioned Admin bootstrap account', async () => {
+    const admin = {
+      id: 'admin-bootstrap-id',
+      email: 'sophiscentral+admin@gmail.com',
+      role: UserRole.ADMIN,
+      emailVerified: false,
+      isVerified: false,
+      isSuspended: false,
+      accountStatus: 'active',
+    } as User;
+    const manager = {
+      query: jest.fn().mockResolvedValue([]),
+      getRepository: jest.fn().mockReturnValue({ count: jest.fn().mockResolvedValue(1) }),
+      findOne: jest.fn().mockResolvedValue(admin),
+      save: jest.fn().mockImplementation(async (_entity, value) => value),
+    };
+    dataSource.transaction.mockImplementationOnce(async callback => callback(manager));
+
+    registrationTokens.open.mockReturnValue({
+      stage: 'admin-bootstrap',
+      userId: admin.id,
+      email: admin.email,
+      jti: 'single-use-admin-jti',
+      expiresAt: Date.now() + 60_000,
+    });
+
+    await expect(service.confirmEmailVerification('admin-bootstrap-token', 'a-strong-test-password'))
+      .resolves.toEqual({
+        message: 'Your Admin email is verified and your password is set. You can now sign in to Sophis Central.',
+      });
+
+    expect(registrationTokens.claimOnce).toHaveBeenCalledWith('single-use-admin-jti', expect.any(Number));
+    expect(manager.save).toHaveBeenCalledWith(User, expect.objectContaining({
+      id: admin.id,
+      emailVerified: true,
+      isVerified: true,
+      password: expect.any(String),
+    }));
+    expect(manager.query).toHaveBeenCalledWith(
+      expect.stringContaining('INSERT INTO admin_bootstrap_audit_events'),
+      [admin.id, admin.email, 'email_verified'],
+    );
+  });
+
+  it('rejects a replayed Admin bootstrap verification token', async () => {
+    registrationTokens.open.mockReturnValue({
+      stage: 'admin-bootstrap',
+      userId: 'admin-bootstrap-id',
+      email: 'sophiscentral+admin@gmail.com',
+      jti: 'already-used-admin-jti',
+      expiresAt: Date.now() + 60_000,
+    });
+    registrationTokens.claimOnce.mockResolvedValue(false);
+
+    await expect(service.confirmEmailVerification('replayed-admin-token', 'a-strong-test-password'))
+      .rejects.toBeInstanceOf(UnauthorizedException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
   it('routes an existing account to sign-in without disclosing its role', async () => {
