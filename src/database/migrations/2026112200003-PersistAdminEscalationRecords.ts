@@ -50,7 +50,7 @@ export class PersistAdminEscalationRecords2026112200003 implements MigrationInte
         "sourceType" varchar(24) NOT NULL CHECK ("sourceType" IN ('support', 'moderation')),
         "sourceId" uuid NOT NULL,
         "ticketNumber" varchar(32) NOT NULL,
-        "actorId" uuid REFERENCES users(id) ON DELETE SET NULL,
+        "actorId" uuid,
         "actorEmail" varchar(320),
         reason text NOT NULL,
         "createdAt" timestamptz NOT NULL DEFAULT now()
