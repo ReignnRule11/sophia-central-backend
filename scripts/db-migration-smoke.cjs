@@ -236,7 +236,7 @@ async function main() {
       'Admin bootstrap audit rows must be immutable',
     );
     await assert.rejects(
-      client.query('UPDATE admin_mfa_audit_events SET method = 'totp' WHERE id = $1', [mfaAudit.rows[0].id]),
+      client.query(`UPDATE admin_mfa_audit_events SET method = 'totp' WHERE id = $1`, [mfaAudit.rows[0].id]),
       (error) => error.message.includes('Admin MFA audit events are immutable'),
       'Admin MFA audit rows must be immutable',
     );
