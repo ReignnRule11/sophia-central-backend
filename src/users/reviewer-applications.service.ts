@@ -136,7 +136,7 @@ export class ReviewerApplicationsService {
 
   async decide(applicationId: string, admin: User, dto: ReviewerApplicationDecisionDto) {
     if (admin.role === UserRole.ADMIN && (admin.emailVerified !== true || admin.isSuspended || admin.accountStatus !== 'active')) throw new ForbiddenException('Only an active, email-verified Admin can decide reviewer applications.');
-    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only Admin can decide reviewer applications.
+    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only Admin can decide reviewer applications.');
     if (hasActiveGlobalReviewerAuthority(admin) && admin.id === (await this.applications.findOne({ where: { id: applicationId }, select: ['id', 'userId'] }))?.userId) {
       throw new ForbiddenException('The Global Academic Reviewer cannot decide their own reviewer application.');
     }
