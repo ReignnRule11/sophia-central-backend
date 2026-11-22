@@ -29,6 +29,12 @@ export class SupportController {
     return this.support.create(user, dto);
   }
 
+  @Get('admin/escalations')
+  @Roles(UserRole.ADMIN)
+  adminEscalations(@CurrentUser() user: User) {
+    return this.support.listAdminEscalations(user);
+  }
+
   @Get('queue')
   @Roles(UserRole.SUPPORT)
   queue(@Query('status') status?: string, @CurrentUser() user?: User) {
