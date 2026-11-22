@@ -1,14 +1,14 @@
-import { IsNotEmpty, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsNotEmpty, IsString, MaxLength } from 'class-validator';
 
-export class AdminMfaVerifyDto {
+export class AdminMfaChallengeDto {
   @IsString()
   @IsNotEmpty()
   challengeToken!: string;
+}
 
+export class AdminMfaVerifyDto extends AdminMfaChallengeDto {
   @IsString()
   @IsNotEmpty()
   @MaxLength(64)
   code!: string;
 }
-
-export class AdminMfaEnrollDto extends AdminMfaVerifyDto {}
