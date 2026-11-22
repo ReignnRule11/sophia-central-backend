@@ -184,8 +184,10 @@ export class UsersService {
     const [platform] = await this.dataSource.query(
       `SELECT
         COUNT(*)::int AS total,
-        COUNT(*) FILTER (WHERE "platformRoleVerifiedAt" IS NULL)::int AS "pendingApproval",
-        COUNT(*) FILTER (WHERE "platformRoleVerifiedAt" IS NOT NULL)::int AS "approved",
+        COUNT(*) FILTER (WHERE "platformRoleStatus" = 'pending')::int AS "pendingApproval",
+        COUNT(*) FILTER (WHERE "platformRoleStatus" = 'approved')::int AS "approved",
+        COUNT(*) FILTER (WHERE "platformRoleStatus" = 'suspended')::int AS suspended,
+        COUNT(*) FILTER (WHERE "platformRoleStatus" = 'revoked')::int AS revoked,
         COUNT(*) FILTER (WHERE "isSuspended" = true OR "accountStatus" <> 'active')::int AS "unavailable"
        FROM users WHERE role IN ('moderator', 'support')`,
     );
@@ -287,7 +289,7 @@ export class UsersService {
           NULLIF(CONCAT_WS(' ', target."firstName", target."lastName"), '') AS "targetName",
           target.email AS "targetEmail",
           event."createdAt" AS "createdAt",
-          NULL::text AS note,
+          event.reason::text AS note,
           event.id::text AS id
         FROM platform_role_audit_events event
         LEFT JOIN users actor ON actor.id = event."actorId"
@@ -377,7 +379,7 @@ export class UsersService {
 
   async getPlatformAccounts() {
     return this.usersRepository.createQueryBuilder('user')
-      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.platformRoleVerifiedAt', 'user.createdAt'])
+      .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.platformRoleVerifiedAt', 'user.platformRoleStatus', 'user.createdAt'])
       .where('user.role IN (:...roles)', { roles: [UserRole.SUPPORT, UserRole.MODERATOR] })
       .orderBy('user.role', 'ASC')
       .getMany();
@@ -405,13 +407,69 @@ export class UsersService {
       if (!existing || existing.id !== target.id) {
         throw new ConflictException(`The designated ${role} account could not be confirmed. Review platform account provisioning.`);
       }
-      if (target.platformRoleVerifiedAt) return target;
+      if (target.platformRoleStatus === 'approved' && target.platformRoleVerifiedAt) return target;
 
       target.platformRoleVerifiedAt = new Date();
+      target.platformRoleStatus = 'approved';
       const saved = await manager.save(User, target);
       await manager.query(
-        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole") VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6)',
-        [actorId, target.id, role, 'verified', role, role],
+        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)',
+        [actorId, target.id, role, 'approved', role, role, null],
+      );
+      return saved;
+    });
+  }
+
+  async updatePlatformRoleAccess(
+    actorId: string,
+    targetId: string,
+    action: 'suspend' | 'restore' | 'revoke',
+    reason?: string,
+  ): Promise<User> {
+    return this.dataSource.transaction(async manager => {
+      await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['sophis-central-platform-role-access']);
+      const target = await manager.findOne(User, { where: { id: targetId }, lock: { mode: 'pessimistic_write' } });
+      if (!target) throw new NotFoundException('The platform account was not found.');
+      if (![UserRole.SUPPORT, UserRole.MODERATOR].includes(target.role)) {
+        throw new ConflictException('Only the dedicated Support or Moderator account can be managed here.');
+      }
+      if (action !== 'restore' && !reason?.trim()) {
+        throw new BadRequestException('A reason is required for suspension or revocation.');
+      }
+      if (target.hasReviewerAccess === true || target.isGlobalReviewer === true) {
+        throw new ConflictException('An account with separate Academic Reviewer authority cannot be managed as a Support or Moderator identity.');
+      }
+
+      if (action === 'suspend') {
+        if (target.platformRoleStatus !== 'approved' || !target.platformRoleVerifiedAt) {
+          throw new ConflictException('Only an Admin-approved platform account can be suspended.');
+        }
+        if (target.platformRoleStatus === 'suspended') return target;
+        target.isSuspended = true;
+        target.suspensionReason = reason!.trim();
+        target.platformRoleStatus = 'suspended';
+      } else if (action === 'restore') {
+        if (target.platformRoleStatus !== 'suspended' || !target.platformRoleVerifiedAt) {
+          throw new ConflictException('Only a suspended, previously approved platform account can be restored.');
+        }
+        if (target.accountStatus !== 'active') {
+          throw new ConflictException('The account lifecycle must be active before platform access can be restored.');
+        }
+        target.isSuspended = false;
+        target.suspensionReason = undefined;
+        target.platformRoleStatus = 'approved';
+      } else {
+        if (target.platformRoleStatus === 'revoked') return target;
+        target.platformRoleVerifiedAt = null;
+        target.platformRoleStatus = 'revoked';
+        target.isSuspended = false;
+        target.suspensionReason = undefined;
+      }
+
+      const saved = await manager.save(User, target);
+      await manager.query(
+        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)',
+        [actorId, target.id, target.role, action, target.role, target.role, reason?.trim() || null],
       );
       return saved;
     });
