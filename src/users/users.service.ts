@@ -370,6 +370,23 @@ export class UsersService {
         FROM moderation_reviews review
         LEFT JOIN users reviewer ON reviewer.id = review."reviewerId"
         LEFT JOIN resources resource ON resource.id = review."resourceId"
+
+        UNION ALL
+
+        SELECT
+          'admin_escalation'::text AS "eventType",
+          escalation."sourceType"::text AS action,
+          escalation."sourceType"::text AS role,
+          escalation."actorId"::text AS "actorId",
+          NULL::text AS "actorName",
+          escalation."actorEmail" AS "actorEmail",
+          escalation."sourceId"::text AS "targetId",
+          escalation."ticketNumber"::text AS "targetName",
+          NULL::text AS "targetEmail",
+          escalation."createdAt" AS "createdAt",
+          escalation.reason AS note,
+          escalation.id::text AS id
+        FROM admin_escalation_events escalation
       ) events
       ORDER BY "createdAt" DESC
       LIMIT $1`,
