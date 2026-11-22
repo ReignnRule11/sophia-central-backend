@@ -8,6 +8,7 @@ import { ConcludeSupportRequestDto } from './dto/conclude-support-request.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { S3Service } from '../upload/s3.service';
 import { SupportEmailService } from './support-email.service';
+import { AdminEscalationDecisionDto } from '../common/dto/admin-escalation-decision.dto';
 
 @Injectable()
 export class SupportService {
@@ -141,7 +142,55 @@ export class SupportService {
       order: { escalatedAt: 'DESC' },
       take: 100,
     });
-    return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
+    if (!requests.length) return [];
+    const decisions = await this.requests.query(
+      `SELECT DISTINCT ON ("sourceId") "sourceId", action, note, "actorEmail", "createdAt"
+       FROM admin_escalation_decisions
+       WHERE "sourceType" = 'support' AND "sourceId" = ANY($1::uuid[])
+       ORDER BY "sourceId", "createdAt" DESC`,
+      [requests.map(request => request.id)],
+    );
+    const latestById = new Map(decisions.map((decision: any) => [decision.sourceId, decision]));
+    return Promise.all(requests.map(async request => ({
+      ...(await this.withSignedAttachmentUrls(request)),
+      adminDecision: latestById.get(request.id) ?? null,
+    })));
+  }
+
+  async recordAdminEscalationDecision(id: string, actor: User, dto: AdminEscalationDecisionDto) {
+    if (actor.role !== UserRole.ADMIN || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) {
+      throw new ForbiddenException('Only an active, verified Admin can decide escalated Support tickets.');
+    }
+    const request = await this.requests.findOne({ where: { id }, relations: ['user'] });
+    if (!request) throw new NotFoundException('Support ticket not found.');
+    if (request.escalatedToRole !== 'admin') throw new ConflictException('This ticket is not currently escalated to Admin.');
+    const latest = await this.requests.query(
+      `SELECT action FROM admin_escalation_decisions
+       WHERE "sourceType" = 'support' AND "sourceId" = $1::uuid
+       ORDER BY "createdAt" DESC LIMIT 1`,
+      [id],
+    );
+    if (latest[0]?.action === 'resolved') throw new ConflictException('This Admin escalation has already been resolved.');
+    const result = await this.requests.query(
+      `INSERT INTO admin_escalation_decisions
+       ("sourceType", "sourceId", "ticketNumber", action, note, "actorId", "actorEmail")
+       VALUES ('support', $1::uuid, $2, $3, $4, $5::uuid, $6)
+       RETURNING id, action, note, "actorEmail", "createdAt"`,
+      [request.id, request.ticketNumber, dto.action, dto.note.trim(), actor.id, actor.email],
+    );
+    try {
+      if (dto.action === 'awaiting_information' && request.userId) {
+        await this.notifications.createNotification(request.userId, 'support_request_status', 'More information requested', `Admin requested more information for ticket ${request.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
+      } else if (dto.action === 'resolved' && request.userId) {
+        await this.notifications.createNotification(request.userId, 'support_request_status', 'Admin escalation review completed', `Admin completed the escalation review for ticket ${request.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
+      } else if (dto.action === 'returned_to_team') {
+        const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } });
+        await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_returned', 'Admin returned an escalated ticket', `Ticket ${request.ticketNumber} was returned to Support: ${dto.note.trim()}`, '/support/requests')));
+      }
+    } catch (error) {
+      this.logger.warn(`Admin decision for support ticket ${request.ticketNumber} was saved but notification delivery failed: ${String(error)}`);
+    }
+    return result[0];
   }
 
   async listForModeration(actor: User, status: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded' = 'pending') {
