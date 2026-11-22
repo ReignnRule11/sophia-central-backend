@@ -456,14 +456,14 @@ export class UsersService {
           throw new ConflictException('The account lifecycle must be active before platform access can be restored.');
         }
         target.isSuspended = false;
-        target.suspensionReason = undefined;
+        target.suspensionReason = null;
         target.platformRoleStatus = 'approved';
       } else {
         if (target.platformRoleStatus === 'revoked') return target;
         target.platformRoleVerifiedAt = null;
         target.platformRoleStatus = 'revoked';
         target.isSuspended = false;
-        target.suspensionReason = undefined;
+        target.suspensionReason = null;
       }
 
       const saved = await manager.save(User, target);
