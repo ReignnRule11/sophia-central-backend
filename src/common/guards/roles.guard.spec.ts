@@ -54,13 +54,15 @@ describe('RolesGuard reviewer capability', () => {
   it('blocks the existing Moderator until an Admin approves its platform identity', () => {
     reflector.getAllAndOverride.mockReturnValue([UserRole.MODERATOR]);
     expect(guard.canActivate(contextFor({ role: UserRole.MODERATOR }))).toBe(false);
-    expect(guard.canActivate(contextFor({ role: UserRole.MODERATOR, platformRoleVerifiedAt: new Date() }))).toBe(true);
+    expect(guard.canActivate(contextFor({ role: UserRole.MODERATOR, platformRoleVerifiedAt: new Date(), platformRoleStatus: 'approved' }))).toBe(true);
+    expect(guard.canActivate(contextFor({ role: UserRole.MODERATOR, platformRoleVerifiedAt: new Date(), platformRoleStatus: 'revoked' }))).toBe(false);
   });
 
   it('blocks Support accounts until an Admin approves their platform identity', () => {
     reflector.getAllAndOverride.mockReturnValue([UserRole.SUPPORT]);
     expect(guard.canActivate(contextFor({ role: UserRole.SUPPORT }))).toBe(false);
-    expect(guard.canActivate(contextFor({ role: UserRole.SUPPORT, platformRoleVerifiedAt: new Date() }))).toBe(true);
+    expect(guard.canActivate(contextFor({ role: UserRole.SUPPORT, platformRoleVerifiedAt: new Date(), platformRoleStatus: 'approved' }))).toBe(true);
+    expect(guard.canActivate(contextFor({ role: UserRole.SUPPORT, platformRoleVerifiedAt: new Date(), platformRoleStatus: 'suspended' }))).toBe(false);
   });
 
   it('never converts reviewer capability into Admin, Moderator, or Support access', () => {
