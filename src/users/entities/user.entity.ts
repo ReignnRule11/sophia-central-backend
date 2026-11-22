@@ -164,7 +164,7 @@ export class User {
   isSuspended!: boolean;
 
   @Column({ type: 'text', nullable: true })
-  suspensionReason?: string;
+  suspensionReason?: string | null;
 
   @Column({ type: 'varchar', length: 24, default: 'active' })
   accountStatus!: 'active' | 'deactivated' | 'pending_deletion';
