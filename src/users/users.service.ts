@@ -287,6 +287,24 @@ export class UsersService {
         INNER JOIN reviewer_applications application ON application.id = decision."applicationId"
         LEFT JOIN users actor ON actor.id = decision."actorId"
         LEFT JOIN users applicant ON applicant.id = application."userId"
+
+        UNION ALL
+
+        SELECT
+          'admin_bootstrap'::text AS "eventType",
+          bootstrap.action::text AS action,
+          'admin'::text AS role,
+          NULL::text AS "actorId",
+          'Controlled bootstrap'::text AS "actorName",
+          NULL::text AS "actorEmail",
+          bootstrap."targetId"::text AS "targetId",
+          NULLIF(CONCAT_WS(' ', target."firstName", target."lastName"), '') AS "targetName",
+          COALESCE(target.email, bootstrap.email) AS "targetEmail",
+          bootstrap."createdAt" AS "createdAt",
+          NULL::text AS note,
+          bootstrap.id::text AS id
+        FROM admin_bootstrap_audit_events bootstrap
+        LEFT JOIN users target ON target.id = bootstrap."targetId"
       ) events
       ORDER BY "createdAt" DESC
       LIMIT $1`,
