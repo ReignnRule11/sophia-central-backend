@@ -91,7 +91,7 @@ export class ModerationService {
     }
     return this.userRepository.find({
       where: { hasReviewerAccess: true, reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active', emailVerified: true },
-      select: ['id', 'firstName', 'lastName', 'reviewerExpertise', 'reviewerAcademicLevels', 'institution', 'faculty', 'department'],
+      select: ['id', 'firstName', 'lastName', 'hasReviewerAccess', 'isSuspended', 'reviewerExpertise', 'reviewerAcademicLevels', 'institution', 'faculty', 'department'],
       order: { firstName: 'ASC', lastName: 'ASC' },
     });
   }
