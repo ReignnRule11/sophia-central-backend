@@ -11,6 +11,8 @@ export class CreateAdminMfaAuditEvents2026112200007 implements MigrationInterfac
         email varchar(320) NOT NULL,
         action varchar(32) NOT NULL,
         method varchar(24),
+        "actorEmail" varchar(320),
+        reason text,
         "createdAt" timestamptz NOT NULL DEFAULT now()
       )
     `);
