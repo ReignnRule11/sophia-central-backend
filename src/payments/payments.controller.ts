@@ -42,8 +42,7 @@ export class PaymentsController {
     return this.payments.createRefund(user, reference, dto);
   }
 
-  @Get('disputes')
-  @UseGuards(JwtAuthGuard, CsrfGuard)
+  ${1}@UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List recent payment disputes for authorized operators' })
   listDisputes(@CurrentUser() user: User) {
@@ -66,8 +65,7 @@ export class PaymentsController {
     return this.reconciliation.reconcile(user, body);
   }
 
-  @Get('reconciliation/history')
-  @UseGuards(JwtAuthGuard, CsrfGuard)
+  ${1}@UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List recent payment reconciliation reports' })
   reconciliationHistory(@CurrentUser() user: User) {
@@ -82,8 +80,7 @@ export class PaymentsController {
     return this.payouts.setBeneficiary(user, body);
   }
 
-  @Get('payouts/balance')
-  @UseGuards(JwtAuthGuard, CsrfGuard)
+  ${1}@UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Read available lecturer earnings after refund, dispute and payout holds' })
   payoutBalance(@CurrentUser() user: User) {
@@ -98,8 +95,7 @@ export class PaymentsController {
     return this.payouts.request(user, body.amountMinor);
   }
 
-  @Get('payouts/requests')
-  @UseGuards(JwtAuthGuard, CsrfGuard)
+  ${1}@UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List payout requests for authorized operators' })
   listPayoutRequests(@CurrentUser() user: User) {
@@ -122,8 +118,7 @@ export class PaymentsController {
     return this.payouts.reconcilePayouts(user, body);
   }
 
-  @Get('payouts/reconciliation/history')
-  @UseGuards(JwtAuthGuard, CsrfGuard)
+  ${1}@UseGuards(JwtAuthGuard)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'List recent payout reconciliation reports' })
   payoutReconciliationHistory(@CurrentUser() user: User) {
