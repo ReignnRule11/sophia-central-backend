@@ -1,7 +1,10 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
-import { User, UserRole } from '../users/entities/user.entity';\nimport { InjectRepository } from '@nestjs/typeorm';\nimport { Repository } from 'typeorm';\nimport { RegistrationTokenService } from './registration-token.service';\nimport { UnauthorizedException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { User, UserRole } from '../users/entities/user.entity';
+import { RegistrationTokenService } from './registration-token.service';
 
 const STEP_SECONDS = 30;
 const DIGITS = 6;
@@ -9,7 +12,11 @@ const RECOVERY_COUNT = 10;
 
 @Injectable()
 export class AdminMfaService {
-  constructor(\n    private readonly config: ConfigService,\n    @InjectRepository(User) private readonly users: Repository<User>,\n    private readonly registrationTokens: RegistrationTokenService,\n  ) {}
+  constructor(
+    private readonly config: ConfigService,
+    @InjectRepository(User) private readonly users: Repository<User>,
+    private readonly registrationTokens: RegistrationTokenService,
+  ) {}
 
   private encryptionKey(): Buffer {
     const raw = this.config.get<string>('ADMIN_MFA_ENCRYPTION_KEY') || '';
@@ -22,7 +29,19 @@ export class AdminMfaService {
   }
 
   generateSecret(): string {
-    return randomBytes(20).toString('base32');
+    const bytes = randomBytes(20);
+    const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
+    let bits = 0, buffer = 0, output = '';
+    for (const byte of bytes) {
+      buffer = (buffer << 8) | byte;
+      bits += 8;
+      while (bits >= 5) {
+        bits -= 5;
+        output += alphabet[(buffer >> bits) & 31];
+      }
+    }
+    if (bits > 0) output += alphabet[(buffer << (5 - bits)) & 31];
+    return output;
   }
 
   encryptSecret(secret: string): string {
@@ -83,6 +102,62 @@ export class AdminMfaService {
       }
     }
     return Buffer.from(bytes);
+  }
+
+  async createChallenge(user: User, stage: 'admin-mfa-login' | 'admin-mfa-enroll'): Promise<string> {
+    return this.registrationTokens.seal({
+      stage,
+      userId: user.id,
+      email: user.email,
+      jti: randomBytes(32).toString('hex'),
+      expiresAt: Date.now() + 10 * 60 * 1000,
+    });
+  }
+
+  private async loadChallenge(token: string, stage: 'admin-mfa-login' | 'admin-mfa-enroll') {
+    const payload = this.registrationTokens.open(token);
+    if (payload.stage !== stage || !payload.userId || !payload.jti) throw new UnauthorizedException('Invalid or expired Admin MFA challenge.');
+    const user = await this.users.findOne({
+      where: { id: String(payload.userId), role: UserRole.ADMIN },
+      select: { id: true, email: true, role: true, adminMfaEnabled: true, adminMfaSecretEncrypted: true, adminMfaRecoveryCodeHashes: true, emailVerified: true, accountStatus: true, isSuspended: true },
+    });
+    if (!user || !user.emailVerified || user.accountStatus !== 'active' || user.isSuspended) throw new UnauthorizedException('Admin account is unavailable.');
+    return { payload, user };
+  }
+
+  async beginEnrollment(challengeToken: string) {
+    const { user } = await this.loadChallenge(challengeToken, 'admin-mfa-enroll');
+    if (user.adminMfaEnabled) throw new UnauthorizedException('Admin MFA is already enabled.');
+    const secret = this.generateSecret();
+    user.adminMfaSecretEncrypted = this.encryptSecret(secret);
+    await this.users.save(user);
+    return { challengeToken, provisioningUri: this.provisioningUri(secret, user.email), secret };
+  }
+
+  async confirmEnrollment(challengeToken: string, code: string) {
+    const { payload, user } = await this.loadChallenge(challengeToken, 'admin-mfa-enroll');
+    if (user.adminMfaEnabled || !user.adminMfaSecretEncrypted) throw new UnauthorizedException('Admin MFA enrollment is not pending.');
+    const secret = this.decryptSecret(user.adminMfaSecretEncrypted);
+    if (!this.verifyTotp(secret, code)) throw new UnauthorizedException('The authenticator code is invalid.');
+    const claimed = await this.registrationTokens.claimOnce(String(payload.jti), 600);
+    if (!claimed) throw new UnauthorizedException('This enrollment challenge has already been used.');
+    const recoveryCodes = this.generateRecoveryCodes();
+    user.adminMfaEnabled = true;
+    user.adminMfaRecoveryCodeHashes = recoveryCodes.map(code => this.hashRecoveryCode(code));
+    await this.users.save(user);
+    return { user, recoveryCodes };
+  }
+
+  async verifyLogin(challengeToken: string, code: string) {
+    const { payload, user } = await this.loadChallenge(challengeToken, 'admin-mfa-login');
+    if (!user.adminMfaEnabled || !user.adminMfaSecretEncrypted) throw new UnauthorizedException('Admin MFA is not configured.');
+    let valid = this.verifyTotp(this.decryptSecret(user.adminMfaSecretEncrypted), code);
+    if (!valid) valid = this.consumeRecoveryCode(user, code);
+    if (!valid) throw new UnauthorizedException('The authenticator or recovery code is invalid.');
+    const claimed = await this.registrationTokens.claimOnce(String(payload.jti), 600);
+    if (!claimed) throw new UnauthorizedException('This login challenge has already been used.');
+    await this.users.save(user);
+    return user;
   }
 
   generateRecoveryCodes(): string[] {
