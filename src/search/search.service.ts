@@ -25,12 +25,11 @@ export class SearchService {
     const query = this.resourceRepository
       .createQueryBuilder('resource')
       .leftJoin('resource.uploader', 'uploader')
-      // Public search must never hydrate and serialize the complete User entity.
-      .addSelect(['uploader.id', 'uploader.firstName', 'uploader.lastName', 'uploader.academicHandle'])
       .where('resource.isVerified = :isVerified', { isVerified: true })
       .andWhere('resource.moderationStatus = :moderationStatus', { moderationStatus: ResourceModerationStatus.APPROVED })
       .andWhere('resource.rightsConfirmed = :rightsConfirmed', { rightsConfirmed: true });
 
+    // Select an explicit public projection; never hydrate the complete User entity.
     query.select([
       'resource.id',
       'resource.title',
@@ -51,7 +50,7 @@ export class SearchService {
       'resource.customPriceStatus',
       'resource.createdAt',
       'resource.fileUrl',
-    ]);
+    ]).addSelect(['uploader.id', 'uploader.firstName', 'uploader.lastName', 'uploader.academicHandle']);
 
     if (q) {
       query.andWhere(
