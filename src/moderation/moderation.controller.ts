@@ -33,13 +33,13 @@ export class ModerationController {
   }
 
   @Get('conflict-declarations')
-  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  @Roles(UserRole.ADMIN)
   getConflictDeclarations(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getConflictDeclarations(request.user);
   }
 
   @Get('reviewers')
-  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  @Roles(UserRole.ADMIN)
   getReviewerRoster(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getReviewerRoster(request.user);
   }
