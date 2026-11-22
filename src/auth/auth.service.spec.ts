@@ -76,6 +76,7 @@ describe('AuthService', () => {
       resetEmail as unknown as PasswordResetEmailService,
       verificationEmail as unknown as EmailVerificationEmailService,
       referrals as never,
+      { createChallenge: jest.fn(), beginEnrollment: jest.fn(), confirmEnrollment: jest.fn(), verifyLogin: jest.fn() } as never,
     );
   });
 
