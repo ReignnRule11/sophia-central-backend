@@ -21,7 +21,7 @@ async function main() {
       'users', 'resources', 'institutions', 'faculties', 'departments',
       'courses', 'course_topics', 'moderation_reviews', 'point_wallets',
       'point_transactions', 'file_uploads', 'referrals', 'notifications',
-      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'content_reports', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events', 'platform_role_audit_events', 'admin_bootstrap_audit_events', 'admin_escalation_events',
+      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'support_request_guest_archive', 'content_reports', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events', 'platform_role_audit_events', 'admin_bootstrap_audit_events', 'admin_escalation_events',
     ];
     for (const table of requiredTables) {
       const result = await client.query('SELECT to_regclass($1) AS name', [`public.${table}`]);
@@ -36,6 +36,10 @@ async function main() {
     assert.equal(lifecycleColumns.rowCount, 5, 'account lifecycle and security-question columns should exist');
     const ticketColumns = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'support_requests' AND column_name = 'ticketNumber') OR (table_name = 'content_reports' AND column_name = 'ticketNumber') OR (table_name = 'support_requests' AND column_name = 'escalatedToRole'))");
     assert.equal(ticketColumns.rowCount, 3, 'support and report ticket references and escalation tracking should exist');
+    const supportOwnerColumn = await client.query(`SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'support_requests' AND column_name = 'userId'`);
+    assert.equal(supportOwnerColumn.rows[0]?.is_nullable, 'NO', 'active Support tickets must require a registered user');
+    const guestArchiveColumns = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'support_request_guest_archive' AND column_name IN ('id', 'userId', 'senderName', 'senderEmail', 'archivedAt', 'archiveReason')`);
+    assert.equal(guestArchiveColumns.rowCount, 6, 'legacy guest Support archive should preserve ticket and sender history');
     const singleSupportRoleIndex = await client.query(`SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'IDX_users_single_support_role'`);
     assert.equal(singleSupportRoleIndex.rowCount, 1, 'only one dedicated Support account should be assignable');
 
@@ -72,6 +76,7 @@ async function main() {
     assert.ok(migrationNames.includes('CreateReviewerAssignmentEvents2026111700008'), 'reviewer assignment event migration should be applied');
     assert.ok(migrationNames.includes('AddGlobalAcademicReviewerCapability2026111800001'), 'global academic reviewer capability migration should be applied');
     assert.ok(migrationNames.includes('AddSupportRoleTicketReferencesAndWorkflow2026111800003'), 'Support and report ticket workflow migration should be applied');
+    assert.ok(migrationNames.includes('EnforceRegisteredSupportAndPlatformRoleAccounts2026112100001'), 'registered-only Support and platform account migration should be applied');
     assert.ok(migrationNames.includes('ImmutablePlatformRoleAuditEvents2026112200001'), 'Admin and platform audit immutability migration should be applied');
     assert.ok(migrationNames.includes('AddPlatformRoleLifecycleState2026112200002'), 'platform role lifecycle migration should be applied');
     assert.ok(migrationNames.includes('PersistAdminEscalationRecords2026112200003'), 'Admin escalation persistence migration should be applied');
