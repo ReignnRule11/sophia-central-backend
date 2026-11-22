@@ -144,17 +144,22 @@ export class SupportService {
     });
     if (!requests.length) return [];
     const decisions = await this.requests.query(
-      `SELECT DISTINCT ON ("sourceId") "sourceId", action, note, "actorEmail", "createdAt"
+      `SELECT "sourceId", action, note, "actorEmail", "createdAt"
        FROM admin_escalation_decisions
        WHERE "sourceType" = 'support' AND "sourceId" = ANY($1::uuid[])
        ORDER BY "sourceId", "createdAt" DESC`,
       [requests.map(request => request.id)],
     );
-    const latestById = new Map<string, any>(decisions.map((decision: any) => [decision.sourceId, decision] as [string, any]));
-    return Promise.all(requests.map(async request => ({
-      ...(await this.withSignedAttachmentUrls(request)),
-      adminDecision: latestById.get(request.id) ?? null,
-    })));
+    const historyById = new Map<string, any[]>();
+    for (const decision of decisions as any[]) {
+      const history = historyById.get(decision.sourceId) ?? [];
+      history.push(decision);
+      historyById.set(decision.sourceId, history);
+    }
+    return Promise.all(requests.map(async request => {
+      const history = historyById.get(request.id) ?? [];
+      return { ...(await this.withSignedAttachmentUrls(request)), adminDecision: history[0] ?? null, adminDecisionHistory: history };
+    }));
   }
 
   async recordAdminEscalationDecision(id: string, actor: User, dto: AdminEscalationDecisionDto) {
