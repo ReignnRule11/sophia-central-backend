@@ -55,7 +55,7 @@ async function main() {
 
       if (admins.length > 1) throw new Error('More than one Admin account already exists. Stop and reconcile the records manually.');
       if (admins.length === 1) {
-        if (admins[0].email.toLowerCase() !== email || admins[0].id !== existing?.id) {
+        if (!existing || admins[0].email.toLowerCase() !== email || admins[0].id !== existing.id) {
           throw new Error('An Admin account already exists with a different identity. This bootstrap cannot replace it.');
         }
         if (existing.emailVerified === true) {
