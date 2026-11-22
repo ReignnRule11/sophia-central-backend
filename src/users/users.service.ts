@@ -168,6 +168,132 @@ export class UsersService {
     return query.orderBy('user.academicHandle', 'ASC').take(50).getMany();
   }
 
+  async getAdminOverview(adminId: string) {
+    const [totals] = await this.dataSource.query(
+      `SELECT
+        COUNT(*)::int AS "registeredAccounts",
+        COUNT(*) FILTER (WHERE "emailVerified" = true AND "accountStatus" = 'active' AND "isSuspended" = false)::int AS "activeVerifiedAccounts",
+        COUNT(*) FILTER (WHERE role = 'student')::int AS students,
+        COUNT(*) FILTER (WHERE role = 'lecturer')::int AS lecturers,
+        COUNT(*) FILTER (WHERE role = 'reviewer')::int AS "externalReviewerAccounts",
+        COUNT(*) FILTER (WHERE role = 'admin')::int AS administrators
+       FROM users
+       WHERE role NOT IN ('moderator', 'support')`,
+    );
+
+    const [platform] = await this.dataSource.query(
+      `SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE "platformRoleVerifiedAt" IS NULL)::int AS "pendingApproval",
+        COUNT(*) FILTER (WHERE "platformRoleVerifiedAt" IS NOT NULL)::int AS "approved",
+        COUNT(*) FILTER (WHERE "isSuspended" = true OR "accountStatus" <> 'active')::int AS "unavailable"
+       FROM users WHERE role IN ('moderator', 'support')`,
+    );
+
+    const reviewerStatuses = await this.dataSource.query(
+      `SELECT status, COUNT(*)::int AS count
+       FROM reviewer_applications
+       GROUP BY status`,
+    );
+    const globalReviewerRows = await this.dataSource.query(
+      `SELECT id, email, "firstName", "lastName", role, "hasReviewerAccess",
+              "isGlobalReviewer", "reviewerStatus", "emailVerified", "isSuspended",
+              "accountStatus", "createdAt", "lastLoginAt"
+       FROM users
+       WHERE LOWER(email) = LOWER($1)
+       LIMIT 1`,
+      ['sophiscentral@gmail.com'],
+    );
+    const globalReviewer = globalReviewerRows[0] ?? null;
+    let globalReviewerApplicationHistory = 0;
+    let globalReviewerLatestApplication: Record<string, unknown> | null = null;
+    if (globalReviewer?.id) {
+      const [history] = await this.dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM reviewer_applications WHERE "userId" = $1::uuid`,
+        [globalReviewer.id],
+      );
+      globalReviewerApplicationHistory = Number(history?.count ?? 0);
+      const [latest] = await this.dataSource.query(
+        `SELECT id, status, "createdAt", "updatedAt", "decidedAt", "decisionNote"
+         FROM reviewer_applications WHERE "userId" = $1::uuid
+         ORDER BY "createdAt" DESC LIMIT 1`,
+        [globalReviewer.id],
+      );
+      globalReviewerLatestApplication = latest ?? null;
+    }
+
+    const admin = await this.usersRepository.findOne({
+      where: { id: adminId },
+      select: ['id', 'email', 'firstName', 'lastName', 'role', 'emailVerified', 'isSuspended', 'accountStatus'],
+    });
+    if (!admin || admin.role !== UserRole.ADMIN || admin.isSuspended || admin.accountStatus !== 'active') {
+      throw new ForbiddenException('An active Admin account is required to view administration data.');
+    }
+
+    return {
+      generatedAt: new Date().toISOString(),
+      admin,
+      accounts: totals,
+      platformAccounts: platform,
+      reviewerApplications: reviewerStatuses.reduce((result: Record<string, number>, row: { status: string; count: number }) => {
+        result[row.status] = Number(row.count);
+        return result;
+      }, {}),
+      globalReviewer: globalReviewer ? {
+        ...globalReviewer,
+        applicationHistoryCount: globalReviewerApplicationHistory,
+        latestApplication: globalReviewerLatestApplication,
+      } : null,
+    };
+  }
+
+  async getAdminAuditEvents(limit = 50) {
+    const safeLimit = Math.min(100, Math.max(1, Math.trunc(Number(limit) || 50)));
+    return this.dataSource.query(
+      `SELECT * FROM (
+        SELECT
+          'platform_role'::text AS "eventType",
+          event.action::text AS action,
+          event.role::text AS role,
+          event."actorId"::text AS "actorId",
+          NULLIF(CONCAT_WS(' ', actor."firstName", actor."lastName"), '') AS "actorName",
+          actor.email AS "actorEmail",
+          event."targetId"::text AS "targetId",
+          NULLIF(CONCAT_WS(' ', target."firstName", target."lastName"), '') AS "targetName",
+          target.email AS "targetEmail",
+          event."createdAt" AS "createdAt",
+          NULL::text AS note,
+          event.id::text AS id
+        FROM platform_role_audit_events event
+        LEFT JOIN users actor ON actor.id = event."actorId"
+        LEFT JOIN users target ON target.id = event."targetId"
+
+        UNION ALL
+
+        SELECT
+          'reviewer_application'::text AS "eventType",
+          decision."toStatus"::text AS action,
+          'reviewer'::text AS role,
+          decision."actorId"::text AS "actorId",
+          NULLIF(CONCAT_WS(' ', actor."firstName", actor."lastName"), '') AS "actorName",
+          actor.email AS "actorEmail",
+          application."userId"::text AS "targetId",
+          NULLIF(CONCAT_WS(' ', applicant."firstName", applicant."lastName"), '') AS "targetName",
+          applicant.email AS "targetEmail",
+          decision."createdAt" AS "createdAt",
+          decision.note AS note,
+          decision.id::text AS id
+        FROM reviewer_application_decisions decision
+        INNER JOIN reviewer_applications application ON application.id = decision."applicationId"
+        LEFT JOIN users actor ON actor.id = decision."actorId"
+        LEFT JOIN users applicant ON applicant.id = application."userId"
+      ) events
+      ORDER BY "createdAt" DESC
+      LIMIT $1`,
+      [safeLimit],
+    );
+  }
+
   async getPlatformAccounts() {
     return this.usersRepository.createQueryBuilder('user')
       .select(['user.id', 'user.email', 'user.firstName', 'user.lastName', 'user.role', 'user.isVerified', 'user.emailVerified', 'user.isSuspended', 'user.accountStatus', 'user.platformRoleVerifiedAt', 'user.createdAt'])
