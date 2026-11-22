@@ -35,6 +35,13 @@ async function main() {
     throw new Error('A production JWT_SECRET of at least 32 characters is required.');
   }
 
+  const mfaEncryptionKey = (process.env.ADMIN_MFA_ENCRYPTION_KEY || '').trim();
+  const validMfaKey = /^[a-f0-9]{64}$/i.test(mfaEncryptionKey)
+    || /^[A-Za-z0-9+/]{43}=$/.test(mfaEncryptionKey);
+  if (!validMfaKey) {
+    throw new Error('A unique 32-byte ADMIN_MFA_ENCRYPTION_KEY must be configured before bootstrapping Admin.');
+  }
+
   const config = new ConfigService(process.env);
   const registrationTokens = new RegistrationTokenService(config);
   const emailService = new EmailVerificationEmailService(config);
