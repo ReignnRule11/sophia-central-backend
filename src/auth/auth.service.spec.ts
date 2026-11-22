@@ -13,7 +13,7 @@ import { EmailVerificationEmailService } from './email-verification-email.servic
 
 describe('AuthService', () => {
   let service: AuthService;
-  let users: jest.Mocked<Pick<UsersService, 'findByEmail' | 'findByAcademicHandle' | 'findByUniqueId' | 'create' | 'createWithManager' | 'update' | 'findOne'>>;
+  let users: jest.Mocked<Pick<UsersService, 'findByEmail' | 'findByAcademicHandle' | 'findByUniqueId' | 'create' | 'createWithManager' | 'update' | 'findOne' | 'hasGlobalReviewerAccount'>>;
   let jwt: jest.Mocked<Pick<JwtService, 'signAsync'>>;
   let resetTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock; createQueryBuilder: jest.Mock };
   let verificationTokens: { delete: jest.Mock; save: jest.Mock; create: jest.Mock; findOne: jest.Mock };
@@ -36,7 +36,7 @@ describe('AuthService', () => {
     process.env.REVIEWER_RECRUITMENT_OPEN = 'true';
     delete process.env.REVIEWER_TEST_ACCOUNT_EMAIL;
     delete process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL;
-    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), createWithManager: jest.fn().mockResolvedValue({ ...user, id: 'new-account-id' }), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn() };
+    users = { findByEmail: jest.fn(), findByAcademicHandle: jest.fn(), findByUniqueId: jest.fn(), create: jest.fn(), createWithManager: jest.fn().mockResolvedValue({ ...user, id: 'new-account-id' }), update: jest.fn().mockImplementation(async (_id, data) => ({ ...user, ...data })), findOne: jest.fn(), hasGlobalReviewerAccount: jest.fn().mockResolvedValue(false) };
     jwt = { signAsync: jest.fn().mockResolvedValue('signed-access-token') };
     resetTokens = {
       delete: jest.fn().mockResolvedValue({ affected: 1 }), save: jest.fn().mockResolvedValue({}),
@@ -177,8 +177,7 @@ describe('AuthService', () => {
       isVerified: false,
       isSuspended: false,
       accountStatus: 'active',
-    } as User;    const manager = {      query: jest.fn().mockResolvedValue([]),
-      getRepository: jest.fn().mockReturnValue({ count: jest.fn().mockResolvedValue(1) }),
+    } as User;    const manager = {      query: jest.fn().mockResolvedValue([]),      getRepository: jest.fn().mockReturnValue({ count: jest.fn().mockResolvedValue(1) }),
       findOne: jest.fn().mockResolvedValue(admin),
       save: jest.fn().mockImplementation(async (_entity, value) => value),
     };
@@ -357,8 +356,7 @@ describe('AuthService', () => {
       institutionId: '00000000-0000-4000-8000-000000000001',
       institution: 'Research Institute',      faculty: 'Research',
       department: 'Methods',    } as never)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(users.update).not.toHaveBeenCalled();
-  });
+    expect(users.update).not.toHaveBeenCalled();  });
 
   it('persists External Reviewer affiliation and summary in encrypted onboarding progress', async () => {
     const expiresAt = new Date(Date.now() + 60_000);
@@ -537,8 +535,7 @@ describe('AuthService', () => {
 
   it('saves partial onboarding progress inside the encrypted registration draft', async () => {    const draft = {
       email: user.email,
-      academicHandle: 'learner.one',
-      encryptedPayload: 'old-encrypted-draft',
+      academicHandle: 'learner.one',      encryptedPayload: 'old-encrypted-draft',
       expiresAt: new Date(Date.now() + 60_000),
     };
     registrationTokens.open
