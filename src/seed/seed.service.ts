@@ -16,14 +16,7 @@ export class SeedService {
   async seed() {
     const existingUsers = await this.userRepository.count();
     if (existingUsers === 0) {
-      const admin = this.userRepository.create({
-        email: 'admin@sophia-central.com',
-        password: '$2a$10$F7Vq1d7Jv5fK7t4w4Yg0dOs3p5fQ4ObK7N3wGOnXmHLUQFvC5a8jO',
-        firstName: 'Sophia',
-        lastName: 'Admin',
-        role: UserRole.ADMIN,
-        isVerified: true,
-      });
+      // Demo seeding must never create a privileged Admin identity.
 
       const lecturer = this.userRepository.create({
         email: 'lecturer@sophia-central.com',
@@ -43,7 +36,7 @@ export class SeedService {
         isVerified: true,
       });
 
-      await this.userRepository.save([admin, lecturer, student]);
+      await this.userRepository.save([lecturer, student]);
     }
 
     const existingResources = await this.resourceRepository.count();
