@@ -1,7 +1,7 @@
 import { Injectable, ServiceUnavailableException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
-import { User } from '../users/entities/user.entity';
+import { User, UserRole } from '../users/entities/user.entity';\nimport { InjectRepository } from '@nestjs/typeorm';\nimport { Repository } from 'typeorm';\nimport { RegistrationTokenService } from './registration-token.service';\nimport { UnauthorizedException } from '@nestjs/common';
 
 const STEP_SECONDS = 30;
 const DIGITS = 6;
@@ -9,7 +9,7 @@ const RECOVERY_COUNT = 10;
 
 @Injectable()
 export class AdminMfaService {
-  constructor(private readonly config: ConfigService) {}
+  constructor(\n    private readonly config: ConfigService,\n    @InjectRepository(User) private readonly users: Repository<User>,\n    private readonly registrationTokens: RegistrationTokenService,\n  ) {}
 
   private encryptionKey(): Buffer {
     const raw = this.config.get<string>('ADMIN_MFA_ENCRYPTION_KEY') || '';
