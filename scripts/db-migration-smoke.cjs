@@ -30,6 +30,14 @@ async function main() {
 
     const identityColumn = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'uniqueId'");
     assert.equal(identityColumn.rowCount, 1, 'users.uniqueId should exist');
+    const adminMfaColumns = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name IN ('adminMfaEnabled', 'adminMfaSecretEncrypted', 'adminMfaRecoveryCodeHashes')`,
+    );
+    assert.equal(adminMfaColumns.rowCount, 3, 'Admin MFA persistence columns should exist after migrations');
+    const adminMfaAuditColumns = await client.query(
+      `SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'admin_mfa_audit_events' AND column_name IN ('actorEmail', 'reason')`,
+    );
+    assert.equal(adminMfaAuditColumns.rowCount, 2, 'Admin MFA audit actor and reason snapshots should exist');
     const pricingColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'resources' AND column_name IN ('pricingMode', 'priceAmount', 'customPriceStatus', 'lastSubstantiveUpdateAt')");
     assert.equal(pricingColumns.rowCount, 4, 'resource pricing and substantive-update columns should exist');
     const lifecycleColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name IN ('accountStatus', 'deletionRequestedAt', 'deletionScheduledAt', 'securityQuestionId', 'securityAnswerHash')");
