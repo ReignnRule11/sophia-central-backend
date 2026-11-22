@@ -192,7 +192,10 @@ async function main() {
            'reviewer_application_decisions',
            'academic_account_transitions',
            'reviewer_conflict_declarations',
-           'reviewer_assignment_events'
+           'reviewer_assignment_events',
+           'platform_role_audit_events',
+           'admin_bootstrap_audit_events',
+           'admin_escalation_events'
          )`,
     );
     assert.equal(immutableAuditForeignKeys.rowCount, 0, 'append-only audit records must not block account or resource deletion through foreign keys');
