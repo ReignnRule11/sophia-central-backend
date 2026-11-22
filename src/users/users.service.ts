@@ -177,8 +177,7 @@ export class UsersService {
         COUNT(*) FILTER (WHERE role = 'lecturer')::int AS lecturers,
         COUNT(*) FILTER (WHERE role = 'reviewer')::int AS "externalReviewerAccounts",
         COUNT(*) FILTER (WHERE role = 'admin')::int AS administrators
-       FROM users
-       WHERE role NOT IN ('moderator', 'support')`,
+       FROM users       WHERE role NOT IN ('moderator', 'support')`,
     );
 
     const [platform] = await this.dataSource.query(
@@ -202,9 +201,10 @@ export class UsersService {
               "isGlobalReviewer", "reviewerStatus", "emailVerified", "isSuspended",
               "accountStatus", "createdAt", "lastLoginAt"
        FROM users
-       WHERE LOWER(email) = LOWER($1)
+       WHERE "isGlobalReviewer" = true
+       ORDER BY "createdAt" ASC
        LIMIT 1`,
-      ['sophiscentral@gmail.com'],
+      [],
     );
     const globalReviewer = globalReviewerRows[0] ?? null;
     let globalReviewerApplicationHistory = 0;
@@ -357,8 +357,7 @@ export class UsersService {
         SELECT
           'resource_review'::text AS "eventType",
           review.status::text AS action,
-          'reviewer'::text AS role,
-          review."reviewerId"::text AS "actorId",
+          'reviewer'::text AS role,          review."reviewerId"::text AS "actorId",
           NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "actorName",
           reviewer.email AS "actorEmail",
           review."resourceId"::text AS "targetId",
@@ -537,8 +536,7 @@ export class UsersService {
         const institution = await manager.findOne(Institution, { where: { id: updateData.institutionId } });
         if (!institution) throw new BadRequestException('Select an institution from the approved Sophis Central catalogue.');
         if (!user.institutionId) updateData.uniqueId = await this.generateUniqueId(user, institution);
-        updateData.institution = institution.name;
-      }
+        updateData.institution = institution.name;      }
       if (updateData.institution !== undefined && user.institutionId && updateData.institutionId !== user.institutionId && updateData.institution.trim().toLocaleLowerCase() !== (user.institution ?? '').trim().toLocaleLowerCase()) {
         throw new ForbiddenException('Your original institution is permanent and cannot be changed on this account.');
       }
@@ -717,8 +715,7 @@ export class UsersService {
   }
 
   async cancelPendingDeletion(email: string, password: string, securityAnswer: string) {
-    const normalizedEmail = email.trim().toLowerCase();
-    const user = await this.usersRepository.createQueryBuilder('user')
+    const normalizedEmail = email.trim().toLowerCase();    const user = await this.usersRepository.createQueryBuilder('user')
       .addSelect('user.password')
       .addSelect('user.securityAnswerHash')
       .where('LOWER(user.email) = :email', { email: normalizedEmail })
