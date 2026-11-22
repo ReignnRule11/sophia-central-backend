@@ -85,6 +85,17 @@ export class ModerationService {
     });
   }
 
+  async getAssignableReviewers(viewer: User) {
+    if (!isActiveVerified(viewer) || (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer))) {
+      throw new ForbiddenException('Only Admin or the Global Academic Reviewer can assign academic reviewers.');
+    }
+    return this.userRepository.find({
+      where: { hasReviewerAccess: true, reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active', emailVerified: true },
+      select: ['id', 'firstName', 'lastName', 'hasReviewerAccess', 'isSuspended', 'reviewerExpertise', 'reviewerAcademicLevels', 'institution', 'faculty', 'department'],
+      order: { firstName: 'ASC', lastName: 'ASC' },
+    });
+  }
+
   async getReviewerRoster(viewer: User) {
     if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
     if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) {

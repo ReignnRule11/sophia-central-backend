@@ -31,20 +31,20 @@ export class ReviewerApplicationsController {
   }
 
   @Get()
-  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  @Roles(UserRole.ADMIN)
   list(@Query('status') status: string | undefined, @Req() req: AuthenticatedRequest) {
     return this.applications.listForAdmin(status, req.user);
   }
 
   @Get(':id/decisions')
-  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  @Roles(UserRole.ADMIN)
   decisionHistory(@Param('id') id: string, @Req() req: AuthenticatedRequest) {
     return this.applications.decisionHistory(id, req.user);
   }
 
   @Patch(':id/decision')
   @UseGuards(CsrfGuard)
-  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  @Roles(UserRole.ADMIN)
   decide(@Param('id') id: string, @Req() req: AuthenticatedRequest, @Body() dto: ReviewerApplicationDecisionDto) {
     return this.applications.decide(id, req.user, dto);
   }

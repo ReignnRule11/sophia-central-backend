@@ -110,7 +110,7 @@ export class ReviewerApplicationsService {
 
   async listForAdmin(status?: string, actor?: User) {
     if (actor?.role === UserRole.ADMIN && (actor.emailVerified !== true || actor.isSuspended || actor.accountStatus !== 'active')) throw new ForbiddenException('Only an active, email-verified Admin can inspect reviewer applications.');
-    if (actor && actor.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(actor)) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer applications.');
+    if (actor?.role !== UserRole.ADMIN) throw new ForbiddenException('Only Admin can inspect reviewer applications.');
     const allowed = Object.values(ReviewerApplicationStatus);
     if (status && !allowed.includes(status as ReviewerApplicationStatus)) {
       throw new BadRequestException('Unknown reviewer application status.');
@@ -124,7 +124,7 @@ export class ReviewerApplicationsService {
 
   async decisionHistory(applicationId: string, actor?: User) {
     if (actor?.role === UserRole.ADMIN && (actor.emailVerified !== true || actor.isSuspended || actor.accountStatus !== 'active')) throw new ForbiddenException('Only an active, email-verified Admin can inspect reviewer decision history.');
-    if (actor && actor.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(actor)) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer decision history.');
+    if (actor?.role !== UserRole.ADMIN) throw new ForbiddenException('Only Admin can inspect reviewer decision history.');
     const application = await this.applications.findOne({ where: { id: applicationId }, select: ['id'] });
     if (!application) throw new NotFoundException('Reviewer application not found.');
     return this.decisions.find({
@@ -136,7 +136,7 @@ export class ReviewerApplicationsService {
 
   async decide(applicationId: string, admin: User, dto: ReviewerApplicationDecisionDto) {
     if (admin.role === UserRole.ADMIN && (admin.emailVerified !== true || admin.isSuspended || admin.accountStatus !== 'active')) throw new ForbiddenException('Only an active, email-verified Admin can decide reviewer applications.');
-    if (admin.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(admin)) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can decide reviewer applications.');
+    if (admin.role !== UserRole.ADMIN) throw new ForbiddenException('Only Admin can decide reviewer applications.');
     if (hasActiveGlobalReviewerAuthority(admin) && admin.id === (await this.applications.findOne({ where: { id: applicationId }, select: ['id', 'userId'] }))?.userId) {
       throw new ForbiddenException('The Global Academic Reviewer cannot decide their own reviewer application.');
     }
