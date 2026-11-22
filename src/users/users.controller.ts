@@ -103,6 +103,25 @@ export class UsersController {
     return this.usersService.setReviewerAccess(id, dto);
   }
 
+  @Patch(':id/platform-access')
+  @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Suspend, restore or revoke the designated Support or Moderator workspace access' })
+  updatePlatformAccess(
+    @Param('id') id: string,
+    @Body() body: { action: 'suspend' | 'restore' | 'revoke'; reason?: string },
+    @CurrentUser() actor: User,
+  ) {
+    if (!['suspend', 'restore', 'revoke'].includes(body.action)) {
+      throw new BadRequestException('action must be suspend, restore or revoke.');
+    }
+    if (body.action !== 'restore' && !body.reason?.trim()) {
+      throw new BadRequestException('A reason is required for suspension or revocation.');
+    }
+    return this.usersService.updatePlatformRoleAccess(actor.id, id, body.action, body.reason);
+  }
+
   @Post(':id/reactivate')
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles(UserRole.ADMIN, UserRole.MODERATOR)
@@ -130,6 +149,10 @@ export class UsersController {
     if (actor.role === UserRole.MODERATOR && target &&
       (target.role === UserRole.ADMIN || target.role === UserRole.SUPPORT || target.role === UserRole.MODERATOR)) {
       throw new ForbiddenException('Moderators cannot change the lifecycle of platform-owned accounts.');
+    }
+    if (actor.role === UserRole.ADMIN && target &&
+      (target.role === UserRole.SUPPORT || target.role === UserRole.MODERATOR)) {
+      return this.usersService.updatePlatformRoleAccess(actor.id, id, body.isSuspended ? 'suspend' : 'restore', body.reason);
     }
     return this.usersService.update(id, { isSuspended: body.isSuspended, suspensionReason: body.isSuspended ? body.reason.trim() : undefined });
   }
