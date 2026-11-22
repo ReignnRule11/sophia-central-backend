@@ -12,6 +12,7 @@ import { SupportEmailService } from './support-email.service';
 type AuthenticatedRequest = Request & { user: User };
 import { SupportService } from './support.service';
 import { CreateSupportRequestDto } from './dto/create-support-request.dto';
+import { AdminEscalationDecisionDto } from '../common/dto/admin-escalation-decision.dto';
 
 @ApiTags('Support')
 @Controller('support-requests')
@@ -33,6 +34,13 @@ export class SupportController {
   @Roles(UserRole.ADMIN)
   adminEscalations(@CurrentUser() user: User) {
     return this.support.listAdminEscalations(user);
+  }
+
+  @Post(':id/admin-decision')
+  @UseGuards(CsrfGuard)
+  @Roles(UserRole.ADMIN)
+  adminDecision(@Param('id') id: string, @Body() dto: AdminEscalationDecisionDto, @CurrentUser() actor: User) {
+    return this.support.recordAdminEscalationDecision(id, actor, dto);
   }
 
   @Get('queue')
