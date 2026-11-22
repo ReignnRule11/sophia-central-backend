@@ -75,6 +75,8 @@ Routes:
 
 Do not bootstrap the production Admin until the encryption key is configured and the complete enrollment/login/recovery flow has been tested in a non-production environment. Recovery/reset procedures must be owner-authorized and audited; there is no self-service MFA disable route.
 
+If the Admin loses both their authenticator and all recovery codes, an authorized operator may use the offline `npm run admin:mfa-reset` command after migrations are applied. It requires `ADMIN_MFA_RESET_ENABLED=true`, exact email confirmation, operator email, and a reason of at least 30 characters. The command only resets the one existing Admin's MFA, records an immutable audit event with operator and reason, and forces fresh MFA enrollment at the next password login. It is not a public endpoint or self-service reset.
+
 ## Technology stack
 
 - NestJS and TypeScript
