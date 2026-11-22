@@ -37,8 +37,8 @@ export class InstitutionsController {
   @Post()
   @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  create(@Body() dto: CreateInstitutionDto) {
-    return this.institutionsService.create(dto);
+  create(@Body() dto: CreateInstitutionDto, @CurrentUser() user: User) {
+    return this.institutionsService.create(dto, user);
   }
 
   @Get()
@@ -62,14 +62,14 @@ export class InstitutionsController {
   @Patch(':id')
   @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  update(@Param('id') id: string, @Body() dto: UpdateInstitutionDto) {
-    return this.institutionsService.update(id, dto);
+  update(@Param('id') id: string, @Body() dto: UpdateInstitutionDto, @CurrentUser() user: User) {
+    return this.institutionsService.update(id, dto, user);
   }
 
   @Delete(':id')
   @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
-  remove(@Param('id') id: string) {
-    return this.institutionsService.remove(id);
+  remove(@Param('id') id: string, @CurrentUser() user: User) {
+    return this.institutionsService.remove(id, user);
   }
 }
