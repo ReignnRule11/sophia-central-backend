@@ -66,7 +66,8 @@ export class AuthService {
 
   async register(dto: RegisterDto) {
     const email = dto.email.trim().toLowerCase();
-    if ((dto.role ?? UserRole.STUDENT) === UserRole.REVIEWER && !this.reviewerRegistrationAllowed(email)) {
+    const role = dto.role ?? UserRole.STUDENT;
+    if (role === UserRole.REVIEWER && !this.reviewerRegistrationAllowed(email)) {
       throw new ForbiddenException('Academic Reviewer registration is coming soon. Recruitment is currently closed.');
     }
     const academicHandle = dto.academicHandle.trim().replace(/^@/, '').toLowerCase();
@@ -102,7 +103,6 @@ export class AuthService {
     }
     if (existingHandle || (reservedHandle && reservedHandle.expiresAt.getTime() > Date.now())) throw new ConflictException('Academic handle taken');
 
-    const role = dto.role ?? UserRole.STUDENT;
     const referralCode = role === UserRole.STUDENT ? dto.referralCode?.trim() || undefined : undefined;
     if (referralCode) await this.referralService.validateReferralCode(referralCode, email);
 
@@ -177,8 +177,7 @@ export class AuthService {
 
     const passwordMatches = user?.password ? await bcrypt.compare(dto.password, user.password) : false;
     if (!user || !passwordMatches) throw new UnauthorizedException('Invalid credentials');
-    if (user.emailVerified !== true) {
-      throw new ForbiddenException('Please verify your email address before signing in. Open the verification page to resend your activation link.');
+    if (user.emailVerified !== true) {      throw new ForbiddenException('Please verify your email address before signing in. Open the verification page to resend your activation link.');
     }
     if (user.accountStatus === 'pending_deletion') {
       throw new ForbiddenException('This account has a pending deletion request. Cancel the request during the 30-day grace period before signing in.');
@@ -357,8 +356,7 @@ export class AuthService {
   }
 
   async completePreAccountOnboarding(token: string, dto: OnboardingDto) {
-    const registration = this.registrationTokens.open(token);
-    if (registration.stage !== 'pre-account') throw new UnauthorizedException('Complete email verification before onboarding.');
+    const registration = this.registrationTokens.open(token);    if (registration.stage !== 'pre-account') throw new UnauthorizedException('Complete email verification before onboarding.');
     const email = String(registration.email || '').trim().toLowerCase();
     if (!email || !registration.jti) throw new UnauthorizedException('Your pre-account session is invalid. Please sign in again.');
     const [preAccount, draft] = await Promise.all([
@@ -537,8 +535,7 @@ export class AuthService {
     const draftExpired = Boolean(draftByEmail && draftByEmail.expiresAt.getTime() <= Date.now());
     if (draftExpired) {
       await this.dataSource.transaction(async (manager) => {
-        await manager.getRepository(PreAccount).delete({ email: normalizedEmail });
-        await manager.getRepository(RegistrationDraft).delete({ email: normalizedEmail });
+        await manager.getRepository(PreAccount).delete({ email: normalizedEmail });        await manager.getRepository(RegistrationDraft).delete({ email: normalizedEmail });
       });
     }
     const existingEmailIdentity = Boolean(userByEmail || (preAccount && !draftExpired) || (draftByEmail && !draftExpired));
