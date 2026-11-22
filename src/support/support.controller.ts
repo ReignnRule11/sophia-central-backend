@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
@@ -39,7 +39,7 @@ export class SupportController {
   @Post(':id/admin-decision')
   @UseGuards(CsrfGuard)
   @Roles(UserRole.ADMIN)
-  adminDecision(@Param('id') id: string, @Body() dto: AdminEscalationDecisionDto, @CurrentUser() actor: User) {
+  adminDecision(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AdminEscalationDecisionDto, @CurrentUser() actor: User) {
     return this.support.recordAdminEscalationDecision(id, actor, dto);
   }
 
