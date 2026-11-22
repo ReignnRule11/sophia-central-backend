@@ -206,7 +206,10 @@ export class UsersService {
     );
     const globalReviewer = globalReviewerRows[0] ?? null;
     let globalReviewerApplicationHistory = 0;
+    let globalReviewerModerationReviewCount = 0;
+    let globalReviewerAssignmentEventCount = 0;
     let globalReviewerLatestApplication: Record<string, unknown> | null = null;
+    let globalReviewerLatestModerationReview: Record<string, unknown> | null = null;
     if (globalReviewer?.id) {
       const [history] = await this.dataSource.query(
         `SELECT COUNT(*)::int AS count FROM reviewer_applications WHERE "userId" = $1::uuid`,
@@ -220,6 +223,25 @@ export class UsersService {
         [globalReviewer.id],
       );
       globalReviewerLatestApplication = latest ?? null;
+      const [reviewCounts] = await this.dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM moderation_reviews WHERE "reviewerId" = $1::uuid`,
+        [globalReviewer.id],
+      );
+      globalReviewerModerationReviewCount = Number(reviewCounts?.count ?? 0);
+      const [assignmentCounts] = await this.dataSource.query(
+        `SELECT COUNT(*)::int AS count FROM reviewer_assignment_events WHERE "reviewerId" = $1::uuid`,
+        [globalReviewer.id],
+      );
+      globalReviewerAssignmentEventCount = Number(assignmentCounts?.count ?? 0);
+      const [latestReview] = await this.dataSource.query(
+        `SELECT review.id, review.status, review."createdAt", resource.id AS "resourceId", resource.title AS "resourceTitle"
+         FROM moderation_reviews review
+         LEFT JOIN resources resource ON resource.id = review."resourceId"
+         WHERE review."reviewerId" = $1::uuid
+         ORDER BY review."createdAt" DESC LIMIT 1`,
+        [globalReviewer.id],
+      );
+      globalReviewerLatestModerationReview = latestReview ?? null;
     }
 
     const admin = await this.usersRepository.findOne({
@@ -242,7 +264,10 @@ export class UsersService {
       globalReviewer: globalReviewer ? {
         ...globalReviewer,
         applicationHistoryCount: globalReviewerApplicationHistory,
+        moderationReviewCount: globalReviewerModerationReviewCount,
+        assignmentEventCount: globalReviewerAssignmentEventCount,
         latestApplication: globalReviewerLatestApplication,
+        latestModerationReview: globalReviewerLatestModerationReview,
       } : null,
     };
   }
@@ -305,6 +330,44 @@ export class UsersService {
           bootstrap.id::text AS id
         FROM admin_bootstrap_audit_events bootstrap
         LEFT JOIN users target ON target.id = bootstrap."targetId"
+
+        UNION ALL
+
+        SELECT
+          'reviewer_assignment'::text AS "eventType",
+          assignment."eventType"::text AS action,
+          'reviewer'::text AS role,
+          assignment."actorId"::text AS "actorId",
+          NULLIF(CONCAT_WS(' ', actor."firstName", actor."lastName"), '') AS "actorName",
+          actor.email AS "actorEmail",
+          assignment."reviewerId"::text AS "targetId",
+          NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "targetName",
+          reviewer.email AS "targetEmail",
+          assignment."createdAt" AS "createdAt",
+          assignment."reviewStatus"::text AS note,
+          assignment.id::text AS id
+        FROM reviewer_assignment_events assignment
+        LEFT JOIN users actor ON actor.id = assignment."actorId"
+        LEFT JOIN users reviewer ON reviewer.id = assignment."reviewerId"
+
+        UNION ALL
+
+        SELECT
+          'resource_review'::text AS "eventType",
+          review.status::text AS action,
+          'reviewer'::text AS role,
+          review."reviewerId"::text AS "actorId",
+          NULLIF(CONCAT_WS(' ', reviewer."firstName", reviewer."lastName"), '') AS "actorName",
+          reviewer.email AS "actorEmail",
+          review."resourceId"::text AS "targetId",
+          resource.title::text AS "targetName",
+          NULL::text AS "targetEmail",
+          review."createdAt" AS "createdAt",
+          review.note AS note,
+          review.id::text AS id
+        FROM moderation_reviews review
+        LEFT JOIN users reviewer ON reviewer.id = review."reviewerId"
+        LEFT JOIN resources resource ON resource.id = review."resourceId"
       ) events
       ORDER BY "createdAt" DESC
       LIMIT $1`,
