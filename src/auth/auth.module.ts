@@ -15,7 +15,9 @@ import type { JwtModuleOptions } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { ReferralModule } from '../referral/referral.module';
-import { RegistrationTokenService } from './registration-token.service';\nimport { AdminMfaService } from './admin-mfa.service';\nimport { User } from '../users/entities/user.entity';
+import { RegistrationTokenService } from './registration-token.service';
+import { AdminMfaService } from './admin-mfa.service';
+import { User } from '../users/entities/user.entity';
 
 @Module({
   imports: [
