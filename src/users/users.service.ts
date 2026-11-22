@@ -188,11 +188,13 @@ export class UsersService {
   }
 
   private async assertActiveAdmin(adminId: string, manager?: EntityManager): Promise<void> {
-    const repository = manager ? manager.getRepository(User) : this.usersRepository;
-    const admin = await repository.findOne({
+    const admin = await (manager ? manager.findOne(User, {
       where: { id: adminId },
       select: ['id', 'role', 'emailVerified', 'isSuspended', 'accountStatus'],
-    });
+    }) : this.usersRepository.findOne({
+      where: { id: adminId },
+      select: ['id', 'role', 'emailVerified', 'isSuspended', 'accountStatus'],
+    }));
     if (!admin || admin.role !== UserRole.ADMIN || admin.emailVerified !== true ||
         admin.isSuspended === true || admin.accountStatus !== 'active') {
       throw new ForbiddenException('An active, email-verified Admin account is required for this operation.');
