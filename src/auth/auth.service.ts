@@ -28,7 +28,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { ReviewerApplication, ReviewerApplicationStatus } from '../users/entities/reviewer-application.entity';
 import { ReviewerApplicationDecision } from '../users/entities/reviewer-application-decision.entity';
 import { ReferralService } from '../referral/referral.service';
-import { isReservedPlatformLoginAlias, PLATFORM_LOGIN_ALIASES } from '../users/platform-login-aliases';
+import { isReservedPlatformLoginAlias, PLATFORM_LOGIN_ALIASES } from '../users/platform-login-aliases';\nimport { AdminMfaService } from './admin-mfa.service';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -186,7 +186,7 @@ export class AuthService {
     if (user.accountStatus === 'deactivated') {
       user = await this.usersService.update(user.id, { accountStatus: 'active' });
     }
-    user = await this.usersService.update(user.id, { lastLoginAt: new Date() });    return this.buildAuthResponse(user);
+    user = await this.usersService.update(user.id, { lastLoginAt: new Date() });\n    if (user.role === UserRole.ADMIN) {\n      const stage = user.adminMfaEnabled ? 'admin-mfa-login' : 'admin-mfa-enroll';\n      return { adminMfaRequired: true as const, setupRequired: !user.adminMfaEnabled, challengeToken: await this.adminMfa.createChallenge(user, stage) };\n    }\n    return this.buildAuthResponse(user);
   }
 
 
