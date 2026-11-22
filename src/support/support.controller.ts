@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Get, Param, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Param, ParseUUIDPipe, Patch, Post, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
@@ -12,6 +12,7 @@ import { SupportEmailService } from './support-email.service';
 type AuthenticatedRequest = Request & { user: User };
 import { SupportService } from './support.service';
 import { CreateSupportRequestDto } from './dto/create-support-request.dto';
+import { AdminEscalationDecisionDto } from '../common/dto/admin-escalation-decision.dto';
 
 @ApiTags('Support')
 @Controller('support-requests')
@@ -33,6 +34,13 @@ export class SupportController {
   @Roles(UserRole.ADMIN)
   adminEscalations(@CurrentUser() user: User) {
     return this.support.listAdminEscalations(user);
+  }
+
+  @Post(':id/admin-decision')
+  @UseGuards(CsrfGuard)
+  @Roles(UserRole.ADMIN)
+  adminDecision(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AdminEscalationDecisionDto, @CurrentUser() actor: User) {
+    return this.support.recordAdminEscalationDecision(id, actor, dto);
   }
 
   @Get('queue')

@@ -107,10 +107,11 @@ describe('SupportService attachment ownership', () => {
     const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
     const escalated = { id: 'ticket-1', ticketNumber: 'SUP-2026-000001', escalatedToRole: 'admin', escalatedAt: new Date(), attachments: [] };
     requests.find.mockResolvedValueOnce([escalated]);
+    requests.query.mockResolvedValueOnce([]);
 
     const result = await service.listAdminEscalations(admin);
 
-    expect(result).toEqual([escalated]);
+    expect(result).toEqual([{ ...escalated, adminDecision: null, adminDecisionHistory: [] }]);
     expect(requests.find).toHaveBeenCalledWith({
       where: { escalatedToRole: 'admin' },
       relations: ['user', 'reviewer'],

@@ -8,6 +8,7 @@ import { RolesGuard } from '../common/guards/roles.guard';
 import { User, UserRole } from '../users/entities/user.entity';
 import { CreateContentReportDto } from './dto/create-content-report.dto';
 import { UpdateContentReportDto } from './dto/update-content-report.dto';
+import { AdminEscalationDecisionDto } from '../common/dto/admin-escalation-decision.dto';
 import { ContentReportStatus } from './entities/content-report.entity';
 import { ContentReportsService } from './reports.service';
 
@@ -50,6 +51,13 @@ export class ModerationReportsController {
   @Roles(UserRole.ADMIN)
   adminEscalations(@Req() request: AuthenticatedRequest) {
     return this.reports.listAdminEscalations(request.user);
+  }
+
+  @Post(':id/admin-decision')
+  @UseGuards(CsrfGuard)
+  @Roles(UserRole.ADMIN)
+  adminDecision(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AdminEscalationDecisionDto, @Req() request: AuthenticatedRequest) {
+    return this.reports.recordAdminEscalationDecision(id, request.user, dto);
   }
 
   @Patch(':id/escalate')

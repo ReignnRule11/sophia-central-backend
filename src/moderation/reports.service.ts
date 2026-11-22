@@ -8,6 +8,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateContentReportDto } from './dto/create-content-report.dto';
 import { UpdateContentReportDto } from './dto/update-content-report.dto';
 import { ContentReport, ContentReportStatus, ReportTargetType } from './entities/content-report.entity';
+import { AdminEscalationDecisionDto } from '../common/dto/admin-escalation-decision.dto';
 
 @Injectable()
 export class ContentReportsService {
@@ -173,12 +174,72 @@ export class ContentReportsService {
     if (actor.role !== UserRole.ADMIN || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) {
       throw new ForbiddenException('Only an active, verified Admin can inspect escalated moderation reports.');
     }
-    return this.reports.find({
+    const reports = await this.reports.find({
       where: { escalatedToRole: 'admin' },
       relations: ['reporter', 'assignedModerator'],
       order: { escalatedAt: 'DESC' },
       take: 100,
     });
+    if (!reports.length) return [];
+    const decisions = await this.reports.query(
+      `SELECT "sourceId", action, note, "actorEmail", "createdAt"
+       FROM admin_escalation_decisions
+       WHERE "sourceType" = 'moderation' AND "sourceId" = ANY($1::uuid[])
+       ORDER BY "sourceId", "createdAt" DESC`,
+      [reports.map(report => report.id)],
+    );
+    const historyById = new Map<string, any[]>();
+    for (const decision of decisions as any[]) {
+      const history = historyById.get(decision.sourceId) ?? [];
+      history.push(decision);
+      historyById.set(decision.sourceId, history);
+    }
+    return reports.map(report => {
+      const history = historyById.get(report.id) ?? [];
+      return { ...report, adminDecision: history[0] ?? null, adminDecisionHistory: history };
+    });
+  }
+
+  async recordAdminEscalationDecision(id: string, actor: User, dto: AdminEscalationDecisionDto) {
+    if (actor.role !== UserRole.ADMIN || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) {
+      throw new ForbiddenException('Only an active, verified Admin can decide escalated moderation reports.');
+    }
+    const report = await this.reports.findOne({ where: { id }, relations: ['reporter', 'assignedModerator'] });
+    if (!report) throw new NotFoundException('Moderation report not found.');
+    if (report.escalatedToRole !== 'admin') throw new ConflictException('This report is not currently escalated to Admin.');
+    const latest = await this.reports.query(
+      `SELECT action FROM admin_escalation_decisions
+       WHERE "sourceType" = 'moderation' AND "sourceId" = $1::uuid
+       ORDER BY "createdAt" DESC LIMIT 1`,
+      [id],
+    );
+    if (latest[0]?.action === 'resolved') throw new ConflictException('This Admin escalation has already been resolved.');
+    const result = await this.reports.query(
+      `INSERT INTO admin_escalation_decisions
+       ("sourceType", "sourceId", "ticketNumber", action, note, "actorId", "actorEmail")
+       VALUES ('moderation', $1::uuid, $2, $3, $4, $5::uuid, $6)
+       RETURNING id, action, note, "actorEmail", "createdAt"`,
+      [report.id, report.ticketNumber, dto.action, dto.note.trim(), actor.id, actor.email],
+    );
+    try {
+      if (dto.action === 'awaiting_information' && report.reporterId) {
+        await this.notifications.createNotification(report.reporterId, 'content_report_updated', 'More information requested', `Admin requested more information for report ${report.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
+      } else if (dto.action === 'resolved') {
+        if (report.reporterId) await this.notifications.createNotification(report.reporterId, 'content_report_updated', 'Admin escalation review completed', `Admin completed the escalation review for report ${report.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
+        const moderators = report.assignedModerator
+          ? [report.assignedModerator]
+          : await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } });
+        await Promise.all(moderators.map(account => this.notifications.createNotification(account.id, 'moderation_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for report ${report.ticketNumber}. Review the decision in the Admin escalation centre.`, '/moderation?tab=reports')));
+      } else if (dto.action === 'returned_to_team') {
+        const recipients = report.assignedModerator
+          ? [report.assignedModerator]
+          : await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } });
+        await Promise.all(recipients.map(account => this.notifications.createNotification(account.id, 'moderation_escalation_returned', 'Admin returned an escalated report', `Report ${report.ticketNumber} was returned to Moderation: ${dto.note.trim()}`, '/moderation?tab=reports')));
+      }
+    } catch (error) {
+      this.logger.warn(`Admin decision for moderation report ${report.ticketNumber} was saved but notification delivery failed: ${String(error)}`);
+    }
+    return result[0];
   }
 
   async listForModeration(actor: User, status?: ContentReportStatus) {
