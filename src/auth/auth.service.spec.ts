@@ -25,7 +25,8 @@ describe('AuthService', () => {
   let registrationTokens: { seal: jest.Mock; open: jest.Mock; claimOnce: jest.Mock; releaseClaim: jest.Mock };
   let resetEmail: jest.Mocked<Pick<PasswordResetEmailService, 'sendResetLink'>>;
   let verificationEmail: jest.Mocked<Pick<EmailVerificationEmailService, 'sendVerificationLink'>>;
-  let referrals: { validateReferralCode: jest.Mock; redeemReferral: jest.Mock; processPendingReferralForUser: jest.Mock };\n  let adminMfa: { createChallenge: jest.Mock; beginEnrollment: jest.Mock; confirmEnrollment: jest.Mock; verifyLogin: jest.Mock };
+  let referrals: { validateReferralCode: jest.Mock; redeemReferral: jest.Mock; processPendingReferralForUser: jest.Mock };
+  let adminMfa: { createChallenge: jest.Mock; beginEnrollment: jest.Mock; confirmEnrollment: jest.Mock; verifyLogin: jest.Mock };
   const user = {
     id: 'user-123', email: 'learner@example.com', firstName: 'Learner', lastName: 'One',
     password: '', role: 'student' as const, authProvider: 'email' as const,
@@ -64,7 +65,8 @@ describe('AuthService', () => {
       redeemReferral: jest.fn().mockResolvedValue({ success: true, message: 'Referral recorded.' }),
       processPendingReferralForUser: jest.fn().mockResolvedValue(undefined),
     };
-    adminMfa = { createChallenge: jest.fn().mockResolvedValue('admin-mfa-challenge'), beginEnrollment: jest.fn(), confirmEnrollment: jest.fn(), verifyLogin: jest.fn() };\n    service = new AuthService(
+    adminMfa = { createChallenge: jest.fn().mockResolvedValue('admin-mfa-challenge'), beginEnrollment: jest.fn(), confirmEnrollment: jest.fn(), verifyLogin: jest.fn() };
+    service = new AuthService(
       users as unknown as UsersService,
       jwt as unknown as JwtService,
       resetTokens as never,
