@@ -21,8 +21,8 @@ export class AdminMfaService {
 
   private async audit(user: User, action: string, method?: string): Promise<void> {
     await this.dataSource.query(
-      'INSERT INTO admin_mfa_audit_events ("targetId", email, action, method) VALUES ($1::uuid, $2, $3, $4)',
-      [user.id, user.email, action, method ?? null],
+      'INSERT INTO admin_mfa_audit_events ("targetId", email, action, method, "actorEmail") VALUES ($1::uuid, $2, $3, $4, $5)',
+      [user.id, user.email, action, method ?? null, user.email],
     );
   }
 
