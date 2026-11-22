@@ -44,6 +44,12 @@ export class ModerationController {
     return this.moderationService.getReviewerRoster(request.user);
   }
 
+  @Get('assignable-reviewers')
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  getAssignableReviewers(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.getAssignableReviewers(request.user);
+  }
+
   @Get('history')
   @Roles(UserRole.ADMIN, UserRole.REVIEWER)
   getHistory(@Req() request: AuthenticatedRequest) {
