@@ -29,7 +29,7 @@ export class RolesGuard implements CanActivate {
         // Platform-owned workspaces remain inaccessible until an Admin explicitly
         // approves the already-provisioned account. JwtStrategy reloads this user
         // from the database for each request, so this is not a stale token claim.
-        return requiredRole === user.role && Boolean(user.platformRoleVerifiedAt);
+        return requiredRole === user.role && user.platformRoleStatus === 'approved' && Boolean(user.platformRoleVerifiedAt);
       }
       return requiredRole === user.role;
     });
