@@ -83,7 +83,7 @@ describe('AuthService', () => {
 
   it('limits closed recruitment to the exact configured reviewer test email', async () => {
     process.env.REVIEWER_RECRUITMENT_OPEN = 'false';
-    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral@gmail.com';
+    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral+reviewer@gmail.com';
     users.findByEmail.mockResolvedValue(null);
     users.findByAcademicHandle.mockResolvedValue(null);
 
@@ -106,16 +106,16 @@ describe('AuthService', () => {
 
   it('bootstraps the exact configured Global Academic Reviewer after verified registration', async () => {
     process.env.REVIEWER_RECRUITMENT_OPEN = 'false';
-    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral@gmail.com';
-    process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL = 'sophiscentral@gmail.com';
+    process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral+reviewer@gmail.com';
+    process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL = 'sophiscentral+reviewer@gmail.com';
     const expiresAt = new Date(Date.now() + 60_000);
-    preAccounts.findOne.mockResolvedValue({ email: 'sophiscentral@gmail.com', password: 'password-hash' });
-    registrationDrafts.findOne.mockResolvedValue({ email: 'sophiscentral@gmail.com', expiresAt, encryptedPayload: 'encrypted-draft' });
+    preAccounts.findOne.mockResolvedValue({ email: 'sophiscentral+reviewer@gmail.com', password: 'password-hash' });
+    registrationDrafts.findOne.mockResolvedValue({ email: 'sophiscentral+reviewer@gmail.com', expiresAt, encryptedPayload: 'encrypted-draft' });
     registrationTokens.open
-      .mockReturnValueOnce({ stage: 'pre-account', email: 'sophiscentral@gmail.com', jti: 'resume-jti', expiresAt: expiresAt.getTime() })
+      .mockReturnValueOnce({ stage: 'pre-account', email: 'sophiscentral+reviewer@gmail.com', jti: 'resume-jti', expiresAt: expiresAt.getTime() })
       .mockReturnValueOnce({
         stage: 'pre-account-draft',
-        email: 'sophiscentral@gmail.com',
+        email: 'sophiscentral+reviewer@gmail.com',
         firstName: 'Sophis',
         lastName: 'Reviewer',
         academicHandle: 'sophis',
@@ -125,7 +125,7 @@ describe('AuthService', () => {
     users.findByAcademicHandle.mockResolvedValue(null);
     users.createWithManager.mockResolvedValue({
       id: 'global-reviewer-id',
-      email: 'sophiscentral@gmail.com',
+      email: 'sophiscentral+reviewer@gmail.com',
       role: UserRole.REVIEWER,
       hasReviewerAccess: true,
       isGlobalReviewer: true,
@@ -138,7 +138,7 @@ describe('AuthService', () => {
     await service.completePreAccountOnboarding('onboarding-token', { bio: 'Platform-wide academic review test account' } as never);
 
     expect(users.createWithManager).toHaveBeenCalledWith(expect.any(Object), expect.objectContaining({
-      email: 'sophiscentral@gmail.com',
+      email: 'sophiscentral+reviewer@gmail.com',
       firstName: 'Sophis',
       lastName: 'Reviewer',
       academicHandle: 'sophis',
@@ -177,8 +177,7 @@ describe('AuthService', () => {
       isVerified: false,
       isSuspended: false,
       accountStatus: 'active',
-    } as User;
-    const manager = {
+    } as User;    const manager = {
       query: jest.fn().mockResolvedValue([]),
       getRepository: jest.fn().mockReturnValue({ count: jest.fn().mockResolvedValue(1) }),
       findOne: jest.fn().mockResolvedValue(admin),
@@ -357,8 +356,7 @@ describe('AuthService', () => {
     users.findOne.mockResolvedValue({ ...user, role: UserRole.REVIEWER, isProfileComplete: false } as never);
     await expect(service.completeOnboarding(user.id, {
       institutionId: '00000000-0000-4000-8000-000000000001',
-      institution: 'Research Institute',
-      faculty: 'Research',
+      institution: 'Research Institute',      faculty: 'Research',
       department: 'Methods',
     } as never)).rejects.toBeInstanceOf(ForbiddenException);
     expect(users.update).not.toHaveBeenCalled();
@@ -537,8 +535,7 @@ describe('AuthService', () => {
       email: 'learner@example.com', academicHandle: 'learner.one', encryptedPayload: expect.any(String), expiresAt: expect.any(Date),
     }));
     expect(users.create).not.toHaveBeenCalled();
-    expect(jwt.signAsync).not.toHaveBeenCalled();
-  });
+    expect(jwt.signAsync).not.toHaveBeenCalled();  });
 
   it('saves partial onboarding progress inside the encrypted registration draft', async () => {
     const draft = {
