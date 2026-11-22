@@ -220,6 +220,52 @@ export class AuthService {
   async confirmEmailVerification(token: string, password: string): Promise<{ message: string; onboardingToken?: string; preAccount?: { email: string; firstName: string; lastName: string; academicHandle: string; role: UserRole } }> {
     let registration: RegistrationTokenPayload | null = null;
     try { registration = this.registrationTokens.open(token); } catch { registration = null; }
+    if (registration?.stage === 'admin-bootstrap') {
+      const email = String(registration.email || '').trim().toLowerCase();
+      const userId = String(registration.userId || '').trim();
+      if (!email || !userId || !registration.jti || !registration.expiresAt) {
+        throw new UnauthorizedException('This Admin setup link is invalid or has expired. Request a new setup link.');
+      }
+      const claimed = await this.registrationTokens.claimOnce(
+        registration.jti,
+        Math.ceil((registration.expiresAt - Date.now()) / 1000),
+      );
+      if (!claimed) throw new UnauthorizedException('This Admin setup link has already been used. Sign in or request a new setup link.');
+
+      try {
+        const passwordHash = await bcrypt.hash(password, 12);
+        await this.dataSource.transaction(async manager => {
+          await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['sophis-central-admin-bootstrap']);
+          const adminCount = await manager.getRepository(User).count({ where: { role: UserRole.ADMIN } });
+          if (adminCount !== 1) {
+            throw new ConflictException('The initial Admin account state is no longer valid. Contact the platform owner.');
+          }
+          const admin = await manager.findOne(User, {
+            where: { id: userId },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (!admin || admin.role !== UserRole.ADMIN || admin.email.trim().toLowerCase() !== email) {
+            throw new UnauthorizedException('This Admin setup link does not match the provisioned account.');
+          }
+          if (admin.emailVerified === true || admin.accountStatus !== 'active' || admin.isSuspended === true) {
+            throw new ConflictException('This Admin account has already been verified or is unavailable.');
+          }
+          admin.password = passwordHash;
+          admin.emailVerified = true;
+          admin.isVerified = true;
+          await manager.save(User, admin);
+          await manager.query(
+            'INSERT INTO admin_bootstrap_audit_events ("targetId", email, action) VALUES ($1::uuid, $2, $3)',
+            [admin.id, admin.email, 'email_verified'],
+          );
+        });
+      } catch (error) {
+        await this.registrationTokens.releaseClaim(registration.jti);
+        throw error;
+      }
+      return { message: 'Your Admin email is verified and your password is set. You can now sign in to Sophis Central.' };
+    }
+
     if (registration?.stage === 'verify') {
       const email = String(registration.email || '').trim().toLowerCase();
       const academicHandle = String(registration.academicHandle || '').trim().replace(/^@+/, '').toLowerCase();
