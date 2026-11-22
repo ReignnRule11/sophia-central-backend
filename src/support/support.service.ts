@@ -150,7 +150,7 @@ export class SupportService {
        ORDER BY "sourceId", "createdAt" DESC`,
       [requests.map(request => request.id)],
     );
-    const latestById = new Map(decisions.map((decision: any) => [decision.sourceId, decision]));
+    const latestById = new Map<string, any>(decisions.map((decision: any) => [decision.sourceId, decision] as [string, any]));
     return Promise.all(requests.map(async request => ({
       ...(await this.withSignedAttachmentUrls(request)),
       adminDecision: latestById.get(request.id) ?? null,
