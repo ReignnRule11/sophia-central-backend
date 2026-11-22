@@ -144,8 +144,8 @@ export class PaymentsService {
   async verifyForUser(user: User, reference: string) {
     const payment = await this.payments.findOne({ where: { reference } });
     if (!payment) throw new NotFoundException('Payment reference not found.');
-    if (payment.userId !== user.id && ![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role)) {
-      throw new ForbiddenException('You cannot inspect another user payment.');
+    if (payment.userId !== user.id && (user.role !== UserRole.ADMIN || user.isSuspended || user.accountStatus !== 'active' || user.emailVerified !== true)) {
+      throw new ForbiddenException('Only the payment owner or an active, verified administrator may inspect this payment.');
     }
     if (payment.status === PaymentStatus.SUCCESS) return this.publicPayment(payment);
     const provider = this.providers.get(payment.provider);
@@ -157,7 +157,7 @@ export class PaymentsService {
 
 
   async createRefund(user: User, paymentReference: string, input: { idempotencyKey: string; amountMinor?: number; reason: string }) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role) || user.isSuspended || user.accountStatus !== 'active' || user.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may initiate refunds.');
+    if (user.role !== UserRole.ADMIN || user.isSuspended || user.accountStatus !== 'active' || user.emailVerified !== true) throw new ForbiddenException('Only active, verified administrators may initiate refunds.');
     if (!input.idempotencyKey?.trim() || !input.reason?.trim()) throw new BadRequestException('An idempotency key and reason are required.');
     const existing = await this.refunds.findOne({ where: { idempotencyKey: input.idempotencyKey } });
     if (existing) return this.publicRefund(existing);
@@ -220,7 +220,7 @@ export class PaymentsService {
   }
 
   async listDisputes(user: User) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role) || user.isSuspended || user.accountStatus !== 'active' || user.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may inspect payment disputes.');
+    if (user.role !== UserRole.ADMIN || user.isSuspended || user.accountStatus !== 'active' || user.emailVerified !== true) throw new ForbiddenException('Only active, verified administrators may inspect payment disputes.');
     const records = await this.disputes.find({ order: { createdAt: 'DESC' }, take: 100 });
     return records.map(dispute => ({
       id: dispute.id, paymentId: dispute.paymentId, providerDisputeId: dispute.providerDisputeId,
@@ -231,7 +231,7 @@ export class PaymentsService {
   }
 
   async verifyRefund(user: User, refundId: string) {
-    if (![UserRole.ADMIN, UserRole.MODERATOR].includes(user.role) || user.isSuspended || user.accountStatus !== 'active' || user.emailVerified !== true) throw new ForbiddenException('Only active administrators and moderators may inspect refunds.');
+    if (user.role !== UserRole.ADMIN || user.isSuspended || user.accountStatus !== 'active' || user.emailVerified !== true) throw new ForbiddenException('Only active, verified administrators may inspect refunds.');
     const refund = await this.refunds.findOne({ where: { id: refundId } });
     if (!refund) throw new NotFoundException('Refund not found.');
     if (!refund.providerRefundId) return this.publicRefund(refund);
