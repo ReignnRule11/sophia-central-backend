@@ -24,6 +24,10 @@ export class ContentReport {
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'assignedModeratorId' }) assignedModerator?: User | null;
   @Column({ type: 'text', nullable: true }) moderatorNote?: string | null;
+  @Column({ type: 'varchar', length: 24, nullable: true }) escalatedToRole?: 'admin' | null;
+  @Column({ type: 'text', nullable: true }) escalationReason?: string | null;
+  @Column({ type: 'timestamptz', nullable: true }) escalatedAt?: Date | null;
+  @Column({ type: 'uuid', nullable: true }) escalatedById?: string | null;
   @CreateDateColumn({ type: 'timestamptz' }) createdAt!: Date;
   @UpdateDateColumn({ type: 'timestamptz' }) updatedAt!: Date;
 }
