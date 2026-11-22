@@ -1,6 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-type IdentityRow = { id: string; email: string };
+type IdentityRow = { id: string; email: string; authProvider: string };
 
 export class TransferPlatformAccountLoginAliases2026112200005 implements MigrationInterface {
   name = 'TransferPlatformAccountLoginAliases2026112200005';
@@ -12,7 +12,7 @@ export class TransferPlatformAccountLoginAliases2026112200005 implements Migrati
     alias: string,
   ): Promise<void> {
     const rows: IdentityRow[] = await queryRunner.query(
-      `SELECT id, email FROM users WHERE ${predicate} FOR UPDATE`,
+      `SELECT id, email, "authProvider" FROM users WHERE ${predicate} FOR UPDATE`,
     );
     if (rows.length === 0) return; // Fresh/test databases may not contain provisioned platform identities.
     if (rows.length !== 1) {
@@ -20,6 +20,9 @@ export class TransferPlatformAccountLoginAliases2026112200005 implements Migrati
     }
 
     const identity = rows[0];
+    if (identity.authProvider !== 'email') {
+      throw new Error(`The existing ${label} account does not use email/password authentication. Resolve its authentication method before transferring the login alias.`);
+    }
     if (identity.email.trim().toLowerCase() === alias) return;
 
     const collisions: IdentityRow[] = await queryRunner.query(
