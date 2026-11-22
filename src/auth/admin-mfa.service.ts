@@ -144,6 +144,7 @@ export class AdminMfaService {
     const recoveryCodes = this.generateRecoveryCodes();
     user.adminMfaEnabled = true;
     user.adminMfaRecoveryCodeHashes = recoveryCodes.map(code => this.hashRecoveryCode(code));
+    user.lastLoginAt = new Date();
     await this.users.save(user);
     return { user, recoveryCodes };
   }
@@ -156,6 +157,7 @@ export class AdminMfaService {
     if (!valid) throw new UnauthorizedException('The authenticator or recovery code is invalid.');
     const claimed = await this.registrationTokens.claimOnce(String(payload.jti), 600);
     if (!claimed) throw new UnauthorizedException('This login challenge has already been used.');
+    user.lastLoginAt = new Date();
     await this.users.save(user);
     return user;
   }
