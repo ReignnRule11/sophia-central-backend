@@ -14,7 +14,7 @@ export class ImmutablePlatformRoleAuditEvents2026112200001 implements MigrationI
     await queryRunner.query(`
       CREATE TABLE IF NOT EXISTS admin_bootstrap_audit_events (
         id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-        "targetId" uuid REFERENCES users(id) ON DELETE SET NULL,
+        "targetId" uuid,
         email varchar(320) NOT NULL,
         action varchar(24) NOT NULL,
         "createdAt" timestamptz NOT NULL DEFAULT now()
