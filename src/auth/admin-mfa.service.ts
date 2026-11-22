@@ -2,7 +2,7 @@ import { Injectable, ServiceUnavailableException, UnauthorizedException } from '
 import { ConfigService } from '@nestjs/config';
 import { createCipheriv, createDecipheriv, createHmac, randomBytes, timingSafeEqual, createHash } from 'node:crypto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { RegistrationTokenService } from './registration-token.service';
 
@@ -17,6 +17,13 @@ export class AdminMfaService {
     @InjectRepository(User) private readonly users: Repository<User>,
     private readonly registrationTokens: RegistrationTokenService,
   ) {}
+
+  private async audit(user: User, action: string, method?: string): Promise<void> {
+    await this.dataSource.query(
+      'INSERT INTO admin_mfa_audit_events ("targetId", email, action, method) VALUES ($1::uuid, $2, $3, $4)',
+      [user.id, user.email, action, method ?? null],
+    );
+  }
 
   private encryptionKey(): Buffer {
     const raw = this.config.get<string>('ADMIN_MFA_ENCRYPTION_KEY') || '';
@@ -146,19 +153,25 @@ export class AdminMfaService {
     user.adminMfaRecoveryCodeHashes = recoveryCodes.map(code => this.hashRecoveryCode(code));
     user.lastLoginAt = new Date();
     await this.users.save(user);
+    await this.audit(user, 'mfa_enrolled', 'totp');
     return { user, recoveryCodes };
   }
 
   async verifyLogin(challengeToken: string, code: string) {
     const { payload, user } = await this.loadChallenge(challengeToken, 'admin-mfa-login');
     if (!user.adminMfaEnabled || !user.adminMfaSecretEncrypted) throw new UnauthorizedException('Admin MFA is not configured.');
+    let method: 'totp' | 'recovery' = 'totp';
     let valid = this.verifyTotp(this.decryptSecret(user.adminMfaSecretEncrypted), code);
-    if (!valid) valid = this.consumeRecoveryCode(user, code);
+    if (!valid) {
+      method = 'recovery';
+      valid = this.consumeRecoveryCode(user, code);
+    }
     if (!valid) throw new UnauthorizedException('The authenticator or recovery code is invalid.');
     const claimed = await this.registrationTokens.claimOnce(String(payload.jti), 600);
     if (!claimed) throw new UnauthorizedException('This login challenge has already been used.');
     user.lastLoginAt = new Date();
     await this.users.save(user);
+    await this.audit(user, method === 'recovery' ? 'recovery_code_used' : 'mfa_login_verified', method);
     return user;
   }
 
