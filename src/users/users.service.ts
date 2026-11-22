@@ -371,12 +371,12 @@ export class UsersService {
           'admin'::text AS role,
           mfa."targetId"::text AS "actorId",
           'Admin MFA'::text AS "actorName",
-          mfa.email::text AS "actorEmail",
+          COALESCE(mfa."actorEmail", mfa.email)::text AS "actorEmail",
           mfa."targetId"::text AS "targetId",
           NULL::text AS "targetName",
           mfa.email::text AS "targetEmail",
           mfa."createdAt" AS "createdAt",
-          mfa.method::text AS note,
+          COALESCE(mfa.reason, mfa.method)::text AS note,
           mfa.id::text AS id
         FROM admin_mfa_audit_events mfa
 
