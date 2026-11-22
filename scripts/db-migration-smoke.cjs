@@ -161,6 +161,10 @@ async function main() {
       `INSERT INTO admin_bootstrap_audit_events ("targetId", email, action) VALUES ($1, $2, 'created') RETURNING id`,
       [userId, smokeEmail],
     );
+    const mfaAudit = await client.query(
+      `INSERT INTO admin_mfa_audit_events ("targetId", email, action, method) VALUES ($1, $2, 'mfa_login_verified', 'totp') RETURNING id`,
+      [userId, smokeEmail],
+    );
     const escalationAudit = await client.query(
       `INSERT INTO admin_escalation_events ("sourceType", "sourceId", "ticketNumber", "actorId", "actorEmail", reason)
        VALUES ('support', $1, 'SUP-CI-000001', $2, $3, 'CI escalation reason') RETURNING id`,
@@ -230,6 +234,11 @@ async function main() {
       client.query('DELETE FROM admin_bootstrap_audit_events WHERE id = $1', [bootstrapAudit.rows[0].id]),
       (error) => error.message.includes('Audit records are append-only'),
       'Admin bootstrap audit rows must be immutable',
+    );
+    await assert.rejects(
+      client.query('UPDATE admin_mfa_audit_events SET method = 'totp' WHERE id = $1', [mfaAudit.rows[0].id]),
+      (error) => error.message.includes('Admin MFA audit events are immutable'),
+      'Admin MFA audit rows must be immutable',
     );
     await assert.rejects(
       client.query('UPDATE admin_escalation_events SET reason = \'tampered\' WHERE id = $1', [escalationAudit.rows[0].id]),
