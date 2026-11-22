@@ -1,88 +1,101 @@
 # Sophis Central — Data Subject Rights and Personal Data Breach Playbook
 
-**Status:** Operational procedure draft; management and qualified privacy review required.  
-**Privacy contact:** [PUBLISH APPROVED CONTACT]  
-**DPO/DPCO escalation:** [NAME / CONTACT]  
-**Incident channel:** [RESTRICTED CHANNEL / PHONE]  
-**Approved by:** [MANAGEMENT] / [DATE]
+**Status:** Operational procedure draft. Named contacts, management approval, training and exercises remain required.  
+**Controller:** Legal entity to be confirmed. **Privacy contact/DPO:** Must be approved and published.  
+**Incident channel:** Restricted internal channel/on-call contact to be designated.  
+**Version:** 1.0 — 22 November 2026.
 
-## A. Data subject request workflow
+## A. Data-subject rights procedure
 
-### Intake
-Accept requests through the published privacy contact and any supported in-product route. Record:
-- Request ID and received timestamp.
-- Requester identity and verified account/contact channel.
-- Request type: access, correction, erasure, restriction, objection, portability where applicable, or consent withdrawal where consent is the basis.
-- Relevant accounts, records, dates and requested outcome.
-- Any representative authority and scope.
+### A1. Rights covered
+Handle rights under NDPA Part VI, including access, rectification, objection, withdrawal of consent where consent is the basis, erasure/right to be forgotten subject to lawful exceptions, and portability where statutory conditions apply. Consider restriction and related safeguards where applicable. Never promise absolute deletion where a lawful retention exception or another person's rights apply.
 
-Do not collect additional identity documents unless necessary and proportionate. Store verification evidence separately with restricted access.
+### A2. Intake
+Publish one monitored privacy contact and, when implemented, an authenticated in-product privacy request route. Until then, use the published contact. Record request ID, received timestamp, verified requester/account, right invoked, relevant systems/records, scope, representative authority, statutory deadline, owner, decision and response evidence.
 
-### Triage and response
-1. Acknowledge receipt and assign a privacy owner.
-2. Verify identity securely; do not disclose whether another person's account exists.
-3. Identify systems and processors that may hold the data using the approved ROPA.
-4. Determine whether the request applies, whether an exception or lawful retention obligation applies, and whether clarification is needed.
-5. Obtain DPO/legal review for refusal, restriction, complex requests or third-party rights.
-6. Apply the decision consistently to primary systems, object storage, AI providers, email/support systems, logs and backups where applicable.
-7. Notify relevant processors and obtain completion evidence where required.
-8. Respond within the applicable statutory period, including any legally permitted extension or reasoned refusal.
-9. Record actions, systems searched, decision, response date, exceptions and appeal/complaint information.
+### A3. Identity and authority
+Verify through an authenticated account or proportionate independent check. Do not request NIN/passport by default. Verify representative authority and scope. Do not reveal whether another person's account exists. Store verification evidence separately with restricted access.
 
-### Technical safeguards
-- Use a dedicated, least-privilege operator workflow; do not ask support staff to query production databases manually.
-- Verify account ownership and object ownership before export or correction.
-- Export only the requester's personal data and protect the delivery channel.
-- Distinguish deletion from anonymisation, suppression and legal hold.
-- Propagate deletion to object storage and processors; record backup expiry rather than claiming immediate backup erasure.
-- Preserve only records that have an evidenced lawful retention reason.
-- Do not delete shared academic content or another person's messages without evaluating other data subjects' rights and the lawful basis for retention.
+### A4. Triage and fulfilment
+1. Acknowledge and log; assign privacy owner.
+2. Verify identity and clarify scope if reasonably necessary.
+3. Use ROPA to locate Neon/database, R2/object storage, Redis/cache, Resend, AI providers, Sentry/logs and payment processor where applicable.
+4. Assess statutory scope, exceptions, third-party rights, legal holds and security risks.
+5. For access, provide the requester's data securely and exclude other users' private data.
+6. For rectification, correct source records and propagate to recipients/processors where required.
+7. For erasure, remove/anonymise eligible active data and objects; propagate to processors; document backup expiry and lawful exceptions.
+8. For objection/restriction/withdrawal, stop or limit the relevant processing where legally required. Withdrawal must be as easy as giving consent; do not disable unrelated contract processing.
+9. For portability, provide eligible data in a commonly used machine-readable format where statutory conditions apply.
+10. Record systems searched, processor contacts, actions, exceptions and completion evidence.
+11. Respond within the applicable NDPA/GAID timeframe. Escalate uncertainty/refusal to DPO/legal immediately; do not invent extensions.
+12. Explain applicable complaint routes, including NDPC.
+
+### A5. Role separation
+Support may receive/classify but cannot approve complex disclosure or export production databases. Moderator handles moderation only. Privacy owner/DPO coordinates; engineering performs approved technical actions; Admin/management authorises resources and risk decisions. Log all privileged access and exports.
+
+### A6. Request register
+Request ID | received time | identity verification | right invoked | systems searched | processors contacted | decision/legal reason | actions/evidence | response date/deadline | reviewer.
 
 ## B. Personal data breach response
 
-### Immediate response
-1. Report suspected incidents immediately to [INCIDENT CHANNEL].
-2. Assign an incident commander and DPO/privacy lead.
-3. Preserve logs, evidence and timestamps; restrict access to the incident record.
-4. Contain the incident without destroying evidence: revoke exposed credentials/tokens, disable compromised integrations, isolate affected objects or routes, and stop further disclosure.
-5. Identify affected systems, data categories, subjects, volume, recipients, time window and whether data was accessed, altered, lost or disclosed.
-6. Engage affected processors and obtain their incident facts and cooperation.
-7. Assess likely harm/risk to individuals with the DPO/legal lead and document the reasoning.
+### B1. Report immediately
+Any employee/contractor/operator suspecting loss, alteration, unauthorised disclosure/access, ransomware, compromised credentials, exposed storage, misdirected email, AI-provider incident or cross-account access must report immediately. Do not wait to prove impact.
 
-### Notification decision
-- Apply the NDPA/GAID breach notification rules and statutory threshold with qualified privacy counsel/DPO.
-- Where the statutory notification threshold is met, support notification to the NDPC within the applicable 72-hour period from awareness; document the awareness time and any legally acceptable reason for delay.
-- Notify affected data subjects where required, using clear language and practical protective steps.
-- Do not notify every security event as a personal data breach; do not suppress a reportable breach because the investigation is incomplete. Make an initial notification when legally required and supplement it as facts develop.
+### B2. Incident command
+Management appoints incident commander, engineering lead, privacy/DPO lead and communications owner. Preserve timestamps/evidence and restrict incident-record access.
 
-### Post-incident
-- Complete root-cause analysis and remediation.
-- Retest affected controls and monitor for recurrence.
-- Maintain a restricted breach register: incident ID, awareness time, facts, affected data, risk assessment, decisions, notifications, mitigation and lessons learned.
-- Review processor obligations, access rights, retention, user notices and DPIA/ROPA updates.
-- Conduct a tabletop exercise at an approved cadence.
+### B3. First response
+1. Record first awareness time and who became aware.
+2. Preserve logs, request IDs, messages, object metadata, provider notices and evidence hashes.
+3. Contain safely: revoke exposed keys/tokens, invalidate sessions, disable integrations, restrict exposed objects/routes and isolate affected services.
+4. Do not destroy evidence during cleanup.
+5. Identify systems, data subjects/categories, sensitivity, approximate records, recipients, duration, geography and whether data was accessed, altered, lost or disclosed.
+6. Contact processors immediately for facts, containment and evidence.
+7. Assess likelihood/severity, including identity fraud, account takeover, academic/reputational harm, discrimination, financial loss and safety risks.
 
-## C. Roles and escalation
+### B4. Statutory notification
+NDPA s.40(2) requires notification to NDPC within 72 hours of awareness of a breach likely to result in risk to individuals' rights and freedoms. Where likely high risk, communicate to affected data subjects immediately in clear language with practical mitigation advice, subject to statutory provisions. Include controller contact, likely consequences and measures taken/proposed. If facts are incomplete, make the legally required initial notification with available information and supplement as permitted; do not wait for a complete investigation. Record any delay and obtain DPO/legal advice.
+
+A processor must notify the engaging controller/processor on becoming aware and provide information needed for compliance (NDPA s.40(1)). Vendor contracts should require prompt notice materially shorter than the controller's 72-hour period.
+
+### B5. Breach decision record
+Incident ID | awareness timestamp | discovery source | systems | data categories | approximate people/records | risk assessment | containment | processor notices | NDPC decision/time/reference | data-subject notice/time | no-notice reason | remediation/retest.
+
+### B6. Recovery
+Complete root-cause analysis, rotate credentials, restore from verified backups, retest controls, notify as legally required, update ROPA/DPIA/vendor register, preserve evidence and conduct lessons-learned review/tabletop.
+
+## C. Roles
 
 | Role | Responsibility |
 |---|---|
-| First responder / staff member | Report immediately; do not investigate beyond safe preservation |
-| Engineering incident lead | Containment, technical evidence, recovery and retest |
-| Privacy lead / DPO | Risk assessment, rights decisions, notification advice and regulator liaison |
-| Processor/vendor owner | Obtain vendor facts, contractual escalation and deletion/containment confirmation |
-| Management | Resource response, approve risk acceptance and ensure statutory duties are met |
-| Legal counsel / DPCO | Advise on NDPA/GAID interpretation, exemptions, notification and registration |
+| First reporter | Report immediately; preserve evidence, do not investigate independently |
+| Incident commander | Coordinate timeline, decisions and escalation |
+| Engineering lead | Containment, evidence, recovery, technical analysis and retest |
+| Privacy lead/DPO | Rights requests, risk assessment, notification analysis and regulator liaison |
+| Vendor owner | Obtain provider facts and enforce contractual cooperation |
+| Support | Intake and route; no unauthorised exports |
+| Moderator | Moderation only; escalate privacy/security matters |
+| Admin/management | Resource response and ensure statutory duties |
+| DPCO/legal | Advise on NDPA/GAID, DCPMI, notification and regulatory obligations |
 
-## D. Required readiness tests
+## D. Readiness tests
 
-- [ ] Test a verified access request using a synthetic account.
-- [ ] Test correction of a profile field and propagation to relevant systems.
-- [ ] Test deletion request, grace period, processor propagation, object cleanup and backup expiry evidence.
-- [ ] Test objection/restriction and consent withdrawal where relevant.
-- [ ] Tabletop a compromised account and cross-account data exposure.
-- [ ] Tabletop an object-storage exposure and AI-provider incident.
-- [ ] Confirm escalation contacts and after-hours coverage.
-- [ ] Confirm the applicable NDPC reporting channel and approved notification templates.
-- [ ] Approve this procedure with the DPO/DPCO and management.
+- [ ] Synthetic access request and secure export.
+- [ ] Profile correction and propagation.
+- [ ] Erasure across database, objects, AI provider, email and backup expiry.
+- [ ] Withdrawal/objection for a genuinely consent-based optional purpose.
+- [ ] Cross-account exposure tabletop.
+- [ ] Compromised privileged account tabletop.
+- [ ] Object-storage exposure and AI-provider incident tabletop.
+- [ ] Confirm on-call escalation and NDPC submission channel.
+- [ ] Approve procedure and train staff.
 
-This playbook does not replace case-specific legal advice or a qualified assessment of the statutory reporting threshold.
+## E. Message templates
+
+**Acknowledgement:** "We received your privacy request (reference [ID]) on [date]. We are verifying it and will respond within the applicable legal timeframe. We may contact you if clarification is reasonably necessary."
+
+**Internal incident report:** "Incident [ID]; first awareness [timestamp/timezone]; reporter [role]; affected service [service]; suspected data [categories]; affected people/records [known/unknown]; containment [actions]; processors contacted [names]; next update [time]."
+
+**Data-subject breach notice:** Explain what happened/when, data involved, likely consequences, measures taken, practical protective steps and approved privacy/DPO contact. Obtain DPO/legal approval before sending.
+
+This procedure becomes operational only after named contacts, secure registers, escalation coverage and tabletop tests are in place.
