@@ -34,6 +34,15 @@ export class SupportRequest {
   @Column({ type: 'varchar', length: 24, nullable: true })
   escalatedToRole?: 'moderator' | 'admin' | null;
 
+  @Column({ type: 'text', nullable: true })
+  escalationReason?: string | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  escalatedAt?: Date | null;
+
+  @Column({ type: 'uuid', nullable: true })
+  escalatedById?: string | null;
+
   @Column({ type: 'varchar', length: 24, default: 'pending' })
   status!: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded';
 
