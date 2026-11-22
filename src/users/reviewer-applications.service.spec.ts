@@ -171,7 +171,7 @@ describe('ReviewerApplicationsService', () => {
       .mockResolvedValueOnce(application)
       .mockResolvedValueOnce(application);
 
-    await service.decide('application-1', { id: 'admin-1', role: UserRole.ADMIN } as User, {
+    await service.decide('application-1', { id: 'admin-1', role: UserRole.ADMIN, emailVerified: true, isSuspended: false, accountStatus: 'active' } as User, {
       status: ReviewerApplicationStatus.APPROVED,
       approvedExpertiseAreas: ['Biology'],
       approvedAcademicLevels: ['Undergraduate'],
