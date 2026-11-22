@@ -59,6 +59,28 @@ export class UsersController {
     return this.usersService.getPlatformAccounts();
   }
 
+  @Get('admin/overview')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get the authenticated Admin dashboard overview' })
+  getAdminOverview(@CurrentUser() actor: User) {
+    return this.usersService.getAdminOverview(actor.id);
+  }
+
+  @Get('admin/audit-events')
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserRole.ADMIN)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get recent immutable platform-role and reviewer decision audit events' })
+  getAdminAuditEvents(@Query('limit') limit?: string) {
+    const parsedLimit = limit === undefined ? 50 : Number(limit);
+    if (!Number.isInteger(parsedLimit) || parsedLimit < 1 || parsedLimit > 100) {
+      throw new BadRequestException('limit must be an integer between 1 and 100.');
+    }
+    return this.usersService.getAdminAuditEvents(parsedLimit);
+  }
+
   @Patch(':id/platform-role')
   @UseGuards(JwtAuthGuard, CsrfGuard, RolesGuard)
   @Roles(UserRole.ADMIN)
