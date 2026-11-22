@@ -84,6 +84,7 @@ describe('AuthService', () => {
   it('limits closed recruitment to the exact configured reviewer test email', async () => {
     process.env.REVIEWER_RECRUITMENT_OPEN = 'false';
     process.env.REVIEWER_TEST_ACCOUNT_EMAIL = 'sophiscentral+reviewer@gmail.com';
+    process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL = 'sophiscentral+reviewer@gmail.com';
     users.findByEmail.mockResolvedValue(null);
     users.findByAcademicHandle.mockResolvedValue(null);
 
@@ -177,8 +178,7 @@ describe('AuthService', () => {
       isVerified: false,
       isSuspended: false,
       accountStatus: 'active',
-    } as User;    const manager = {      query: jest.fn().mockResolvedValue([]),      getRepository: jest.fn().mockReturnValue({ count: jest.fn().mockResolvedValue(1) }),
-      findOne: jest.fn().mockResolvedValue(admin),
+    } as User;    const manager = {      query: jest.fn().mockResolvedValue([]),      getRepository: jest.fn().mockReturnValue({ count: jest.fn().mockResolvedValue(1) }),      findOne: jest.fn().mockResolvedValue(admin),
       save: jest.fn().mockImplementation(async (_entity, value) => value),
     };
     dataSource.transaction.mockImplementationOnce(async callback => callback(manager));
@@ -357,7 +357,6 @@ describe('AuthService', () => {
       institution: 'Research Institute',      faculty: 'Research',
       department: 'Methods',    } as never)).rejects.toBeInstanceOf(ForbiddenException);
     expect(users.update).not.toHaveBeenCalled();  });
-
   it('persists External Reviewer affiliation and summary in encrypted onboarding progress', async () => {
     const expiresAt = new Date(Date.now() + 60_000);
     registrationTokens.open
@@ -537,8 +536,7 @@ describe('AuthService', () => {
       email: user.email,
       academicHandle: 'learner.one',      encryptedPayload: 'old-encrypted-draft',
       expiresAt: new Date(Date.now() + 60_000),
-    };
-    registrationTokens.open
+    };    registrationTokens.open
       .mockReturnValueOnce({ stage: 'pre-account', email: user.email, jti: 'resume-jti', expiresAt: Date.now() + 60_000 })
       .mockReturnValueOnce({ stage: 'pre-account-draft', email: user.email, firstName: 'Learner', lastName: 'One', academicHandle: 'learner.one', role: UserRole.STUDENT, expiresAt: Date.now() + 60_000 });
     registrationDrafts.findOne.mockResolvedValue(draft);
