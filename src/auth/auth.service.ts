@@ -28,6 +28,7 @@ import { User, UserRole } from '../users/entities/user.entity';
 import { ReviewerApplication, ReviewerApplicationStatus } from '../users/entities/reviewer-application.entity';
 import { ReviewerApplicationDecision } from '../users/entities/reviewer-application-decision.entity';
 import { ReferralService } from '../referral/referral.service';
+import { isReservedPlatformLoginAlias, PLATFORM_LOGIN_ALIASES } from '../users/platform-login-aliases';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -70,6 +71,15 @@ export class AuthService {
     }
     const academicHandle = dto.academicHandle.trim().replace(/^@/, '').toLowerCase();
     const existingUser = await this.usersService.findByEmail(email);
+    if (isReservedPlatformLoginAlias(email) && !existingUser) {
+      const isInitialGlobalReviewerBootstrap = email === PLATFORM_LOGIN_ALIASES.reviewer
+        && role === UserRole.REVIEWER
+        && (process.env.GLOBAL_ACADEMIC_REVIEWER_EMAIL || '').trim().toLowerCase() === email
+        && !(await this.usersService.hasGlobalReviewerAccount());
+      if (!isInitialGlobalReviewerBootstrap) {
+        throw new ForbiddenException('This email address is reserved for its designated Sophis Central platform account.');
+      }
+    }
     let existingPreAccount = await this.preAccounts.findOne({ where: { email } });
     const existingDraft = await this.registrationDrafts.findOne({ where: { email } });
     if (existingDraft && existingDraft.expiresAt.getTime() <= Date.now()) {
@@ -177,8 +187,7 @@ export class AuthService {
     if (user.accountStatus === 'deactivated') {
       user = await this.usersService.update(user.id, { accountStatus: 'active' });
     }
-    user = await this.usersService.update(user.id, { lastLoginAt: new Date() });
-    return this.buildAuthResponse(user);
+    user = await this.usersService.update(user.id, { lastLoginAt: new Date() });    return this.buildAuthResponse(user);
   }
 
 
@@ -357,8 +366,7 @@ export class AuthService {
       this.registrationDrafts.findOne({ where: { email } }),
     ]);
     if (!preAccount || !draft || draft.expiresAt.getTime() <= Date.now()) {
-      throw new UnauthorizedException('Your pre-account has expired. Please restart registration.');
-    }
+      throw new UnauthorizedException('Your pre-account has expired. Please restart registration.');    }
     const metadata = this.registrationTokens.open(draft.encryptedPayload);
     if (metadata.stage !== 'pre-account-draft' || String(metadata.email).toLowerCase() !== email) {
       throw new UnauthorizedException('Your saved onboarding details could not be verified.');
@@ -537,7 +545,6 @@ export class AuthService {
     const signInIdentifier = existingEmailIdentity ? normalizedEmail : userByHandle ? normalizedHandle : undefined;
     return { requiresSignIn: Boolean(signInIdentifier), ...(signInIdentifier ? { signInIdentifier } : {}) };
   }
-
   async checkAcademicHandleAvailability(handle: string): Promise<{ available: boolean; message: string }> {
     const normalized = handle.trim().replace(/^@+/, '').toLowerCase();
     if (!/^[a-zA-Z0-9._]{3,30}$/.test(normalized)) return { available: false, message: 'Enter a valid academic handle.' };
