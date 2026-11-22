@@ -224,8 +224,12 @@ export class ContentReportsService {
     try {
       if (dto.action === 'awaiting_information' && report.reporterId) {
         await this.notifications.createNotification(report.reporterId, 'content_report_updated', 'More information requested', `Admin requested more information for report ${report.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
-      } else if (dto.action === 'resolved' && report.reporterId) {
-        await this.notifications.createNotification(report.reporterId, 'content_report_updated', 'Admin escalation review completed', `Admin completed the escalation review for report ${report.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
+      } else if (dto.action === 'resolved') {
+        if (report.reporterId) await this.notifications.createNotification(report.reporterId, 'content_report_updated', 'Admin escalation review completed', `Admin completed the escalation review for report ${report.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
+        const moderators = report.assignedModerator
+          ? [report.assignedModerator]
+          : await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } });
+        await Promise.all(moderators.map(account => this.notifications.createNotification(account.id, 'moderation_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for report ${report.ticketNumber}. Review the decision in the Admin escalation centre.`, '/moderation?tab=reports')));
       } else if (dto.action === 'returned_to_team') {
         const recipients = report.assignedModerator
           ? [report.assignedModerator]
