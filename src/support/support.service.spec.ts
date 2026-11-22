@@ -103,6 +103,40 @@ describe('SupportService attachment ownership', () => {
     } as any)).rejects.toBeInstanceOf(BadRequestException);
     expect(requests.save).not.toHaveBeenCalled();
   });
+  it('loads Admin escalations through mapped repository fields and relations', async () => {
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    const escalated = { id: 'ticket-1', ticketNumber: 'SUP-2026-000001', escalatedToRole: 'admin', escalatedAt: new Date(), attachments: [] };
+    requests.find.mockResolvedValueOnce([escalated]);
+
+    const result = await service.listAdminEscalations(admin);
+
+    expect(result).toEqual([escalated]);
+    expect(requests.find).toHaveBeenCalledWith({
+      where: { escalatedToRole: 'admin' },
+      relations: ['user', 'reviewer'],
+      order: { escalatedAt: 'DESC' },
+      take: 100,
+    });
+  });
+
+  it('keeps the Admin escalation queue available when a private attachment cannot be signed', async () => {
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    const escalated = {
+      id: 'ticket-2',
+      ticketNumber: 'SUP-2026-000002',
+      escalatedToRole: 'admin',
+      escalatedAt: new Date(),
+      attachments: ['support-attachments/student-1/image.jpg'],
+    };
+    requests.find.mockResolvedValueOnce([escalated]);
+    s3.createPresignedDownloadUrl.mockRejectedValueOnce(new Error('Storage temporarily unavailable'));
+
+    const result = await service.listAdminEscalations(admin);
+
+    expect(result).toHaveLength(1);
+    expect(result[0].attachments).toEqual([]);
+  });
+
   describe('service-level Support authorization', () => {
     const nonSupport = { id: 'student-1', role: UserRole.STUDENT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
     const inactiveSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'deactivated', emailVerified: true } as any;
