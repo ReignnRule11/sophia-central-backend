@@ -57,6 +57,7 @@ export class AuthService {
     private readonly resetEmail: PasswordResetEmailService,
     private readonly verificationEmail: EmailVerificationEmailService,
     private readonly referralService: ReferralService,
+    private readonly adminMfa: AdminMfaService,
   ) {}
 
   private reviewerRegistrationAllowed(email: string): boolean {
