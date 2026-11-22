@@ -5,6 +5,7 @@ describe('AdminMfaService', () => {
     { get: (key: string) => key === 'ADMIN_MFA_ENCRYPTION_KEY' ? '11'.repeat(32) : 'test' } as any,
     {} as any,
     {} as any,
+    { query: jest.fn().mockResolvedValue([]) } as any,
   );
 
   it('verifies the RFC 6238 SHA-1 six-digit test vector', () => {
