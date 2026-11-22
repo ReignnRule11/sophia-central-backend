@@ -106,7 +106,14 @@ export class SupportService {
       // Never return an untrusted or legacy external attachment URL. Only keys
       // in this application's private object store receive short-lived access.
       if (!key) return null;
-      return this.s3.createPresignedDownloadUrl(key, undefined, 'inline', 900);
+      try {
+        return await this.s3.createPresignedDownloadUrl(key, undefined, 'inline', 900);
+      } catch (error) {
+        // An unavailable storage provider or legacy object must not make the
+        // entire support queue unavailable to Admin.
+        this.logger.warn(`Support attachment for ticket ${request.ticketNumber} could not be signed: ${String(error)}`);
+        return null;
+      }
     }))).filter((url): url is string => Boolean(url));
     return { ...request, attachments } as T;
   }
@@ -128,13 +135,12 @@ export class SupportService {
     if (actor.role !== UserRole.ADMIN || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) {
       throw new ForbiddenException('Only an active, verified Admin can inspect escalated Support tickets.');
     }
-    const requests = await this.requests.createQueryBuilder('request')
-      .leftJoinAndSelect('request.user', 'user')
-      .leftJoinAndSelect('request.reviewer', 'reviewer')
-      .where('request."escalatedToRole" = :role', { role: 'admin' })
-      .orderBy('request."escalatedAt"', 'DESC')
-      .take(100)
-      .getMany();
+    const requests = await this.requests.find({
+      where: { escalatedToRole: 'admin' },
+      relations: ['user', 'reviewer'],
+      order: { escalatedAt: 'DESC' },
+      take: 100,
+    });
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
   }
 
