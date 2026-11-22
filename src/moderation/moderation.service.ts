@@ -210,7 +210,7 @@ export class ModerationService {
         'resource_review_assigned',
         'A new academic resource was assigned to you',
         `“${assignment.title}” is ready for your academic review.`,
-        '/moderation',
+        `/reviewer/queue?resource=${encodeURIComponent(resourceId)}`,
       );
     } catch (error) {
       this.logger.warn(`Resource ${resourceId} was assigned but the reviewer notification could not be created: ${String(error)}`);
