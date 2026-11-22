@@ -284,10 +284,10 @@ export class UsersService {
           event.role::text AS role,
           event."actorId"::text AS "actorId",
           NULLIF(CONCAT_WS(' ', actor."firstName", actor."lastName"), '') AS "actorName",
-          actor.email AS "actorEmail",
+          COALESCE(actor.email, event."actorEmail") AS "actorEmail",
           event."targetId"::text AS "targetId",
           NULLIF(CONCAT_WS(' ', target."firstName", target."lastName"), '') AS "targetName",
-          target.email AS "targetEmail",
+          COALESCE(target.email, event."targetEmail") AS "targetEmail",
           event."createdAt" AS "createdAt",
           event.reason::text AS note,
           event.id::text AS id
@@ -430,7 +430,7 @@ export class UsersService {
       target.platformRoleStatus = 'approved';
       const saved = await manager.save(User, target);
       await manager.query(
-        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)',
+        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", reason, "actorEmail", "targetEmail") SELECT $1::uuid, $2::uuid, $3, $4, $5, $6, $7, actor.email, target.email FROM users actor CROSS JOIN users target WHERE actor.id = $1::uuid AND target.id = $2::uuid',
         [actorId, target.id, role, 'approved', role, role, null],
       );
       return saved;
@@ -485,7 +485,7 @@ export class UsersService {
 
       const saved = await manager.save(User, target);
       await manager.query(
-        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)',
+        'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", reason, "actorEmail", "targetEmail") SELECT $1::uuid, $2::uuid, $3, $4, $5, $6, $7, actor.email, target.email FROM users actor CROSS JOIN users target WHERE actor.id = $1::uuid AND target.id = $2::uuid',
         [actorId, target.id, target.role, action, target.role, target.role, reason?.trim() || null],
       );
       return saved;
