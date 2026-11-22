@@ -2,6 +2,21 @@
 
 The first Admin identity is created through a one-time backend command, not public registration and not the demo seed. The account is not usable until the mailbox owner follows the single-use verification link and sets a password.
 
+## Platform login aliases
+
+All four addresses are Gmail plus-addresses delivered to the shared `sophiscentral@gmail.com` inbox, but they remain distinct login identities in Sophis Central:
+
+- Admin: `sophiscentral+admin@gmail.com`
+- Moderator: `sophiscentral+moderator@gmail.com`
+- Support: `sophiscentral+support@gmail.com`
+- Global Reviewer: `sophiscentral+reviewer@gmail.com`
+
+Migration `2026112200005-TransferPlatformAccountLoginAliases` updates the existing Moderator row and existing Global Reviewer row in place, preserving their UUIDs, roles, reviewer approvals, application history, assignments, moderation reviews, and other account-linked records. It does not create replacement accounts. It refuses ambiguous multiple identities or an alias already owned by a different account. Fresh test databases without provisioned platform identities are left unchanged.
+
+When an existing account's email is changed, the migration marks that email unverified and invalidates old verification tokens. After deployment, request a fresh verification link for each transferred address using the existing email-verification resend flow, then verify the new alias and set a new password. Do not approve the Moderator through Admin until the alias has been verified and the existing account is confirmed in the Admin portal.
+
+The Support alias is reserved for the dedicated Support account created later. The Admin alias is reserved for the controlled bootstrap command. Neither account is created by the alias-transfer migration.
+
 ## Preconditions
 
 1. Review and merge the Admin bootstrap code and its database migration.
