@@ -40,7 +40,7 @@ describe('SupportService attachment ownership', () => {
       users,
       notifications,
       s3,
-      { notifyNewRequest: jest.fn().mockResolvedValue(false), notifyGuestRequest: jest.fn().mockResolvedValue(true), sendResolution: jest.fn().mockResolvedValue(false), sendGuestResolution: jest.fn().mockResolvedValue(true), sendGuestAdminDecision: jest.fn().mockResolvedValue(true) } as any,
+      { notifyNewRequest: jest.fn().mockResolvedValue(false), notifyGuestRequest: jest.fn().mockResolvedValue(true), sendResolution: jest.fn().mockResolvedValue(false), sendGuestResolution: jest.fn().mockResolvedValue(true), sendGuestAdminDecision: jest.fn().mockResolvedValue(true), sendGuestEscalation: jest.fn().mockResolvedValue(true) } as any,
     );
   });
 
@@ -262,6 +262,20 @@ describe('SupportService attachment ownership', () => {
       await expect(service.escalate('ticket-1', activeSupport, UserRole.MODERATOR, 'Escalation reason')).rejects.toBeInstanceOf(BadRequestException);
     });
 
+
+
+  it('emails guest requesters when Support escalates their ticket to Admin', async () => {
+    const activeSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    users.findOne.mockResolvedValueOnce({ id: 'support-1', role: UserRole.SUPPORT, platformRoleStatus: 'approved' });
+    requests.findOne.mockResolvedValueOnce({ id: 'ticket-6', ticketNumber: 'SUP-2026-000006', subject: 'Public enquiry', description: 'Guest issue', escalatedToRole: null, senderEmail: 'guest@example.test' });
+    requests.save.mockResolvedValueOnce({ id: 'ticket-6' });
+    requests.query.mockResolvedValueOnce([]);
+    users.find.mockResolvedValueOnce([{ id: 'admin-1' }]);
+    await service.escalate('ticket-6', activeSupport, UserRole.ADMIN, 'Needs platform review.');
+    expect((service as any).supportEmail.sendGuestEscalation).toHaveBeenCalledWith(
+      expect.objectContaining({ senderEmail: 'guest@example.test' }), 'Needs platform review.',
+    );
+  });
 
     it('rejects duplicate Admin escalations for a ticket', async () => {
       users.findOne.mockResolvedValueOnce({ id: 'support-1', role: UserRole.SUPPORT, platformRoleStatus: 'approved' });
