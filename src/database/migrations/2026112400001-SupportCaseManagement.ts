@@ -78,7 +78,7 @@ export class SupportCaseManagement2026112400001 implements MigrationInterface {
     await queryRunner.query(`DROP TRIGGER IF EXISTS "TR_support_ticket_created_event" ON support_requests`);
     await queryRunner.query(`CREATE TRIGGER "TR_support_ticket_created_event"
       AFTER INSERT ON support_requests FOR EACH ROW EXECUTE FUNCTION record_support_ticket_created()`);
-    await queryRunner.query(`CREATE OR REPLACE FUNCTION record_support_ticket_changes() RETURNS trigger AS $
+    await queryRunner.query(`CREATE OR REPLACE FUNCTION record_support_ticket_changes() RETURNS trigger AS $$
       BEGIN
         IF OLD.status IS DISTINCT FROM NEW.status THEN
           INSERT INTO support_request_events ("supportRequestId", "actorEmail", "eventType", details)
