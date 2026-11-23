@@ -21,7 +21,7 @@ export class SupportCaseManagement2026112400001 implements MigrationInterface {
     await queryRunner.query(`CREATE TABLE IF NOT EXISTS support_request_events (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       "supportRequestId" uuid NOT NULL REFERENCES support_requests(id) ON DELETE RESTRICT,
-      "actorId" uuid NULL REFERENCES users(id) ON DELETE SET NULL,
+      "actorId" uuid NULL,
       "actorEmail" varchar(320) NOT NULL,
       "eventType" varchar(48) NOT NULL,
       details jsonb NOT NULL DEFAULT '{}'::jsonb,
@@ -32,7 +32,7 @@ export class SupportCaseManagement2026112400001 implements MigrationInterface {
     await queryRunner.query(`CREATE TABLE IF NOT EXISTS support_request_internal_notes (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
       "supportRequestId" uuid NOT NULL REFERENCES support_requests(id) ON DELETE RESTRICT,
-      "authorId" uuid NULL REFERENCES users(id) ON DELETE SET NULL,
+      "authorId" uuid NULL,
       "authorEmail" varchar(320) NOT NULL,
       body text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 4000),
       "createdAt" timestamptz NOT NULL DEFAULT now()
