@@ -20,7 +20,7 @@ export class SupportCaseManagement2026112400001 implements MigrationInterface {
     await queryRunner.query(`UPDATE support_requests SET "slaDueAt" = "createdAt" + interval '72 hours' WHERE "slaDueAt" IS NULL`);
     await queryRunner.query(`CREATE TABLE IF NOT EXISTS support_request_events (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      "supportRequestId" uuid NOT NULL REFERENCES support_requests(id) ON DELETE CASCADE,
+      "supportRequestId" uuid NOT NULL REFERENCES support_requests(id) ON DELETE RESTRICT,
       "actorId" uuid NULL REFERENCES users(id) ON DELETE SET NULL,
       "actorEmail" varchar(320) NOT NULL,
       "eventType" varchar(48) NOT NULL,
@@ -31,7 +31,7 @@ export class SupportCaseManagement2026112400001 implements MigrationInterface {
       ON support_request_events ("supportRequestId", "createdAt" DESC)`);
     await queryRunner.query(`CREATE TABLE IF NOT EXISTS support_request_internal_notes (
       id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
-      "supportRequestId" uuid NOT NULL REFERENCES support_requests(id) ON DELETE CASCADE,
+      "supportRequestId" uuid NOT NULL REFERENCES support_requests(id) ON DELETE RESTRICT,
       "authorId" uuid NULL REFERENCES users(id) ON DELETE SET NULL,
       "authorEmail" varchar(320) NOT NULL,
       body text NOT NULL CHECK (char_length(body) BETWEEN 1 AND 4000),
@@ -48,10 +48,13 @@ export class SupportCaseManagement2026112400001 implements MigrationInterface {
     await queryRunner.query(`DROP TRIGGER IF EXISTS "TR_support_internal_notes_immutable" ON support_request_internal_notes`);
     await queryRunner.query(`CREATE TRIGGER "TR_support_internal_notes_immutable"
       BEFORE UPDATE OR DELETE ON support_request_internal_notes FOR EACH ROW EXECUTE FUNCTION prevent_support_audit_mutation()`);
+    await queryRunner.query(`INSERT INTO support_request_events ("supportRequestId", "actorEmail", "eventType", details, "createdAt")
+      SELECT id, 'system@sophiscentral.local', 'ticket_created', jsonb_build_object('status', status), "createdAt"
+      FROM support_requests ON CONFLICT DO NOTHING`);
     await queryRunner.query(`CREATE OR REPLACE FUNCTION set_support_request_sla_due() RETURNS trigger AS $$
       BEGIN
         IF NEW."slaDueAt" IS NULL OR (TG_OP = 'UPDATE' AND NEW.priority IS DISTINCT FROM OLD.priority) THEN
-          NEW."slaDueAt" := NEW."createdAt" + CASE NEW.priority
+          NEW."slaDueAt" := COALESCE(NEW."createdAt", now()) + CASE NEW.priority
             WHEN 'urgent' THEN interval '4 hours'
             WHEN 'high' THEN interval '24 hours'
             WHEN 'low' THEN interval '120 hours'
@@ -65,9 +68,21 @@ export class SupportCaseManagement2026112400001 implements MigrationInterface {
     await queryRunner.query(`CREATE TRIGGER "TR_support_request_sla_due"
       BEFORE INSERT OR UPDATE OF priority, "slaDueAt" ON support_requests
       FOR EACH ROW EXECUTE FUNCTION set_support_request_sla_due()`);
+    await queryRunner.query(`CREATE OR REPLACE FUNCTION record_support_ticket_created() RETURNS trigger AS $$
+      BEGIN
+        INSERT INTO support_request_events ("supportRequestId", "actorEmail", "eventType", details)
+        VALUES (NEW.id, 'system@sophiscentral.local', 'ticket_created', jsonb_build_object('status', NEW.status));
+        RETURN NEW;
+      END;
+    $$ LANGUAGE plpgsql`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TR_support_ticket_created_event" ON support_requests`);
+    await queryRunner.query(`CREATE TRIGGER "TR_support_ticket_created_event"
+      AFTER INSERT ON support_requests FOR EACH ROW EXECUTE FUNCTION record_support_ticket_created()`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TR_support_ticket_created_event" ON support_requests`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS record_support_ticket_created()`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS "TR_support_request_sla_due" ON support_requests`);
     await queryRunner.query(`DROP FUNCTION IF EXISTS set_support_request_sla_due()`);
     await queryRunner.query(`DROP TABLE IF EXISTS support_request_internal_notes`);
