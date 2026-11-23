@@ -64,11 +64,10 @@ describe('ModerationService academic reviewer workflow', () => {
     }));
   });
 
-  it('allows the Global Academic Reviewer to inspect the full reviewer roster', async () => {
+  it('keeps reviewer roster governance Admin-only', async () => {
     const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, reviewerStatus: 'approved', isGlobalReviewer: true, accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
-    userRepository.find.mockResolvedValue([]);
-    await expect(service.getReviewerRoster(reviewer)).resolves.toEqual([]);
-    expect(userRepository.find).toHaveBeenCalledWith(expect.objectContaining({ where: expect.arrayContaining([{ hasReviewerAccess: true }, { reviewerStatus: 'suspended' }, { reviewerStatus: 'revoked' }]) }));
+    await expect(service.getReviewerRoster(reviewer)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(userRepository.find).not.toHaveBeenCalled();
   });
 
   it('allows an approved Student account to use its additional reviewer capability', async () => {
@@ -188,6 +187,36 @@ describe('ModerationService academic reviewer workflow', () => {
     }, reviewer)).rejects.toBeInstanceOf(ForbiddenException);
   });
 
+
+  it('allows the Global Academic Reviewer to decide an assigned resource without taking its assignment', async () => {
+    const resource = {
+      id: 'resource-global-oversight',
+      title: 'Research methods',
+      moderationStatus: ResourceModerationStatus.PENDING,
+      isVerified: false,
+      assignedReviewerId: 'assigned-reviewer-1',
+      reviewAssignmentId: 'assignment-oversight-1',
+      uploaderId: 'lecturer-1',
+      uploader: { id: 'lecturer-1', role: UserRole.LECTURER, accountStatus: 'active', emailVerified: true },
+    };
+    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true, reviewerStatus: 'approved', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource).mockResolvedValueOnce(resource.uploader);
+    resourceRepository.save.mockImplementation(async value => value);
+
+    const result = await service.reviewResource(resource.id, { status: ResourceModerationStatus.APPROVED }, reviewer);
+
+    expect(result.status).toBe(ResourceModerationStatus.APPROVED);
+    expect(resource.moderationStatus).toBe(ResourceModerationStatus.APPROVED);
+    expect(resource.assignedReviewerId).toBeNull();
+    expect(transactionManager.query).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT declaration FROM reviewer_conflict_declarations'),
+      ['assignment-oversight-1', reviewer.id],
+    );
+    expect(transactionManager.save).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reviewer }),
+    );
+  });
 
   it('does not allow a moderator to approve academic resources', async () => {
     resourceRepository.findOne.mockResolvedValue({ id: 'resource-1', moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: 'reviewer-1', uploaderId: 'student-1' });
