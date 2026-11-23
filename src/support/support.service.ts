@@ -329,6 +329,13 @@ export class SupportService {
       ...recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/admin/escalations')),
       ...(request.userId ? [this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for Admin review.`, '/my-activity')] : []),
     ]);
+    if (request.senderEmail) {
+      try {
+        await this.supportEmail.sendGuestEscalation(request, reason.trim());
+      } catch (error) {
+        this.logger.warn(`Support escalation for guest ticket ${request.ticketNumber} was saved but requester email failed: ${String(error)}`);
+      }
+    }
     return { success: true, ticketNumber: request.ticketNumber, notified: recipients.length };
   }
 }
