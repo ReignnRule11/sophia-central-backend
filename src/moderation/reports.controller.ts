@@ -10,6 +10,8 @@ import { CreateContentReportDto } from './dto/create-content-report.dto';
 import { UpdateContentReportDto } from './dto/update-content-report.dto';
 import { AdminEscalationDecisionDto } from '../common/dto/admin-escalation-decision.dto';
 import { ContentReportStatus } from './entities/content-report.entity';
+import { AssignReportDto } from './dto/assign-report.dto';
+import { SetReportSeverityDto } from './dto/set-report-severity.dto';
 import { ContentReportsService } from './reports.service';
 
 type AuthenticatedRequest = Request & { user: User };
@@ -43,8 +45,37 @@ export class ModerationReportsController {
 
   @Get()
   @Roles(UserRole.MODERATOR, UserRole.ADMIN)
-  list(@Query('status') status?: ContentReportStatus, @Req() request?: AuthenticatedRequest) {
-    return this.reports.listForModeration(request!.user, status);
+  list(
+    @Query('status') status: ContentReportStatus | undefined,
+    @Query('assignedToMe') assignedToMe: string | undefined,
+    @Query('unassigned') unassigned: string | undefined,
+    @Query('severity') severity: string | undefined,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.reports.listForModeration(request.user, status, {
+      assignedToMe: assignedToMe === 'true',
+      unassigned: unassigned === 'true',
+      severity,
+    });
+  }
+
+  @Get(':id/history')
+  caseHistory(@Param('id', ParseUUIDPipe) id: string, @Req() request: AuthenticatedRequest) {
+    return this.reports.getCaseHistory(id, request.user);
+  }
+
+  @Patch(':id/assignment')
+  @UseGuards(CsrfGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  assign(@Param('id', ParseUUIDPipe) id: string, @Body() dto: AssignReportDto, @Req() request: AuthenticatedRequest) {
+    return this.reports.assignReport(id, request.user, dto.moderatorId, dto.reason);
+  }
+
+  @Patch(':id/severity')
+  @UseGuards(CsrfGuard)
+  @Roles(UserRole.MODERATOR, UserRole.ADMIN)
+  severity(@Param('id', ParseUUIDPipe) id: string, @Body() dto: SetReportSeverityDto, @Req() request: AuthenticatedRequest) {
+    return this.reports.setSeverity(id, request.user, dto.severity, dto.reason);
   }
 
   @Get('admin/escalations')
