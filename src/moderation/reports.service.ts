@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
 import { ChatKind, ChatMessage } from '../chat/entities/chat-message.entity';
@@ -131,7 +131,7 @@ export class ContentReportsService {
         'content_report_submitted',
         'A new report needs review',
         `A ${dto.targetType.replace(/_/g, ' ')} was reported for ${dto.reason.replace(/_/g, ' ')}.`,
-        '/moderation?tab=reports',
+        '/moderation/reports?tab=reports',
       )));
     } catch (error) {
       this.logger.warn(`Report ${report.id} was saved but moderator notifications could not be created: ${String(error)}`);
@@ -165,6 +165,10 @@ export class ContentReportsService {
     await this.reports.query(
       'INSERT INTO admin_escalation_events ("sourceType", "sourceId", "ticketNumber", "actorId", "actorEmail", reason) VALUES ($1, $2::uuid, $3, $4::uuid, $5, $6)',
       ['moderation', report.id, report.ticketNumber, actor.id, actor.email, reason.trim()],
+    );
+    await this.reports.query(
+      'INSERT INTO report_case_events ("reportId", "actorId", "actorEmail", "eventType", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
+      [report.id, actor.id, actor.email, 'escalated_to_admin', reason.trim()],
     );
     await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'moderation_report_escalated', 'Moderation report escalated', `Report ${report.ticketNumber} (${report.targetType}: ${report.targetLabel}) was escalated by the Moderator. Reason: ${report.reason}. Details: ${(report.details || JSON.stringify(report.targetSnapshot)).slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/admin/escalations')));
     return { success: true, ticketNumber: report.ticketNumber, notified: recipients.length };
@@ -231,10 +235,20 @@ export class ContentReportsService {
           : await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } });
         await Promise.all(moderators.map(account => this.notifications.createNotification(account.id, 'moderation_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for report ${report.ticketNumber}. Review the decision in the Admin escalation centre.`, '/moderation?tab=reports')));
       } else if (dto.action === 'returned_to_team') {
+        // Clear active escalation state so the Moderator team can resume the case.
+        report.escalatedToRole = null;
+        report.escalationReason = null;
+        report.escalatedAt = null;
+        report.escalatedById = null;
+        await this.reports.save(report);
+        await this.reports.query(
+          'INSERT INTO report_case_events ("reportId", "actorId", "actorEmail", "eventType", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
+          [report.id, actor.id, actor.email, 'returned_from_admin', dto.note.trim()],
+        );
         const recipients = report.assignedModerator
           ? [report.assignedModerator]
           : await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } });
-        await Promise.all(recipients.map(account => this.notifications.createNotification(account.id, 'moderation_escalation_returned', 'Admin returned an escalated report', `Report ${report.ticketNumber} was returned to Moderation: ${dto.note.trim()}`, '/moderation?tab=reports')));
+        await Promise.all(recipients.map(account => this.notifications.createNotification(account.id, 'moderation_escalation_returned', 'Admin returned an escalated report', `Report ${report.ticketNumber} was returned to Moderation: ${dto.note.trim()}`, '/moderation/reports?tab=reports')));
       }
     } catch (error) {
       this.logger.warn(`Admin decision for moderation report ${report.ticketNumber} was saved but notification delivery failed: ${String(error)}`);
@@ -242,12 +256,105 @@ export class ContentReportsService {
     return result[0];
   }
 
-  async listForModeration(actor: User, status?: ContentReportStatus) {
+  async assignReport(id: string, actor: User, moderatorId: string | undefined, reason: string) {
+    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) {
+      throw new ForbiddenException('Only active, verified Moderators and Admins can assign reports.');
+    }
+    if (!reason?.trim()) throw new BadRequestException('An assignment reason is required.');
+    const targetModeratorId = moderatorId || actor.id;
+    if (actor.role === UserRole.MODERATOR && targetModeratorId !== actor.id) {
+      throw new ForbiddenException('Moderators may claim unassigned reports or reassign their own cases only to themselves. Admin can assign cases to other Moderators.');
+    }
+    const result = await this.reports.manager.transaction(async manager => {
+      const report = await manager.findOne(ContentReport, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!report) throw new NotFoundException('Report not found.');
+      if (report.escalatedToRole === 'admin') throw new ConflictException('This report is currently with Admin.');
+      if ([ContentReportStatus.ACTIONED, ContentReportStatus.DISMISSED].includes(report.status)) {
+        throw new ConflictException('Closed reports cannot be assigned.');
+      }
+      if (actor.role === UserRole.MODERATOR && report.assignedModeratorId && report.assignedModeratorId !== actor.id) {
+        throw new ForbiddenException('This report is already assigned to another Moderator.');
+      }
+      const target = await manager.findOne(User, { where: { id: targetModeratorId }, lock: { mode: 'pessimistic_read' } });
+      if (!target || target.role !== UserRole.MODERATOR || target.isSuspended || target.accountStatus !== 'active' || target.emailVerified !== true) {
+        throw new BadRequestException('Choose an active, verified Moderator account.');
+      }
+      const previousModeratorId = report.assignedModeratorId || null;
+      if (previousModeratorId === targetModeratorId) throw new ConflictException('This report is already assigned to that Moderator.');
+      const eventType = previousModeratorId ? 'reassigned' : (targetModeratorId === actor.id ? 'claimed' : 'assigned');
+      report.assignedModeratorId = targetModeratorId;
+      if (report.status === ContentReportStatus.PENDING) report.status = ContentReportStatus.REVIEWING;
+      const saved = await manager.save(ContentReport, report);
+      await manager.query(
+        'INSERT INTO report_case_events ("reportId", "actorId", "actorEmail", "eventType", "fromModeratorId", "toModeratorId", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5::uuid, $6::uuid, $7)',
+        [report.id, actor.id, actor.email, eventType, previousModeratorId, targetModeratorId, reason.trim()],
+      );
+      return saved;
+    });
+    try {
+      await this.notifications.createNotification(
+        targetModeratorId,
+        'moderation_report_assigned',
+        'A report case was assigned to you',
+        `Report ${result.ticketNumber} is now assigned to your Moderator workspace. Reason: ${reason.trim()}`,
+        '/moderation/reports?tab=reports',
+      );
+    } catch (error) {
+      this.logger.warn(`Report ${result.ticketNumber} was assigned but the Moderator notification could not be created: ${String(error)}`);
+    }
+    return result;
+  }
+
+  async getCaseHistory(id: string, actor: User) {
+    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) {
+      throw new ForbiddenException('Only active, verified Moderators and Admins can inspect report case history.');
+    }
+    const report = await this.reports.findOne({ where: { id } });
+    if (!report) throw new NotFoundException('Report not found.');
+    if (actor.role === UserRole.MODERATOR && report.escalatedToRole === 'admin') {
+      // Moderators may inspect the case history but cannot mutate an Admin-owned case.
+    }
+    return this.reports.query(
+      'SELECT id, "actorEmail", "eventType", "fromModeratorId", "toModeratorId", "fromSeverity", "toSeverity", reason, "createdAt" FROM report_case_events WHERE "reportId" = $1::uuid ORDER BY "createdAt" ASC',
+      [id],
+    );
+  }
+
+  async setSeverity(id: string, actor: User, severity: string, reason: string) {
+    if (![UserRole.MODERATOR, UserRole.ADMIN].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) {
+      throw new ForbiddenException('Only active, verified Moderators and Admins can prioritise reports.');
+    }
+    if (!['low', 'normal', 'high', 'critical'].includes(severity)) throw new BadRequestException('Choose a valid report severity.');
+    if (!reason?.trim()) throw new BadRequestException('A reason is required when changing report severity.');
+    return this.reports.manager.transaction(async manager => {
+      const report = await manager.findOne(ContentReport, { where: { id }, lock: { mode: 'pessimistic_write' } });
+      if (!report) throw new NotFoundException('Report not found.');
+      if (actor.role === UserRole.MODERATOR && report.escalatedToRole === 'admin') throw new ForbiddenException('This report is currently with Admin.');
+      if (actor.role === UserRole.MODERATOR && report.assignedModeratorId !== actor.id) throw new ForbiddenException('Claim this report before changing its priority.');
+      if ([ContentReportStatus.ACTIONED, ContentReportStatus.DISMISSED].includes(report.status)) throw new ConflictException('Closed reports cannot be reprioritised.');
+      const previousSeverity = report.severity;
+      report.severity = severity as any;
+      const saved = await manager.save(ContentReport, report);
+      await manager.query(
+        'INSERT INTO report_case_events ("reportId", "actorId", "actorEmail", "eventType", "fromSeverity", "toSeverity", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5, $6, $7)',
+        [id, actor.id, actor.email, 'severity_changed', previousSeverity, severity, reason.trim()],
+      );
+      return saved;
+    });
+  }
+
+  async listForModeration(actor: User, status?: ContentReportStatus, filters: { assignedToMe?: boolean; unassigned?: boolean; severity?: string } = {}) {
     if (![UserRole.MODERATOR, UserRole.ADMIN].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active moderators and administrators can access reports.');
     const allowed = Object.values(ContentReportStatus);
     if (status && !allowed.includes(status)) throw new BadRequestException('Invalid report status filter.');
+    if (filters.severity && !['low', 'normal', 'high', 'critical'].includes(filters.severity)) throw new BadRequestException('Invalid report severity filter.');
+    const where: any = {};
+    if (status) where.status = status;
+    if (filters.severity) where.severity = filters.severity;
+    if (filters.unassigned) where.assignedModeratorId = IsNull();
+    else if (filters.assignedToMe && actor.role === UserRole.MODERATOR) where.assignedModeratorId = actor.id;
     return this.reports.find({
-      ...(status ? { where: { status } } : {}),
+      where,
       relations: ['reporter', 'assignedModerator'],
       order: { createdAt: 'DESC' },
       take: 100,
@@ -260,16 +367,27 @@ export class ContentReportsService {
     }
     const report = await this.reports.findOne({ where: { id }, relations: ['reporter'] });
     if (!report) throw new NotFoundException('Report not found.');
+    if (moderator.role === UserRole.MODERATOR && report.escalatedToRole === 'admin') {
+      throw new ForbiddenException('This report is with Admin and cannot be changed by a Moderator.');
+    }
+    if (moderator.role === UserRole.MODERATOR && report.assignedModeratorId !== moderator.id) {
+      throw new ForbiddenException('Claim this report before processing it. Reports assigned to another Moderator cannot be changed by you.');
+    }
     if (report.status === ContentReportStatus.ACTIONED || report.status === ContentReportStatus.DISMISSED) {
       throw new ConflictException('This report has already been closed.');
     }
     if ([ContentReportStatus.ACTIONED, ContentReportStatus.DISMISSED].includes(dto.status) && !dto.moderatorNote?.trim()) {
       throw new BadRequestException('Add a moderator note before closing this report.');
     }
+    const previousStatus = report.status;
     report.status = dto.status;
     report.assignedModeratorId = moderator.id;
     report.moderatorNote = dto.moderatorNote?.trim() || report.moderatorNote || null;
     const saved = await this.reports.save(report);
+    await this.reports.query(
+      'INSERT INTO report_case_events ("reportId", "actorId", "actorEmail", "eventType", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
+      [id, moderator.id, moderator.email, 'status_changed', dto.moderatorNote?.trim() || `Status changed from ${previousStatus} to ${dto.status}.`],
+    );
     if (report.reporterId) {
       try {
         await this.notifications.createNotification(

@@ -4,6 +4,7 @@ import { User } from '../../users/entities/user.entity';
 export enum ReportTargetType { USER = 'user', RESOURCE = 'resource', CHAT_MESSAGE = 'chat_message' }
 export enum ReportReason { SPAM = 'spam', HARASSMENT = 'harassment', IMPERSONATION = 'impersonation', INAPPROPRIATE_CONTENT = 'inappropriate_content', MISINFORMATION = 'misinformation', COPYRIGHT = 'copyright', OTHER = 'other' }
 export enum ContentReportStatus { PENDING = 'pending', REVIEWING = 'reviewing', ACTIONED = 'actioned', DISMISSED = 'dismissed' }
+export enum ReportSeverity { LOW = 'low', NORMAL = 'normal', HIGH = 'high', CRITICAL = 'critical' }
 
 @Entity({ name: 'content_reports' })
 export class ContentReport {
@@ -20,6 +21,7 @@ export class ContentReport {
   @Column({ type: 'enum', enum: ReportReason }) reason!: ReportReason;
   @Column({ type: 'text', nullable: true }) details?: string | null;
   @Column({ type: 'enum', enum: ContentReportStatus, default: ContentReportStatus.PENDING }) status!: ContentReportStatus;
+  @Column({ type: 'enum', enum: ReportSeverity, default: ReportSeverity.NORMAL }) severity!: ReportSeverity;
   @Column({ type: 'uuid', nullable: true }) assignedModeratorId?: string | null;
   @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'assignedModeratorId' }) assignedModerator?: User | null;

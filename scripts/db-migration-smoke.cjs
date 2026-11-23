@@ -85,6 +85,7 @@ async function main() {
     assert.ok(migrationNames.includes('AddReviewerApprovedScope2026111700006'), 'reviewer approved scope migration should be applied');
     assert.ok(migrationNames.includes('CreateReviewerAssignmentEvents2026111700008'), 'reviewer assignment event migration should be applied');
     assert.ok(migrationNames.includes('CreateAcademicReviewEscalations2026112300001'), 'academic review escalation migration should be applied');
+    assert.ok(migrationNames.includes('AddReportCaseManagement2026112300002'), 'Moderator report case management migration should be applied');
     assert.ok(migrationNames.includes('AddGlobalAcademicReviewerCapability2026111800001'), 'global academic reviewer capability migration should be applied');
     assert.ok(migrationNames.includes('AddSupportRoleTicketReferencesAndWorkflow2026111800003'), 'Support and report ticket workflow migration should be applied');
     assert.ok(migrationNames.includes('EnforceRegisteredSupportAndPlatformRoleAccounts2026112100001'), 'registered-only Support and platform account migration should be applied');
