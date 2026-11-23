@@ -64,11 +64,10 @@ describe('ModerationService academic reviewer workflow', () => {
     }));
   });
 
-  it('allows the Global Academic Reviewer to inspect the full reviewer roster', async () => {
+  it('keeps reviewer roster governance Admin-only', async () => {
     const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, reviewerStatus: 'approved', isGlobalReviewer: true, accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
-    userRepository.find.mockResolvedValue([]);
-    await expect(service.getReviewerRoster(reviewer)).resolves.toEqual([]);
-    expect(userRepository.find).toHaveBeenCalledWith(expect.objectContaining({ where: expect.arrayContaining([{ hasReviewerAccess: true }, { reviewerStatus: 'suspended' }, { reviewerStatus: 'revoked' }]) }));
+    await expect(service.getReviewerRoster(reviewer)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(userRepository.find).not.toHaveBeenCalled();
   });
 
   it('allows an approved Student account to use its additional reviewer capability', async () => {
@@ -189,6 +188,64 @@ describe('ModerationService academic reviewer workflow', () => {
   });
 
 
+  it('allows the Global Academic Reviewer to decide an assigned resource without taking its assignment', async () => {
+    const resource = {
+      id: 'resource-global-oversight',
+      title: 'Research methods',
+      moderationStatus: ResourceModerationStatus.PENDING,
+      isVerified: false,
+      assignedReviewerId: 'assigned-reviewer-1',
+      reviewAssignmentId: 'assignment-oversight-1',
+      uploaderId: 'lecturer-1',
+      uploader: { id: 'lecturer-1', role: UserRole.LECTURER, accountStatus: 'active', emailVerified: true },
+    };
+    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true, reviewerStatus: 'approved', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource).mockResolvedValueOnce(resource.uploader);
+    resourceRepository.save.mockImplementation(async value => value);
+
+    const result = await service.reviewResource(resource.id, { status: ResourceModerationStatus.APPROVED }, reviewer);
+
+    expect(result.status).toBe(ResourceModerationStatus.APPROVED);
+    expect(resource.moderationStatus).toBe(ResourceModerationStatus.APPROVED);
+    expect(resource.assignedReviewerId).toBeNull();
+    expect(transactionManager.query).toHaveBeenCalledWith(
+      expect.stringContaining('SELECT declaration FROM reviewer_conflict_declarations'),
+      ['assignment-oversight-1', reviewer.id],
+    );
+    expect(transactionManager.save).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ reviewer }),
+    );
+  });
+
+  it('records Global Reviewer re-review escalation and reopens a completed resource', async () => {
+    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true, reviewerStatus: 'approved', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
+    const resource = { id: 'resource-escalate-1', title: 'Reviewed research', moderationStatus: ResourceModerationStatus.APPROVED, isVerified: true, assignedReviewerId: null, reviewAssignmentId: null, uploaderId: 'lecturer-1' };
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource);
+    transactionManager.query.mockResolvedValueOnce([{ id: 'escalation-1', resourceId: resource.id, previousStatus: 'approved', reason: 'The source evidence needs independent verification.', status: 'open' }]);
+
+    const result = await service.escalateReview(resource.id, 'The source evidence needs independent verification.', reviewer);
+
+    expect(result).toMatchObject({ id: 'escalation-1', status: 'open', previousStatus: 'approved' });
+    expect(resource.moderationStatus).toBe(ResourceModerationStatus.PENDING);
+    expect(resource.isVerified).toBe(false);
+    expect(resource.assignedReviewerId).toBeNull();
+    expect(resource.reviewAssignmentId).toBeNull();
+    expect(transactionManager.save).toHaveBeenCalledWith(Resource, resource);
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'lecturer-1',
+      'resource_revision_requested',
+      'Your resource has been sent for another academic review',
+      '“Reviewed research” has been reopened for an independent academic re-review. The earlier review remains in its history.',
+      '/my-resources',
+    );
+  });
+
+  it('does not allow an ordinary reviewer to escalate a completed review', async () => {
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, reviewerStatus: 'approved', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
+    await expect(service.escalateReview('resource-1', 'Please review this again.', reviewer)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('does not allow a moderator to approve academic resources', async () => {
     resourceRepository.findOne.mockResolvedValue({ id: 'resource-1', moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: 'reviewer-1', uploaderId: 'student-1' });
     await expect(service.reviewResource('resource-1', { status: ResourceModerationStatus.APPROVED }, { id: 'moderator-1', role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } as User))
@@ -270,6 +327,23 @@ describe('ModerationService academic reviewer workflow', () => {
       '“Lecture Slides” has been approved and is now available in the shared library.',
       '/library',
     );
+  });
+
+  it('records Global Reviewer recusal without releasing another reviewer assignment', async () => {
+    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true, reviewerStatus: 'approved', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
+    const resource = { id: 'resource-global-recusal', title: 'Assigned research', moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: 'assigned-reviewer-1', reviewAssignmentId: 'assignment-global-recusal' };
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource);
+    transactionManager.query.mockReset().mockResolvedValueOnce([]).mockResolvedValue([]);
+
+    const result = await service.declareConflict('resource-global-recusal', {
+      declaration: 'recuse',
+      reason: 'I have a conflict with this submission.',
+    }, reviewer);
+
+    expect(result).toMatchObject({ declaration: 'recuse', reassignmentRequired: false });
+    expect(resource.assignedReviewerId).toBe('assigned-reviewer-1');
+    expect(resource.reviewAssignmentId).toBe('assignment-global-recusal');
+    expect(transactionManager.save).not.toHaveBeenCalledWith(Resource, resource);
   });
 
   it('records a revision request and requires reviewer feedback', async () => {

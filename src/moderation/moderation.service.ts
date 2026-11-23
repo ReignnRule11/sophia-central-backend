@@ -96,10 +96,67 @@ export class ModerationService {
     });
   }
 
+  async listReviewEscalations(viewer: User) {
+    if (!isActiveVerified(viewer) || (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer))) {
+      throw new ForbiddenException('Only Admin and the Global Academic Reviewer can inspect academic review escalations.');
+    }
+    return this.resourceRepository.manager.query(`
+      SELECT e."id", e."resourceId", e."requestedById", e."previousStatus", e."reason", e."status",
+             e."resolvedById", e."resolutionNote", e."createdAt", e."resolvedAt",
+             r."title" AS "resourceTitle", r."moderationStatus"
+      FROM "academic_review_escalations" e
+      INNER JOIN "resources" r ON r."id" = e."resourceId"
+      ORDER BY e."createdAt" DESC
+      LIMIT 250
+    `);
+  }
+
+  async escalateReview(resourceId: string, reason: string, actor: User) {
+    if (!isActiveVerified(actor) || !hasActiveGlobalReviewerAuthority(actor)) {
+      throw new ForbiddenException('Only the active Global Academic Reviewer can escalate an academic review.');
+    }
+    const cleanReason = reason?.trim();
+    if (!cleanReason || cleanReason.length < 10 || cleanReason.length > 2000) {
+      throw new BadRequestException('Provide a clear re-review reason between 10 and 2,000 characters.');
+    }
+    const escalation = await this.resourceRepository.manager.transaction(async manager => {
+      const reviewer = await manager.findOne(User, { where: { id: actor.id }, lock: { mode: 'pessimistic_read' } });
+      if (!reviewer || !isActiveVerified(reviewer) || !hasActiveGlobalReviewerAuthority(reviewer)) {
+        throw new ForbiddenException('Global Reviewer access is no longer active.');
+      }
+      const resource = await manager.findOne(Resource, { where: { id: resourceId }, lock: { mode: 'pessimistic_write' } });
+      if (!resource) throw new NotFoundException('Resource not found.');
+      if (![ResourceModerationStatus.APPROVED, ResourceModerationStatus.REJECTED, ResourceModerationStatus.REVISION_REQUESTED].includes(resource.moderationStatus)) {
+        throw new ConflictException('Only a completed academic review can be escalated for re-review.');
+      }
+      const previousStatus = resource.moderationStatus;
+      const rows = await manager.query(
+        'INSERT INTO "academic_review_escalations" ("resourceId", "requestedById", "previousStatus", "reason") VALUES ($1::uuid, $2::uuid, $3, $4) RETURNING "id", "resourceId", "previousStatus", "reason", "status", "createdAt"',
+        [resource.id, reviewer.id, previousStatus, cleanReason],
+      );
+      resource.moderationStatus = ResourceModerationStatus.PENDING;
+      resource.isVerified = false;
+      resource.assignedReviewerId = null;
+      resource.reviewAssignmentId = null;
+      await manager.save(Resource, resource);
+      return { escalation: rows[0], title: resource.title, uploaderId: resource.uploaderId };
+    });
+    if (escalation.uploaderId) {
+      await this.notificationsService.createNotification(
+        escalation.uploaderId,
+        'resource_revision_requested',
+        'Your resource has been sent for another academic review',
+        `“${escalation.title}” has been reopened for an independent academic re-review. The earlier review remains in its history.`,
+        '/my-resources',
+      ).catch(error => this.logger.warn(`Could not notify contributor about re-review escalation: ${String(error)}`));
+    }
+    return escalation.escalation;
+  }
+
   async getReviewerRoster(viewer: User) {
     if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
-    if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) {
-      throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect the reviewer roster.');
+    if (viewer.role !== UserRole.ADMIN) {
+      throw new ForbiddenException('Only administrators can inspect the reviewer roster.');
     }
     return this.userRepository.find({
       where: [
@@ -114,7 +171,7 @@ export class ModerationService {
 
   async getConflictDeclarations(viewer: User) {
     if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
-    if (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer)) throw new ForbiddenException('Only administrators or the Global Academic Reviewer can inspect reviewer conflict declarations.');
+    if (viewer.role !== UserRole.ADMIN) throw new ForbiddenException('Only administrators can inspect reviewer conflict declarations.');
     return this.resourceRepository.manager.query(`
       SELECT d."id", d."assignmentId", d."resourceId", d."reviewerId", d."declaration", d."reason", d."createdAt",
              r."title" AS "resourceTitle", u."firstName" AS "reviewerFirstName",
@@ -242,21 +299,17 @@ export class ModerationService {
       if (resource.moderationStatus !== ResourceModerationStatus.PENDING) {
         throw new ForbiddenException('This resource is no longer awaiting academic review.');
       }
-      if (resource.assignedReviewerId !== reviewer.id || !resource.reviewAssignmentId) {
-        if (!hasActiveGlobalReviewerAuthority(reviewerRecord)) {
-          throw new ForbiddenException('This resource is not currently assigned to your reviewer account.');
-        }
-        if (resource.assignedReviewerId && resource.reviewAssignmentId) {
-          await manager.query(
-            'INSERT INTO reviewer_assignment_events (\"assignmentId\", \"resourceId\", \"reviewerId\", \"actorId\", \"eventType\") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
-            [resource.reviewAssignmentId, resource.id, resource.assignedReviewerId, reviewer.id, 'released'],
-          );
+      const isAssignedReviewer = resource.assignedReviewerId === reviewer.id && Boolean(resource.reviewAssignmentId);
+      const isGlobalOversightReview = hasActiveGlobalReviewerAuthority(reviewerRecord) && Boolean(resource.assignedReviewerId) && Boolean(resource.reviewAssignmentId);
+      if (!isAssignedReviewer && !isGlobalOversightReview) {
+        if (!hasActiveGlobalReviewerAuthority(reviewerRecord) || resource.assignedReviewerId) {
+          throw new ForbiddenException('This resource is not assigned to your reviewer account.');
         }
         resource.assignedReviewerId = reviewer.id;
         resource.reviewAssignmentId = randomUUID();
         await manager.save(Resource, resource);
         await manager.query(
-          'INSERT INTO reviewer_assignment_events (\"assignmentId\", \"resourceId\", \"reviewerId\", \"actorId\", \"eventType\") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
+          'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
           [resource.reviewAssignmentId, resource.id, reviewer.id, reviewer.id, 'assigned'],
         );
       }
@@ -275,16 +328,21 @@ export class ModerationService {
         [assignmentId, resource.id, reviewer.id, dto.declaration, dto.reason?.trim() || null],
       );
 
+      let reassignmentRequired = false;
       if (dto.declaration === 'recuse') {
         await manager.query(
           'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
           [assignmentId, resource.id, reviewer.id, reviewer.id, 'recused'],
         );
-        resource.assignedReviewerId = null;
-        resource.reviewAssignmentId = null;
-        await manager.save(Resource, resource);
+        if (resource.assignedReviewerId === reviewer.id) {
+          resource.assignedReviewerId = null;
+          resource.reviewAssignmentId = null;
+          await manager.save(Resource, resource);
+          reassignmentRequired = true;
+        }
       }
-      return { declaration: dto.declaration, reassignmentRequired: dto.declaration === 'recuse', title: resource.title };
+
+      return { declaration: dto.declaration, reassignmentRequired, title: resource.title };
     });
 
     if (result.reassignmentRequired) {
@@ -329,8 +387,10 @@ export class ModerationService {
       }
       if (resource.uploaderId === reviewer.id) throw new ForbiddenException('You cannot review a resource that you uploaded.');
       if (resource.contributorUserIds?.includes(reviewer.id)) throw new ForbiddenException('You cannot review material you co-authored or contributed to.');
-      if (resource.assignedReviewerId !== reviewer.id || !resource.reviewAssignmentId) {
-        throw new ForbiddenException('This resource is not assigned to your reviewer account');
+      const isAssignedReviewer = resource.assignedReviewerId === reviewer.id && Boolean(resource.reviewAssignmentId);
+      const isGlobalOversightReview = hasActiveGlobalReviewerAuthority(reviewerRecord) && Boolean(resource.assignedReviewerId) && Boolean(resource.reviewAssignmentId);
+      if (!isAssignedReviewer && !isGlobalOversightReview) {
+        throw new ForbiddenException('This resource is not assigned to your reviewer account.');
       }
 
       const uploader = resource.uploaderId
@@ -358,6 +418,10 @@ export class ModerationService {
         note: dto.note?.trim() || undefined,
       });
       const savedReview = await manager.save(ModerationReview, review);
+      await manager.query(
+        'UPDATE "academic_review_escalations" SET "status" = $2, "resolvedById" = $3::uuid, "resolutionNote" = $4, "resolvedAt" = now() WHERE "resourceId" = $1::uuid AND "status" = $5',
+        [resource.id, 'resolved', reviewer.id, dto.note?.trim() || `Re-review completed: ${dto.status.replace(/_/g, ' ')}`, 'open'],
+      );
       await manager.query(
         'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType", "reviewStatus") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6)',
         [completedAssignmentId, resource.id, reviewer.id, reviewer.id, 'completed', dto.status],
