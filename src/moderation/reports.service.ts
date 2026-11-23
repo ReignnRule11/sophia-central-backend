@@ -131,7 +131,7 @@ export class ContentReportsService {
         'content_report_submitted',
         'A new report needs review',
         `A ${dto.targetType.replace(/_/g, ' ')} was reported for ${dto.reason.replace(/_/g, ' ')}.`,
-        '/moderation?tab=reports',
+        '/moderation/reports?tab=reports',
       )));
     } catch (error) {
       this.logger.warn(`Report ${report.id} was saved but moderator notifications could not be created: ${String(error)}`);
@@ -231,10 +231,16 @@ export class ContentReportsService {
           : await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } });
         await Promise.all(moderators.map(account => this.notifications.createNotification(account.id, 'moderation_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for report ${report.ticketNumber}. Review the decision in the Admin escalation centre.`, '/moderation?tab=reports')));
       } else if (dto.action === 'returned_to_team') {
+        // Clear active escalation state so the Moderator team can resume the case.
+        report.escalatedToRole = null;
+        report.escalationReason = null;
+        report.escalatedAt = null;
+        report.escalatedById = null;
+        await this.reports.save(report);
         const recipients = report.assignedModerator
           ? [report.assignedModerator]
           : await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } });
-        await Promise.all(recipients.map(account => this.notifications.createNotification(account.id, 'moderation_escalation_returned', 'Admin returned an escalated report', `Report ${report.ticketNumber} was returned to Moderation: ${dto.note.trim()}`, '/moderation?tab=reports')));
+        await Promise.all(recipients.map(account => this.notifications.createNotification(account.id, 'moderation_escalation_returned', 'Admin returned an escalated report', `Report ${report.ticketNumber} was returned to Moderation: ${dto.note.trim()}`, '/moderation/reports?tab=reports')));
       }
     } catch (error) {
       this.logger.warn(`Admin decision for moderation report ${report.ticketNumber} was saved but notification delivery failed: ${String(error)}`);
@@ -260,6 +266,9 @@ export class ContentReportsService {
     }
     const report = await this.reports.findOne({ where: { id }, relations: ['reporter'] });
     if (!report) throw new NotFoundException('Report not found.');
+    if (moderator.role === UserRole.MODERATOR && report.escalatedToRole === 'admin') {
+      throw new ForbiddenException('This report is with Admin and cannot be changed by a Moderator.');
+    }
     if (report.status === ContentReportStatus.ACTIONED || report.status === ContentReportStatus.DISMISSED) {
       throw new ConflictException('This report has already been closed.');
     }
