@@ -126,7 +126,7 @@ describe('ModerationService academic reviewer workflow', () => {
       'resource_review_assigned',
       'A new academic resource was assigned to you',
       '“Cell Biology” is ready for your academic review.',
-      '/moderation',
+      '/reviewer/queue?resource=resource-1',
     );
   });
 
