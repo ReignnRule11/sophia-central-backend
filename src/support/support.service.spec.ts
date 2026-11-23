@@ -6,11 +6,13 @@ describe('SupportService attachment ownership', () => {
   const user = { id: 'student-1', role: UserRole.STUDENT } as any;
   const reference = 'https://files.example.test/support-attachments/student-1/image.jpg';
   let requests: any;
+  let users: any;
   let s3: any;
   let notifications: any;
   let service: SupportService;
 
   beforeEach(() => {
+    users = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
     requests = {
       create: jest.fn(value => value),
       query: jest.fn().mockResolvedValue([{ value: 1 }]),
@@ -35,7 +37,7 @@ describe('SupportService attachment ownership', () => {
     notifications = { createNotification: jest.fn().mockResolvedValue({}) };
     service = new SupportService(
       requests,
-      { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) } as any,
+      users,
       notifications,
       s3,
       { notifyNewRequest: jest.fn().mockResolvedValue(false), notifyGuestRequest: jest.fn().mockResolvedValue(true), sendResolution: jest.fn().mockResolvedValue(false), sendGuestResolution: jest.fn().mockResolvedValue(true) } as any,
@@ -166,6 +168,21 @@ describe('SupportService attachment ownership', () => {
 
     it('rejects non-Support actors from the moderation queue', async () => {
       await expect(service.listForModeration(nonSupport)).rejects.toBeInstanceOf(ForbiddenException);
+    });
+
+
+    it('rejects a previously approved Support session after approval is revoked', async () => {
+      users.findOne.mockResolvedValueOnce(null);
+      const staleSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+      await expect(service.updateStatus('ticket-1', staleSupport, 'under_review')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(requests.findOne).not.toHaveBeenCalled();
+    });
+
+    it('requires current Admin approval before escalation', async () => {
+      users.findOne.mockResolvedValueOnce(null);
+      const staleSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+      await expect(service.escalate('ticket-1', staleSupport, UserRole.ADMIN, 'Escalation reason')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(requests.findOne).not.toHaveBeenCalled();
     });
 
     it('rejects inactive Support actors from status changes', async () => {
