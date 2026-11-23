@@ -98,13 +98,52 @@ describe('ModerationService academic reviewer workflow', () => {
       id: 'resource-1',
       moderationStatus: ResourceModerationStatus.PENDING,
     });
-    transactionManager.findOne.mockResolvedValueOnce({ id: 'user-1', role: UserRole.LECTURER, isSuspended: false, accountStatus: 'active', emailVerified: true, reviewerExpertise: ['Biology'] }).mockResolvedValueOnce({ id: 'resource-1', moderationStatus: ResourceModerationStatus.PENDING });
+    transactionManager.findOne.mockResolvedValueOnce({ id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true }).mockResolvedValueOnce({ id: 'user-1', role: UserRole.LECTURER, isSuspended: false, accountStatus: 'active', emailVerified: true, reviewerExpertise: ['Biology'] });
     await expect(service.assignReviewer('resource-1', 'user-1', { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as User)).rejects.toBeInstanceOf(BadRequestException);
     expect(resourceRepository.save).not.toHaveBeenCalled();
   });
 
+  it('rejects assignment when the selected account is not currently Admin-approved', async () => {
+    transactionManager.findOne
+      .mockResolvedValueOnce({ id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true })
+      .mockResolvedValueOnce({ id: 'reviewer-pending', role: UserRole.REVIEWER, hasReviewerAccess: true, reviewerStatus: 'under_review', isSuspended: false, accountStatus: 'active', emailVerified: true });
+    const actor = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as User;
+
+    await expect(service.assignReviewer('resource-1', 'reviewer-pending', actor)).rejects.toBeInstanceOf(BadRequestException);
+    expect(transactionManager.findOne).toHaveBeenCalledTimes(2);
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
+  it('rejects assignment if Global Reviewer authority was revoked before the transaction', async () => {
+    transactionManager.findOne.mockResolvedValueOnce({
+      id: 'global-reviewer-1',
+      role: UserRole.REVIEWER,
+      hasReviewerAccess: true,
+      isGlobalReviewer: false,
+      reviewerStatus: 'approved',
+      isSuspended: false,
+      accountStatus: 'active',
+      emailVerified: true,
+    });
+    const actor = {
+      id: 'global-reviewer-1',
+      role: UserRole.REVIEWER,
+      hasReviewerAccess: true,
+      isGlobalReviewer: true,
+      reviewerStatus: 'approved',
+      isSuspended: false,
+      accountStatus: 'active',
+      emailVerified: true,
+    } as User;
+
+    await expect(service.assignReviewer('resource-1', 'reviewer-1', actor)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(transactionManager.findOne).toHaveBeenCalledTimes(1);
+    expect(transactionManager.save).not.toHaveBeenCalled();
+  });
+
   it('notifies the assigned reviewer when a resource is assigned', async () => {
-    transactionManager.findOne.mockResolvedValueOnce({ id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: false, accountStatus: 'active', emailVerified: true, reviewerExpertise: ['Biology'], reviewerAcademicLevels: ['300 level'] });
+    transactionManager.findOne.mockResolvedValueOnce({ id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true });
+    transactionManager.findOne.mockResolvedValueOnce({ id: 'reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active', emailVerified: true, reviewerExpertise: ['Biology'], reviewerAcademicLevels: ['300 level'] });
     transactionManager.findOne.mockResolvedValueOnce({
       id: 'resource-1',
       title: 'Cell Biology',
