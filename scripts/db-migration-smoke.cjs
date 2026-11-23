@@ -48,8 +48,8 @@ async function main() {
     assert.equal(supportOwnerColumn.rows[0]?.is_nullable, 'YES', 'guest Support tickets must be allowed without a registered user');
     const supportCaseColumns = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'support_requests' AND column_name IN ('priority', 'assignedSupportId', 'slaDueAt', 'resolvedAt', 'closedAt', 'resolutionCategory', 'closureReason')`);
     assert.equal(supportCaseColumns.rowCount, 7, 'Support case ownership, priority and SLA columns should exist');
-    const supportAuditTriggers = await client.query(`SELECT trigger_name FROM information_schema.triggers WHERE event_object_table IN ('support_request_events', 'support_request_internal_notes') AND trigger_name IN ('TR_support_request_events_immutable', 'TR_support_internal_notes_immutable')`);
-    assert.equal(supportAuditTriggers.rowCount, 2, 'Support event and internal-note records must be append-only');
+    const supportAuditTriggers = await client.query(`SELECT COUNT(DISTINCT trigger_name)::int AS count FROM information_schema.triggers WHERE event_object_table IN ('support_request_events', 'support_request_internal_notes') AND trigger_name IN ('TR_support_request_events_immutable', 'TR_support_internal_notes_immutable')`);
+    assert.equal(supportAuditTriggers.rows[0]?.count, 2, 'Support event and internal-note records must be append-only');
     const guestArchiveColumns = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'support_request_guest_archive' AND column_name IN ('id', 'userId', 'senderName', 'senderEmail', 'archivedAt', 'archiveReason')`);
     assert.equal(guestArchiveColumns.rowCount, 6, 'legacy guest Support archive should preserve ticket and sender history');
     const singleSupportRoleIndex = await client.query(`SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'IDX_users_single_support_role'`);
