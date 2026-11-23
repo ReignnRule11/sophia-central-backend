@@ -38,6 +38,7 @@ describe('SupportCaseService', () => {
       .mockResolvedValueOnce([{ id: actor.id, email: actor.email }])
       .mockResolvedValueOnce([{ id: 'ticket-1', ticketNumber: 'SUP-2026-000001', userId: 'student-1', status: 'response_sent', resolvedAt: null, closedAt: null }])
       .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'ticket-1', status: 'response_sent', resolvedAt: new Date(), resolutionCategory: 'resolved' }]);
     const result = await service.resolve('ticket-1', actor, 'resolved', 'Confirmed fixed.');
     expect(result.resolutionCategory).toBe('resolved');
