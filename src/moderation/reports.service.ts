@@ -9,6 +9,7 @@ import { CreateContentReportDto } from './dto/create-content-report.dto';
 import { UpdateContentReportDto } from './dto/update-content-report.dto';
 import { ContentReport, ContentReportStatus, ReportTargetType } from './entities/content-report.entity';
 import { AdminEscalationDecisionDto } from '../common/dto/admin-escalation-decision.dto';
+import { SupportEmailService } from '../support/support-email.service';
 
 @Injectable()
 export class ContentReportsService {
@@ -20,6 +21,7 @@ export class ContentReportsService {
     @InjectRepository(Resource) private readonly resources: Repository<Resource>,
     @InjectRepository(ChatMessage) private readonly messages: Repository<ChatMessage>,
     private readonly notifications: NotificationsService,
+    private readonly supportEmail: SupportEmailService,
   ) {}
 
   private assertReporter(user: User) {
@@ -228,8 +230,12 @@ export class ContentReportsService {
     try {
       if (dto.action === 'awaiting_information' && report.reporterId) {
         await this.notifications.createNotification(report.reporterId, 'content_report_updated', 'More information requested', `Admin requested more information for report ${report.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
+        if (report.reporter?.emailVerified === true) await this.supportEmail.sendReportSummary(report.reporter, report.ticketNumber, `Admin requested more information: ${dto.note.trim()}`);
       } else if (dto.action === 'resolved') {
-        if (report.reporterId) await this.notifications.createNotification(report.reporterId, 'content_report_updated', 'Admin escalation review completed', `Admin completed the escalation review for report ${report.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
+        if (report.reporterId) {
+          await this.notifications.createNotification(report.reporterId, 'content_report_updated', 'Admin escalation review completed', `Admin completed the escalation review for report ${report.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
+          if (report.reporter?.emailVerified === true) await this.supportEmail.sendReportSummary(report.reporter, report.ticketNumber, `Admin completed the escalation review: ${dto.note.trim()}`);
+        }
         const moderators = report.assignedModerator
           ? [report.assignedModerator]
           : await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } });
@@ -397,6 +403,9 @@ export class ContentReportsService {
           `Ticket ${report.ticketNumber} is now ${dto.status.replace(/_/g, ' ')}. Open My Activity for the full update.`,
           '/my-activity',
         );
+        if (report.reporter?.emailVerified === true) {
+          await this.supportEmail.sendReportSummary(report.reporter, report.ticketNumber, `Your report is now ${dto.status.replace(/_/g, ' ')}.`);
+        }
       } catch (error) {
         this.logger.warn(`Report ${report.id} was updated but reporter notification failed: ${String(error)}`);
       }

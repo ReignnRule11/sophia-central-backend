@@ -22,6 +22,40 @@ export class SupportService {
     private readonly supportEmail: SupportEmailService,
   ) {}
 
+  async createGuestContact(dto: { name: string; email: string; category: string; subject: string; message: string }) {
+    const ticketSequence = await this.requests.query("SELECT nextval('sophis_support_ticket_seq') AS value");
+    const ticketNumber = `SUP-${new Date().getFullYear()}-${String(Number(ticketSequence[0].value)).padStart(6, '0')}`;
+    const saved = await this.requests.save(this.requests.create({
+      userId: null,
+      requesterType: 'guest',
+      senderName: dto.name.trim(),
+      senderEmail: dto.email.trim().toLowerCase(),
+      senderAccountType: 'guest',
+      subject: dto.subject.trim(),
+      category: dto.category,
+      description: dto.message.trim(),
+      links: [],
+      attachments: [],
+      status: 'pending',
+      ticketNumber,
+    }));
+    try {
+      const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' } });
+      await Promise.all(supportUsers.map(account => this.notifications.createNotification(
+        account.id, 'support_request_new', 'New guest support ticket',
+        `Guest ticket ${saved.ticketNumber} has been submitted and is awaiting Support review.`, '/support/requests',
+      )));
+    } catch (error) {
+      this.logger.warn(`Guest support ticket ${saved.ticketNumber} was saved but Support notifications could not be created: ${String(error)}`);
+    }
+    try {
+      await this.supportEmail.notifyGuestRequest(saved);
+    } catch (error) {
+      this.logger.error(`Guest support ticket ${saved.id} was saved but email delivery failed: ${String(error)}`);
+    }
+    return { success: true, ticketNumber: saved.ticketNumber, message: `Your enquiry was submitted as ticket ${saved.ticketNumber}. Support will reply to the email address you provided.` };
+  }
+
   async create(user: User, dto: CreateSupportRequestDto) {
     if (![UserRole.STUDENT, UserRole.LECTURER].includes(user.role)) {
       throw new ForbiddenException('Only student and lecturer accounts can contact support');
@@ -214,7 +248,6 @@ export class SupportService {
       .leftJoinAndSelect('request.user', 'user')
       .leftJoinAndSelect('request.reviewer', 'reviewer')
       .where('request.status = :status', { status })
-      .andWhere('request."userId" IS NOT NULL')
       .orderBy('request."createdAt"', 'ASC')
       .getMany();
     return Promise.all(requests.map(request => this.withSignedAttachmentUrls(request)));
@@ -260,12 +293,14 @@ export class SupportService {
     } catch (error) {
       this.logger.error(`Support request ${id} was concluded but its notification could not be created: ${String(error)}`);
     }
+    let responseEmailSent = false;
     try {
-      if (request.user) await this.supportEmail.sendResolution(saved, request.user);
+      if (request.user) responseEmailSent = await this.supportEmail.sendResolution(saved, request.user);
+      else if (request.senderEmail) responseEmailSent = await this.supportEmail.sendGuestResolution(saved);
     } catch (error) {
       this.logger.error(`Support request ${id} was concluded but its email could not be sent: ${String(error)}`);
     }
-    return saved;
+    return { ...saved, responseEmailSent };
   }
 
   async escalate(id: string, actor: User, targetRole: UserRole, reason: string) {

@@ -10,10 +10,11 @@ import { Resource } from '../resources/entities/resource.entity';
 import { User } from '../users/entities/user.entity';
 import { ChatMessage } from '../chat/entities/chat-message.entity';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { SupportModule } from '../support/support.module';
 import { PointsModule } from '../points/points.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ModerationReview, ContentReport, Resource, User, ChatMessage]), NotificationsModule, PointsModule],
+  imports: [TypeOrmModule.forFeature([ModerationReview, ContentReport, Resource, User, ChatMessage]), NotificationsModule, SupportModule, PointsModule],
   controllers: [ModerationController, ReportsController, ModerationReportsController],
   providers: [ModerationService, ContentReportsService],
   exports: [ModerationService, ContentReportsService],

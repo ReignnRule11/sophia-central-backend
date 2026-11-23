@@ -20,11 +20,12 @@ describe('ContentReportsService Moderator case ownership', () => {
   const resources: any = { findOne: jest.fn() };
   const messages: any = { findOne: jest.fn() };
   const notifications: any = { createNotification: jest.fn().mockResolvedValue(undefined) };
+  const supportEmail: any = { sendReportSummary: jest.fn().mockResolvedValue(true) };
   let service: ContentReportsService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new ContentReportsService(reports, users, resources, messages, notifications);
+    service = new ContentReportsService(reports, users, resources, messages, notifications, supportEmail);
   });
 
   const moderator: any = {

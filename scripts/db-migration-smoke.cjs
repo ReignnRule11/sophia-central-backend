@@ -45,7 +45,7 @@ async function main() {
     const ticketColumns = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'support_requests' AND column_name = 'ticketNumber') OR (table_name = 'content_reports' AND column_name = 'ticketNumber') OR (table_name = 'support_requests' AND column_name = 'escalatedToRole'))");
     assert.equal(ticketColumns.rowCount, 3, 'support and report ticket references and escalation tracking should exist');
     const supportOwnerColumn = await client.query(`SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'support_requests' AND column_name = 'userId'`);
-    assert.equal(supportOwnerColumn.rows[0]?.is_nullable, 'NO', 'active Support tickets must require a registered user');
+    assert.equal(supportOwnerColumn.rows[0]?.is_nullable, 'YES', 'guest Support tickets must be allowed without a registered user');
     const guestArchiveColumns = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'support_request_guest_archive' AND column_name IN ('id', 'userId', 'senderName', 'senderEmail', 'archivedAt', 'archiveReason')`);
     assert.equal(guestArchiveColumns.rowCount, 6, 'legacy guest Support archive should preserve ticket and sender history');
     const singleSupportRoleIndex = await client.query(`SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'IDX_users_single_support_role'`);
@@ -93,6 +93,7 @@ async function main() {
     assert.ok(migrationNames.includes('AddPlatformRoleLifecycleState2026112200002'), 'platform role lifecycle migration should be applied');
     assert.ok(migrationNames.includes('PersistAdminEscalationRecords2026112200003'), 'Admin escalation persistence migration should be applied');
     assert.ok(migrationNames.includes('PreservePlatformAuditSnapshots2026112200004'), 'platform audit snapshot migration should be applied');
+    assert.ok(migrationNames.includes('RestoreGuestSupportIntake2026112300001'), 'guest Support intake migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
@@ -257,8 +258,9 @@ async function main() {
       (error) => error.message.includes('Audit records are append-only'),
       'Admin escalation audit rows must be immutable',
     );
-    const supportRow = await client.query('SELECT id FROM support_requests WHERE id = $1', [supportRequestId]);
-    assert.equal(supportRow.rowCount, 0, 'deleting a user should cascade-delete support requests');
+    const supportRow = await client.query('SELECT id, "userId" FROM support_requests WHERE id = $1', [supportRequestId]);
+    assert.equal(supportRow.rowCount, 1, 'Support tickets should survive requester account deletion');
+    assert.equal(supportRow.rows[0].userId, null, 'Support ticket requester should be detached when the account is deleted');
     const resetToken = await client.query('SELECT id FROM password_reset_tokens WHERE id = $1', [reset.rows[0].id]);
     assert.equal(resetToken.rowCount, 0, 'deleting a user should cascade-delete password reset tokens');
     const retainedResource = await client.query('SELECT id, "uploaderId" FROM resources WHERE id = $1', [approvedResourceId]);
