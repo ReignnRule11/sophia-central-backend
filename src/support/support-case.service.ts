@@ -108,6 +108,24 @@ export class SupportCaseService {
     return this.ensureCase(id);
   }
 
+
+  async resolve(id: string, actor: User, resolutionCategory: string, closureReason?: string) {
+    const supportActor = await this.assertSupport(actor);
+    const allowedCategories = ['resolved', 'information_provided', 'duplicate', 'unable_to_reproduce', 'user_action_required', 'other'];
+    if (!allowedCategories.includes(resolutionCategory)) throw new BadRequestException('Choose a valid resolution category.');
+    const current = await this.ensureCase(id);
+    if (!['response_sent', 'concluded'].includes(current.status)) throw new BadRequestException('A ticket must have a response sent before it can be marked resolved.');
+    if (current.resolvedAt || current.closedAt) throw new BadRequestException('This ticket is already resolved or closed.');
+    const reason = closureReason?.trim() || null;
+    if (reason && reason.length > 2000) throw new BadRequestException('Resolution notes must be 2,000 characters or fewer.');
+    await this.dataSource.query(
+      `UPDATE support_requests SET "resolvedAt" = NOW(), "resolutionCategory" = $2, "closureReason" = $3 WHERE id = $1::uuid`,
+      [id, resolutionCategory, reason],
+    );
+    await this.event(id, supportActor, 'resolved', { resolutionCategory, closureReason: reason });
+    return this.ensureCase(id);
+  }
+
   async setPriority(id: string, actor: User, priority: SupportPriority) {
     const supportActor = await this.assertSupport(actor);
     if (!['low', 'normal', 'high', 'urgent'].includes(priority)) throw new BadRequestException('Choose a valid support priority.');
