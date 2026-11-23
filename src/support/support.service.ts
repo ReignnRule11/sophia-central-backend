@@ -42,7 +42,7 @@ export class SupportService {
     // Support tickets belong to the dedicated Support role only. Moderators and
     // administrators are notified only when Support explicitly escalates a case.
     try {
-      const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false } });
+      const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' } });
       await Promise.all(supportUsers.map(account => this.notifications.createNotification(
         account.id, 'support_request_new', 'New support ticket',
         `Ticket ${saved.ticketNumber} has been submitted and is awaiting Support review.`, '/support/requests',
@@ -200,8 +200,16 @@ export class SupportService {
     return result[0];
   }
 
+  private async assertApprovedSupport(actorId: string): Promise<User> {
+    const account = await this.users.findOne({
+      where: { id: actorId, role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' },
+    });
+    if (!account) throw new ForbiddenException('Only an active, verified, Admin-approved Support account can access this workflow.');
+    return account;
+  }
+
   async listForModeration(actor: User, status: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded' = 'pending') {
-    if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
+    await this.assertApprovedSupport(actor.id);
     const requests = await this.requests.createQueryBuilder('request')
       .leftJoinAndSelect('request.user', 'user')
       .leftJoinAndSelect('request.reviewer', 'reviewer')

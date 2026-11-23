@@ -185,6 +185,9 @@ export class AuthService {
       throw new ForbiddenException('This account has a pending deletion request. Cancel the request during the 30-day grace period before signing in.');
     }
     if (user.isSuspended) throw new UnauthorizedException('This account is suspended. Contact Sophis Central support for assistance.');
+    if ([UserRole.MODERATOR, UserRole.SUPPORT].includes(user.role) && user.platformRoleStatus !== 'approved') {
+      throw new ForbiddenException('This platform account requires Admin approval before sign-in is permitted.');
+    }
     if (user.accountStatus === 'deactivated') {
       user = await this.usersService.update(user.id, { accountStatus: 'active' });
     }
@@ -235,6 +238,52 @@ export class AuthService {
   async confirmEmailVerification(token: string, password: string): Promise<{ message: string; onboardingToken?: string; preAccount?: { email: string; firstName: string; lastName: string; academicHandle: string; role: UserRole } }> {
     let registration: RegistrationTokenPayload | null = null;
     try { registration = this.registrationTokens.open(token); } catch { registration = null; }
+    if (registration?.stage === 'support-bootstrap') {
+      const email = String(registration.email || '').trim().toLowerCase();
+      const userId = String(registration.userId || '').trim();
+      if (!email || email !== PLATFORM_LOGIN_ALIASES.support || !userId || !registration.jti || !registration.expiresAt) {
+        throw new UnauthorizedException('This Support setup link is invalid or has expired. Request a new setup link.');
+      }
+      const claimed = await this.registrationTokens.claimOnce(
+        registration.jti,
+        Math.ceil((registration.expiresAt - Date.now()) / 1000),
+      );
+      if (!claimed) throw new UnauthorizedException('This Support setup link has already been used. Sign in or request a new setup link.');
+
+      try {
+        const passwordHash = await bcrypt.hash(password, 12);
+        await this.dataSource.transaction(async manager => {
+          await manager.query('SELECT pg_advisory_xact_lock(hashtext($1))', ['sophis-central-support-bootstrap']);
+          const supportCount = await manager.getRepository(User).count({ where: { role: UserRole.SUPPORT } });
+          if (supportCount !== 1) {
+            throw new ConflictException('The designated Support account state is no longer valid. Contact the platform owner.');
+          }
+          const support = await manager.findOne(User, {
+            where: { id: userId },
+            lock: { mode: 'pessimistic_write' },
+          });
+          if (!support || support.role !== UserRole.SUPPORT || support.email.trim().toLowerCase() !== email) {
+            throw new UnauthorizedException('This Support setup link does not match the provisioned account.');
+          }
+          if (support.emailVerified === true || support.platformRoleStatus !== 'pending' || support.accountStatus !== 'active' || support.isSuspended === true) {
+            throw new ConflictException('This Support account has already been verified or is unavailable.');
+          }
+          support.password = passwordHash;
+          support.emailVerified = true;
+          support.isVerified = true;
+          await manager.save(User, support);
+          await manager.query(
+            'INSERT INTO platform_role_audit_events ("actorId", "targetId", role, action, "previousRole", "newRole", reason, "actorEmail", "targetEmail") VALUES (NULL, $1::uuid, $2, $3, $4, $5, $6, $7, $8)',
+            [support.id, UserRole.SUPPORT, 'email_verified', UserRole.SUPPORT, UserRole.SUPPORT, 'Support bootstrap email verified; awaiting Admin approval.', email, email],
+          );
+        });
+      } catch (error) {
+        await this.registrationTokens.releaseClaim(registration.jti);
+        throw error;
+      }
+      return { message: 'Your Support email is verified and your password is set. Admin approval is still required before Support workspace access.' };
+    }
+
     if (registration?.stage === 'admin-bootstrap') {
       const email = String(registration.email || '').trim().toLowerCase();
       const userId = String(registration.userId || '').trim();

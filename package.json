@@ -23,6 +23,7 @@
     "import:other-institutions": "ts-node --transpile-only src/database/import-other-institutions.ts",
     "import:academic-catalogue": "ts-node --transpile-only src/database/import-nigeria-academic-catalogue.ts",
     "admin:bootstrap": "ts-node --transpile-only scripts/bootstrap-admin.ts",
+    "support:bootstrap": "ts-node --transpile-only scripts/bootstrap-support.ts",
     "admin:mfa-reset": "ts-node --transpile-only scripts/admin-mfa-reset.ts"
   },
   "dependencies": {
