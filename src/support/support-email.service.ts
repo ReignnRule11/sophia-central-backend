@@ -95,6 +95,27 @@ export class SupportEmailService {
   }
 
 
+
+  async sendGuestEscalation(request: SupportRequest, reason: string): Promise<boolean> {
+    if (!this.isConfigured() || !request.senderEmail) return false;
+    const supportEmail = this.config.get<string>('SUPPORT_EMAIL')!;
+    const subject = `Sophis Central Support escalated ticket [${request.ticketNumber}]`;
+    const text = [
+      `Hello ${request.senderName || 'there'},`,
+      '',
+      `Your support ticket ${request.ticketNumber} has been escalated to Admin for additional review.`,
+      '',
+      `Subject: ${request.subject}`,
+      `Reason: ${reason}`,
+      '',
+      'Our team will update you when the review progresses. You can reply directly to this email if you need further assistance.',
+      'Sophis Central Support',
+    ].join('\n');
+    const html = `<p>Hello ${this.escapeHtml(request.senderName || 'there')},</p><p>Your support ticket <strong>${this.escapeHtml(request.ticketNumber)}</strong> has been escalated to Admin for additional review.</p><p><strong>Subject:</strong> ${this.escapeHtml(request.subject)}</p><p><strong>Reason:</strong> ${this.escapeHtml(reason)}</p><p>Our team will update you when the review progresses. You can reply directly to this email if you need further assistance.</p><p>Sophis Central Support</p>`;
+    await this.send(request.senderEmail, subject, text, html, supportEmail);
+    return true;
+  }
+
   async sendGuestAdminDecision(request: SupportRequest, action: 'awaiting_information' | 'resolved', note: string): Promise<boolean> {
     if (!this.isConfigured() || !request.senderEmail) return false;
     const supportEmail = this.config.get<string>('SUPPORT_EMAIL')!;
