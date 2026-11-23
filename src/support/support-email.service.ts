@@ -117,7 +117,7 @@ export class SupportEmailService {
       '',
       'You can reply directly to this email if you need further assistance.',
       'Sophis Central Support',
-    ].join('\\n');
+    ].join('\n');
     const html = `<p>Hello ${this.escapeHtml(request.senderName || 'there')},</p><p>${this.escapeHtml(intro)}</p><p><strong>Ticket:</strong> ${this.escapeHtml(request.ticketNumber)}<br><strong>Subject:</strong> ${this.escapeHtml(request.subject)}</p><h3>${this.escapeHtml(heading)}</h3><div style="white-space:pre-wrap">${this.escapeHtml(note)}</div><p>You can reply directly to this email if you need further assistance.</p><p>Sophis Central Support</p>`;
     await this.send(request.senderEmail, subject, text, html, supportEmail);
     return true;
