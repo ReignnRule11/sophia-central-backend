@@ -21,6 +21,7 @@ export class ContentReportsService {
     @InjectRepository(Resource) private readonly resources: Repository<Resource>,
     @InjectRepository(ChatMessage) private readonly messages: Repository<ChatMessage>,
     private readonly notifications: NotificationsService,
+    private readonly supportEmail: SupportEmailService,
   ) {}
 
   private assertReporter(user: User) {
