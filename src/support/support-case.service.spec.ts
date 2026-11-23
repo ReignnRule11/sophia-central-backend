@@ -57,4 +57,25 @@ describe('SupportCaseService', () => {
     await expect(service.addInternalNote('ticket-1', actor, '   ')).rejects.toBeInstanceOf(BadRequestException);
     expect(dataSource.query).toHaveBeenCalledTimes(2);
   });
+
+  it('returns Support analytics only to approved Support accounts and calculates escalation rate', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([{ id: actor.id, email: actor.email }])
+      .mockResolvedValueOnce([{ ticketsCreated: 10, openBacklog: 4, overdueBacklog: 1, averageResponseMinutes: 30, averageResolutionMinutes: 90, escalatedTickets: 2, periodTickets: 10 }])
+      .mockResolvedValueOnce([{ category: 'Account access', count: 6 }])
+      .mockResolvedValueOnce([{ id: actor.id, activeCases: 3, completedInPeriod: 2 }])
+      .mockResolvedValueOnce([{ value: 12 }]);
+    const result = await service.analytics(actor, 30);
+    expect(result.summary.escalationRate).toBe(20);
+    expect(result.summary.averageBacklogAgeHours).toBe(12);
+    expect(result.categoryTrends[0].count).toBe(6);
+    expect(result.agentWorkload[0].activeCases).toBe(3);
+  });
+
+  it('rejects unsupported analytics windows', async () => {
+    dataSource.query.mockResolvedValueOnce([{ id: actor.id, email: actor.email }]);
+    await expect(service.analytics(actor, 365)).rejects.toBeInstanceOf(BadRequestException);
+    expect(dataSource.query).toHaveBeenCalledTimes(1);
+  });
+
 });

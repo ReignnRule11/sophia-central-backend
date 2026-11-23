@@ -148,4 +148,66 @@ export class SupportCaseService {
        FROM support_request_events WHERE "supportRequestId" = $1::uuid ORDER BY "createdAt" ASC`, [id],
     );
   }
+
+  async analytics(actor: User, days = 30) {
+    await this.assertSupport(actor);
+    if (![7, 30, 90].includes(days)) throw new BadRequestException('Choose a 7, 30, or 90 day analytics window.');
+    const [summaryRows, categoryRows, agentRows] = await Promise.all([
+      this.dataSource.query(
+        `SELECT
+          COUNT(*) FILTER (WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "ticketsCreated",
+          COUNT(*) FILTER (WHERE status NOT IN ('response_sent', 'concluded', 'resolved', 'closed'))::int AS "openBacklog",
+          COUNT(*) FILTER (WHERE status NOT IN ('response_sent', 'concluded', 'resolved', 'closed') AND "slaDueAt" < NOW())::int AS "overdueBacklog",
+          COALESCE(AVG(EXTRACT(EPOCH FROM (COALESCE("concludedAt", "resolvedAt") - "createdAt")) / 60)
+            FILTER (WHERE COALESCE("concludedAt", "resolvedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day')), 0)::float AS "averageResponseMinutes",
+          COALESCE(AVG(EXTRACT(EPOCH FROM (COALESCE("closedAt", "resolvedAt", "concludedAt") - "createdAt")) / 60)
+            FILTER (WHERE COALESCE("closedAt", "resolvedAt", "concludedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day')), 0)::float AS "averageResolutionMinutes",
+          COUNT(*) FILTER (WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day') AND "escalatedToRole" IS NOT NULL)::int AS "escalatedTickets",
+          COUNT(*) FILTER (WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "periodTickets"
+         FROM support_requests`,
+        [days],
+      ),
+      this.dataSource.query(
+        `SELECT category, COUNT(*)::int AS count
+         FROM support_requests
+         WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day')
+         GROUP BY category ORDER BY count DESC, category ASC LIMIT 12`,
+        [days],
+      ),
+      this.dataSource.query(
+        `SELECT u.id, u."firstName", u."lastName", u.email,
+          COUNT(r.id) FILTER (WHERE r.status NOT IN ('response_sent', 'concluded', 'resolved', 'closed'))::int AS "activeCases",
+          COUNT(r.id) FILTER (WHERE COALESCE(r."closedAt", r."resolvedAt", r."concludedAt") >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "completedInPeriod"
+         FROM users u
+         LEFT JOIN support_requests r ON r."assignedSupportId" = u.id
+         WHERE u.role = $2 AND u."isSuspended" = false AND u."accountStatus" = 'active'
+           AND u."emailVerified" = true AND u."platformRoleStatus" = 'approved'
+         GROUP BY u.id, u."firstName", u."lastName", u.email
+         ORDER BY "activeCases" DESC, "completedInPeriod" DESC, u.email ASC`,
+        [days, UserRole.SUPPORT],
+      ),
+    ]);
+    const summary = summaryRows[0] || {};
+    const periodTickets = Number(summary.periodTickets || 0);
+    return {
+      windowDays: days,
+      generatedAt: new Date().toISOString(),
+      summary: {
+        ticketsCreated: Number(summary.ticketsCreated || 0),
+        openBacklog: Number(summary.openBacklog || 0),
+        overdueBacklog: Number(summary.overdueBacklog || 0),
+        averageBacklogAgeHours: Number((await this.dataSource.query(
+          `SELECT COALESCE(AVG(EXTRACT(EPOCH FROM (NOW() - "createdAt")) / 3600), 0)::float AS value
+           FROM support_requests WHERE status NOT IN ('response_sent', 'concluded', 'resolved', 'closed')`,
+        ))[0]?.value || 0),
+        averageResponseMinutes: Number(summary.averageResponseMinutes || 0),
+        averageResolutionMinutes: Number(summary.averageResolutionMinutes || 0),
+        escalatedTickets: Number(summary.escalatedTickets || 0),
+        escalationRate: periodTickets ? Number(((Number(summary.escalatedTickets || 0) / periodTickets) * 100).toFixed(1)) : 0,
+      },
+      categoryTrends: categoryRows,
+      agentWorkload: agentRows,
+    };
+  }
+
 }

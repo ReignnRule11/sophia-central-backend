@@ -6,11 +6,13 @@ describe('SupportService attachment ownership', () => {
   const user = { id: 'student-1', role: UserRole.STUDENT } as any;
   const reference = 'https://files.example.test/support-attachments/student-1/image.jpg';
   let requests: any;
+  let users: any;
   let s3: any;
   let notifications: any;
   let service: SupportService;
 
   beforeEach(() => {
+    users = { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) };
     requests = {
       create: jest.fn(value => value),
       query: jest.fn().mockResolvedValue([{ value: 1 }]),
@@ -35,7 +37,7 @@ describe('SupportService attachment ownership', () => {
     notifications = { createNotification: jest.fn().mockResolvedValue({}) };
     service = new SupportService(
       requests,
-      { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) } as any,
+      users,
       notifications,
       s3,
       { notifyNewRequest: jest.fn().mockResolvedValue(false), notifyGuestRequest: jest.fn().mockResolvedValue(true), sendResolution: jest.fn().mockResolvedValue(false), sendGuestResolution: jest.fn().mockResolvedValue(true) } as any,
@@ -62,6 +64,29 @@ describe('SupportService attachment ownership', () => {
       subject: 'Public enquiry',
       status: 'pending',
     }));
+  });
+
+
+  it('routes new guest ticket notifications only to currently approved Support accounts', async () => {
+    users.find.mockResolvedValueOnce([{ id: 'support-approved' }]);
+    await service.createGuestContact({
+      name: 'Guest Requester',
+      email: 'guest@example.com',
+      category: 'general',
+      subject: 'Public enquiry',
+      message: 'Please help me understand the platform.',
+    });
+    expect(users.find).toHaveBeenCalledWith({ where: {
+      role: UserRole.SUPPORT,
+      isSuspended: false,
+      accountStatus: 'active',
+      emailVerified: true,
+      platformRoleStatus: 'approved',
+    } });
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      'support-approved', 'support_request_new', 'New guest support ticket',
+      expect.stringContaining('SUP-2026-000001'), '/support/requests',
+    );
   });
 
   it('notifies the registered requester after a support ticket is successfully saved', async () => {
@@ -168,6 +193,21 @@ describe('SupportService attachment ownership', () => {
       await expect(service.listForModeration(nonSupport)).rejects.toBeInstanceOf(ForbiddenException);
     });
 
+
+    it('rejects a previously approved Support session after approval is revoked', async () => {
+      users.findOne.mockResolvedValueOnce(null);
+      const staleSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+      await expect(service.updateStatus('ticket-1', staleSupport, 'under_review')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(requests.findOne).not.toHaveBeenCalled();
+    });
+
+    it('requires current Admin approval before escalation', async () => {
+      users.findOne.mockResolvedValueOnce(null);
+      const staleSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+      await expect(service.escalate('ticket-1', staleSupport, UserRole.ADMIN, 'Escalation reason')).rejects.toBeInstanceOf(ForbiddenException);
+      expect(requests.findOne).not.toHaveBeenCalled();
+    });
+
     it('rejects inactive Support actors from status changes', async () => {
       await expect(service.updateStatus('ticket-1', inactiveSupport, 'under_review')).rejects.toBeInstanceOf(ForbiddenException);
     });
@@ -177,12 +217,14 @@ describe('SupportService attachment ownership', () => {
     });
 
     it('rejects Moderator escalation so Moderators do not enter the Support workflow', async () => {
+      users.findOne.mockResolvedValueOnce({ id: 'support-1', role: UserRole.SUPPORT, platformRoleStatus: 'approved' });
       const activeSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
       await expect(service.escalate('ticket-1', activeSupport, UserRole.MODERATOR, 'Escalation reason')).rejects.toBeInstanceOf(BadRequestException);
     });
 
 
     it('rejects duplicate Admin escalations for a ticket', async () => {
+      users.findOne.mockResolvedValueOnce({ id: 'support-1', role: UserRole.SUPPORT, platformRoleStatus: 'approved' });
       const activeSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
       requests.findOne.mockResolvedValueOnce({ id: 'ticket-1', ticketNumber: 'SUP-2026-000001', subject: 'Test', category: 'technical', description: 'Issue', escalatedToRole: 'admin' });
       await expect(service.escalate('ticket-1', activeSupport, UserRole.ADMIN, 'Escalation reason')).rejects.toBeInstanceOf(ConflictException);

@@ -222,7 +222,7 @@ export class SupportService {
         await this.notifications.createNotification(request.userId, 'support_request_status', 'More information requested', `Admin requested more information for ticket ${request.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
       } else if (dto.action === 'resolved') {
         if (request.userId) await this.notifications.createNotification(request.userId, 'support_request_status', 'Admin escalation review completed', `Admin completed the escalation review for ticket ${request.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
-        const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } });
+        const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' } });
         await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for ticket ${request.ticketNumber}. Review the decision in the Admin escalation centre.`, '/support/requests')));
       } else if (dto.action === 'returned_to_team') {
         const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } });
@@ -254,7 +254,7 @@ export class SupportService {
   }
 
   async updateStatus(id: string, actor: User, status: 'under_review' | 'reviewed') {
-    if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
+    await this.assertApprovedSupport(actor.id);
     const request = await this.requests.findOne({ where: { id } });
     if (!request) throw new NotFoundException('Support ticket not found.');
     if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A responded ticket cannot return to an earlier stage.');
@@ -268,14 +268,11 @@ export class SupportService {
   }
 
   async conclude(id: string, actor: User, dto: ConcludeSupportRequestDto) {
-    if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
+    const reviewer = await this.assertApprovedSupport(actor.id);
     const request = await this.requests.findOne({ where: { id }, relations: ['user'] });
     if (!request) throw new NotFoundException('Support request not found');
     if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A response has already been sent for this support request.');
     if (request.status !== 'reviewed') throw new BadRequestException('Mark the ticket as Reviewed before sending a response.');
-    const reviewer = await this.users.findOne({ where: { id: actor.id, role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } });
-    if (!reviewer) throw new ForbiddenException('The authenticated Support account is no longer active or authorized.');
-
     request.status = 'response_sent';
     request.resolutionMessage = dto.resolutionMessage.trim();
     request.reviewerId = actor.id;
@@ -304,7 +301,7 @@ export class SupportService {
   }
 
   async escalate(id: string, actor: User, targetRole: UserRole, reason: string) {
-    if (actor.role !== UserRole.SUPPORT || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active Support accounts can access this workflow.');
+    await this.assertApprovedSupport(actor.id);
     if (targetRole !== UserRole.ADMIN) throw new BadRequestException('Support escalations may only be directed to Admin.');
     if (!reason?.trim()) throw new BadRequestException('An escalation reason is required.');
     const request = await this.requests.findOne({ where: { id } });
