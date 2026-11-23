@@ -37,6 +37,17 @@ export class SupportCaseService {
     );
   }
 
+  async assignees(actor: User) {
+    await this.assertSupport(actor);
+    return this.dataSource.query(
+      `SELECT id, "firstName", "lastName", email FROM users
+       WHERE role = $1 AND "isSuspended" = false AND "accountStatus" = 'active'
+       AND "emailVerified" = true AND "platformRoleStatus" = 'approved'
+       ORDER BY "firstName" ASC, "lastName" ASC`,
+      [UserRole.SUPPORT],
+    );
+  }
+
   async queue(actor: User, query: { status?: string; priority?: string; assigned?: string; q?: string; page?: string; limit?: string }) {
     await this.assertSupport(actor);
     const page = Math.max(1, Math.min(100000, Number.parseInt(query.page || '1', 10) || 1));
