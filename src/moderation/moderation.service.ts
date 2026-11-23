@@ -300,7 +300,7 @@ export class ModerationService {
         throw new ForbiddenException('This resource is no longer awaiting academic review.');
       }
       const isAssignedReviewer = resource.assignedReviewerId === reviewer.id && Boolean(resource.reviewAssignmentId);
-      const isGlobalOversightReview = hasActiveGlobalReviewerAuthority(reviewerRecord) && Boolean(resource.reviewAssignmentId);
+      const isGlobalOversightReview = hasActiveGlobalReviewerAuthority(reviewerRecord) && Boolean(resource.assignedReviewerId) && Boolean(resource.reviewAssignmentId);
       if (!isAssignedReviewer && !isGlobalOversightReview) {
         if (!hasActiveGlobalReviewerAuthority(reviewerRecord) || resource.assignedReviewerId) {
           throw new ForbiddenException('This resource is not assigned to your reviewer account.');
