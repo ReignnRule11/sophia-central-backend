@@ -40,7 +40,7 @@ describe('SupportService attachment ownership', () => {
       users,
       notifications,
       s3,
-      { notifyNewRequest: jest.fn().mockResolvedValue(false), notifyGuestRequest: jest.fn().mockResolvedValue(true), sendResolution: jest.fn().mockResolvedValue(false), sendGuestResolution: jest.fn().mockResolvedValue(true) } as any,
+      { notifyNewRequest: jest.fn().mockResolvedValue(false), notifyGuestRequest: jest.fn().mockResolvedValue(true), sendResolution: jest.fn().mockResolvedValue(false), sendGuestResolution: jest.fn().mockResolvedValue(true), sendGuestAdminDecision: jest.fn().mockResolvedValue(true) } as any,
     );
   });
 
@@ -151,6 +151,17 @@ describe('SupportService attachment ownership', () => {
     expect(requests.save).not.toHaveBeenCalled();
   });
 
+
+
+  it('emails guest requesters Admin escalation decisions that require action or close review', async () => {
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    requests.findOne.mockResolvedValueOnce({ id: 'ticket-5', ticketNumber: 'SUP-2026-000005', escalatedToRole: 'admin', userId: null, senderEmail: 'guest@example.test', senderName: 'Guest', subject: 'Question' });
+    requests.query.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'decision-3' }]);
+    await service.recordAdminEscalationDecision('ticket-5', admin, { action: 'awaiting_information', note: 'Please send a screenshot.' } as any);
+    expect((service as any).supportEmail.sendGuestAdminDecision).toHaveBeenCalledWith(
+      expect.objectContaining({ senderEmail: 'guest@example.test' }), 'awaiting_information', 'Please send a screenshot.',
+    );
+  });
 
   it('routes Admin-resolved escalation notifications back to the Support workspace', async () => {
     const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
