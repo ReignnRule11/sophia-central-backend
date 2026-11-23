@@ -218,6 +218,34 @@ describe('ModerationService academic reviewer workflow', () => {
     );
   });
 
+  it('records Global Reviewer re-review escalation and reopens a completed resource', async () => {
+    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true, reviewerStatus: 'approved', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
+    const resource = { id: 'resource-escalate-1', title: 'Reviewed research', moderationStatus: ResourceModerationStatus.APPROVED, isVerified: true, assignedReviewerId: null, reviewAssignmentId: null, uploaderId: 'lecturer-1' };
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource);
+    transactionManager.query.mockResolvedValueOnce([{ id: 'escalation-1', resourceId: resource.id, previousStatus: 'approved', reason: 'The source evidence needs independent verification.', status: 'open' }]);
+
+    const result = await service.escalateReview(resource.id, 'The source evidence needs independent verification.', reviewer);
+
+    expect(result).toMatchObject({ id: 'escalation-1', status: 'open', previousStatus: 'approved' });
+    expect(resource.moderationStatus).toBe(ResourceModerationStatus.PENDING);
+    expect(resource.isVerified).toBe(false);
+    expect(resource.assignedReviewerId).toBeNull();
+    expect(resource.reviewAssignmentId).toBeNull();
+    expect(transactionManager.save).toHaveBeenCalledWith(Resource, resource);
+    expect(notificationsService.createNotification).toHaveBeenCalledWith(
+      'lecturer-1',
+      'resource_revision_requested',
+      'Your resource has been sent for another academic review',
+      '“Reviewed research” has been reopened for an independent academic re-review. The earlier review remains in its history.',
+      '/my-resources',
+    );
+  });
+
+  it('does not allow an ordinary reviewer to escalate a completed review', async () => {
+    const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, reviewerStatus: 'approved', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
+    await expect(service.escalateReview('resource-1', 'Please review this again.', reviewer)).rejects.toBeInstanceOf(ForbiddenException);
+  });
+
   it('does not allow a moderator to approve academic resources', async () => {
     resourceRepository.findOne.mockResolvedValue({ id: 'resource-1', moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: 'reviewer-1', uploaderId: 'student-1' });
     await expect(service.reviewResource('resource-1', { status: ResourceModerationStatus.APPROVED }, { id: 'moderator-1', role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } as User))
