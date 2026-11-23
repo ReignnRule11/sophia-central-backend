@@ -9,12 +9,24 @@ export class SupportRequest {
   @Column({ type: 'varchar', length: 32, unique: true })
   ticketNumber!: string;
 
-  @Column({ type: 'uuid' })
-  userId!: string;
+  @Column({ type: 'uuid', nullable: true })
+  userId?: string | null;
 
-  @ManyToOne(() => User, { nullable: false, onDelete: 'CASCADE' })
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'userId' })
-  user!: User;
+  user?: User | null;
+
+  @Column({ type: 'varchar', length: 120, nullable: true })
+  senderName?: string | null;
+
+  @Column({ type: 'varchar', length: 320, nullable: true })
+  senderEmail?: string | null;
+
+  @Column({ type: 'varchar', length: 24, nullable: true })
+  senderAccountType?: 'guest' | 'student' | 'lecturer' | null;
+
+  @Column({ type: 'varchar', length: 32, default: 'registered' })
+  requesterType!: 'registered' | 'guest';
 
   @Column({ type: 'varchar', length: 180 })
   subject!: string;
