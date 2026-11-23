@@ -150,6 +150,22 @@ describe('SupportService attachment ownership', () => {
     } as any)).rejects.toBeInstanceOf(BadRequestException);
     expect(requests.save).not.toHaveBeenCalled();
   });
+
+  it('notifies only approved Support accounts when Admin returns an escalation to the team', async () => {
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    requests.findOne.mockResolvedValueOnce({ id: 'ticket-3', ticketNumber: 'SUP-2026-000003', escalatedToRole: 'admin', userId: null });
+    requests.query.mockResolvedValueOnce([{ action: 'awaiting_information' }]).mockResolvedValueOnce([{ id: 'decision-1' }]);
+    users.find.mockResolvedValueOnce([{ id: 'approved-support' }]);
+    await service.recordAdminEscalationDecision('ticket-3', admin, { action: 'returned_to_team', note: 'Continue investigating.' } as any);
+    expect(users.find).toHaveBeenCalledWith({ where: {
+      role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved',
+    } });
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      'approved-support', 'support_ticket_escalation_returned', 'Admin returned an escalated ticket',
+      expect.stringContaining('Continue investigating.'), '/support/requests',
+    );
+  });
+
   it('loads Admin escalations through mapped repository fields and relations', async () => {
     const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
     const escalated = { id: 'ticket-1', ticketNumber: 'SUP-2026-000001', escalatedToRole: 'admin', escalatedAt: new Date(), attachments: [] };
