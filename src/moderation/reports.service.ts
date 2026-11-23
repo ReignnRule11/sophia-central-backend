@@ -349,6 +349,9 @@ export class ContentReportsService {
     if (moderator.role === UserRole.MODERATOR && report.escalatedToRole === 'admin') {
       throw new ForbiddenException('This report is with Admin and cannot be changed by a Moderator.');
     }
+    if (moderator.role === UserRole.MODERATOR && report.assignedModeratorId !== moderator.id) {
+      throw new ForbiddenException('Claim this report before processing it. Reports assigned to another Moderator cannot be changed by you.');
+    }
     if (report.status === ContentReportStatus.ACTIONED || report.status === ContentReportStatus.DISMISSED) {
       throw new ConflictException('This report has already been closed.');
     }
