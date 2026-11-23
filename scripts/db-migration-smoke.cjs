@@ -56,6 +56,8 @@ async function main() {
     const adminColumns = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'users' AND column_name = 'platformRoleStatus'");
     assert.equal(adminColumns.rowCount, 1, 'platform role lifecycle status should exist');
     const escalationColumns = await client.query("SELECT table_name, column_name FROM information_schema.columns WHERE table_schema = 'public' AND ((table_name = 'support_requests' AND column_name IN ('escalationReason', 'escalatedAt', 'escalatedById')) OR (table_name = 'content_reports' AND column_name IN ('escalatedToRole', 'escalationReason', 'escalatedAt', 'escalatedById')))");
+    const academicReviewEscalationTable = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'academic_review_escalations' AND column_name IN ('resourceId', 'requestedById', 'previousStatus', 'reason', 'status', 'resolvedById', 'resolvedAt')");
+    assert.equal(academicReviewEscalationTable.rowCount, 7, 'academic review escalation audit table should include required lifecycle fields');
     assert.equal(escalationColumns.rowCount, 7, 'Support and Moderation escalation metadata should exist');
     const platformAuditSnapshots = await client.query("SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'platform_role_audit_events' AND column_name IN ('actorEmail', 'targetEmail', 'reason')");
     assert.equal(platformAuditSnapshots.rowCount, 3, 'platform audit actor and target snapshots should exist');
