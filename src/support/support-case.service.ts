@@ -156,12 +156,14 @@ export class SupportCaseService {
       this.dataSource.query(
         `SELECT
           COUNT(*) FILTER (WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "ticketsCreated",
+          COUNT(*) FILTER (WHERE "concludedAt" IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "responseCount",
+          COUNT(*) FILTER (WHERE COALESCE("closedAt", "resolvedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "resolutionCount",
           COUNT(*) FILTER (WHERE status NOT IN ('response_sent', 'concluded', 'resolved', 'closed'))::int AS "openBacklog",
           COUNT(*) FILTER (WHERE status NOT IN ('response_sent', 'concluded', 'resolved', 'closed') AND "slaDueAt" < NOW())::int AS "overdueBacklog",
           COALESCE(AVG(EXTRACT(EPOCH FROM (COALESCE("concludedAt", "resolvedAt") - "createdAt")) / 60)
             FILTER (WHERE COALESCE("concludedAt", "resolvedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day')), 0)::float AS "averageResponseMinutes",
-          COALESCE(AVG(EXTRACT(EPOCH FROM (COALESCE("closedAt", "resolvedAt", "concludedAt") - "createdAt")) / 60)
-            FILTER (WHERE COALESCE("closedAt", "resolvedAt", "concludedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day')), 0)::float AS "averageResolutionMinutes",
+          COALESCE(AVG(EXTRACT(EPOCH FROM (COALESCE("closedAt", "resolvedAt") - "createdAt")) / 60)
+            FILTER (WHERE COALESCE("closedAt", "resolvedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day')), 0)::float AS "averageResolutionMinutes",
           COUNT(*) FILTER (WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day') AND "escalatedToRole" IS NOT NULL)::int AS "escalatedTickets",
           COUNT(*) FILTER (WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "periodTickets"
          FROM support_requests`,
@@ -201,7 +203,9 @@ export class SupportCaseService {
            FROM support_requests WHERE status NOT IN ('response_sent', 'concluded', 'resolved', 'closed')`,
         ))[0]?.value || 0),
         averageResponseMinutes: Number(summary.averageResponseMinutes || 0),
+        responseCount: Number(summary.responseCount || 0),
         averageResolutionMinutes: Number(summary.averageResolutionMinutes || 0),
+        resolutionCount: Number(summary.resolutionCount || 0),
         escalatedTickets: Number(summary.escalatedTickets || 0),
         escalationRate: periodTickets ? Number(((Number(summary.escalatedTickets || 0) / periodTickets) * 100).toFixed(1)) : 0,
       },
