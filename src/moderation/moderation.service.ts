@@ -96,6 +96,63 @@ export class ModerationService {
     });
   }
 
+  async listReviewEscalations(viewer: User) {
+    if (!isActiveVerified(viewer) || (viewer.role !== UserRole.ADMIN && !hasActiveGlobalReviewerAuthority(viewer))) {
+      throw new ForbiddenException('Only Admin and the Global Academic Reviewer can inspect academic review escalations.');
+    }
+    return this.resourceRepository.manager.query(`
+      SELECT e."id", e."resourceId", e."requestedById", e."previousStatus", e."reason", e."status",
+             e."resolvedById", e."resolutionNote", e."createdAt", e."resolvedAt",
+             r."title" AS "resourceTitle", r."moderationStatus"
+      FROM "academic_review_escalations" e
+      INNER JOIN "resources" r ON r."id" = e."resourceId"
+      ORDER BY e."createdAt" DESC
+      LIMIT 250
+    `);
+  }
+
+  async escalateReview(resourceId: string, reason: string, actor: User) {
+    if (!isActiveVerified(actor) || !hasActiveGlobalReviewerAuthority(actor)) {
+      throw new ForbiddenException('Only the active Global Academic Reviewer can escalate an academic review.');
+    }
+    const cleanReason = reason?.trim();
+    if (!cleanReason || cleanReason.length < 10 || cleanReason.length > 2000) {
+      throw new BadRequestException('Provide a clear re-review reason between 10 and 2,000 characters.');
+    }
+    const escalation = await this.resourceRepository.manager.transaction(async manager => {
+      const reviewer = await manager.findOne(User, { where: { id: actor.id }, lock: { mode: 'pessimistic_read' } });
+      if (!reviewer || !isActiveVerified(reviewer) || !hasActiveGlobalReviewerAuthority(reviewer)) {
+        throw new ForbiddenException('Global Reviewer access is no longer active.');
+      }
+      const resource = await manager.findOne(Resource, { where: { id: resourceId }, lock: { mode: 'pessimistic_write' } });
+      if (!resource) throw new NotFoundException('Resource not found.');
+      if (![ResourceModerationStatus.APPROVED, ResourceModerationStatus.REJECTED, ResourceModerationStatus.REVISION_REQUESTED].includes(resource.moderationStatus)) {
+        throw new ConflictException('Only a completed academic review can be escalated for re-review.');
+      }
+      const previousStatus = resource.moderationStatus;
+      const rows = await manager.query(
+        'INSERT INTO "academic_review_escalations" ("resourceId", "requestedById", "previousStatus", "reason") VALUES ($1::uuid, $2::uuid, $3, $4) RETURNING "id", "resourceId", "previousStatus", "reason", "status", "createdAt"',
+        [resource.id, reviewer.id, previousStatus, cleanReason],
+      );
+      resource.moderationStatus = ResourceModerationStatus.PENDING;
+      resource.isVerified = false;
+      resource.assignedReviewerId = null;
+      resource.reviewAssignmentId = null;
+      await manager.save(Resource, resource);
+      return { escalation: rows[0], title: resource.title, uploaderId: resource.uploaderId };
+    });
+    if (escalation.uploaderId) {
+      await this.notificationsService.createNotification(
+        escalation.uploaderId,
+        'resource_revision_requested',
+        'Your resource has been sent for another academic review',
+        `“${escalation.title}” has been reopened for an independent academic re-review. The earlier review remains in its history.`,
+        '/my-resources',
+      ).catch(error => this.logger.warn(`Could not notify contributor about re-review escalation: ${String(error)}`));
+    }
+    return escalation.escalation;
+  }
+
   async getReviewerRoster(viewer: User) {
     if (!isActiveVerified(viewer)) throw new ForbiddenException('This account is inactive or unverified.');
     if (viewer.role !== UserRole.ADMIN) {
