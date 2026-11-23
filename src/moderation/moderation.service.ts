@@ -204,12 +204,32 @@ export class ModerationService {
     }
     const adminId = actor.id;
     const assignment = await this.resourceRepository.manager.transaction(async manager => {
+      // Revalidate the assigning authority from the database while the assignment
+      // transaction is open; the JWT/request snapshot may predate a revocation.
+      const assigningUser = await manager.findOne(User, {
+        where: { id: adminId },
+        lock: { mode: 'pessimistic_read' },
+      });
+      const canAssign = Boolean(
+        assigningUser
+        && isActiveVerified(assigningUser)
+        && (assigningUser.role === UserRole.ADMIN || hasActiveGlobalReviewerAuthority(assigningUser)),
+      );
+      if (!canAssign) {
+        throw new ForbiddenException('Your academic reviewer assignment authority is no longer active.');
+      }
+
       const reviewer = await manager.findOne(User, {
         where: { id: reviewerId },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!reviewer || !hasReviewerCapability(reviewer) || !isActiveVerified(reviewer)) {
-        throw new BadRequestException('Select an active, administrator-approved academic reviewer');
+      if (
+        !reviewer
+        || !hasReviewerCapability(reviewer)
+        || reviewer.reviewerStatus !== 'approved'
+        || !isActiveVerified(reviewer)
+      ) {
+        throw new BadRequestException('Select an active, verified reviewer with current Admin approval.');
       }
 
       const resource = await manager.findOne(Resource, {
