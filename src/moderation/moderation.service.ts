@@ -328,6 +328,7 @@ export class ModerationService {
         [assignmentId, resource.id, reviewer.id, dto.declaration, dto.reason?.trim() || null],
       );
 
+      let reassignmentRequired = false;
       if (dto.declaration === 'recuse') {
         await manager.query(
           'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5)',
@@ -337,10 +338,11 @@ export class ModerationService {
           resource.assignedReviewerId = null;
           resource.reviewAssignmentId = null;
           await manager.save(Resource, resource);
+          reassignmentRequired = true;
         }
       }
 
-      return { declaration: dto.declaration, reassignmentRequired: dto.declaration === 'recuse', title: resource.title };
+      return { declaration: dto.declaration, reassignmentRequired, title: resource.title };
     });
 
     if (result.reassignmentRequired) {
