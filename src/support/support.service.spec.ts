@@ -66,6 +66,29 @@ describe('SupportService attachment ownership', () => {
     }));
   });
 
+
+  it('routes new guest ticket notifications only to currently approved Support accounts', async () => {
+    users.find.mockResolvedValueOnce([{ id: 'support-approved' }]);
+    await service.createGuestContact({
+      name: 'Guest Requester',
+      email: 'guest@example.com',
+      category: 'general',
+      subject: 'Public enquiry',
+      message: 'Please help me understand the platform.',
+    });
+    expect(users.find).toHaveBeenCalledWith({ where: {
+      role: UserRole.SUPPORT,
+      isSuspended: false,
+      accountStatus: 'active',
+      emailVerified: true,
+      platformRoleStatus: 'approved',
+    } });
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      'support-approved', 'support_request_new', 'New guest support ticket',
+      expect.stringContaining('SUP-2026-000001'), '/support/requests',
+    );
+  });
+
   it('notifies the registered requester after a support ticket is successfully saved', async () => {
     const result = await service.create(user, {
       subject: 'Help with my account',
