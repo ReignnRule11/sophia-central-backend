@@ -225,7 +225,7 @@ export class SupportService {
         const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' } });
         await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for ticket ${request.ticketNumber}. Review the decision in the Admin escalation centre.`, '/support/requests')));
       } else if (dto.action === 'returned_to_team') {
-        const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } });
+        const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' } });
         await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_returned', 'Admin returned an escalated ticket', `Ticket ${request.ticketNumber} was returned to Support: ${dto.note.trim()}`, '/support/requests')));
       }
     } catch (error) {
