@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Request } from 'express';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
@@ -10,6 +10,7 @@ import { ModerationService } from './moderation.service';
 import { ReviewResourceDto } from './dto/review-resource.dto';
 import { AssignReviewerDto } from './dto/assign-reviewer.dto';
 import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declaration.dto';
+import { EscalateReviewDto } from './dto/escalate-review.dto';
 
 type AuthenticatedRequest = Request & { user: User };
 
@@ -36,6 +37,19 @@ export class ModerationController {
   @Roles(UserRole.ADMIN)
   getConflictDeclarations(@Req() request: AuthenticatedRequest) {
     return this.moderationService.getConflictDeclarations(request.user);
+  }
+
+  @Get('escalations')
+  @Roles(UserRole.ADMIN, UserRole.REVIEWER)
+  getReviewEscalations(@Req() request: AuthenticatedRequest) {
+    return this.moderationService.listReviewEscalations(request.user);
+  }
+
+  @Post('resources/:id/escalate-review')
+  @Roles(UserRole.REVIEWER)
+  @UseGuards(CsrfGuard)
+  escalateReview(@Param('id') id: string, @Body() dto: EscalateReviewDto, @Req() request: AuthenticatedRequest) {
+    return this.moderationService.escalateReview(id, dto.reason, request.user);
   }
 
   @Get('reviewers')
