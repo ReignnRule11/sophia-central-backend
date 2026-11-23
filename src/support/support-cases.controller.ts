@@ -16,6 +16,13 @@ import { SupportCaseService } from './support-case.service';
 export class SupportCasesController {
   constructor(private readonly cases: SupportCaseService) {}
 
+  @Get('analytics')
+  analytics(@CurrentUser() actor: User, @Query('days') days?: string) {
+    const windowDays = days === undefined ? 30 : Number.parseInt(days, 10);
+    if (![7, 30, 90].includes(windowDays)) throw new BadRequestException('Choose a 7, 30, or 90 day analytics window.');
+    return this.cases.analytics(actor, windowDays);
+  }
+
   @Get('assignees')
   assignees(@CurrentUser() actor: User) { return this.cases.assignees(actor); }
 
