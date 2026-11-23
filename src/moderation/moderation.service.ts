@@ -359,8 +359,8 @@ export class ModerationService {
   }
 
   async reviewResource(id: string, dto: ReviewResourceDto, reviewer: User) {
-    if (!hasReviewerCapability(reviewer) || reviewer.isSuspended) {
-      throw new ForbiddenException('Only active, approved academic reviewers can submit academic reviews.');
+    if (!hasReviewerCapability(reviewer) || !isActiveVerified(reviewer)) {
+      throw new ForbiddenException('Only active, verified academic reviewers can submit academic reviews.');
     }
     if (![ResourceModerationStatus.APPROVED, ResourceModerationStatus.REJECTED, ResourceModerationStatus.REVISION_REQUESTED].includes(dto.status)) {
       throw new BadRequestException('Choose approve, reject or request revision');
@@ -374,8 +374,8 @@ export class ModerationService {
         where: { id: reviewer.id },
         lock: { mode: 'pessimistic_read' },
       });
-      if (!reviewerRecord || !hasReviewerCapability(reviewerRecord) || reviewerRecord.isSuspended) {
-        throw new ForbiddenException('Your reviewer access is no longer active.');
+      if (!reviewerRecord || !hasReviewerCapability(reviewerRecord) || !isActiveVerified(reviewerRecord)) {
+        throw new ForbiddenException('Your reviewer access is no longer active or verified.');
       }
       const resource = await manager.findOne(Resource, {
         where: { id },
