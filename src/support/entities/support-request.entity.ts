@@ -58,6 +58,31 @@ export class SupportRequest {
   @Column({ type: 'varchar', length: 24, default: 'pending' })
   status!: 'pending' | 'under_review' | 'reviewed' | 'response_sent' | 'concluded';
 
+  @Column({ type: 'varchar', length: 16, default: 'normal' })
+  priority!: 'low' | 'normal' | 'high' | 'urgent';
+
+  @Column({ type: 'uuid', nullable: true })
+  assignedSupportId?: string | null;
+
+  @ManyToOne(() => User, { nullable: true, onDelete: 'SET NULL' })
+  @JoinColumn({ name: 'assignedSupportId' })
+  assignedSupport?: User | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  slaDueAt?: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  resolvedAt?: Date | null;
+
+  @Column({ type: 'timestamptz', nullable: true })
+  closedAt?: Date | null;
+
+  @Column({ type: 'varchar', length: 60, nullable: true })
+  resolutionCategory?: string | null;
+
+  @Column({ type: 'text', nullable: true })
+  closureReason?: string | null;
+
   @Column({ type: 'text', nullable: true })
   resolutionMessage?: string | null;
 
