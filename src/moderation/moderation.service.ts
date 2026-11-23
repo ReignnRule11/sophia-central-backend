@@ -13,7 +13,8 @@ import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declarat
 import { hasActiveGlobalReviewerAuthority } from '../users/reviewer-permissions';
 
 function hasReviewerCapability(user: User): boolean {
-  return user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
+  const hasCapability = user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
+  return hasCapability && user.reviewerStatus === 'approved';
 }
 
 function isActiveVerified(user: User): boolean {
