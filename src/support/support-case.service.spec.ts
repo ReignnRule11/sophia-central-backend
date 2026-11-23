@@ -36,13 +36,17 @@ describe('SupportCaseService', () => {
   it('records resolution category, timestamp, and immutable timeline event', async () => {
     dataSource.query
       .mockResolvedValueOnce([{ id: actor.id, email: actor.email }])
-      .mockResolvedValueOnce([{ id: 'ticket-1', ticketNumber: 'SUP-2026-000001', status: 'response_sent', resolvedAt: null, closedAt: null }])
+      .mockResolvedValueOnce([{ id: 'ticket-1', ticketNumber: 'SUP-2026-000001', userId: 'student-1', status: 'response_sent', resolvedAt: null, closedAt: null }])
       .mockResolvedValueOnce([])
       .mockResolvedValueOnce([{ id: 'ticket-1', status: 'response_sent', resolvedAt: new Date(), resolutionCategory: 'resolved' }]);
     const result = await service.resolve('ticket-1', actor, 'resolved', 'Confirmed fixed.');
     expect(result.resolutionCategory).toBe('resolved');
     expect(dataSource.query.mock.calls[2][0]).toContain('UPDATE support_requests SET "resolvedAt"');
     expect(dataSource.query.mock.calls[3][0]).toContain('support_request_events');
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      'student-1', 'support_request_status', 'Your support ticket was marked resolved',
+      expect.stringContaining('SUP-2026-000001'), '/my-activity',
+    );
   });
 
   it('rejects resolution before a response is sent', async () => {
