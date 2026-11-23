@@ -268,13 +268,11 @@ export class SupportService {
   }
 
   async conclude(id: string, actor: User, dto: ConcludeSupportRequestDto) {
-    await this.assertApprovedSupport(actor.id);
+    const reviewer = await this.assertApprovedSupport(actor.id);
     const request = await this.requests.findOne({ where: { id }, relations: ['user'] });
     if (!request) throw new NotFoundException('Support request not found');
     if (['response_sent', 'concluded'].includes(request.status)) throw new ConflictException('A response has already been sent for this support request.');
     if (request.status !== 'reviewed') throw new BadRequestException('Mark the ticket as Reviewed before sending a response.');
-    const reviewer = await this.assertApprovedSupport(actor.id);
-
     request.status = 'response_sent';
     request.resolutionMessage = dto.resolutionMessage.trim();
     request.reviewerId = actor.id;
