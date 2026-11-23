@@ -272,7 +272,8 @@ export class ContentReportsService {
         throw new BadRequestException('Choose an active, verified Moderator account.');
       }
       const previousModeratorId = report.assignedModeratorId || null;
-      const eventType = previousModeratorId === targetModeratorId ? 'assigned' : previousModeratorId ? 'reassigned' : (targetModeratorId === actor.id ? 'claimed' : 'assigned');
+      if (previousModeratorId === targetModeratorId) throw new ConflictException('This report is already assigned to that Moderator.');
+      const eventType = previousModeratorId ? 'reassigned' : (targetModeratorId === actor.id ? 'claimed' : 'assigned');
       report.assignedModeratorId = targetModeratorId;
       if (report.status === ContentReportStatus.PENDING) report.status = ContentReportStatus.REVIEWING;
       const saved = await manager.save(ContentReport, report);
@@ -310,6 +311,7 @@ export class ContentReportsService {
       const report = await manager.findOne(ContentReport, { where: { id }, lock: { mode: 'pessimistic_write' } });
       if (!report) throw new NotFoundException('Report not found.');
       if (actor.role === UserRole.MODERATOR && report.escalatedToRole === 'admin') throw new ForbiddenException('This report is currently with Admin.');
+      if (actor.role === UserRole.MODERATOR && report.assignedModeratorId !== actor.id) throw new ForbiddenException('Claim this report before changing its priority.');
       if ([ContentReportStatus.ACTIONED, ContentReportStatus.DISMISSED].includes(report.status)) throw new ConflictException('Closed reports cannot be reprioritised.');
       const previousSeverity = report.severity;
       report.severity = severity as any;
