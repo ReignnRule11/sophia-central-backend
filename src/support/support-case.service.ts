@@ -21,7 +21,7 @@ export class SupportCaseService {
 
   private async ensureCase(id: string) {
     const rows = await this.dataSource.query(
-      `SELECT id, "ticketNumber", subject, category, status, priority, "assignedSupportId",
+      `SELECT id, "ticketNumber", "userId", subject, category, status, priority, "assignedSupportId",
        "slaDueAt", "createdAt", "updatedAt", "resolvedAt", "closedAt", "resolutionCategory", "closureReason"
        FROM support_requests WHERE id = $1::uuid LIMIT 1`, [id],
     );
@@ -123,6 +123,17 @@ export class SupportCaseService {
       [id, resolutionCategory, reason],
     );
     await this.event(id, supportActor, 'resolved', { resolutionCategory, closureReason: reason });
+    if (current.userId) {
+      try {
+        await this.notifications.createNotification(
+          current.userId,
+          'support_request_status',
+          'Your support ticket was marked resolved',
+          `Ticket ${current.ticketNumber} was marked resolved by Support.`,
+          '/my-activity',
+        );
+      } catch { /* resolution is durable even if notification delivery fails */ }
+    }
     return this.ensureCase(id);
   }
 
