@@ -1,6 +1,6 @@
 import { BadRequestException, ConflictException, ForbiddenException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { In, IsNull, Repository } from 'typeorm';
 import { User, UserRole } from '../users/entities/user.entity';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
 import { ChatKind, ChatMessage } from '../chat/entities/chat-message.entity';
@@ -322,12 +322,18 @@ export class ContentReportsService {
     });
   }
 
-  async listForModeration(actor: User, status?: ContentReportStatus) {
+  async listForModeration(actor: User, status?: ContentReportStatus, filters: { assignedToMe?: boolean; unassigned?: boolean; severity?: string } = {}) {
     if (![UserRole.MODERATOR, UserRole.ADMIN].includes(actor.role) || actor.isSuspended || actor.accountStatus !== 'active' || actor.emailVerified !== true) throw new ForbiddenException('Only active moderators and administrators can access reports.');
     const allowed = Object.values(ContentReportStatus);
     if (status && !allowed.includes(status)) throw new BadRequestException('Invalid report status filter.');
+    if (filters.severity && !['low', 'normal', 'high', 'critical'].includes(filters.severity)) throw new BadRequestException('Invalid report severity filter.');
+    const where: any = {};
+    if (status) where.status = status;
+    if (filters.severity) where.severity = filters.severity;
+    if (filters.unassigned) where.assignedModeratorId = IsNull();
+    else if (filters.assignedToMe && actor.role === UserRole.MODERATOR) where.assignedModeratorId = actor.id;
     return this.reports.find({
-      ...(status ? { where: { status } } : {}),
+      where,
       relations: ['reporter', 'assignedModerator'],
       order: { createdAt: 'DESC' },
       take: 100,
@@ -349,10 +355,10 @@ export class ContentReportsService {
     if ([ContentReportStatus.ACTIONED, ContentReportStatus.DISMISSED].includes(dto.status) && !dto.moderatorNote?.trim()) {
       throw new BadRequestException('Add a moderator note before closing this report.');
     }
+    const previousStatus = report.status;
     report.status = dto.status;
     report.assignedModeratorId = moderator.id;
     report.moderatorNote = dto.moderatorNote?.trim() || report.moderatorNote || null;
-    const previousStatus = report.status;
     const saved = await this.reports.save(report);
     await this.reports.query(
       'INSERT INTO report_case_events ("reportId", "actorId", "actorEmail", "eventType", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
