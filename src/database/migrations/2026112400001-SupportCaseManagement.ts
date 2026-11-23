@@ -75,9 +75,26 @@ export class SupportCaseManagement2026112400001 implements MigrationInterface {
         RETURN NEW;
       END;
     $$ LANGUAGE plpgsql`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TR_support_ticket_change_events" ON support_requests`);
+    await queryRunner.query(`DROP FUNCTION IF EXISTS record_support_ticket_changes()`);
     await queryRunner.query(`DROP TRIGGER IF EXISTS "TR_support_ticket_created_event" ON support_requests`);
     await queryRunner.query(`CREATE TRIGGER "TR_support_ticket_created_event"
       AFTER INSERT ON support_requests FOR EACH ROW EXECUTE FUNCTION record_support_ticket_created()`);
+    await queryRunner.query(`CREATE OR REPLACE FUNCTION record_support_ticket_changes() RETURNS trigger AS $
+      BEGIN
+        IF OLD.status IS DISTINCT FROM NEW.status THEN
+          INSERT INTO support_request_events ("supportRequestId", "actorEmail", "eventType", details)
+          VALUES (NEW.id, 'system@sophiscentral.local', 'status_changed', jsonb_build_object('from', OLD.status, 'to', NEW.status));
+        END IF;
+        IF OLD."escalatedToRole" IS DISTINCT FROM NEW."escalatedToRole" THEN
+          INSERT INTO support_request_events ("supportRequestId", "actorEmail", "eventType", details)
+          VALUES (NEW.id, 'system@sophiscentral.local', 'escalation_changed', jsonb_build_object('from', OLD."escalatedToRole", 'to', NEW."escalatedToRole"));
+        END IF;
+        RETURN NEW;
+      END;
+    $ LANGUAGE plpgsql`);
+    await queryRunner.query(`DROP TRIGGER IF EXISTS "TR_support_ticket_change_events" ON support_requests`);
+    await queryRunner.query(`CREATE TRIGGER "TR_support_ticket_change_events" AFTER UPDATE OF status, "escalatedToRole" ON support_requests FOR EACH ROW EXECUTE FUNCTION record_support_ticket_changes()`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
