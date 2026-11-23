@@ -293,13 +293,14 @@ export class SupportService {
     } catch (error) {
       this.logger.error(`Support request ${id} was concluded but its notification could not be created: ${String(error)}`);
     }
+    let responseEmailSent = false;
     try {
-      if (request.user) await this.supportEmail.sendResolution(saved, request.user);
-      else if (request.senderEmail) await this.supportEmail.sendGuestResolution(saved);
+      if (request.user) responseEmailSent = await this.supportEmail.sendResolution(saved, request.user);
+      else if (request.senderEmail) responseEmailSent = await this.supportEmail.sendGuestResolution(saved);
     } catch (error) {
       this.logger.error(`Support request ${id} was concluded but its email could not be sent: ${String(error)}`);
     }
-    return saved;
+    return { ...saved, responseEmailSent };
   }
 
   async escalate(id: string, actor: User, targetRole: UserRole, reason: string) {
