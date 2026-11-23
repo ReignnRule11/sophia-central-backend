@@ -13,7 +13,7 @@ export class AddReportCaseManagement2026112300001 implements MigrationInterface 
         "reportId" uuid NOT NULL REFERENCES content_reports(id) ON DELETE CASCADE,
         "actorId" uuid REFERENCES users(id) ON DELETE SET NULL,
         "actorEmail" varchar(320),
-        "eventType" varchar(32) NOT NULL CHECK ("eventType" IN ('claimed', 'assigned', 'reassigned', 'severity_changed', 'status_changed', 'note_added')),
+        "eventType" varchar(32) NOT NULL CHECK ("eventType" IN ('claimed', 'assigned', 'reassigned', 'severity_changed', 'status_changed', 'note_added', 'escalated_to_admin', 'returned_from_admin')),
         "fromModeratorId" uuid REFERENCES users(id) ON DELETE SET NULL,
         "toModeratorId" uuid REFERENCES users(id) ON DELETE SET NULL,
         "fromSeverity" varchar(24),
