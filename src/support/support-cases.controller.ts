@@ -47,6 +47,19 @@ export class SupportCasesController {
     return this.cases.assign(id, actor, body.assigneeId);
   }
 
+
+  @Post(':id/resolve')
+  @UseGuards(CsrfGuard)
+  resolve(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() body: { resolutionCategory: string; closureReason?: string },
+    @CurrentUser() actor: User,
+  ) {
+    if (typeof body.resolutionCategory !== 'string' || !body.resolutionCategory.trim()) throw new BadRequestException('A resolution category is required.');
+    if (body.closureReason !== undefined && typeof body.closureReason !== 'string') throw new BadRequestException('Resolution notes must be text.');
+    return this.cases.resolve(id, actor, body.resolutionCategory, body.closureReason);
+  }
+
   @Post(':id/priority')
   @UseGuards(CsrfGuard)
   priority(@Param('id', ParseUUIDPipe) id: string, @Body() body: { priority: 'low' | 'normal' | 'high' | 'urgent' }, @CurrentUser() actor: User) {
