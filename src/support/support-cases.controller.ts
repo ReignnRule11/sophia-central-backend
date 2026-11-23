@@ -16,6 +16,9 @@ import { SupportCaseService } from './support-case.service';
 export class SupportCasesController {
   constructor(private readonly cases: SupportCaseService) {}
 
+  @Get('assignees')
+  assignees(@CurrentUser() actor: User) { return this.cases.assignees(actor); }
+
   @Get()
   queue(
     @CurrentUser() actor: User,
