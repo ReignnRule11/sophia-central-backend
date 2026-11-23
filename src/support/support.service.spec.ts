@@ -151,6 +151,19 @@ describe('SupportService attachment ownership', () => {
     expect(requests.save).not.toHaveBeenCalled();
   });
 
+
+  it('routes Admin-resolved escalation notifications back to the Support workspace', async () => {
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    requests.findOne.mockResolvedValueOnce({ id: 'ticket-4', ticketNumber: 'SUP-2026-000004', escalatedToRole: 'admin', userId: null });
+    requests.query.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'decision-2' }]);
+    users.find.mockResolvedValueOnce([{ id: 'approved-support' }]);
+    await service.recordAdminEscalationDecision('ticket-4', admin, { action: 'resolved', note: 'Resolved by Admin.' } as any);
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      'approved-support', 'support_ticket_escalation_resolved', 'Admin completed an escalation review',
+      expect.stringContaining('SUP-2026-000004'), '/support/requests',
+    );
+  });
+
   it('notifies only approved Support accounts when Admin returns an escalation to the team', async () => {
     const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
     requests.findOne.mockResolvedValueOnce({ id: 'ticket-3', ticketNumber: 'SUP-2026-000003', escalatedToRole: 'admin', userId: null });
