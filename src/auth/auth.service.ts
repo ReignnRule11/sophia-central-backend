@@ -185,6 +185,9 @@ export class AuthService {
       throw new ForbiddenException('This account has a pending deletion request. Cancel the request during the 30-day grace period before signing in.');
     }
     if (user.isSuspended) throw new UnauthorizedException('This account is suspended. Contact Sophis Central support for assistance.');
+    if ([UserRole.MODERATOR, UserRole.SUPPORT].includes(user.role) && user.platformRoleStatus !== 'approved') {
+      throw new ForbiddenException('This platform account requires Admin approval before sign-in is permitted.');
+    }
     if (user.accountStatus === 'deactivated') {
       user = await this.usersService.update(user.id, { accountStatus: 'active' });
     }
