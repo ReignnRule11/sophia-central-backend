@@ -71,6 +71,50 @@ export class SupportEmailService {
     return true;
   }
 
+  async notifyGuestRequest(request: SupportRequest): Promise<boolean> {
+    if (!this.isConfigured() || !request.senderEmail) return false;
+    const supportEmail = this.config.get<string>('SUPPORT_EMAIL')!;
+    const appUrl = this.config.get<string>('FRONTEND_URL') || 'https://sophiscentral.vercel.app';
+    const requestUrl = new URL('/support', appUrl).toString();
+    const subject = `New Sophis Central guest support request [${request.ticketNumber}]: ${request.subject}`;
+    const text = [
+      'A new guest support request was submitted through Contact Us.',
+      `Ticket: ${request.ticketNumber}`,
+      `From: ${request.senderName || 'Guest'} <${request.senderEmail}>`,
+      `Category: ${request.category}`,
+      `Subject: ${request.subject}`,
+      '',
+      request.description,
+      '',
+      `Open Support: ${requestUrl}`,
+    ].join('\\n');
+    const html = `<h2>New guest support request</h2><p><strong>Ticket:</strong> ${this.escapeHtml(request.ticketNumber)}</p><p><strong>From:</strong> ${this.escapeHtml(request.senderName || 'Guest')} (${this.escapeHtml(request.senderEmail)})</p><p><strong>Category:</strong> ${this.escapeHtml(request.category)}</p><p><strong>Subject:</strong> ${this.escapeHtml(request.subject)}</p><p>${this.escapeHtml(request.description).replace(/\\n/g, '<br>')}</p><p><a href="${this.escapeHtml(requestUrl)}">Open Support workspace</a></p>`;
+    await this.send(supportEmail, subject, text, html, request.senderEmail);
+    await this.send(request.senderEmail, `We received your Sophis Central enquiry [${request.ticketNumber}]`, `Hello ${request.senderName || 'there'},\\n\\nWe received your enquiry and forwarded it to Sophis Central Support. Your ticket number is ${request.ticketNumber}. Our team will reply to this email.\\n\\nSophis Central Support`, `<p>Hello ${this.escapeHtml(request.senderName || 'there')},</p><p>We received your enquiry and forwarded it to Sophis Central Support.</p><p><strong>Ticket:</strong> ${this.escapeHtml(request.ticketNumber)}</p><p>Our team will reply to this email.</p><p>Sophis Central Support</p>`, supportEmail);
+    return true;
+  }
+
+  async sendGuestResolution(request: SupportRequest): Promise<boolean> {
+    if (!this.isConfigured() || !request.senderEmail) return false;
+    const supportEmail = this.config.get<string>('SUPPORT_EMAIL')!;
+    const subject = `Sophis Central Support replied to ticket [${request.ticketNumber}]`;
+    const text = `Hello ${request.senderName || 'there'},\\n\\nOur Support team has replied to your enquiry “${request.subject}”.\\n\\nTicket: ${request.ticketNumber}\\n\\nResponse:\\n${request.resolutionMessage || ''}\\n\\nYou can reply directly to this email if you need further assistance.\\n\\nSophis Central Support`;
+    const html = `<p>Hello ${this.escapeHtml(request.senderName || 'there')},</p><p>Our Support team has replied to your enquiry <strong>${this.escapeHtml(request.subject)}</strong>.</p><p><strong>Ticket:</strong> ${this.escapeHtml(request.ticketNumber)}</p><div style="white-space:pre-wrap">${this.escapeHtml(request.resolutionMessage || '')}</div><p>You can reply directly to this email if you need further assistance.</p><p>Sophis Central Support</p>`;
+    await this.send(request.senderEmail, subject, text, html, supportEmail);
+    return true;
+  }
+
+  async sendReportSummary(user: User, ticketNumber: string, summary: string): Promise<boolean> {
+    if (!this.isConfigured() || user.emailVerified !== true) return false;
+    const appUrl = this.config.get<string>('FRONTEND_URL') || 'https://sophiscentral.vercel.app';
+    const activityUrl = new URL('/my-activity', appUrl).toString();
+    const subject = `Sophis Central updated your report [${ticketNumber}]`;
+    const text = `Hello ${user.firstName || 'there'},\\n\\nThere is an update to your report ${ticketNumber}.\\n\\nSummary: ${summary}\\n\\nOpen Sophis Central and My Activity to read the full update.\\n${activityUrl}\\n\\nSophis Central`;
+    const html = `<p>Hello ${this.escapeHtml(user.firstName || 'there')},</p><p>There is an update to your report <strong>${this.escapeHtml(ticketNumber)}</strong>.</p><p><strong>Summary:</strong> ${this.escapeHtml(summary)}</p><p>Open Sophis Central and My Activity to read the full update.</p><p><a href="${this.escapeHtml(activityUrl)}">Open My Activity</a></p><p>Sophis Central</p>`;
+    await this.send(user.email, subject, text, html, this.config.get<string>('SUPPORT_EMAIL'));
+    return true;
+  }
+
   async sendContactEnquiry(enquiry: { name: string; email: string; category: string; subject: string; message: string }): Promise<void> {
     const recipient = this.config.get<string>('CONTACT_EMAIL') || this.config.get<string>('SUPPORT_EMAIL');
     if (!recipient || !this.config.get<string>('RESEND_API_KEY') || !this.config.get<string>('SUPPORT_FROM_EMAIL')) {
