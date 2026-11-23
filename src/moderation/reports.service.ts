@@ -8,7 +8,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { CreateContentReportDto } from './dto/create-content-report.dto';
 import { UpdateContentReportDto } from './dto/update-content-report.dto';
 import { ContentReport, ContentReportStatus, ReportTargetType } from './entities/content-report.entity';
-import { AdminEscalationDecisionDto } from '../common/dto/admin-escalation-decision.dto';\nimport { SupportEmailService } from '../support/support-email.service';
+import { AdminEscalationDecisionDto } from '../common/dto/admin-escalation-decision.dto';
+import { SupportEmailService } from '../support/support-email.service';
 
 @Injectable()
 export class ContentReportsService {
@@ -400,7 +401,10 @@ export class ContentReportsService {
           'Your report has been updated',
           `Ticket ${report.ticketNumber} is now ${dto.status.replace(/_/g, ' ')}. Open My Activity for the full update.`,
           '/my-activity',
-        );\n        if (report.reporter?.emailVerified === true) {\n          await this.supportEmail.sendReportSummary(report.reporter, report.ticketNumber, `Your report is now ${dto.status.replace(/_/g, ' ')}.`);\n        }
+        );
+        if (report.reporter?.emailVerified === true) {
+          await this.supportEmail.sendReportSummary(report.reporter, report.ticketNumber, `Your report is now ${dto.status.replace(/_/g, ' ')}.`);
+        }
       } catch (error) {
         this.logger.warn(`Report ${report.id} was updated but reporter notification failed: ${String(error)}`);
       }
