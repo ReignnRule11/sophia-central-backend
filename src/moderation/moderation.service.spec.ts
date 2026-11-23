@@ -329,6 +329,23 @@ describe('ModerationService academic reviewer workflow', () => {
     );
   });
 
+  it('records Global Reviewer recusal without releasing another reviewer assignment', async () => {
+    const reviewer = { id: 'global-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: true, isGlobalReviewer: true, reviewerStatus: 'approved', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
+    const resource = { id: 'resource-global-recusal', title: 'Assigned research', moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: 'assigned-reviewer-1', reviewAssignmentId: 'assignment-global-recusal' };
+    transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce(resource);
+    transactionManager.query.mockReset().mockResolvedValueOnce([]).mockResolvedValue([]);
+
+    const result = await service.declareConflict('resource-global-recusal', {
+      declaration: 'recuse',
+      reason: 'I have a conflict with this submission.',
+    }, reviewer);
+
+    expect(result).toMatchObject({ declaration: 'recuse', reassignmentRequired: false });
+    expect(resource.assignedReviewerId).toBe('assigned-reviewer-1');
+    expect(resource.reviewAssignmentId).toBe('assignment-global-recusal');
+    expect(transactionManager.save).not.toHaveBeenCalledWith(Resource, resource);
+  });
+
   it('records a revision request and requires reviewer feedback', async () => {
     const resource = {
       id: 'resource-1',
