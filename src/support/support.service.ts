@@ -294,7 +294,8 @@ export class SupportService {
       this.logger.error(`Support request ${id} was concluded but its notification could not be created: ${String(error)}`);
     }
     try {
-      if (request.user) await this.supportEmail.sendResolution(saved, request.user);\n      else if (request.senderEmail) await this.supportEmail.sendGuestResolution(saved);
+      if (request.user) await this.supportEmail.sendResolution(saved, request.user);
+      else if (request.senderEmail) await this.supportEmail.sendGuestResolution(saved);
     } catch (error) {
       this.logger.error(`Support request ${id} was concluded but its email could not be sent: ${String(error)}`);
     }
