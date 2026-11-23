@@ -174,6 +174,17 @@ describe('ModerationService academic reviewer workflow', () => {
     expect(resourceRepository.manager.transaction).toHaveBeenCalled();
   });
 
+  it.each([
+    ['suspended', { isSuspended: true, accountStatus: 'active', emailVerified: true }],
+    ['inactive', { isSuspended: false, accountStatus: 'inactive', emailVerified: true }],
+    ['unverified', { isSuspended: false, accountStatus: 'active', emailVerified: false }],
+  ])('blocks a %s reviewer from submitting an academic decision', async (_label, state) => {
+    const reviewer = { id: 'reviewer-locked', role: UserRole.REVIEWER, hasReviewerAccess: true, ...state } as User;
+    await expect(service.reviewResource('resource-1', { status: ResourceModerationStatus.APPROVED }, reviewer))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(resourceRepository.manager.transaction).not.toHaveBeenCalled();
+  });
+
   it('prevents a reviewer from deciding on an unassigned resource', async () => {
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
     transactionManager.findOne.mockResolvedValueOnce(reviewer).mockResolvedValueOnce({
