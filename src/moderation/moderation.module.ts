@@ -9,7 +9,8 @@ import { ContentReportsService } from './reports.service';
 import { Resource } from '../resources/entities/resource.entity';
 import { User } from '../users/entities/user.entity';
 import { ChatMessage } from '../chat/entities/chat-message.entity';
-import { NotificationsModule } from '../notifications/notifications.module';\nimport { SupportModule } from '../support/support.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { SupportModule } from '../support/support.module';
 import { PointsModule } from '../points/points.module';
 
 @Module({
