@@ -38,8 +38,30 @@ describe('SupportService attachment ownership', () => {
       { findOne: jest.fn(), find: jest.fn().mockResolvedValue([]) } as any,
       notifications,
       s3,
-      { notifyNewRequest: jest.fn().mockResolvedValue(false), sendResolution: jest.fn().mockResolvedValue(false) } as any,
+      { notifyNewRequest: jest.fn().mockResolvedValue(false), notifyGuestRequest: jest.fn().mockResolvedValue(true), sendResolution: jest.fn().mockResolvedValue(false), sendGuestResolution: jest.fn().mockResolvedValue(true) } as any,
     );
+  });
+
+  it('persists public Contact Us enquiries as guest support tickets', async () => {
+    const result = await service.createGuestContact({
+      name: 'Guest Requester',
+      email: 'guest@example.com',
+      category: 'general',
+      subject: 'Public enquiry',
+      message: 'Please help me understand the platform.',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.ticketNumber).toBe('SUP-2026-000001');
+    expect(requests.save).toHaveBeenCalledWith(expect.objectContaining({
+      userId: null,
+      requesterType: 'guest',
+      senderName: 'Guest Requester',
+      senderEmail: 'guest@example.com',
+      senderAccountType: 'guest',
+      subject: 'Public enquiry',
+      status: 'pending',
+    }));
   });
 
   it('notifies the registered requester after a support ticket is successfully saved', async () => {
