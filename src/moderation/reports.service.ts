@@ -283,6 +283,17 @@ export class ContentReportsService {
       );
       return saved;
     });
+    try {
+      await this.notifications.createNotification(
+        targetModeratorId,
+        'moderation_report_assigned',
+        'A report case was assigned to you',
+        `Report ${result.ticketNumber} is now assigned to your Moderator workspace. Reason: ${reason.trim()}`,
+        '/moderation/reports?tab=reports',
+      );
+    } catch (error) {
+      this.logger.warn(`Report ${result.ticketNumber} was assigned but the Moderator notification could not be created: ${String(error)}`);
+    }
     return result;
   }
 
