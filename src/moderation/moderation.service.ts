@@ -417,6 +417,10 @@ export class ModerationService {
       });
       const savedReview = await manager.save(ModerationReview, review);
       await manager.query(
+        'UPDATE "academic_review_escalations" SET "status" = $2, "resolvedById" = $3::uuid, "resolutionNote" = $4, "resolvedAt" = now() WHERE "resourceId" = $1::uuid AND "status" = $5',
+        [resource.id, 'resolved', reviewer.id, dto.note?.trim() || `Re-review completed: ${dto.status.replace(/_/g, ' ')}`, 'open'],
+      );
+      await manager.query(
         'INSERT INTO reviewer_assignment_events ("assignmentId", "resourceId", "reviewerId", "actorId", "eventType", "reviewStatus") VALUES ($1::uuid, $2::uuid, $3::uuid, $4::uuid, $5, $6)',
         [completedAssignmentId, resource.id, reviewer.id, reviewer.id, 'completed', dto.status],
       );
