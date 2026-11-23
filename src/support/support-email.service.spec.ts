@@ -86,6 +86,8 @@ describe('SupportEmailService', () => {
     expect(message.reply_to).toBe('support@example.test');
     expect(message.text).toContain('SUP-2026-000099');
     expect(message.text).toContain('Please send a screenshot.');
+    expect(message.text).toContain('\nTicket: SUP-2026-000099');
+    expect(message.text).not.toContain('\\\\n');
     expect(message.html).toContain('Admin requested additional information');
   });
 
