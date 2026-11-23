@@ -223,7 +223,7 @@ export class SupportService {
       } else if (dto.action === 'resolved') {
         if (request.userId) await this.notifications.createNotification(request.userId, 'support_request_status', 'Admin escalation review completed', `Admin completed the escalation review for ticket ${request.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
         const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' } });
-        await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for ticket ${request.ticketNumber}. Review the decision in the Admin escalation centre.`, '/support/requests')));
+        await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for ticket ${request.ticketNumber}. Review the case in the Support workspace.`, '/support/requests')));
       } else if (dto.action === 'returned_to_team') {
         const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' } });
         await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_returned', 'Admin returned an escalated ticket', `Ticket ${request.ticketNumber} was returned to Support: ${dto.note.trim()}`, '/support/requests')));
