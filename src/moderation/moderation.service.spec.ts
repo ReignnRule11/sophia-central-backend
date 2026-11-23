@@ -87,6 +87,12 @@ describe('ModerationService academic reviewer workflow', () => {
     }));
   });
 
+  it('rejects an active and verified reviewer whose approval is not active', async () => {
+    const reviewer = { id: 'reviewer-not-approved', role: UserRole.REVIEWER, reviewerStatus: 'under_review', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
+    await expect(service.getQueue(reviewer)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(resourceRepository.find).not.toHaveBeenCalled();
+  });
+
   it('does not return queue items to suspended reviewers', async () => {
     const reviewer = { id: 'reviewer-1', role: UserRole.REVIEWER, isSuspended: true, accountStatus: 'active', emailVerified: true } as User;
     await expect(service.getQueue(reviewer)).rejects.toBeInstanceOf(ForbiddenException);
