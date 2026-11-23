@@ -77,6 +77,19 @@ describe('SupportEmailService', () => {
   });
 
 
+
+  it('emails guest requesters when Support escalates their ticket to Admin', async () => {
+    const request = { ticketNumber: 'SUP-2026-000098', subject: 'Public enquiry', senderEmail: 'guest@example.test', senderName: 'Visitor' } as any;
+    await expect(service.sendGuestEscalation(request, 'Requires platform review.')).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const message = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(message.to).toEqual(['guest@example.test']);
+    expect(message.reply_to).toBe('support@example.test');
+    expect(message.text).toContain('SUP-2026-000098');
+    expect(message.text).toContain('Requires platform review.');
+    expect(message.html).toContain('escalated to Admin');
+  });
+
   it('emails guest requesters Admin escalation decisions with reply-to Support', async () => {
     const request = { ticketNumber: 'SUP-2026-000099', subject: 'Public enquiry', senderEmail: 'guest@example.test', senderName: 'Visitor' } as any;
     await expect(service.sendGuestAdminDecision(request, 'awaiting_information', 'Please send a screenshot.')).resolves.toBe(true);
