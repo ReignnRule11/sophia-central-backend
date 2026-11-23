@@ -166,6 +166,10 @@ export class ContentReportsService {
       'INSERT INTO admin_escalation_events ("sourceType", "sourceId", "ticketNumber", "actorId", "actorEmail", reason) VALUES ($1, $2::uuid, $3, $4::uuid, $5, $6)',
       ['moderation', report.id, report.ticketNumber, actor.id, actor.email, reason.trim()],
     );
+    await this.reports.query(
+      'INSERT INTO report_case_events ("reportId", "actorId", "actorEmail", "eventType", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
+      [report.id, actor.id, actor.email, 'escalated_to_admin', reason.trim()],
+    );
     await Promise.all(recipients.map(recipient => this.notifications.createNotification(recipient.id, 'moderation_report_escalated', 'Moderation report escalated', `Report ${report.ticketNumber} (${report.targetType}: ${report.targetLabel}) was escalated by the Moderator. Reason: ${report.reason}. Details: ${(report.details || JSON.stringify(report.targetSnapshot)).slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/admin/escalations')));
     return { success: true, ticketNumber: report.ticketNumber, notified: recipients.length };
   }
@@ -237,6 +241,10 @@ export class ContentReportsService {
         report.escalatedAt = null;
         report.escalatedById = null;
         await this.reports.save(report);
+        await this.reports.query(
+          'INSERT INTO report_case_events ("reportId", "actorId", "actorEmail", "eventType", reason) VALUES ($1::uuid, $2::uuid, $3, $4, $5)',
+          [report.id, actor.id, actor.email, 'returned_from_admin', dto.note.trim()],
+        );
         const recipients = report.assignedModerator
           ? [report.assignedModerator]
           : await this.users.find({ where: { role: UserRole.MODERATOR, isSuspended: false, accountStatus: 'active', emailVerified: true } });
