@@ -231,6 +231,13 @@ export class SupportService {
     } catch (error) {
       this.logger.warn(`Admin decision for support ticket ${request.ticketNumber} was saved but notification delivery failed: ${String(error)}`);
     }
+    if (request.senderEmail && ['awaiting_information', 'resolved'].includes(dto.action)) {
+      try {
+        await this.supportEmail.sendGuestAdminDecision(request, dto.action as 'awaiting_information' | 'resolved', dto.note.trim());
+      } catch (error) {
+        this.logger.warn(`Admin decision for guest support ticket ${request.ticketNumber} was saved but email delivery failed: ${String(error)}`);
+      }
+    }
     return result[0];
   }
 
