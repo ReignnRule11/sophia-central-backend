@@ -21,7 +21,7 @@ async function main() {
       'users', 'resources', 'institutions', 'faculties', 'departments',
       'courses', 'course_topics', 'moderation_reviews', 'point_wallets',
       'point_transactions', 'file_uploads', 'referrals', 'notifications',
-      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'support_request_guest_archive', 'content_reports', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events', 'platform_role_audit_events', 'admin_bootstrap_audit_events', 'admin_mfa_audit_events', 'admin_escalation_events', 'admin_escalation_decisions',
+      'ai_sessions', 'ai_messages', 'resource_files', 'ai_usage_logs', 'migrations', 'password_reset_tokens', 'support_requests', 'support_request_events', 'support_request_internal_notes', 'support_request_guest_archive', 'content_reports', 'reviewer_applications', 'reviewer_application_decisions', 'academic_account_transitions', 'reviewer_conflict_declarations', 'reviewer_assignment_events', 'platform_role_audit_events', 'admin_bootstrap_audit_events', 'admin_mfa_audit_events', 'admin_escalation_events', 'admin_escalation_decisions',
     ];
     for (const table of requiredTables) {
       const result = await client.query('SELECT to_regclass($1) AS name', [`public.${table}`]);
@@ -46,6 +46,10 @@ async function main() {
     assert.equal(ticketColumns.rowCount, 3, 'support and report ticket references and escalation tracking should exist');
     const supportOwnerColumn = await client.query(`SELECT is_nullable FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'support_requests' AND column_name = 'userId'`);
     assert.equal(supportOwnerColumn.rows[0]?.is_nullable, 'YES', 'guest Support tickets must be allowed without a registered user');
+    const supportCaseColumns = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'support_requests' AND column_name IN ('priority', 'assignedSupportId', 'slaDueAt', 'resolvedAt', 'closedAt', 'resolutionCategory', 'closureReason')`);
+    assert.equal(supportCaseColumns.rowCount, 7, 'Support case ownership, priority and SLA columns should exist');
+    const supportAuditTriggers = await client.query(`SELECT COUNT(DISTINCT trigger_name)::int AS count FROM information_schema.triggers WHERE event_object_table IN ('support_request_events', 'support_request_internal_notes') AND trigger_name IN ('TR_support_request_events_immutable', 'TR_support_internal_notes_immutable')`);
+    assert.equal(supportAuditTriggers.rows[0]?.count, 2, 'Support event and internal-note records must be append-only');
     const guestArchiveColumns = await client.query(`SELECT column_name FROM information_schema.columns WHERE table_schema = 'public' AND table_name = 'support_request_guest_archive' AND column_name IN ('id', 'userId', 'senderName', 'senderEmail', 'archivedAt', 'archiveReason')`);
     assert.equal(guestArchiveColumns.rowCount, 6, 'legacy guest Support archive should preserve ticket and sender history');
     const singleSupportRoleIndex = await client.query(`SELECT indexname FROM pg_indexes WHERE schemaname = 'public' AND indexname = 'IDX_users_single_support_role'`);
@@ -94,6 +98,7 @@ async function main() {
     assert.ok(migrationNames.includes('PersistAdminEscalationRecords2026112200003'), 'Admin escalation persistence migration should be applied');
     assert.ok(migrationNames.includes('PreservePlatformAuditSnapshots2026112200004'), 'platform audit snapshot migration should be applied');
     assert.ok(migrationNames.includes('RestoreGuestSupportIntake2026112300001'), 'guest Support intake migration should be applied');
+    assert.ok(migrationNames.includes('SupportCaseManagement2026112400001'), 'Support case management migration should be applied');
 
     const user = await client.query(
       `INSERT INTO users (email, password, "firstName", "lastName", "uniqueId")
