@@ -223,13 +223,20 @@ export class SupportService {
       } else if (dto.action === 'resolved') {
         if (request.userId) await this.notifications.createNotification(request.userId, 'support_request_status', 'Admin escalation review completed', `Admin completed the escalation review for ticket ${request.ticketNumber}: ${dto.note.trim()}`, '/my-activity');
         const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' } });
-        await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for ticket ${request.ticketNumber}. Review the decision in the Admin escalation centre.`, '/support/requests')));
+        await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_resolved', 'Admin completed an escalation review', `Admin recorded a final escalation decision for ticket ${request.ticketNumber}. Review the case in the Support workspace.`, '/support/requests')));
       } else if (dto.action === 'returned_to_team') {
-        const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } });
+        const supportUsers = await this.users.find({ where: { role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved' } });
         await Promise.all(supportUsers.map(account => this.notifications.createNotification(account.id, 'support_ticket_escalation_returned', 'Admin returned an escalated ticket', `Ticket ${request.ticketNumber} was returned to Support: ${dto.note.trim()}`, '/support/requests')));
       }
     } catch (error) {
       this.logger.warn(`Admin decision for support ticket ${request.ticketNumber} was saved but notification delivery failed: ${String(error)}`);
+    }
+    if (request.senderEmail && ['awaiting_information', 'resolved'].includes(dto.action)) {
+      try {
+        await this.supportEmail.sendGuestAdminDecision(request, dto.action as 'awaiting_information' | 'resolved', dto.note.trim());
+      } catch (error) {
+        this.logger.warn(`Admin decision for guest support ticket ${request.ticketNumber} was saved but email delivery failed: ${String(error)}`);
+      }
     }
     return result[0];
   }
@@ -322,6 +329,13 @@ export class SupportService {
       ...recipients.map(recipient => this.notifications.createNotification(recipient.id, 'support_ticket_escalated', 'Support ticket escalated', `Ticket ${request.ticketNumber} (${request.subject}, ${request.category}) was escalated by Support. Issue: ${request.description.slice(0, 900)}. Escalation reason: ${reason.trim()}`, '/admin/escalations')),
       ...(request.userId ? [this.notifications.createNotification(request.userId, 'support_request_status', 'Support ticket escalated for review', `Ticket ${request.ticketNumber} has been escalated for Admin review.`, '/my-activity')] : []),
     ]);
+    if (request.senderEmail) {
+      try {
+        await this.supportEmail.sendGuestEscalation(request, reason.trim());
+      } catch (error) {
+        this.logger.warn(`Support escalation for guest ticket ${request.ticketNumber} was saved but requester email failed: ${String(error)}`);
+      }
+    }
     return { success: true, ticketNumber: request.ticketNumber, notified: recipients.length };
   }
 }

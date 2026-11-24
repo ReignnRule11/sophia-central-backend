@@ -76,6 +76,34 @@ describe('SupportEmailService', () => {
     expect(message.html).not.toContain('PRIVATE FULL SUPPORT RESPONSE');
   });
 
+
+
+  it('emails guest requesters when Support escalates their ticket to Admin', async () => {
+    const request = { ticketNumber: 'SUP-2026-000098', subject: 'Public enquiry', senderEmail: 'guest@example.test', senderName: 'Visitor' } as any;
+    await expect(service.sendGuestEscalation(request, 'Requires platform review.')).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const message = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(message.to).toEqual(['guest@example.test']);
+    expect(message.reply_to).toBe('support@example.test');
+    expect(message.text).toContain('SUP-2026-000098');
+    expect(message.text).toContain('Requires platform review.');
+    expect(message.html).toContain('escalated to Admin');
+  });
+
+  it('emails guest requesters Admin escalation decisions with reply-to Support', async () => {
+    const request = { ticketNumber: 'SUP-2026-000099', subject: 'Public enquiry', senderEmail: 'guest@example.test', senderName: 'Visitor' } as any;
+    await expect(service.sendGuestAdminDecision(request, 'awaiting_information', 'Please send a screenshot.')).resolves.toBe(true);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const message = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(message.to).toEqual(['guest@example.test']);
+    expect(message.reply_to).toBe('support@example.test');
+    expect(message.text).toContain('SUP-2026-000099');
+    expect(message.text).toContain('Please send a screenshot.');
+    expect(message.text).toContain('\nTicket: SUP-2026-000099');
+    expect(message.text).not.toContain('\\\\n');
+    expect(message.html).toContain('Admin requested additional information');
+  });
+
   it('sends a public Contact Us enquiry directly to the configured mailbox without verification', async () => {
     await service.sendContactEnquiry({
       name: 'Visitor',

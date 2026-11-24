@@ -94,6 +94,56 @@ export class SupportEmailService {
     return true;
   }
 
+
+
+  async sendGuestEscalation(request: SupportRequest, reason: string): Promise<boolean> {
+    if (!this.isConfigured() || !request.senderEmail) return false;
+    const supportEmail = this.config.get<string>('SUPPORT_EMAIL')!;
+    const subject = `Sophis Central Support escalated ticket [${request.ticketNumber}]`;
+    const text = [
+      `Hello ${request.senderName || 'there'},`,
+      '',
+      `Your support ticket ${request.ticketNumber} has been escalated to Admin for additional review.`,
+      '',
+      `Subject: ${request.subject}`,
+      `Reason: ${reason}`,
+      '',
+      'Our team will update you when the review progresses. You can reply directly to this email if you need further assistance.',
+      'Sophis Central Support',
+    ].join('\n');
+    const html = `<p>Hello ${this.escapeHtml(request.senderName || 'there')},</p><p>Your support ticket <strong>${this.escapeHtml(request.ticketNumber)}</strong> has been escalated to Admin for additional review.</p><p><strong>Subject:</strong> ${this.escapeHtml(request.subject)}</p><p><strong>Reason:</strong> ${this.escapeHtml(reason)}</p><p>Our team will update you when the review progresses. You can reply directly to this email if you need further assistance.</p><p>Sophis Central Support</p>`;
+    await this.send(request.senderEmail, subject, text, html, supportEmail);
+    return true;
+  }
+
+  async sendGuestAdminDecision(request: SupportRequest, action: 'awaiting_information' | 'resolved', note: string): Promise<boolean> {
+    if (!this.isConfigured() || !request.senderEmail) return false;
+    const supportEmail = this.config.get<string>('SUPPORT_EMAIL')!;
+    const isAwaitingInformation = action === 'awaiting_information';
+    const subject = `Sophis Central Support update [${request.ticketNumber}]`;
+    const heading = isAwaitingInformation ? 'Admin requested additional information' : 'Admin escalation review completed';
+    const intro = isAwaitingInformation
+      ? 'Admin reviewed your support escalation and needs additional information to continue.'
+      : 'Admin has completed the escalation review for your support ticket. This does not necessarily mean the Support ticket itself is closed.';
+    const text = [
+      `Hello ${request.senderName || 'there'},`,
+      '',
+      intro,
+      '',
+      `Ticket: ${request.ticketNumber}`,
+      `Subject: ${request.subject}`,
+      '',
+      'Update:',
+      note,
+      '',
+      'You can reply directly to this email if you need further assistance.',
+      'Sophis Central Support',
+    ].join('\n');
+    const html = `<p>Hello ${this.escapeHtml(request.senderName || 'there')},</p><p>${this.escapeHtml(intro)}</p><p><strong>Ticket:</strong> ${this.escapeHtml(request.ticketNumber)}<br><strong>Subject:</strong> ${this.escapeHtml(request.subject)}</p><h3>${this.escapeHtml(heading)}</h3><div style="white-space:pre-wrap">${this.escapeHtml(note)}</div><p>You can reply directly to this email if you need further assistance.</p><p>Sophis Central Support</p>`;
+    await this.send(request.senderEmail, subject, text, html, supportEmail);
+    return true;
+  }
+
   async sendGuestResolution(request: SupportRequest): Promise<boolean> {
     if (!this.isConfigured() || !request.senderEmail) return false;
     const supportEmail = this.config.get<string>('SUPPORT_EMAIL')!;

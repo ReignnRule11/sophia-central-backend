@@ -21,7 +21,7 @@ export class SupportCaseService {
 
   private async ensureCase(id: string) {
     const rows = await this.dataSource.query(
-      `SELECT id, "ticketNumber", subject, category, status, priority, "assignedSupportId",
+      `SELECT id, "ticketNumber", "userId", subject, category, status, priority, "assignedSupportId",
        "slaDueAt", "createdAt", "updatedAt", "resolvedAt", "closedAt", "resolutionCategory", "closureReason"
        FROM support_requests WHERE id = $1::uuid LIMIT 1`, [id],
     );
@@ -108,6 +108,35 @@ export class SupportCaseService {
     return this.ensureCase(id);
   }
 
+
+  async resolve(id: string, actor: User, resolutionCategory: string, closureReason?: string) {
+    const supportActor = await this.assertSupport(actor);
+    const allowedCategories = ['resolved', 'information_provided', 'duplicate', 'unable_to_reproduce', 'user_action_required', 'other'];
+    if (!allowedCategories.includes(resolutionCategory)) throw new BadRequestException('Choose a valid resolution category.');
+    const current = await this.ensureCase(id);
+    if (!['response_sent', 'concluded'].includes(current.status)) throw new BadRequestException('A ticket must have a response sent before it can be marked resolved.');
+    if (current.resolvedAt || current.closedAt) throw new BadRequestException('This ticket is already resolved or closed.');
+    const reason = closureReason?.trim() || null;
+    if (reason && reason.length > 2000) throw new BadRequestException('Resolution notes must be 2,000 characters or fewer.');
+    await this.dataSource.query(
+      `UPDATE support_requests SET "resolvedAt" = NOW(), "resolutionCategory" = $2, "closureReason" = $3 WHERE id = $1::uuid`,
+      [id, resolutionCategory, reason],
+    );
+    await this.event(id, supportActor, 'resolved', { resolutionCategory, closureReason: reason });
+    if (current.userId) {
+      try {
+        await this.notifications.createNotification(
+          current.userId,
+          'support_request_status',
+          'Your support ticket was marked resolved',
+          `Ticket ${current.ticketNumber} was marked resolved by Support.`,
+          '/my-activity',
+        );
+      } catch { /* resolution is durable even if notification delivery fails */ }
+    }
+    return this.ensureCase(id);
+  }
+
   async setPriority(id: string, actor: User, priority: SupportPriority) {
     const supportActor = await this.assertSupport(actor);
     if (!['low', 'normal', 'high', 'urgent'].includes(priority)) throw new BadRequestException('Choose a valid support priority.');
@@ -156,12 +185,14 @@ export class SupportCaseService {
       this.dataSource.query(
         `SELECT
           COUNT(*) FILTER (WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "ticketsCreated",
+          COUNT(*) FILTER (WHERE "concludedAt" IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "responseCount",
+          COUNT(*) FILTER (WHERE COALESCE("closedAt", "resolvedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "resolutionCount",
           COUNT(*) FILTER (WHERE status NOT IN ('response_sent', 'concluded', 'resolved', 'closed'))::int AS "openBacklog",
           COUNT(*) FILTER (WHERE status NOT IN ('response_sent', 'concluded', 'resolved', 'closed') AND "slaDueAt" < NOW())::int AS "overdueBacklog",
           COALESCE(AVG(EXTRACT(EPOCH FROM (COALESCE("concludedAt", "resolvedAt") - "createdAt")) / 60)
             FILTER (WHERE COALESCE("concludedAt", "resolvedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day')), 0)::float AS "averageResponseMinutes",
-          COALESCE(AVG(EXTRACT(EPOCH FROM (COALESCE("closedAt", "resolvedAt", "concludedAt") - "createdAt")) / 60)
-            FILTER (WHERE COALESCE("closedAt", "resolvedAt", "concludedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day')), 0)::float AS "averageResolutionMinutes",
+          COALESCE(AVG(EXTRACT(EPOCH FROM (COALESCE("closedAt", "resolvedAt") - "createdAt")) / 60)
+            FILTER (WHERE COALESCE("closedAt", "resolvedAt") IS NOT NULL AND "createdAt" >= NOW() - ($1::int * INTERVAL '1 day')), 0)::float AS "averageResolutionMinutes",
           COUNT(*) FILTER (WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day') AND "escalatedToRole" IS NOT NULL)::int AS "escalatedTickets",
           COUNT(*) FILTER (WHERE "createdAt" >= NOW() - ($1::int * INTERVAL '1 day'))::int AS "periodTickets"
          FROM support_requests`,
@@ -201,7 +232,9 @@ export class SupportCaseService {
            FROM support_requests WHERE status NOT IN ('response_sent', 'concluded', 'resolved', 'closed')`,
         ))[0]?.value || 0),
         averageResponseMinutes: Number(summary.averageResponseMinutes || 0),
+        responseCount: Number(summary.responseCount || 0),
         averageResolutionMinutes: Number(summary.averageResolutionMinutes || 0),
+        resolutionCount: Number(summary.resolutionCount || 0),
         escalatedTickets: Number(summary.escalatedTickets || 0),
         escalationRate: periodTickets ? Number(((Number(summary.escalatedTickets || 0) / periodTickets) * 100).toFixed(1)) : 0,
       },

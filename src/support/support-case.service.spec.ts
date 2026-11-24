@@ -32,6 +32,32 @@ describe('SupportCaseService', () => {
     expect(dataSource.query.mock.calls[1][0]).toContain('ILIKE');
   });
 
+
+  it('records resolution category, timestamp, and immutable timeline event', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([{ id: actor.id, email: actor.email }])
+      .mockResolvedValueOnce([{ id: 'ticket-1', ticketNumber: 'SUP-2026-000001', userId: 'student-1', status: 'response_sent', resolvedAt: null, closedAt: null }])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce([{ id: 'ticket-1', status: 'response_sent', resolvedAt: new Date(), resolutionCategory: 'resolved' }]);
+    const result = await service.resolve('ticket-1', actor, 'resolved', 'Confirmed fixed.');
+    expect(result.resolutionCategory).toBe('resolved');
+    expect(dataSource.query.mock.calls[2][0]).toContain('UPDATE support_requests SET "resolvedAt"');
+    expect(dataSource.query.mock.calls[3][0]).toContain('support_request_events');
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      'student-1', 'support_request_status', 'Your support ticket was marked resolved',
+      expect.stringContaining('SUP-2026-000001'), '/my-activity',
+    );
+  });
+
+  it('rejects resolution before a response is sent', async () => {
+    dataSource.query
+      .mockResolvedValueOnce([{ id: actor.id, email: actor.email }])
+      .mockResolvedValueOnce([{ id: 'ticket-1', status: 'pending', resolvedAt: null, closedAt: null }]);
+    await expect(service.resolve('ticket-1', actor, 'resolved')).rejects.toBeInstanceOf(BadRequestException);
+    expect(dataSource.query).toHaveBeenCalledTimes(2);
+  });
+
   it('rejects an invalid priority before changing the ticket', async () => {
     dataSource.query.mockResolvedValueOnce([{ id: actor.id, email: actor.email }]);
     await expect(service.setPriority('ticket-1', actor, 'critical' as any)).rejects.toBeInstanceOf(BadRequestException);
@@ -61,12 +87,14 @@ describe('SupportCaseService', () => {
   it('returns Support analytics only to approved Support accounts and calculates escalation rate', async () => {
     dataSource.query
       .mockResolvedValueOnce([{ id: actor.id, email: actor.email }])
-      .mockResolvedValueOnce([{ ticketsCreated: 10, openBacklog: 4, overdueBacklog: 1, averageResponseMinutes: 30, averageResolutionMinutes: 90, escalatedTickets: 2, periodTickets: 10 }])
+      .mockResolvedValueOnce([{ ticketsCreated: 10, responseCount: 8, resolutionCount: 3, openBacklog: 4, overdueBacklog: 1, averageResponseMinutes: 30, averageResolutionMinutes: 90, escalatedTickets: 2, periodTickets: 10 }])
       .mockResolvedValueOnce([{ category: 'Account access', count: 6 }])
       .mockResolvedValueOnce([{ id: actor.id, activeCases: 3, completedInPeriod: 2 }])
       .mockResolvedValueOnce([{ value: 12 }]);
     const result = await service.analytics(actor, 30);
     expect(result.summary.escalationRate).toBe(20);
+    expect(result.summary.responseCount).toBe(8);
+    expect(result.summary.resolutionCount).toBe(3);
     expect(result.summary.averageBacklogAgeHours).toBe(12);
     expect(result.categoryTrends[0].count).toBe(6);
     expect(result.agentWorkload[0].activeCases).toBe(3);

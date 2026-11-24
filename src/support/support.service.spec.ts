@@ -40,7 +40,7 @@ describe('SupportService attachment ownership', () => {
       users,
       notifications,
       s3,
-      { notifyNewRequest: jest.fn().mockResolvedValue(false), notifyGuestRequest: jest.fn().mockResolvedValue(true), sendResolution: jest.fn().mockResolvedValue(false), sendGuestResolution: jest.fn().mockResolvedValue(true) } as any,
+      { notifyNewRequest: jest.fn().mockResolvedValue(false), notifyGuestRequest: jest.fn().mockResolvedValue(true), sendResolution: jest.fn().mockResolvedValue(false), sendGuestResolution: jest.fn().mockResolvedValue(true), sendGuestAdminDecision: jest.fn().mockResolvedValue(true), sendGuestEscalation: jest.fn().mockResolvedValue(true) } as any,
     );
   });
 
@@ -150,6 +150,46 @@ describe('SupportService attachment ownership', () => {
     } as any)).rejects.toBeInstanceOf(BadRequestException);
     expect(requests.save).not.toHaveBeenCalled();
   });
+
+
+
+  it('emails guest requesters Admin escalation decisions that require action or close review', async () => {
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    requests.findOne.mockResolvedValueOnce({ id: 'ticket-5', ticketNumber: 'SUP-2026-000005', escalatedToRole: 'admin', userId: null, senderEmail: 'guest@example.test', senderName: 'Guest', subject: 'Question' });
+    requests.query.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'decision-3' }]);
+    await service.recordAdminEscalationDecision('ticket-5', admin, { action: 'awaiting_information', note: 'Please send a screenshot.' } as any);
+    expect((service as any).supportEmail.sendGuestAdminDecision).toHaveBeenCalledWith(
+      expect.objectContaining({ senderEmail: 'guest@example.test' }), 'awaiting_information', 'Please send a screenshot.',
+    );
+  });
+
+  it('routes Admin-resolved escalation notifications back to the Support workspace', async () => {
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    requests.findOne.mockResolvedValueOnce({ id: 'ticket-4', ticketNumber: 'SUP-2026-000004', escalatedToRole: 'admin', userId: null });
+    requests.query.mockResolvedValueOnce([]).mockResolvedValueOnce([{ id: 'decision-2' }]);
+    users.find.mockResolvedValueOnce([{ id: 'approved-support' }]);
+    await service.recordAdminEscalationDecision('ticket-4', admin, { action: 'resolved', note: 'Resolved by Admin.' } as any);
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      'approved-support', 'support_ticket_escalation_resolved', 'Admin completed an escalation review',
+      expect.stringContaining('SUP-2026-000004'), '/support/requests',
+    );
+  });
+
+  it('notifies only approved Support accounts when Admin returns an escalation to the team', async () => {
+    const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    requests.findOne.mockResolvedValueOnce({ id: 'ticket-3', ticketNumber: 'SUP-2026-000003', escalatedToRole: 'admin', userId: null });
+    requests.query.mockResolvedValueOnce([{ action: 'awaiting_information' }]).mockResolvedValueOnce([{ id: 'decision-1' }]);
+    users.find.mockResolvedValueOnce([{ id: 'approved-support' }]);
+    await service.recordAdminEscalationDecision('ticket-3', admin, { action: 'returned_to_team', note: 'Continue investigating.' } as any);
+    expect(users.find).toHaveBeenCalledWith({ where: {
+      role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true, platformRoleStatus: 'approved',
+    } });
+    expect(notifications.createNotification).toHaveBeenCalledWith(
+      'approved-support', 'support_ticket_escalation_returned', 'Admin returned an escalated ticket',
+      expect.stringContaining('Continue investigating.'), '/support/requests',
+    );
+  });
+
   it('loads Admin escalations through mapped repository fields and relations', async () => {
     const admin = { id: 'admin-1', role: UserRole.ADMIN, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
     const escalated = { id: 'ticket-1', ticketNumber: 'SUP-2026-000001', escalatedToRole: 'admin', escalatedAt: new Date(), attachments: [] };
@@ -222,6 +262,20 @@ describe('SupportService attachment ownership', () => {
       await expect(service.escalate('ticket-1', activeSupport, UserRole.MODERATOR, 'Escalation reason')).rejects.toBeInstanceOf(BadRequestException);
     });
 
+
+
+  it('emails guest requesters when Support escalates their ticket to Admin', async () => {
+    const activeSupport = { id: 'support-1', role: UserRole.SUPPORT, isSuspended: false, accountStatus: 'active', emailVerified: true } as any;
+    users.findOne.mockResolvedValueOnce({ id: 'support-1', role: UserRole.SUPPORT, platformRoleStatus: 'approved' });
+    requests.findOne.mockResolvedValueOnce({ id: 'ticket-6', ticketNumber: 'SUP-2026-000006', subject: 'Public enquiry', description: 'Guest issue', escalatedToRole: null, senderEmail: 'guest@example.test' });
+    requests.save.mockResolvedValueOnce({ id: 'ticket-6' });
+    requests.query.mockResolvedValueOnce([]);
+    users.find.mockResolvedValueOnce([{ id: 'admin-1' }]);
+    await service.escalate('ticket-6', activeSupport, UserRole.ADMIN, 'Needs platform review.');
+    expect((service as any).supportEmail.sendGuestEscalation).toHaveBeenCalledWith(
+      expect.objectContaining({ senderEmail: 'guest@example.test' }), 'Needs platform review.',
+    );
+  });
 
     it('rejects duplicate Admin escalations for a ticket', async () => {
       users.findOne.mockResolvedValueOnce({ id: 'support-1', role: UserRole.SUPPORT, platformRoleStatus: 'approved' });
