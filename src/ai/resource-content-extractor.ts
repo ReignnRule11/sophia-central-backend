@@ -28,19 +28,20 @@ function readZipEntries(buffer: Buffer): Map<string, Buffer> {
     if (buffer.readUInt32LE(offset) !== 0x02014b50) break;
     const method = buffer.readUInt16LE(offset + 10);
     const compressedSize = buffer.readUInt32LE(offset + 20);
+    const uncompressedSize = buffer.readUInt32LE(offset + 24);
     const nameLength = buffer.readUInt16LE(offset + 28);
     const extraLength = buffer.readUInt16LE(offset + 30);
     const commentLength = buffer.readUInt16LE(offset + 32);
     const localOffset = buffer.readUInt32LE(offset + 42);
     const name = buffer.toString('utf8', offset + 46, offset + 46 + nameLength);
-    if (localOffset + 30 <= buffer.length && buffer.readUInt32LE(localOffset) === 0x04034b50) {
+    if (uncompressedSize <= 12 * 1024 * 1024 && localOffset + 30 <= buffer.length && buffer.readUInt32LE(localOffset) === 0x04034b50) {
       const localName = buffer.readUInt16LE(localOffset + 26);
       const localExtra = buffer.readUInt16LE(localOffset + 28);
       const start = localOffset + 30 + localName + localExtra;
       const compressed = buffer.subarray(start, start + compressedSize);
       if (start + compressedSize <= buffer.length) {
         try {
-          entries.set(name, method === 0 ? Buffer.from(compressed) : method === 8 ? inflateRawSync(compressed) : Buffer.alloc(0));
+          entries.set(name, method === 0 ? Buffer.from(compressed) : method === 8 ? inflateRawSync(compressed, { maxOutputLength: 12 * 1024 * 1024 }) : Buffer.alloc(0));
         } catch { /* Ignore malformed individual entries. */ }
       }
     }
@@ -71,7 +72,7 @@ function extractPdfText(buffer: Buffer): string {
   let match: RegExpExecArray | null;
   while ((match = streamPattern.exec(source)) !== null) {
     const raw = Buffer.from(match[1], 'latin1');
-    try { candidates.push(inflateSync(raw).toString('latin1')); } catch { /* Uncompressed or unsupported filter. */ }
+    try { candidates.push(inflateSync(raw, { maxOutputLength: 12 * 1024 * 1024 }).toString('latin1')); } catch { /* Uncompressed or unsupported filter. */ }
   }
   const text: string[] = [];
   for (const candidate of candidates) {
