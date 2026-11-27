@@ -11,7 +11,8 @@ import { AiProviderService } from './ai-provider.service';
 
 @Injectable()
 export class AiService {
-  private readonly AI_USAGE_COST = 2;
+  private readonly GENERAL_AI_USAGE_COST = 1;
+  private readonly RESOURCE_AI_USAGE_COST = 2;
   private readonly SUMMARY_USAGE_COST = 5;
   private readonly MAX_HISTORY_MESSAGES = 12;
 
@@ -44,15 +45,6 @@ export class AiService {
       throw new ForbiddenException('You can only edit your own question.');
     }
 
-    const balance = await this.pointsService.getBalance(userId);
-    if (balance < this.AI_USAGE_COST) {
-      return {
-        error: 'Insufficient Wisdom Points',
-        required: this.AI_USAGE_COST,
-        balance,
-      };
-    }
-
     const resource = session.resourceId
       ? await this.resourceRepository.findOne({
           where: [
@@ -61,6 +53,11 @@ export class AiService {
           ],
         })
       : null;
+    const usageCost = resource ? this.RESOURCE_AI_USAGE_COST : this.GENERAL_AI_USAGE_COST;
+    const balance = await this.pointsService.getBalance(userId);
+    if (balance < usageCost) {
+      return { error: 'Insufficient Wisdom Points', required: usageCost, balance };
+    }
     const context = resource
       ? [
           'The student is asking about this approved Sophis Central academic resource.',
@@ -102,29 +99,20 @@ export class AiService {
     if (targetIndex === 0) session.title = `Chat about ${question.substring(0, 50)}...`;
     await this.sessionRepository.save(session);
 
-    await this.pointsService.chargeForAiUsage(userId, this.AI_USAGE_COST, `AI tutor question edited - resource: ${session.resourceId || 'general'}`);
+    await this.pointsService.chargeForAiUsage(userId, usageCost, `AI tutor question edited - resource: ${session.resourceId || 'general'}`);
 
     return {
       sessionId,
       userMessageId: target.id,
       userMessage: target.content,
       assistantMessage: assistantMessage.content,
-      pointsUsed: this.AI_USAGE_COST,
-      balanceRemaining: balance - this.AI_USAGE_COST,
+      pointsUsed: usageCost,
+      balanceRemaining: balance - usageCost,
     };
   }
 
   async processQuestion(userId: string, dto: AskQuestionDto) {
     const question = dto.question.trim();
-    const balance = await this.pointsService.getBalance(userId);
-    if (balance < this.AI_USAGE_COST) {
-      return {
-        error: 'Insufficient Wisdom Points',
-        required: this.AI_USAGE_COST,
-        balance,
-      };
-    }
-
     let session: AiSession | null = null;
     if (dto.sessionId) {
       session = await this.sessionRepository.findOne({
@@ -146,6 +134,12 @@ export class AiService {
 
     if (dto.resourceId && !resource) {
       throw new NotFoundException('Approved academic resource not found');
+    }
+
+    const usageCost = resource ? this.RESOURCE_AI_USAGE_COST : this.GENERAL_AI_USAGE_COST;
+    const balance = await this.pointsService.getBalance(userId);
+    if (balance < usageCost) {
+      return { error: 'Insufficient Wisdom Points', required: usageCost, balance };
     }
 
     const context = resource
@@ -201,15 +195,15 @@ export class AiService {
       content: aiResponse,
     }));
 
-    await this.pointsService.chargeForAiUsage(userId, this.AI_USAGE_COST, `AI tutor query - resource: ${dto.resourceId || 'general'}`);
+    await this.pointsService.chargeForAiUsage(userId, usageCost, `AI tutor query - resource: ${dto.resourceId || 'general'}`);
 
     return {
       sessionId: session.id,
       userMessageId: savedUserMessage.id,
       userMessage: question,
       assistantMessage: aiResponse,
-      pointsUsed: this.AI_USAGE_COST,
-      balanceRemaining: balance - this.AI_USAGE_COST,
+      pointsUsed: usageCost,
+      balanceRemaining: balance - usageCost,
     };
   }
 
@@ -284,7 +278,7 @@ export class AiService {
     return {
       totalSessions,
       totalQueries: Math.floor(totalQueries),
-      pointsSpent: totalQueries * this.AI_USAGE_COST,
+      pointsSpent: sessions.reduce((sum, session) => sum + (session.messages.length / 2) * (session.resourceId ? this.RESOURCE_AI_USAGE_COST : this.GENERAL_AI_USAGE_COST), 0),
       sessions: sessions.map((s) => ({
         id: s.id,
         title: s.title,
