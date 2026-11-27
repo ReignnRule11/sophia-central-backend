@@ -79,15 +79,15 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     expect(savedRepository.save).not.toHaveBeenCalled();
   });
 
-  it('does not allow a student with reviewer access to download resources', async () => {
+  it('keeps ordinary Student download permissions independent of stale reviewer flags', async () => {
     resourceRepository.findOne.mockResolvedValue(resource({ moderationStatus: ResourceModerationStatus.APPROVED }));
     const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
     const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
     await expect(downloadService.downloadForUser('resource-1', {
-      id: 'dual-role-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
-    } as any)).rejects.toBeInstanceOf(NotFoundException);
-    expect(resourceRepository.findOne).toHaveBeenCalledTimes(1);
-    expect(savedRepository.save).not.toHaveBeenCalled();
+      id: 'student-1', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
+    } as any)).resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
+    expect(resourceRepository.findOne).toHaveBeenCalledTimes(2);
+    expect(savedRepository.save).toHaveBeenCalled();
   });
 
   it('allows a student to download their own pending contribution', async () => {
