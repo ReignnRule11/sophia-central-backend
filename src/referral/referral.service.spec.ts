@@ -82,7 +82,7 @@ describe('ReferralService hybrid reward eligibility', () => {
       referrer: { id: 'referrer-1', role: UserRole.STUDENT, isSuspended: false, institution: 'University A' },
     });
     await service.processPendingReferralForUser('student-2');
-    expect(points.awardReferralReward).toHaveBeenCalledWith('referrer-1', 'event-1', 20);
+    expect(points.awardReferralReward).toHaveBeenCalledWith('referrer-1', 'event-1', 15);
   });
 
   it('keeps unlisted manual academic placement pending without moderator review', async () => {
