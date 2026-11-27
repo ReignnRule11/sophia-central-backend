@@ -14,10 +14,10 @@ import { AiMessage } from './ai-message.entity';
 @Entity({ name: 'ai_sessions' })
 export class AiSession {
   @PrimaryGeneratedColumn('uuid')
-  id: string;
+  id!: string;
 
   @Column()
-  userId: string;
+  userId!: string;
 
   @Column({ nullable: true })
   resourceId?: string;
@@ -27,17 +27,17 @@ export class AiSession {
   resource?: Resource;
 
   @Column()
-  title: string;
+  title!: string;
 
   @Column({ type: 'text', nullable: true })
   notes?: string;
 
   @OneToMany(() => AiMessage, (message) => message.session, { cascade: true })
-  messages: AiMessage[];
+  messages!: AiMessage[];
 
   @CreateDateColumn()
-  createdAt: Date;
+  createdAt!: Date;
 
   @UpdateDateColumn()
-  updatedAt: Date;
+  updatedAt!: Date;
 }

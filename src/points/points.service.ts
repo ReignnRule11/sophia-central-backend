@@ -9,6 +9,7 @@ import { Referral } from '../referral/entities/referral.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 
 const STARTER_WISDOM_POINTS = 10;
+const APPROVED_RESOURCE_REWARD = 10;
 const STARTER_CREDIT_REASON = 'Sophis AI starter credits';
 
 @Injectable()
@@ -72,12 +73,12 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
         const reason = `Approved resource contribution reward: ${job.resourceId}`;
         const existing = await manager.findOne(PointTransaction, { where: { userId: job.userId, reason } });
         if (!existing) {
-          wallet.balance += 10;
+          wallet.balance += APPROVED_RESOURCE_REWARD;
           await manager.save(PointWallet, wallet);
           await manager.save(PointTransaction, manager.create(PointTransaction, {
             userId: job.userId,
             type: PointTransactionType.EARNED,
-            amount: 10,
+            amount: APPROVED_RESOURCE_REWARD,
             reason,
           }));
         }
@@ -280,7 +281,7 @@ export class PointsService implements OnModuleInit, OnModuleDestroy {
   }
 
   async reverseUnspentReferralReward(referral: Referral): Promise<number> {
-    const amount = Math.max(0, Math.min(referral.rewardRemaining || 0, 20));
+    const amount = Math.max(0, Math.min(referral.rewardRemaining || 0, referral.rewardAmount || 15));
     if (!amount) return 0;
     const wallet = await this.walletRepository.findOne({ where: { userId: referral.referrerId } });
     if (!wallet) return 0;

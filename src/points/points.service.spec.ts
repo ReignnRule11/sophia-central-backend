@@ -101,3 +101,56 @@ describe('PointsService resource reward outbox', () => {
     }));
   });
 });
+
+
+describe('PointsService Student wallet eligibility', () => {
+  const makeService = (role: UserRole) => {
+    const userRepository = { findOne: jest.fn().mockResolvedValue({ id: 'account-1', role }) };
+    const walletRepository = {
+      findOne: jest.fn().mockResolvedValue(null),
+      create: jest.fn(value => value),
+      save: jest.fn(async value => value),
+    };
+    const transactionQuery = { where: jest.fn().mockReturnThis(), andWhere: jest.fn().mockReturnThis(), getOne: jest.fn().mockResolvedValue(null) };
+    const transactionRepository = {
+      createQueryBuilder: jest.fn(() => transactionQuery),
+      create: jest.fn(value => value),
+      save: jest.fn(async value => value),
+      findOne: jest.fn(),
+    };
+    const service = new PointsService(
+      walletRepository as any,
+      transactionRepository as any,
+      {} as any,
+      {} as any,
+      userRepository as any,
+    );
+    return { service, userRepository, walletRepository, transactionRepository };
+  };
+
+  it('does not create a wallet or starter allocation for Lecturer accounts', async () => {
+    const { service, walletRepository, transactionRepository } = makeService(UserRole.LECTURER);
+
+    await expect(service.getOrCreateWallet('account-1')).rejects.toThrow(
+      'Wisdom Points wallets are available only to student accounts.',
+    );
+    expect(walletRepository.findOne).not.toHaveBeenCalled();
+    expect(walletRepository.save).not.toHaveBeenCalled();
+    expect(transactionRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('credits the 10 WP starter allocation once when a Student wallet is initialized', async () => {
+    const { service, walletRepository, transactionRepository } = makeService(UserRole.STUDENT);
+
+    const wallet = await service.getOrCreateWallet('account-1');
+
+    expect(wallet.balance).toBe(10);
+    expect(transactionRepository.save).toHaveBeenCalledWith(expect.objectContaining({
+      userId: 'account-1',
+      type: PointTransactionType.BONUS,
+      amount: 10,
+      reason: 'Sophis AI starter credits',
+    }));
+    expect(walletRepository.save).toHaveBeenCalledTimes(2);
+  });
+});

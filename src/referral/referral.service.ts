@@ -7,7 +7,7 @@ import { PointsService } from '../points/points.service';
 
 @Injectable()
 export class ReferralService {
-  private readonly REFERRER_BONUS = 20;
+  private readonly REFERRER_BONUS = 15;
 
   constructor(
     @InjectRepository(Referral) private readonly referralRepository: Repository<Referral>,
@@ -180,7 +180,7 @@ export class ReferralService {
     // do not create a moderator-review item from an unlisted profile value.
     if (!(await this.hasVerifiedAcademicPlacement(referred))) return;
 
-    await this.pointsService.awardReferralReward(event.referrerId, event.id, this.REFERRER_BONUS);
+    await this.pointsService.awardReferralReward(event.referrerId, event.id, event.rewardAmount || this.REFERRER_BONUS);
   }
 
   async getReferralReviewQueue(actor: User) {
@@ -235,7 +235,7 @@ export class ReferralService {
     event.rewardStatus = 'pending';
     event.reviewReason = `Approved by ${reviewerId}: ${reason.trim()}`;
     await this.referralRepository.save(event);
-    await this.pointsService.awardReferralReward(event.referrerId, event.id, this.REFERRER_BONUS);
+    await this.pointsService.awardReferralReward(event.referrerId, event.id, event.rewardAmount || this.REFERRER_BONUS);
     return { success: true, status: 'awarded' };
   }
 
