@@ -169,7 +169,7 @@ describe('ReviewerApplicationsService', () => {
       hasReviewerAccess: false,
       reviewerStatus: 'submitted',
     } as User;
-    manager.findOne.mockResolvedValueOnce(application).mockResolvedValueOnce(user);
+    manager.findOne.mockResolvedValueOnce(application).mockResolvedValueOnce(user).mockResolvedValueOnce(application).mockResolvedValueOnce(application);
 
     await expect(service.decide('application-1', {
       id: 'admin-1', role: UserRole.ADMIN, emailVerified: true, isSuspended: false, accountStatus: 'active',
