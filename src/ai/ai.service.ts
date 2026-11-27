@@ -1,6 +1,10 @@
 import { Injectable, NotFoundException, ForbiddenException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { SavedResource } from '../resources/entities/saved-resource.entity';
+import { FileUpload } from '../upload/entities/file-upload.entity';
+import { S3Service } from '../upload/s3.service';
+import { extractAcademicDocumentText } from './resource-content-extractor';
 import { AiSession } from './entities/ai-session.entity';
 import { AiMessage } from './entities/ai-message.entity';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
@@ -25,7 +29,40 @@ export class AiService {
     private readonly resourceRepository: Repository<Resource>,
     private readonly pointsService: PointsService,
     private readonly aiProviderService: AiProviderService,
+    @InjectRepository(SavedResource)
+    private readonly savedResourceRepository: Repository<SavedResource>,
+    @InjectRepository(FileUpload)
+    private readonly fileUploadRepository: Repository<FileUpload>,
+    private readonly s3Service: S3Service,
   ) {}
+
+  private async loadDownloadedResourceText(resource: Resource, userId: string): Promise<string> {
+    const download = await this.savedResourceRepository.findOne({ where: { userId, resourceId: resource.id } });
+    if (!download?.downloadedAt) throw new ForbiddenException('Download this approved material before using it with Sophis AI.');
+    let key = resource.fileUrl ? this.s3Service.getKeyFromPublicUrl(resource.fileUrl) : null;
+    let filename = key?.split('/').pop() || '';
+    if (!key) {
+      const upload = await this.fileUploadRepository.findOne({ where: { resourceId: resource.id }, order: { uploadedAt: 'DESC' } });
+      if (upload && ['completed', 'scanned'].includes(upload.status)) { key = upload.s3Key; filename = upload.filename; }
+    }
+    if (!key) throw new BadRequestException('The selected material does not have an accessible full-text file stored for Sophis AI.');
+    const file = await this.s3Service.getObjectStream(key);
+    const maxBytes = 12 * 1024 * 1024;
+    if (file.contentLength && file.contentLength > maxBytes) throw new BadRequestException('This material is too large for Sophis AI to process. Please use a smaller document.');
+    const chunks: Buffer[] = [];
+    let totalBytes = 0;
+    for await (const chunk of file.body as any) {
+      const part = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+      totalBytes += part.length;
+      if (totalBytes > maxBytes) throw new BadRequestException('This material is too large for Sophis AI to process. Please use a smaller document.');
+      chunks.push(part);
+    }
+    let extracted = '';
+    try { extracted = extractAcademicDocumentText(Buffer.concat(chunks), filename); }
+    catch (error) { throw new BadRequestException(error instanceof Error ? error.message : 'Could not read this academic document.'); }
+    if (!extracted.trim()) throw new BadRequestException('No readable text was found in this material. Scanned or image-only PDFs are not supported yet.');
+    return extracted.slice(0, 48000);
+  }
 
 
   async editUserMessage(userId: string, sessionId: string, messageId: string, nextQuestion: string) {
@@ -58,9 +95,10 @@ export class AiService {
     if (balance < usageCost) {
       return { error: 'Insufficient Wisdom Points', required: usageCost, balance };
     }
+    const resourceText = resource ? await this.loadDownloadedResourceText(resource, userId) : '';
     const context = resource
       ? [
-          'The student is asking about this approved Sophis Central academic resource.',
+          'The student selected a downloaded, approved academic document. Use its extracted contents as the primary source. If the answer is not in the document, say so and clearly distinguish any additional academic explanation.',
           `Title: ${resource.title}`,
           `Description: ${resource.description || 'No description provided'}`,
           `Type: ${resource.type}`,
@@ -69,9 +107,10 @@ export class AiService {
           `Institution: ${resource.institution || 'N/A'}`,
           `Level: ${resource.level || 'N/A'}`,
           `Tags: ${resource.tags?.join(', ') || 'None'}`,
-          'Only resource metadata is available; the actual uploaded file contents have not been extracted. Do not claim to have read the file.',
-        ].join('\\n')
-      : 'No specific resource metadata was provided. Answer the student question directly using your academic knowledge.';
+          'EXTRACTED DOCUMENT CONTENT:',
+          resourceText,
+        ].join('\n')
+      : 'No specific resource was selected. Answer the student question directly using your academic knowledge.';
 
     const history = messages
       .slice(0, targetIndex)
@@ -123,18 +162,21 @@ export class AiService {
       }
     }
 
-    const resource = dto.resourceId
+    const selectedResourceId = dto.resourceId !== undefined ? dto.resourceId : session?.resourceId;
+    const resource = selectedResourceId
       ? await this.resourceRepository.findOne({
           where: [
-            { id: dto.resourceId, isVerified: true },
-            { id: dto.resourceId, moderationStatus: ResourceModerationStatus.APPROVED },
+            { id: selectedResourceId, isVerified: true },
+            { id: selectedResourceId, moderationStatus: ResourceModerationStatus.APPROVED },
           ],
         })
       : null;
 
-    if (dto.resourceId && !resource) {
+    if (selectedResourceId && !resource) {
       throw new NotFoundException('Approved academic resource not found');
     }
+
+    if (session && dto.resourceId !== undefined) session.resourceId = dto.resourceId || undefined;
 
     const usageCost = resource ? this.RESOURCE_AI_USAGE_COST : this.GENERAL_AI_USAGE_COST;
     const balance = await this.pointsService.getBalance(userId);
@@ -142,9 +184,10 @@ export class AiService {
       return { error: 'Insufficient Wisdom Points', required: usageCost, balance };
     }
 
+    const resourceText = resource ? await this.loadDownloadedResourceText(resource, userId) : '';
     const context = resource
       ? [
-          'The student is asking about this approved Sophis Central academic resource.',
+          'The student selected a downloaded, approved academic document. Use its extracted contents as the primary source. If the answer is not in the document, say so and clearly distinguish any additional academic explanation.',
           `Title: ${resource.title}`,
           `Description: ${resource.description || 'No description provided'}`,
           `Type: ${resource.type}`,
@@ -153,9 +196,10 @@ export class AiService {
           `Institution: ${resource.institution || 'N/A'}`,
           `Level: ${resource.level || 'N/A'}`,
           `Tags: ${resource.tags?.join(', ') || 'None'}`,
-          'Only resource metadata is available; the actual uploaded file contents have not been extracted. Do not claim to have read the file.',
+          'EXTRACTED DOCUMENT CONTENT:',
+          resourceText,
         ].join('\n')
-      : 'No specific resource metadata was provided. Answer the student question directly using your academic knowledge.';
+      : 'No specific resource was selected. Answer the student question directly using your academic knowledge.';
 
     const history = session
       ? (await this.messageRepository.find({
@@ -177,9 +221,11 @@ export class AiService {
     if (!session) {
       session = this.sessionRepository.create({
         userId,
-        resourceId: dto.resourceId,
+        resourceId: selectedResourceId,
         title: `Chat about ${question.substring(0, 50)}...`,
       });
+      session = await this.sessionRepository.save(session);
+    } else if (dto.resourceId !== undefined) {
       session = await this.sessionRepository.save(session);
     }
 
@@ -225,8 +271,9 @@ export class AiService {
       throw new NotFoundException('Resource not found or not verified');
     }
 
+    const resourceText = await this.loadDownloadedResourceText(resource, userId);
     const summary = await this.aiProviderService.generateText(
-      'Create a useful study summary of the academic resource described in the supplied metadata. Organize it into overview, key points, important concepts, and suggested study takeaways. Clearly state when the supplied metadata is insufficient to summarize the actual document.',
+      'Create a detailed study summary from the actual academic document content supplied. Organize it into overview, section-by-section key points, important concepts and definitions, formulas or examples where present, and suggested study takeaways. Do not invent content absent from the document.',
       [
         `Title: ${resource.title}`,
         `Description: ${resource.description || 'No description'}`,
@@ -234,7 +281,8 @@ export class AiService {
         `Course: ${resource.course || 'N/A'}`,
         `Topic: ${resource.topic || 'N/A'}`,
         `Level: ${resource.level || 'N/A'}`,
-        'Important: The actual uploaded file contents are not currently extracted or supplied. Do not imply that you have read the full file.',
+        'EXTRACTED DOCUMENT CONTENT:',
+        resourceText,
       ].join('\n'),
     );
 

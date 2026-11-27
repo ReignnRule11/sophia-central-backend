@@ -8,12 +8,16 @@ import { GroqService } from './groq.service';
 import { AiSession } from './entities/ai-session.entity';
 import { AiMessage } from './entities/ai-message.entity';
 import { Resource } from '../resources/entities/resource.entity';
+import { SavedResource } from '../resources/entities/saved-resource.entity';
+import { FileUpload } from '../upload/entities/file-upload.entity';
+import { StorageModule } from '../upload/storage.module';
 import { PointsModule } from '../points/points.module';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([AiSession, AiMessage, Resource]),
+    TypeOrmModule.forFeature([AiSession, AiMessage, Resource, SavedResource, FileUpload]),
     PointsModule,
+    StorageModule,
   ],
   controllers: [AiController],
   providers: [AiService, AiProviderService, GroqService, GeminiService],
