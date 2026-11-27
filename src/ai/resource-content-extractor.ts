@@ -60,7 +60,8 @@ function extractOfficeText(buffer: Buffer, extension: string): string {
 }
 
 function unescapePdfLiteral(value: string): string {
-  return value.replace(/\\([nrtbf()\\])/g, (_, c) => ({ n: '\n', r: '\r', t: '\t', b: '', f: '' }[c] ?? c))
+  const replacements: Record<string, string> = { n: '\n', r: '\r', t: '\t', b: '', f: '' };
+  return value.replace(/\\([nrtbf()\\])/g, (_, c) => replacements[c] ?? c)
     .replace(/\\([0-7]{1,3})/g, (_, oct) => String.fromCharCode(parseInt(oct, 8)))
     .replace(/\\\r?\n/g, '');
 }
