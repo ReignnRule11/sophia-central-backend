@@ -77,6 +77,10 @@ Do not bootstrap the production Admin until the encryption key is configured and
 
 If the Admin loses both their authenticator and all recovery codes, an authorized operator may use the offline `npm run admin:mfa-reset` command after migrations are applied. It requires `ADMIN_MFA_RESET_ENABLED=true`, exact email confirmation, operator email, and a reason of at least 30 characters. The command only resets the one existing Admin's MFA, records an immutable audit event with operator and reason, and forces fresh MFA enrollment at the next password login. It is not a public endpoint or self-service reset.
 
+## Wisdom Points
+
+Wisdom Points are available to Student accounts only. The current allocations, AI usage charges, eligibility requirements, and transaction rules are documented in [the Wisdom Points Policy](docs/WISDOM_POINTS_POLICY.md).
+
 ## Technology stack
 
 - NestJS and TypeScript
