@@ -21,11 +21,7 @@ export enum AcademicUnitType {
 export enum InstitutionType {
   UNIVERSITY = 'university',
   POLYTECHNIC = 'polytechnic',
-  MONOTECHNIC = 'monotechnic',
   COLLEGE_OF_EDUCATION = 'college_of_education',
-  COLLEGE_OF_HEALTH_TECHNOLOGY = 'college_of_health_technology',
-  COLLEGE_OF_AGRICULTURE = 'college_of_agriculture',
-  OTHER_COLLEGE = 'other_college',
 }
 
 @Entity({ name: 'institutions' })
