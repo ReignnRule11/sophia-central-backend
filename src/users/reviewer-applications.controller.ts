@@ -21,11 +21,13 @@ export class ReviewerApplicationsController {
 
   @Post()
   @UseGuards(CsrfGuard)
+  @Roles(UserRole.LECTURER, UserRole.REVIEWER)
   submit(@Req() req: AuthenticatedRequest, @Body() dto: SubmitReviewerApplicationDto) {
     return this.applications.submit(req.user, dto);
   }
 
   @Get('me')
+  @Roles(UserRole.LECTURER, UserRole.REVIEWER)
   mine(@Req() req: AuthenticatedRequest) {
     return this.applications.mine(req.user);
   }
