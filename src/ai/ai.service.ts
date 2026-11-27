@@ -109,7 +109,7 @@ export class AiService {
           `Tags: ${resource.tags?.join(', ') || 'None'}`,
           'EXTRACTED DOCUMENT CONTENT:',
           resourceText,
-        ].join('\\n')
+        ].join('\n')
       : 'No specific resource was selected. Answer the student question directly using your academic knowledge.';
 
     const history = messages
@@ -162,20 +162,21 @@ export class AiService {
       }
     }
 
-    const resource = dto.resourceId
+    const selectedResourceId = dto.resourceId || session?.resourceId;
+    const resource = selectedResourceId
       ? await this.resourceRepository.findOne({
           where: [
-            { id: dto.resourceId, isVerified: true },
-            { id: dto.resourceId, moderationStatus: ResourceModerationStatus.APPROVED },
+            { id: selectedResourceId, isVerified: true },
+            { id: selectedResourceId, moderationStatus: ResourceModerationStatus.APPROVED },
           ],
         })
       : null;
 
-    if (dto.resourceId && !resource) {
+    if (selectedResourceId && !resource) {
       throw new NotFoundException('Approved academic resource not found');
     }
 
-    if (resource && session && dto.resourceId) session.resourceId = dto.resourceId;
+    if (resource && session) session.resourceId = resource.id;
 
     const usageCost = resource ? this.RESOURCE_AI_USAGE_COST : this.GENERAL_AI_USAGE_COST;
     const balance = await this.pointsService.getBalance(userId);
@@ -197,7 +198,7 @@ export class AiService {
           `Tags: ${resource.tags?.join(', ') || 'None'}`,
           'EXTRACTED DOCUMENT CONTENT:',
           resourceText,
-        ].join('\\n')
+        ].join('\n')
       : 'No specific resource was selected. Answer the student question directly using your academic knowledge.';
 
     const history = session
@@ -220,7 +221,7 @@ export class AiService {
     if (!session) {
       session = this.sessionRepository.create({
         userId,
-        resourceId: dto.resourceId,
+        resourceId: selectedResourceId,
         title: `Chat about ${question.substring(0, 50)}...`,
       });
       session = await this.sessionRepository.save(session);
@@ -280,7 +281,7 @@ export class AiService {
         `Level: ${resource.level || 'N/A'}`,
         'EXTRACTED DOCUMENT CONTENT:',
         resourceText,
-      ].join('\\n'),
+      ].join('\n'),
     );
 
     await this.pointsService.chargeForAiUsage(userId, this.SUMMARY_USAGE_COST, `Resource summary - ${resource.title}`);
