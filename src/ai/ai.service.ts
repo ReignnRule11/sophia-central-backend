@@ -162,7 +162,7 @@ export class AiService {
       }
     }
 
-    const selectedResourceId = dto.resourceId || session?.resourceId;
+    const selectedResourceId = dto.resourceId !== undefined ? dto.resourceId : session?.resourceId;
     const resource = selectedResourceId
       ? await this.resourceRepository.findOne({
           where: [
