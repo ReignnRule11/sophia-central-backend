@@ -19,6 +19,9 @@ export class ReviewerApplicationsService {
   ) {}
 
   async submit(user: User, dto: SubmitReviewerApplicationDto) {
+    if (![UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
+      throw new ForbiddenException('Only Lecturer or External Reviewer accounts can apply for Academic Reviewer access.');
+    }
     const recruitmentOpen = process.env.REVIEWER_RECRUITMENT_OPEN === 'true';
     const testEmail = (process.env.REVIEWER_TEST_ACCOUNT_EMAIL || '').trim().toLowerCase();
     const isTestAccount = Boolean(testEmail && user.email?.trim().toLowerCase() === testEmail);
@@ -71,7 +74,7 @@ export class ReviewerApplicationsService {
         const faculty = dto.faculty?.trim() || currentUser.faculty?.trim() || null;
         const department = dto.department?.trim() || currentUser.department?.trim() || null;
         if (currentUser.role !== UserRole.REVIEWER && (!institution || !faculty || !department)) {
-          throw new BadRequestException('Your existing Student or Lecturer academic affiliation must be complete before applying.');
+          throw new BadRequestException('Your Lecturer academic affiliation must be complete before applying.');
         }
 
         const application = manager.create(ReviewerApplication, {
