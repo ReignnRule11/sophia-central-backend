@@ -235,7 +235,7 @@ export class ReferralService {
     event.rewardStatus = 'pending';
     event.reviewReason = `Approved by ${reviewerId}: ${reason.trim()}`;
     await this.referralRepository.save(event);
-    await this.pointsService.awardReferralReward(event.referrerId, event.id, this.REFERRER_BONUS);
+    await this.pointsService.awardReferralReward(event.referrerId, event.id, event.rewardAmount || this.REFERRER_BONUS);
     return { success: true, status: 'awarded' };
   }
 
