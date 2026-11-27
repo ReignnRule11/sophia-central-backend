@@ -20,7 +20,7 @@ export class AiSession {
   userId!: string;
 
   @Column({ nullable: true })
-  resourceId?: string;
+  resourceId?: string | null;
 
   @ManyToOne(() => Resource, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'resourceId' })
