@@ -1,4 +1,5 @@
 import { AiService } from './ai.service';
+import { Readable } from 'node:stream';
 import { ResourceModerationStatus } from '../resources/entities/resource.entity';
 
 describe('AiService Wisdom Points pricing', () => {
@@ -8,6 +9,9 @@ describe('AiService Wisdom Points pricing', () => {
   let resources: any;
   let points: any;
   let provider: any;
+  let savedResources: any;
+  let fileUploads: any;
+  let storage: any;
 
   beforeEach(() => {
     sessions = {
@@ -35,7 +39,18 @@ describe('AiService Wisdom Points pricing', () => {
       chargeForAiUsage: jest.fn().mockResolvedValue(undefined),
     };
     provider = { generateText: jest.fn().mockResolvedValue('Generated academic answer') };
-    service = new AiService(sessions, messages, resources, points, provider);
+    savedResources = { findOne: jest.fn().mockResolvedValue({ downloadedAt: new Date() }) };
+    fileUploads = { findOne: jest.fn().mockResolvedValue(null) };
+    storage = {
+      getKeyFromPublicUrl: jest.fn().mockReturnValue('resources/00000000-0000-0000-0000-000000000001/biology.txt'),
+      getObjectStream: jest.fn().mockResolvedValue({ body: Readable.from(['Cell membranes regulate transport across the cell.']), contentLength: 53 }),
+    };
+    resources.findOne.mockImplementation(async () => ({
+      id: 'resource-1', title: 'Biology notes', description: 'Cell structure', type: 'lecture_note',
+      fileUrl: 'https://files.example/resources/biology.txt',
+      moderationStatus: ResourceModerationStatus.APPROVED, isVerified: true,
+    }));
+    service = new AiService(sessions, messages, resources, points, provider, savedResources, fileUploads, storage);
   });
 
   it('charges 1 WP for a successful question without a resource', async () => {
@@ -64,6 +79,8 @@ describe('AiService Wisdom Points pricing', () => {
         { id: 'resource-1', moderationStatus: ResourceModerationStatus.APPROVED },
       ],
     });
+    expect(provider.generateText).toHaveBeenCalledWith(expect.any(String), expect.stringContaining('Cell membranes regulate transport'), expect.any(Array));
+    expect(storage.getObjectStream).toHaveBeenCalled();
     expect(points.chargeForAiUsage).toHaveBeenCalledWith(
       'student-1',
       2,
