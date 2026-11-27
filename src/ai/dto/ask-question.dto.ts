@@ -12,5 +12,5 @@ export class AskQuestionDto {
 
   @IsOptional()
   @IsString()
-  resourceId?: string;
+  resourceId?: string | null;
 }

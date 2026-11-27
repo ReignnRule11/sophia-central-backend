@@ -176,7 +176,7 @@ export class AiService {
       throw new NotFoundException('Approved academic resource not found');
     }
 
-    if (session && dto.resourceId !== undefined) session.resourceId = dto.resourceId || undefined;
+    if (session && dto.resourceId !== undefined) session.resourceId = dto.resourceId || null;
 
     const usageCost = resource ? this.RESOURCE_AI_USAGE_COST : this.GENERAL_AI_USAGE_COST;
     const balance = await this.pointsService.getBalance(userId);
@@ -241,7 +241,7 @@ export class AiService {
       content: aiResponse,
     }));
 
-    await this.pointsService.chargeForAiUsage(userId, usageCost, `AI tutor query - resource: ${dto.resourceId || 'general'}`);
+    await this.pointsService.chargeForAiUsage(userId, usageCost, `AI tutor query - resource: ${resource?.id || 'general'}`);
 
     return {
       sessionId: session.id,

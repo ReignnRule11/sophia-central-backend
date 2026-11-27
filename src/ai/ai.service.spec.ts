@@ -53,6 +53,27 @@ describe('AiService Wisdom Points pricing', () => {
     service = new AiService(sessions, messages, resources, points, provider, savedResources, fileUploads, storage);
   });
 
+  it('clears a previously selected resource and charges 1 WP for a general follow-up', async () => {
+    const existingSession = { id: 'session-1', userId: 'student-1', resourceId: 'resource-1' };
+    sessions.findOne.mockResolvedValue(existingSession);
+    resources.findOne.mockResolvedValue(null);
+
+    const result = await service.processQuestion('student-1', {
+      question: 'Now explain this generally',
+      sessionId: 'session-1',
+      resourceId: null,
+    } as any);
+
+    expect(existingSession.resourceId).toBeNull();
+    expect(sessions.save).toHaveBeenCalledWith(existingSession);
+    expect(points.chargeForAiUsage).toHaveBeenCalledWith(
+      'student-1',
+      1,
+      'AI tutor query - resource: general',
+    );
+    expect(result.pointsUsed).toBe(1);
+  });
+
   it('charges 1 WP for a successful question without a resource', async () => {
     resources.findOne.mockResolvedValue(null);
 
