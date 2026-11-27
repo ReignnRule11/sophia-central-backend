@@ -1,6 +1,6 @@
 import { ConflictException, ForbiddenException, Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
 import { User, UserRole } from '../users/entities/user.entity';
 import { ModerationReview } from './entities/moderation-review.entity';
@@ -13,7 +13,8 @@ import { ReviewerConflictDeclarationDto } from './dto/reviewer-conflict-declarat
 import { hasActiveGlobalReviewerAuthority } from '../users/reviewer-permissions';
 
 function hasReviewerCapability(user: User): boolean {
-  const hasCapability = user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER);
+  const hasCapability = [UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)
+    && (user.hasReviewerAccess === true || (user.hasReviewerAccess == null && user.role === UserRole.REVIEWER));
   return hasCapability && user.reviewerStatus === 'approved';
 }
 
@@ -91,7 +92,7 @@ export class ModerationService {
       throw new ForbiddenException('Only Admin or the Global Academic Reviewer can assign academic reviewers.');
     }
     return this.userRepository.find({
-      where: { hasReviewerAccess: true, reviewerStatus: 'approved', isSuspended: false, accountStatus: 'active', emailVerified: true },
+      where: { hasReviewerAccess: true, reviewerStatus: 'approved', role: In([UserRole.LECTURER, UserRole.REVIEWER]), isSuspended: false, accountStatus: 'active', emailVerified: true },
       select: ['id', 'firstName', 'lastName', 'hasReviewerAccess', 'isSuspended', 'reviewerExpertise', 'reviewerAcademicLevels', 'institution', 'faculty', 'department'],
       order: { firstName: 'ASC', lastName: 'ASC' },
     });
@@ -161,9 +162,9 @@ export class ModerationService {
     }
     return this.userRepository.find({
       where: [
-        { hasReviewerAccess: true },
-        { reviewerStatus: 'suspended' },
-        { reviewerStatus: 'revoked' },
+        { hasReviewerAccess: true, role: In([UserRole.LECTURER, UserRole.REVIEWER]) },
+        { reviewerStatus: 'suspended', role: In([UserRole.LECTURER, UserRole.REVIEWER]) },
+        { reviewerStatus: 'revoked', role: In([UserRole.LECTURER, UserRole.REVIEWER]) },
       ],
       select: ['id', 'firstName', 'lastName', 'email', 'academicHandle', 'role', 'reviewerStatus', 'reviewerExpertise', 'reviewerAcademicLevels', 'isSuspended', 'isGlobalReviewer', 'institution', 'faculty', 'department'],
       order: { createdAt: 'ASC' },

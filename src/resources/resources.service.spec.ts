@@ -79,15 +79,15 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     expect(savedRepository.save).not.toHaveBeenCalled();
   });
 
-  it('does not allow a student with reviewer access to download resources', async () => {
+  it('keeps ordinary Student download permissions independent of stale reviewer flags', async () => {
     resourceRepository.findOne.mockResolvedValue(resource({ moderationStatus: ResourceModerationStatus.APPROVED }));
     const savedRepository: any = { findOne: jest.fn(), create: jest.fn(), save: jest.fn() };
     const downloadService = new ResourcesService(resourceRepository, {} as any, {} as any, activityRepository, savedRepository, resourcePurchaseRepository, storageCleanup);
     await expect(downloadService.downloadForUser('resource-1', {
-      id: 'dual-role-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
-    } as any)).rejects.toBeInstanceOf(ForbiddenException);
-    expect(resourceRepository.findOne).toHaveBeenCalledTimes(1);
-    expect(savedRepository.save).not.toHaveBeenCalled();
+      id: 'student-1', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
+    } as any)).resolves.toEqual({ downloaded: true, resourceId: 'resource-1' });
+    expect(resourceRepository.findOne).toHaveBeenCalledTimes(2);
+    expect(savedRepository.save).toHaveBeenCalled();
   });
 
   it('allows a student to download their own pending contribution', async () => {
@@ -201,11 +201,11 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       .rejects.toBeInstanceOf(NotFoundException);
   });
 
-  it('allows a dual-role student reviewer to inspect their assigned pending submission', async () => {
+  it('denies a Student account reviewer access to an assigned pending submission', async () => {
     resourceRepository.findOne.mockResolvedValue(resource({ assignedReviewerId: 'reviewer-1' }));
     await expect(service.findOneForViewer('resource-1', {
       id: 'reviewer-1', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1', isSuspended: false,
-    } as any, false)).resolves.toMatchObject({ id: 'resource-1' });
+    } as any, false)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('allows an active Global Academic Reviewer to inspect pending queue items assigned to another reviewer', async () => {
@@ -236,7 +236,7 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     expect(s3.getObjectStream).not.toHaveBeenCalled();
   });
 
-  it('does not treat a student programme or shared department as an automatic conflict when a no-conflict declaration exists', async () => {
+  it('does not grant Student accounts access to pending reviewer documents', async () => {
     const paid = resource({
       moderationStatus: ResourceModerationStatus.PENDING,
       pricingMode: ResourcePricingMode.FIXED,
@@ -256,12 +256,11 @@ describe('ResourcesService.findOneForViewer authorization', () => {
     await expect(previewService.getReaderFile('resource-1', {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Computer Science', program: 'Computer Science',
-    } as any)).resolves.toMatchObject({ contentType: 'application/pdf' });
-    expect(s3.getObjectStream).toHaveBeenCalledWith('resources/review.pdf');
-    expect(resourceRepository.manager.query).toHaveBeenCalledWith(expect.stringContaining('reviewer_conflict_declarations'), ['assignment-1', 'student-reviewer']);
+    } as any)).rejects.toBeInstanceOf(NotFoundException);
+    expect(s3.getObjectStream).not.toHaveBeenCalled();
   });
 
-  it('allows a conflict-free assigned student reviewer to preview a paid pending document without creating a purchase', async () => {
+  it('does not allow a Student account to preview a paid pending reviewer document', async () => {
     const paid = resource({
       moderationStatus: ResourceModerationStatus.PENDING,
       pricingMode: ResourcePricingMode.FIXED,
@@ -283,9 +282,9 @@ describe('ResourcesService.findOneForViewer authorization', () => {
       id: 'student-reviewer', role: UserRole.STUDENT, hasReviewerAccess: true, institutionId: 'institution-1',
       department: 'Computer Science', program: 'Computer Science',
       isSuspended: false,
-    } as any)).resolves.toMatchObject({ contentType: 'application/pdf' });
+    } as any)).rejects.toBeInstanceOf(NotFoundException);
     expect(purchaseRepository.findOne).not.toHaveBeenCalled();
-    expect(s3.getObjectStream).toHaveBeenCalledWith('resources/review.pdf');
+    expect(s3.getObjectStream).not.toHaveBeenCalled();
   });
 
   it('requires a lecturer reviewer to recuse from a paid review for a course they teach', async () => {

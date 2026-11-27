@@ -19,6 +19,9 @@ export class ReviewerApplicationsService {
   ) {}
 
   async submit(user: User, dto: SubmitReviewerApplicationDto) {
+    if (![UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
+      throw new ForbiddenException('Only Lecturer or External Reviewer accounts can apply for Academic Reviewer access.');
+    }
     const recruitmentOpen = process.env.REVIEWER_RECRUITMENT_OPEN === 'true';
     const testEmail = (process.env.REVIEWER_TEST_ACCOUNT_EMAIL || '').trim().toLowerCase();
     const isTestAccount = Boolean(testEmail && user.email?.trim().toLowerCase() === testEmail);
@@ -46,8 +49,8 @@ export class ReviewerApplicationsService {
           lock: { mode: 'pessimistic_write' },
         });
         if (!currentUser) throw new NotFoundException('Applicant account no longer exists.');
-        if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(currentUser.role)) {
-          throw new ForbiddenException('Only Student, Lecturer or External Reviewer accounts can apply for Academic Reviewer access.');
+        if (![UserRole.LECTURER, UserRole.REVIEWER].includes(currentUser.role)) {
+          throw new ForbiddenException('Only Lecturer or External Reviewer accounts can apply for Academic Reviewer access.');
         }
         if (currentUser.hasReviewerAccess === true) {
           throw new ConflictException('Academic Reviewer access is already active on this account.');
@@ -71,7 +74,7 @@ export class ReviewerApplicationsService {
         const faculty = dto.faculty?.trim() || currentUser.faculty?.trim() || null;
         const department = dto.department?.trim() || currentUser.department?.trim() || null;
         if (currentUser.role !== UserRole.REVIEWER && (!institution || !faculty || !department)) {
-          throw new BadRequestException('Your existing Student or Lecturer academic affiliation must be complete before applying.');
+          throw new BadRequestException('Your Lecturer academic affiliation must be complete before applying.');
         }
 
         const application = manager.create(ReviewerApplication, {
@@ -105,6 +108,9 @@ export class ReviewerApplicationsService {
   }
 
   async mine(user: User) {
+    if (![UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
+      throw new ForbiddenException('Student accounts cannot access Academic Reviewer applications.');
+    }
     return this.applications.find({ where: { userId: user.id }, order: { createdAt: 'DESC' } });
   }
 
@@ -164,7 +170,10 @@ export class ReviewerApplicationsService {
       if (latestApplication && latestApplication.id !== application.id) {
         throw new ConflictException('A newer reviewer application exists. Review the latest submission instead.');
       }
-      if (![UserRole.STUDENT, UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
+      if (user.role === UserRole.STUDENT) {
+        throw new ConflictException('Student accounts are not eligible for Academic Reviewer access. This application cannot be approved.');
+      }
+      if (![UserRole.LECTURER, UserRole.REVIEWER].includes(user.role)) {
         throw new ConflictException('The applicant account type has changed. Resolve the account identity before deciding this application.');
       }
       const allowedTransitions: Record<ReviewerApplicationStatus, ReviewerApplicationStatus[]> = {

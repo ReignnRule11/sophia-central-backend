@@ -96,9 +96,8 @@ describe('ReviewerApplicationsService', () => {
     expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
-  it('requires an existing Student or Lecturer affiliation before application', async () => {
+  it('rejects Student accounts before reviewer application processing', async () => {
     const user = { id: 'student-1', role: UserRole.STUDENT, hasReviewerAccess: false } as User;
-    manager.findOne.mockResolvedValueOnce(user).mockResolvedValueOnce(null);
     await expect(service.submit(user, {
       qualifications: ['BSc'],
       expertiseAreas: ['Biology'],
@@ -106,11 +105,9 @@ describe('ReviewerApplicationsService', () => {
       reviewExperience: 'I have relevant academic review experience across several research projects.',
       conflictDeclaration: 'I will disclose all relevant conflicts and recuse myself when necessary.',
       policyAccepted: true,
-    })).rejects.toBeInstanceOf(BadRequestException);
-    expect(dataSource.transaction).toHaveBeenCalled();
-    expect(manager.save).not.toHaveBeenCalled();
+    })).rejects.toBeInstanceOf(ForbiddenException);
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
-
   it('rejects whitespace-only qualifications, expertise and declarations after normalization', async () => {
     const user = { id: 'external-reviewer-1', role: UserRole.REVIEWER, hasReviewerAccess: false } as User;
     await expect(service.submit(user, {
@@ -125,7 +122,7 @@ describe('ReviewerApplicationsService', () => {
   });
 
   it('prevents a second active application for the same account', async () => {
-    const user = { id: 'student-1', role: UserRole.STUDENT } as User;
+    const user = { id: 'lecturer-1', role: UserRole.LECTURER, institution: 'Example University', faculty: 'Science', department: 'Biology' } as User;
     manager.findOne.mockResolvedValueOnce(user).mockResolvedValueOnce({ id: 'application-1', status: ReviewerApplicationStatus.UNDER_REVIEW });
 
     await expect(service.submit(user, {
@@ -152,7 +149,13 @@ describe('ReviewerApplicationsService', () => {
     expect(applications.findOne).not.toHaveBeenCalled();
   });
 
-  it('grants reviewer access without changing a Student primary identity', async () => {
+  it('does not expose reviewer application history to Student accounts', async () => {
+    await expect(service.mine({ id: 'student-1', role: UserRole.STUDENT } as User))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(applications.find).not.toHaveBeenCalled();
+  });
+
+  it('does not approve a Student account for Academic Reviewer access', async () => {
     const application = {
       id: 'application-1',
       userId: 'student-1',
@@ -166,40 +169,18 @@ describe('ReviewerApplicationsService', () => {
       hasReviewerAccess: false,
       reviewerStatus: 'submitted',
     } as User;
-    manager.findOne
-      .mockResolvedValueOnce(application)
-      .mockResolvedValueOnce(user)
-      .mockResolvedValueOnce(application)
-      .mockResolvedValueOnce(application);
+    manager.findOne.mockResolvedValueOnce(application).mockResolvedValueOnce(user).mockResolvedValueOnce(application).mockResolvedValueOnce(application);
 
-    await service.decide('application-1', { id: 'admin-1', role: UserRole.ADMIN, emailVerified: true, isSuspended: false, accountStatus: 'active' } as User, {
+    await expect(service.decide('application-1', {
+      id: 'admin-1', role: UserRole.ADMIN, emailVerified: true, isSuspended: false, accountStatus: 'active',
+    } as User, {
       status: ReviewerApplicationStatus.APPROVED,
       approvedExpertiseAreas: ['Biology'],
       approvedAcademicLevels: ['Undergraduate'],
-    });
+    })).rejects.toBeInstanceOf(ConflictException);
 
-    expect(manager.findOne).toHaveBeenNthCalledWith(2, User, expect.objectContaining({
-      where: { id: user.id },
-      lock: { mode: 'pessimistic_write' },
-    }));
-    expect(manager.findOne).toHaveBeenNthCalledWith(3, ReviewerApplication, expect.objectContaining({
-      where: { id: application.id },
-      lock: { mode: 'pessimistic_write' },
-    }));
-    expect(user).toMatchObject({
-      role: UserRole.STUDENT,
-      hasReviewerAccess: true,
-      reviewerStatus: ReviewerApplicationStatus.APPROVED,
-      reviewerExpertise: ['Biology'],
-      reviewerAcademicLevels: ['Undergraduate'],
-    });
-    expect(manager.save).toHaveBeenCalledWith(User, user);
-    expect(notificationsService.createNotification).toHaveBeenCalledWith(
-      user.id,
-      'reviewer_application_decision',
-      'Academic Reviewer access approved',
-      'Your Academic Reviewer access has been approved. Your reviewer workspace is now available.',
-      '/moderation',
-    );
+    expect(user.hasReviewerAccess).toBe(false);
+    expect(manager.save).not.toHaveBeenCalled();
+    expect(notificationsService.createNotification).not.toHaveBeenCalled();
   });
 });

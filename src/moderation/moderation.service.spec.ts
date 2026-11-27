@@ -70,7 +70,7 @@ describe('ModerationService academic reviewer workflow', () => {
     expect(userRepository.find).not.toHaveBeenCalled();
   });
 
-  it('allows an approved Student account to use its additional reviewer capability', async () => {
+  it('rejects a Student account even if stale reviewer capability fields are present', async () => {
     const reviewer = {
       id: 'student-reviewer-1',
       role: UserRole.STUDENT,
@@ -80,13 +80,9 @@ describe('ModerationService academic reviewer workflow', () => {
       accountStatus: 'active',
       emailVerified: true,
     } as User;
-    resourceRepository.find.mockResolvedValue([]);
-    await expect(service.getQueue(reviewer)).resolves.toEqual([]);
-    expect(resourceRepository.find).toHaveBeenCalledWith(expect.objectContaining({
-      where: { moderationStatus: ResourceModerationStatus.PENDING, assignedReviewerId: 'student-reviewer-1' },
-    }));
+    await expect(service.getQueue(reviewer)).rejects.toBeInstanceOf(ForbiddenException);
+    expect(resourceRepository.find).not.toHaveBeenCalled();
   });
-
   it('rejects an active and verified reviewer whose approval is not active', async () => {
     const reviewer = { id: 'reviewer-not-approved', role: UserRole.REVIEWER, reviewerStatus: 'under_review', accountStatus: 'active', emailVerified: true, isSuspended: false } as User;
     await expect(service.getQueue(reviewer)).rejects.toBeInstanceOf(ForbiddenException);
