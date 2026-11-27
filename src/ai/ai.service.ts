@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import { SavedResource } from '../resources/entities/saved-resource.entity';
 import { FileUpload } from '../upload/entities/file-upload.entity';
 import { S3Service } from '../upload/s3.service';
-import { extractAcademicDocumentText } from './resource-content-extractor';
+import { extractAcademicDocumentTextWithOcr } from './academic-document-ocr';
 import { AiSession } from './entities/ai-session.entity';
 import { AiMessage } from './entities/ai-message.entity';
 import { Resource, ResourceModerationStatus } from '../resources/entities/resource.entity';
@@ -58,9 +58,9 @@ export class AiService {
       chunks.push(part);
     }
     let extracted = '';
-    try { extracted = extractAcademicDocumentText(Buffer.concat(chunks), filename); }
+    try { extracted = await extractAcademicDocumentTextWithOcr(Buffer.concat(chunks), filename); }
     catch (error) { throw new BadRequestException(error instanceof Error ? error.message : 'Could not read this academic document.'); }
-    if (!extracted.trim()) throw new BadRequestException('No readable text was found in this material. Scanned or image-only PDFs are not supported yet.');
+    if (!extracted.trim()) throw new BadRequestException('No readable text was found in this material.');
     return extracted.slice(0, 48000);
   }
 
