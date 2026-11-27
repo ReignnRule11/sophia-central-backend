@@ -176,7 +176,7 @@ export class AiService {
       throw new NotFoundException('Approved academic resource not found');
     }
 
-    if (resource && session) session.resourceId = resource.id;
+    if (session && dto.resourceId !== undefined) session.resourceId = dto.resourceId || undefined;
 
     const usageCost = resource ? this.RESOURCE_AI_USAGE_COST : this.GENERAL_AI_USAGE_COST;
     const balance = await this.pointsService.getBalance(userId);
@@ -224,6 +224,8 @@ export class AiService {
         resourceId: selectedResourceId,
         title: `Chat about ${question.substring(0, 50)}...`,
       });
+      session = await this.sessionRepository.save(session);
+    } else if (dto.resourceId !== undefined) {
       session = await this.sessionRepository.save(session);
     }
 
