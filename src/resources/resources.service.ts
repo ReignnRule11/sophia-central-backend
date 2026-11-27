@@ -20,7 +20,8 @@ import { ResourcePricingMode } from './entities/resource.entity';
 import { hasActiveGlobalReviewerAuthority } from '../users/reviewer-permissions';
 
 function hasReviewerCapability(viewer: Partial<User>): boolean {
-  return viewer.hasReviewerAccess === true || (viewer.hasReviewerAccess == null && viewer.role === UserRole.REVIEWER);
+  return [UserRole.LECTURER, UserRole.REVIEWER].includes(viewer.role as UserRole)
+    && (viewer.hasReviewerAccess === true || (viewer.hasReviewerAccess == null && viewer.role === UserRole.REVIEWER));
 }
 
 function isPreviewOnlyResourceAccess(viewer: Partial<User>): boolean {
