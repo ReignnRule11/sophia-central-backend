@@ -79,6 +79,14 @@ function extractPdfText(buffer: Buffer): string {
     const literalPattern = /\(((?:\\.|[^\\)])*)\)\s*Tj/g;
     let literal: RegExpExecArray | null;
     while ((literal = literalPattern.exec(candidate)) !== null) text.push(unescapePdfLiteral(literal[1]));
+    const hexPattern = /<([0-9a-f\s]+)>\s*Tj/gi;
+    let hex: RegExpExecArray | null;
+    while ((hex = hexPattern.exec(candidate)) !== null) {
+      const bytes = Buffer.from(hex[1].replace(/\s/g, ''), 'hex');
+      text.push(bytes.length >= 2 && bytes[0] === 0xfe && bytes[1] === 0xff
+        ? bytes.subarray(2).swap16().toString('utf16le')
+        : bytes.toString('latin1'));
+    }
     const arrayPattern = /\[((?:\\.|[^\]])*)\]\s*TJ/g;
     let array: RegExpExecArray | null;
     while ((array = arrayPattern.exec(candidate)) !== null) {
