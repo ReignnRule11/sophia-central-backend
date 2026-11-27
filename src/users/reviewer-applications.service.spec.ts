@@ -149,6 +149,12 @@ describe('ReviewerApplicationsService', () => {
     expect(applications.findOne).not.toHaveBeenCalled();
   });
 
+  it('does not expose reviewer application history to Student accounts', async () => {
+    await expect(service.mine({ id: 'student-1', role: UserRole.STUDENT } as User))
+      .rejects.toBeInstanceOf(ForbiddenException);
+    expect(applications.find).not.toHaveBeenCalled();
+  });
+
   it('does not approve a Student account for Academic Reviewer access', async () => {
     const application = {
       id: 'application-1',
