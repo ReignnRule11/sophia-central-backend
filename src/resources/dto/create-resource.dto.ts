@@ -14,8 +14,8 @@ export class CreateResourceDto {
   @IsOptional() @IsBoolean() downloadRestricted?: boolean;
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(40, { each: true }) tags?: string[];
   @IsOptional() @IsArray() @ArrayMaxSize(20) @IsString({ each: true }) @MaxLength(30, { each: true }) coAuthorHandles?: string[];
-  @IsEnum(ResourceLicense) license: ResourceLicense;
-  @IsString() @MaxLength(300) attribution: string;
+  @IsOptional() @IsEnum(ResourceLicense) license?: ResourceLicense;
+  @IsOptional() @IsString() @MaxLength(300) attribution?: string;
   @IsOptional() @IsUrl({ require_protocol: true }) sourceUrl?: string;
   @IsBoolean() rightsConfirmed: boolean;
 }
