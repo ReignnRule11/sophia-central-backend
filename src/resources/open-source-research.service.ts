@@ -135,19 +135,26 @@ export class OpenSourceResearchService {
     url.searchParams.set('per-page', String(perPage));
     url.searchParams.set('filter', 'open_access.is_oa:true');
     url.searchParams.set('select', 'id,doi,title,publication_year,type,authorships,best_oa_location,primary_location,open_access');
-    const [openAlex, crossref, europePmc, importedResults] = await Promise.all([
+    const [openAlex, crossref, europePmc, pubMed, core, doaj, importedResults] = await Promise.all([
       this.openAlexGet<OpenAlexSearchResponse>(url.toString()).catch(() => ({ results: [] })),
       this.searchCrossref(term, perPage),
       this.searchEuropePmc(term, perPage),
+      this.searchPubMed(term, perPage),
+      this.searchCore(term, perPage),
+      this.searchDoaj(term, perPage),
       this.searchImportedMatches(query, filters, perPage),
     ]);
     const results = [
       ...(openAlex.results ?? []).map((work) => ({ ...this.toSearchResult(work), index: 'OpenAlex' })),
       ...crossref,
       ...europePmc,
+      ...pubMed,
+      ...core,
+      ...doaj,
     ];
     const unique = new Map<string, typeof results[number]>();
     for (const item of results) {
+      if (!item) continue;
       const key = item.doi?.toLowerCase().replace('https://doi.org/', '').replace('http://doi.org/', '') || item.id;
       if (!unique.has(key)) unique.set(key, item);
     }
@@ -233,6 +240,129 @@ export class OpenSourceResearchService {
           index: 'Europe PMC',
         };
       }).filter((item) => item.title !== 'Untitled research work' && item.landingPageUrl);
+    } catch { return []; }
+  }
+
+  private async searchPubMed(term: string, limit: number) {
+    try {
+      const searchUrl = new URL('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi');
+      searchUrl.searchParams.set('db', 'pubmed');
+      searchUrl.searchParams.set('term', `(${term}) AND "pmc open access subset"[filter]`);
+      searchUrl.searchParams.set('retmode', 'json');
+      searchUrl.searchParams.set('retmax', String(limit));
+      const searchResponse = await fetch(searchUrl, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+      if (!searchResponse.ok) return [];
+      const searchPayload = await searchResponse.json() as { esearchresult?: { idlist?: string[] } };
+      const ids = searchPayload.esearchresult?.idlist ?? [];
+      if (!ids.length) return [];
+
+      const summaryUrl = new URL('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esummary.fcgi');
+      summaryUrl.searchParams.set('db', 'pubmed');
+      summaryUrl.searchParams.set('id', ids.join(','));
+      summaryUrl.searchParams.set('retmode', 'json');
+      const summaryResponse = await fetch(summaryUrl, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+      if (!summaryResponse.ok) return [];
+      const payload = await summaryResponse.json() as { result?: Record<string, any> };
+      return ids.map((id) => {
+        const item = payload.result?.[id];
+        if (!item) return null;
+        const articleIds = Array.isArray(item.articleids) ? item.articleids : [];
+        const doiValue = articleIds.find((entry: any) => entry.idtype === 'doi')?.value;
+        const pmcValue = articleIds.find((entry: any) => entry.idtype === 'pmc')?.value;
+        const doi = typeof doiValue === 'string' ? (doiValue.startsWith('http') ? doiValue : `https://doi.org/${doiValue}`) : null;
+        const pmc = typeof pmcValue === 'string' ? pmcValue.replace(/^PMC/i, '') : null;
+        const authors = Array.isArray(item.authors) ? item.authors.map((author: any) => author.name).filter(Boolean).slice(0, 5) : [];
+        return {
+          id: doi ?? (pmc ? `https://pmc.ncbi.nlm.nih.gov/articles/PMC${pmc}/` : `https://pubmed.ncbi.nlm.nih.gov/${id}/`),
+          doi,
+          title: String(item.title ?? 'Untitled research work').replace(/\\.$/, ''),
+          publicationYear: Number(String(item.pubdate ?? '').match(/\\b(19|20)\\d{2}\\b/)?.[0]) || null,
+          authors,
+          source: item.fulljournalname ?? item.source ?? 'PubMed',
+          landingPageUrl: pmc ? `https://pmc.ncbi.nlm.nih.gov/articles/PMC${pmc}/` : `https://pubmed.ncbi.nlm.nih.gov/${id}/`,
+          pdfAvailable: false,
+          openAccess: true,
+          licence: null,
+          redistributionAllowedByLicence: false,
+          index: 'PubMed',
+        };
+      }).filter((item) => item && item.title !== 'Untitled research work');
+    } catch { return []; }
+  }
+
+  private async searchCore(term: string, limit: number) {
+    const apiKey = process.env.CORE_API_KEY?.trim();
+    if (!apiKey) return [];
+    try {
+      const url = new URL('https://api.core.ac.uk/v3/search/works');
+      url.searchParams.set('q', term);
+      url.searchParams.set('limit', String(limit));
+      const response = await fetch(url, {
+        headers: { Accept: 'application/json', Authorization: `Bearer ${apiKey}` },
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) return [];
+      const payload = await response.json() as { results?: Array<Record<string, any>> };
+      return (payload.results ?? []).map((work) => {
+        const doiValue = typeof work.doi === 'string' ? work.doi : null;
+        const doi = doiValue ? (doiValue.startsWith('http') ? doiValue : `https://doi.org/${doiValue}`) : null;
+        const downloadUrl = typeof work.downloadUrl === 'string' ? work.downloadUrl : null;
+        const sourceUrls = Array.isArray(work.sourceFulltextUrls) ? work.sourceFulltextUrls.filter((value: unknown) => typeof value === 'string') : [];
+        const fullTextUrl = downloadUrl ?? sourceUrls[0] ?? null;
+        const authors = Array.isArray(work.authors) ? work.authors.map((author: any) => typeof author === 'string' ? author : author.name).filter(Boolean).slice(0, 5) : [];
+        const journal = Array.isArray(work.journals) ? work.journals[0]?.title : null;
+        return {
+          id: doi ?? (typeof work.id === 'number' ? `core:${work.id}` : String(work.id ?? fullTextUrl ?? '')),
+          doi,
+          title: String(work.title ?? 'Untitled research work'),
+          publicationYear: Number(work.yearPublished) || null,
+          authors,
+          source: journal ?? 'CORE',
+          landingPageUrl: fullTextUrl ?? doi,
+          pdfAvailable: Boolean(downloadUrl),
+          openAccess: Boolean(fullTextUrl),
+          licence: typeof work.license === 'string' ? work.license : null,
+          redistributionAllowedByLicence: this.isRedistributableSourceLicense(work.license),
+          index: 'CORE',
+        };
+      }).filter((item) => item.openAccess && item.title !== 'Untitled research work' && item.landingPageUrl);
+    } catch { return []; }
+  }
+
+  private async searchDoaj(term: string, limit: number) {
+    try {
+      const url = new URL(`https://doaj.org/api/search/articles/${encodeURIComponent(term)}`);
+      url.searchParams.set('page', '1');
+      url.searchParams.set('pageSize', String(limit));
+      const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+      if (!response.ok) return [];
+      const payload = await response.json() as { results?: Array<{ bibjson?: Record<string, any> }> };
+      return (payload.results ?? []).map(({ bibjson }) => {
+        if (!bibjson) return null;
+        const identifiers = Array.isArray(bibjson.identifier) ? bibjson.identifier : [];
+        const doiValue = identifiers.find((entry: any) => entry.type === 'doi')?.id;
+        const doi = typeof doiValue === 'string' ? (doiValue.startsWith('http') ? doiValue : `https://doi.org/${doiValue}`) : null;
+        const links = Array.isArray(bibjson.link) ? bibjson.link : [];
+        const fullText = links.find((link: any) => link.type === 'fulltext')?.url;
+        const licenses = Array.isArray(bibjson.license) ? bibjson.license : [];
+        const license = licenses.find((entry: any) => typeof entry.url === 'string')?.url ??
+          licenses.find((entry: any) => typeof entry.title === 'string')?.title ?? null;
+        const authors = Array.isArray(bibjson.author) ? bibjson.author.map((author: any) => author.name).filter(Boolean).slice(0, 5) : [];
+        return {
+          id: doi ?? String(fullText ?? ''),
+          doi,
+          title: String(bibjson.title ?? 'Untitled research work'),
+          publicationYear: Number(bibjson.year) || null,
+          authors,
+          source: bibjson.journal?.title ?? 'DOAJ',
+          landingPageUrl: typeof fullText === 'string' ? fullText : doi,
+          pdfAvailable: typeof fullText === 'string' && /\\.pdf(?:$|\\?)/i.test(fullText),
+          openAccess: true,
+          licence: typeof license === 'string' ? license : null,
+          redistributionAllowedByLicence: this.isRedistributableSourceLicense(license),
+          index: 'DOAJ',
+        };
+      }).filter((item) => item && item.title !== 'Untitled research work' && item.landingPageUrl);
     } catch { return []; }
   }
 
