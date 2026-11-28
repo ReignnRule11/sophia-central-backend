@@ -8,7 +8,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { createHash, randomBytes } from 'node:crypto';
+import { createHash, randomBytes, randomInt } from 'node:crypto';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcryptjs';
 import { RegisterDto } from './dto/register.dto';
@@ -30,6 +30,7 @@ import { ReviewerApplicationDecision } from '../users/entities/reviewer-applicat
 import { ReferralService } from '../referral/referral.service';
 import { isReservedPlatformLoginAlias, PLATFORM_LOGIN_ALIASES } from '../users/platform-login-aliases';
 import { AdminMfaService } from './admin-mfa.service';
+import { AccountLifecycleEmailService } from './account-lifecycle-email.service';
 
 const PASSWORD_RESET_TTL_MS = 30 * 60 * 1000;
 const EMAIL_VERIFICATION_TTL_MS = 24 * 60 * 60 * 1000;
@@ -58,6 +59,7 @@ export class AuthService {
     private readonly verificationEmail: EmailVerificationEmailService,
     private readonly referralService: ReferralService,
     private readonly adminMfa: AdminMfaService,
+    private readonly lifecycleEmail: AccountLifecycleEmailService,
   ) {}
 
   private reviewerRegistrationAllowed(email: string): boolean {
@@ -191,9 +193,10 @@ export class AuthService {
     if (user.accountStatus === 'deactivated') {
       // A password alone must never reactivate a voluntarily deactivated account.
       // The dedicated email-OTP recovery flow must complete before a session is issued.
+      await this.requestAccountReactivationCode(user);
       return {
         reactivationRequired: true as const,
-        message: 'This account is deactivated. Verify the registered email address to continue with reactivation.',
+        message: 'This account is deactivated. If the account is eligible, a verification code has been sent to its registered email address.',
       };
     }
     if (user.role === UserRole.ADMIN) {
