@@ -23,7 +23,7 @@ describe('AuthService', () => {
   let reviewerApplications: { create: jest.Mock; save: jest.Mock };
   let reviewerDecisions: { create: jest.Mock; save: jest.Mock };
   let dataSource: { transaction: jest.Mock };
-  let registrationTokens: { seal: jest.Mock; open: jest.Mock; claimOnce: jest.Mock; releaseClaim: jest.Mock };
+  let registrationTokens: { seal: jest.Mock; open: jest.Mock; claimOnce: jest.Mock; releaseClaim: jest.Mock; setEphemeral: jest.Mock; getEphemeral: jest.Mock; deleteEphemeral: jest.Mock; incrementEphemeral: jest.Mock };
   let resetEmail: jest.Mocked<Pick<PasswordResetEmailService, 'sendResetLink'>>;
   let verificationEmail: jest.Mocked<Pick<EmailVerificationEmailService, 'sendVerificationLink'>>;
   let lifecycleEmail: jest.Mocked<Pick<AccountLifecycleEmailService, 'sendOtp'>>;
