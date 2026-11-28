@@ -208,6 +208,70 @@ export class AuthService {
   }
 
 
+
+  private async requestAccountReactivationCode(user: User): Promise<void> {
+    const allowed = await this.registrationTokens.setEphemeral(`reactivation-throttle:${user.id}`, '1', 60, true);
+    if (!allowed) return;
+    const code = String(randomInt(0, 1000000)).padStart(6, '0');
+    const codeHash = await bcrypt.hash(code, 10);
+    await this.registrationTokens.setEphemeral(`reactivation-code:${user.id}`, JSON.stringify({ userId: user.id, codeHash }), 600);
+    try {
+      await this.lifecycleEmail.sendOtp(user.email, user.firstName, code, 'reactivation');
+    } catch (error) {
+      await this.registrationTokens.deleteEphemeral(`reactivation-code:${user.id}`);
+      throw error;
+    }
+  }
+
+  async verifyAccountReactivationCode(identifier: string, code: string) {
+    const normalized = identifier.trim();
+    const user = normalized.includes('@')
+      ? await this.usersService.findByEmail(normalized.toLowerCase())
+      : /^SC-/i.test(normalized)
+        ? await this.usersService.findByUniqueId(normalized)
+        : await this.usersService.findByAcademicHandle(normalized);
+    if (!user || user.accountStatus !== 'deactivated' || user.isSuspended || user.emailVerified !== true) {
+      throw new UnauthorizedException('The verification code is invalid or expired.');
+    }
+    const key = `reactivation-code:${user.id}`;
+    const raw = await this.registrationTokens.getEphemeral(key);
+    if (!raw) throw new UnauthorizedException('The verification code is invalid or expired.');
+    const attempts = await this.registrationTokens.incrementEphemeral(`reactivation-attempts:${user.id}`, 600);
+    if (attempts > 5) {
+      await this.registrationTokens.deleteEphemeral(key);
+      throw new UnauthorizedException('Too many incorrect verification attempts. Request a new code.');
+    }
+    let challenge: { userId?: string; codeHash?: string };
+    try { challenge = JSON.parse(raw) as { userId?: string; codeHash?: string }; }
+    catch { await this.registrationTokens.deleteEphemeral(key); throw new UnauthorizedException('The verification code is invalid or expired.'); }
+    if (challenge.userId !== user.id || !challenge.codeHash || !(await bcrypt.compare(code, challenge.codeHash))) {
+      throw new UnauthorizedException('The verification code is invalid or expired.');
+    }
+    await this.registrationTokens.deleteEphemeral(key);
+    await this.registrationTokens.deleteEphemeral(`reactivation-attempts:${user.id}`);
+    return {
+      confirmationRequired: true as const,
+      confirmationToken: this.registrationTokens.seal({
+        stage: 'account-reactivation-confirm',
+        userId: user.id,
+        jti: randomBytes(32).toString('hex'),
+        expiresAt: Date.now() + 10 * 60 * 1000,
+      }),
+    };
+  }
+
+  async confirmAccountReactivation(confirmationToken: string) {
+    const payload = this.registrationTokens.open(confirmationToken);
+    if (payload.stage !== 'account-reactivation-confirm' || typeof payload.userId !== 'string' || typeof payload.jti !== 'string') {
+      throw new UnauthorizedException('This reactivation confirmation is invalid or has expired.');
+    }
+    const claimed = await this.registrationTokens.claimOnce(payload.jti, Math.ceil((payload.expiresAt - Date.now()) / 1000));
+    if (!claimed) throw new UnauthorizedException('This reactivation confirmation has already been used.');
+    const user = await this.usersService.reactivateDeactivatedAccount(payload.userId);
+    const updated = await this.usersService.update(user.id, { lastLoginAt: new Date() });
+    return this.buildAuthResponse(updated);
+  }
+
   async cancelPendingAccountDeletion(dto: { email: string; password: string; securityAnswer: string }) {
     return this.usersService.cancelPendingDeletion(dto.email, dto.password, dto.securityAnswer);
   }
