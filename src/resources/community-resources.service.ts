@@ -74,11 +74,11 @@ export class CommunityResourcesService {
           { [parameter]: value },
         );
       } else {
-        qb.andWhere(`LOWER(resource.${column}) LIKE LOWER(:${parameter})`, { [parameter]: `%${value}%` });
+        qb.andWhere(parameter === 'topic' ? `(LOWER(resource.${column}) LIKE LOWER(:${parameter}) OR resource.tags::text ILIKE :${parameter})` : `LOWER(resource.${column}) LIKE LOWER(:${parameter})`, { [parameter]: `%${value}%` });
       }
     }
     if (query.q?.trim()) {
-      qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.course ILIKE :q OR resource.topic ILIKE :q)', { q: `%${query.q.trim()}%` });
+      qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.course ILIKE :q OR resource.topic ILIKE :q OR resource.tags::text ILIKE :q)', { q: `%${query.q.trim()}%` });
     }
     if (query.author?.trim()) {
       qb.andWhere('(resource.attribution ILIKE :author OR uploader.firstName ILIKE :author OR uploader.lastName ILIKE :author OR uploader.academicHandle ILIKE :author)', { author: `%${query.author.trim()}%` });
