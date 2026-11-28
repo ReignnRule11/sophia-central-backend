@@ -2,7 +2,7 @@
 
 [![Backend CI](https://github.com/ReignnRule11/sophia-central-backend/actions/workflows/ci.yml/badge.svg)](https://github.com/ReignnRule11/sophia-central-backend/actions/workflows/ci.yml)
 
-Sophis Central is an academic resource and research platform for students, lecturers, moderators, and administrators. This repository contains the NestJS API, PostgreSQL persistence, authentication/onboarding services, and backend integrations for the web client.
+Sophis Central is an academic resource and research platform for students, lecturers, moderators, reviewers, and administrators. This repository contains the NestJS API, PostgreSQL persistence, authentication/onboarding services, and backend integrations for the web client.
 
 ## Implemented product workflows
 
@@ -89,6 +89,17 @@ Wisdom Points are available to Student accounts only. The current allocations, A
 - MinIO / S3-compatible object storage integration
 - OpenAI-compatible AI provider integration
 - Swagger/OpenAPI via NestJS Swagger
+
+## Business, financial and scaling documentation
+
+The following planning documents establish the commercial and operational framework for the next growth stage. They are planning artefacts, not evidence of signed customers, realized revenue, approved funding or current vendor expenditure. Financial inputs must be validated before investor circulation.
+
+- [Business, Financial Sustainability and Funding Strategy](docs/BUSINESS_PLAN_FINANCIAL_STRATEGY.md)
+- [12-Month Financial Model Framework](docs/12_MONTH_FINANCIAL_MODEL.md)
+- [Technical Scaling and Cost Assessment](docs/TECHNICAL_SCALING_COST_ASSESSMENT.md)
+- [Monetization and Growth Roadmap](docs/MONETIZATION_AND_GROWTH_ROADMAP.md)
+
+NGN is the operating currency; USD equivalents should include a dated exchange-rate source. The financial model deliberately avoids invented prices, user counts, operating costs and revenue projections. The engineering team should complete the technical assessment using current invoices, provider dashboards and evidence-based scale estimates before the funding ask is finalized.
 
 ## Getting started
 
