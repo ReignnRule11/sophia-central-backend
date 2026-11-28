@@ -189,7 +189,12 @@ export class AuthService {
       throw new ForbiddenException('This platform account requires Admin approval before sign-in is permitted.');
     }
     if (user.accountStatus === 'deactivated') {
-      user = await this.usersService.update(user.id, { accountStatus: 'active' });
+      // A password alone must never reactivate a voluntarily deactivated account.
+      // The dedicated email-OTP recovery flow must complete before a session is issued.
+      return {
+        reactivationRequired: true as const,
+        message: 'This account is deactivated. Verify the registered email address to continue with reactivation.',
+      };
     }
     if (user.role === UserRole.ADMIN) {
       const stage = user.adminMfaEnabled ? 'admin-mfa-login' : 'admin-mfa-enroll';
@@ -771,6 +776,7 @@ export class AuthService {
       sub: user.id,
       email: user.email,
       role: user.role,
+      tokenVersion: user.tokenVersion ?? 0,
       ...(user.role === UserRole.ADMIN ? { adminMfaVerified } : {}),
     });
     return { accessToken, user: this.toSafeUser(user) };
