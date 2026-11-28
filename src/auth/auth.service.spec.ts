@@ -10,6 +10,7 @@ import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { PasswordResetEmailService } from './password-reset-email.service';
 import { EmailVerificationEmailService } from './email-verification-email.service';
+import { AccountLifecycleEmailService } from './account-lifecycle-email.service';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -22,9 +23,10 @@ describe('AuthService', () => {
   let reviewerApplications: { create: jest.Mock; save: jest.Mock };
   let reviewerDecisions: { create: jest.Mock; save: jest.Mock };
   let dataSource: { transaction: jest.Mock };
-  let registrationTokens: { seal: jest.Mock; open: jest.Mock; claimOnce: jest.Mock; releaseClaim: jest.Mock };
+  let registrationTokens: { seal: jest.Mock; open: jest.Mock; claimOnce: jest.Mock; releaseClaim: jest.Mock; setEphemeral: jest.Mock; getEphemeral: jest.Mock; deleteEphemeral: jest.Mock; incrementEphemeral: jest.Mock };
   let resetEmail: jest.Mocked<Pick<PasswordResetEmailService, 'sendResetLink'>>;
   let verificationEmail: jest.Mocked<Pick<EmailVerificationEmailService, 'sendVerificationLink'>>;
+  let lifecycleEmail: jest.Mocked<Pick<AccountLifecycleEmailService, 'sendOtp'>>;
   let referrals: { validateReferralCode: jest.Mock; redeemReferral: jest.Mock; processPendingReferralForUser: jest.Mock };
   let adminMfa: { createChallenge: jest.Mock; beginEnrollment: jest.Mock; confirmEnrollment: jest.Mock; verifyLogin: jest.Mock };
   const user = {
@@ -57,9 +59,14 @@ describe('AuthService', () => {
       open: jest.fn(),
       claimOnce: jest.fn().mockResolvedValue(true),
       releaseClaim: jest.fn().mockResolvedValue(undefined),
+      setEphemeral: jest.fn().mockResolvedValue(true),
+      getEphemeral: jest.fn(),
+      deleteEphemeral: jest.fn().mockResolvedValue(undefined),
+      incrementEphemeral: jest.fn().mockResolvedValue(1),
     };
     resetEmail = { sendResetLink: jest.fn().mockResolvedValue(undefined) };
     verificationEmail = { sendVerificationLink: jest.fn().mockResolvedValue(undefined) };
+    lifecycleEmail = { sendOtp: jest.fn().mockResolvedValue(undefined) };
     referrals = {
       validateReferralCode: jest.fn().mockResolvedValue(undefined),
       redeemReferral: jest.fn().mockResolvedValue({ success: true, message: 'Referral recorded.' }),
@@ -79,10 +86,33 @@ describe('AuthService', () => {
       verificationEmail as unknown as EmailVerificationEmailService,
       referrals as never,
       adminMfa as never,
+      lifecycleEmail as unknown as AccountLifecycleEmailService,
     );
   });
 
   afterEach(() => jest.restoreAllMocks());
+
+
+  it('does not reactivate a deactivated account on password-only login', async () => {
+    const deactivated = {
+      ...user,
+      id: 'deactivated-user',
+      email: 'deactivated@example.com',
+      password: await bcrypt.hash('ValidPassword123!', 4),
+      emailVerified: true,
+      accountStatus: 'deactivated',
+      isSuspended: false,
+    } as User;
+    users.findByEmail.mockResolvedValue(deactivated as never);
+    registrationTokens.setEphemeral.mockResolvedValue(true);
+
+    const result = await service.login({ identifier: deactivated.email, password: 'ValidPassword123!' } as never);
+
+    expect(result).toMatchObject({ reactivationRequired: true });
+    expect(users.update).not.toHaveBeenCalledWith(deactivated.id, { accountStatus: 'active' });
+    expect(jwt.signAsync).not.toHaveBeenCalled();
+    expect(lifecycleEmail.sendOtp).toHaveBeenCalledWith(deactivated.email, deactivated.firstName, expect.stringMatching(/^\d{6}$/), 'reactivation');
+  });
 
   it('returns an enrollment challenge instead of a JWT for an Admin without MFA', async () => {
     const admin = {

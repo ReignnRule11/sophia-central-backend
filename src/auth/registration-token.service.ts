@@ -4,7 +4,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import { createClient, type RedisClientType } from 'redis';
 
 export type RegistrationTokenPayload = {
-  stage: 'verify' | 'pre-account' | 'pre-account-draft' | 'admin-bootstrap' | 'support-bootstrap' | 'admin-mfa-login' | 'admin-mfa-enroll';
+  stage: 'verify' | 'pre-account' | 'pre-account-draft' | 'admin-bootstrap' | 'support-bootstrap' | 'admin-mfa-login' | 'admin-mfa-enroll' | 'account-reactivation-confirm';
   expiresAt: number;
   jti?: string;
   [key: string]: unknown;
@@ -36,6 +36,37 @@ export class RegistrationTokenService implements OnModuleInit, OnModuleDestroy {
       EX: Math.max(1, ttlSeconds),
     });
     return result === 'OK';
+  }
+
+  private ephemeralKey(key: string): string {
+    return `sophis:lifecycle:${createHash('sha256').update(key).digest('hex')}`;
+  }
+
+  async setEphemeral(key: string, value: string, ttlSeconds: number, onlyIfAbsent = false): Promise<boolean> {
+    if (!this.client?.isReady) throw new ServiceUnavailableException('Account verification is temporarily unavailable. Please try again.');
+    const result = await this.client.set(this.ephemeralKey(key), value, {
+      EX: Math.max(1, ttlSeconds),
+      ...(onlyIfAbsent ? { NX: true } : {}),
+    });
+    return result === 'OK';
+  }
+
+  async getEphemeral(key: string): Promise<string | null> {
+    if (!this.client?.isReady) throw new ServiceUnavailableException('Account verification is temporarily unavailable. Please try again.');
+    return this.client.get(this.ephemeralKey(key));
+  }
+
+  async deleteEphemeral(key: string): Promise<void> {
+    if (!this.client?.isReady) throw new ServiceUnavailableException('Account verification is temporarily unavailable. Please try again.');
+    await this.client.del(this.ephemeralKey(key));
+  }
+
+  async incrementEphemeral(key: string, ttlSeconds: number): Promise<number> {
+    if (!this.client?.isReady) throw new ServiceUnavailableException('Account verification is temporarily unavailable. Please try again.');
+    const redisKey = this.ephemeralKey(key);
+    const count = await this.client.incr(redisKey);
+    if (count === 1) await this.client.expire(redisKey, Math.max(1, ttlSeconds));
+    return count;
   }
 
   async releaseClaim(jti: string): Promise<void> {

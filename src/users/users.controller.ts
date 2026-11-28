@@ -211,7 +211,7 @@ export class UsersController {
   async deactivateOwnAccount(@CurrentUser() user: User, @Body() dto: DeactivateAccountDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.usersService.deactivateOwnAccount(user.id, dto.password);
     this.clearAuthCookies(response);
-    return { ...result, message: 'Your account has been deactivated. Sign in again when you are ready to reactivate it.' };
+    return { ...result, message: 'Your account has been deactivated. To return, sign in and verify the one-time code sent to your registered email, then confirm reactivation.' };
   }
 
   @Post('me/deletion-request')

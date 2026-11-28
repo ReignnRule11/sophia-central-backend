@@ -665,6 +665,7 @@ export class UsersService {
     if (user.accountStatus === 'pending_deletion') throw new ConflictException('A deletion request is already pending for this account.');
     const requestedAt = new Date();
     user.accountStatus = 'pending_deletion';
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     user.deletionRequestedAt = requestedAt;
     user.deletionScheduledAt = new Date(requestedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
     await this.usersRepository.save(user);
@@ -682,6 +683,7 @@ export class UsersService {
       throw new ForbiddenException('This account also has a moderator-imposed suspension that must be resolved separately.');
     }
     user.accountStatus = 'active';
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await this.usersRepository.save(user);
     return { success: true, accountStatus: user.accountStatus };
   }
@@ -736,6 +738,7 @@ export class UsersService {
       throw new ConflictException('This account already has a pending deletion request.');
     }
     user.accountStatus = 'deactivated';
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     await this.usersRepository.save(user);
     return { success: true, accountStatus: user.accountStatus };
   }
@@ -758,6 +761,7 @@ export class UsersService {
     }
     const requestedAt = new Date();
     user.accountStatus = 'pending_deletion';
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     user.deletionRequestedAt = requestedAt;
     user.deletionScheduledAt = new Date(requestedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
     await this.usersRepository.save(user);
@@ -776,6 +780,7 @@ export class UsersService {
       throw new UnauthorizedException('The account could not be restored with the supplied details.');
     }
     user.accountStatus = 'active';
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     user.deletionRequestedAt = undefined;
     user.deletionScheduledAt = undefined;
     await this.usersRepository.save(user);
