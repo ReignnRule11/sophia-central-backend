@@ -267,8 +267,8 @@ export class AuthService {
     }
     const claimed = await this.registrationTokens.claimOnce(payload.jti, Math.ceil((payload.expiresAt - Date.now()) / 1000));
     if (!claimed) throw new UnauthorizedException('This reactivation confirmation has already been used.');
-    const user = await this.usersService.reactivateDeactivatedAccount(payload.userId);
-    const updated = await this.usersService.update(user.id, { lastLoginAt: new Date() });
+    await this.usersService.reactivateDeactivatedAccount(payload.userId);
+    const updated = await this.usersService.update(payload.userId, { lastLoginAt: new Date() });
     return this.buildAuthResponse(updated);
   }
 
