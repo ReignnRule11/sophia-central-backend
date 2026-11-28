@@ -17,6 +17,7 @@ import { JwtStrategy } from './strategies/jwt.strategy';
 import { ReferralModule } from '../referral/referral.module';
 import { RegistrationTokenService } from './registration-token.service';
 import { AdminMfaService } from './admin-mfa.service';
+import { AccountLifecycleEmailService } from './account-lifecycle-email.service';
 import { User } from '../users/entities/user.entity';
 
 @Module({
@@ -45,7 +46,7 @@ import { User } from '../users/entities/user.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, PasswordResetEmailService, EmailVerificationEmailService, RegistrationTokenService, AdminMfaService],
+  providers: [AuthService, JwtStrategy, PasswordResetEmailService, EmailVerificationEmailService, RegistrationTokenService, AdminMfaService, AccountLifecycleEmailService],
   exports: [AuthService],
 })
 export class AuthModule {}
