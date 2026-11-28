@@ -148,7 +148,7 @@ export class OpenSourceResearchService {
     ];
     const unique = new Map<string, typeof results[number]>();
     for (const item of results) {
-      const key = item.doi?.toLowerCase().replace(/^https?:\\/\\/doi.org\\//, '') || item.id;
+      const key = item.doi?.toLowerCase().replace('https://doi.org/', '').replace('http://doi.org/', '') || item.id;
       if (!unique.has(key)) unique.set(key, item);
     }
     const mergedResults = Array.from(unique.values()).slice(0, perPage * 3);
