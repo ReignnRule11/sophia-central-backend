@@ -156,6 +156,15 @@ export class OpenSourceResearchService {
   }
 
 
+  private isRedistributableSourceLicense(value: unknown): boolean {
+    if (typeof value !== 'string') return false;
+    const license = value.toLowerCase().trim();
+    return /^cc[- ]?by(?:-sa)?(?:[- ]4\\.0)?$/.test(license) ||
+      /^cc0(?:[- ]1\\.0)?$/.test(license) ||
+      /creativecommons\\.org\\/licenses\\/by(?:-sa)?\\/4\\.0\\/?$/.test(license) ||
+      /creativecommons\\.org\\/publicdomain\\/zero\\/1\\.0\\/?$/.test(license);
+  }
+
   private async searchCrossref(term: string, limit: number) {
     try {
       const url = new URL('https://api.crossref.org/works');
@@ -169,6 +178,7 @@ export class OpenSourceResearchService {
       return (payload.message?.items ?? []).map((work) => {
         const doi = typeof work.DOI === 'string' ? work.DOI : null;
         const license = Array.isArray(work.license) ? work.license[0]?.URL ?? null : null;
+        if (!this.isRedistributableSourceLicense(license)) return null;
         const authors = Array.isArray(work.author) ? work.author.map((a: any) => [a.given, a.family].filter(Boolean).join(' ')).filter(Boolean).slice(0, 5) : [];
         const dateParts = work.published?.['date-parts']?.[0];
         return {
@@ -182,10 +192,10 @@ export class OpenSourceResearchService {
           pdfAvailable: false,
           openAccess: true,
           licence: license,
-          redistributionAllowedByLicence: Boolean(license && /creativecommons.org\\/(licenses\\/by|publicdomain\\/zero)/i.test(license)),
+          redistributionAllowedByLicence: true,
           index: 'Crossref',
         };
-      }).filter((item) => item.title !== 'Untitled research work' && item.landingPageUrl);
+      }).filter((item) => item && item.title !== 'Untitled research work' && item.landingPageUrl);
     } catch { return []; }
   }
 
@@ -214,7 +224,7 @@ export class OpenSourceResearchService {
           pdfAvailable: Boolean(work.fullTextUrlList?.fullTextUrl?.length),
           openAccess: true,
           licence: work.license ?? null,
-          redistributionAllowedByLicence: Boolean(work.license && /cc[- ]?by|cc0|creativecommons/i.test(work.license)),
+          redistributionAllowedByLicence: this.isRedistributableSourceLicense(work.license),
           index: 'Europe PMC',
         };
       }).filter((item) => item.title !== 'Untitled research work' && item.landingPageUrl);
