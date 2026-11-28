@@ -18,6 +18,8 @@ import { CompletePreAccountOnboardingDto } from './dto/complete-pre-account-onbo
 import { SavePreAccountProgressDto } from './dto/save-pre-account-progress.dto';
 import { CancelAccountDeletionDto } from './dto/cancel-account-deletion.dto';
 import { AdminMfaChallengeDto, AdminMfaVerifyDto } from './dto/admin-mfa.dto';
+import { VerifyAccountReactivationDto } from './dto/verify-account-reactivation.dto';
+import { ConfirmAccountReactivationDto } from './dto/confirm-account-reactivation.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { CsrfGuard } from '../common/guards/csrf.guard';
 import { User } from '../users/entities/user.entity';
@@ -85,6 +87,21 @@ export class AuthController {
   async login(@Body() dto: LoginDto, @Res({ passthrough: true }) response: Response) {
     const result = await this.authService.login(dto);
     if (!('accessToken' in result)) return result;
+    this.setSessionCookies(response, result.accessToken);
+    return { user: result.user };
+  }
+
+
+  @Post('account-reactivation/verify')
+  @ApiOperation({ summary: 'Verify the email OTP for a voluntarily deactivated account' })
+  verifyAccountReactivation(@Body() dto: VerifyAccountReactivationDto) {
+    return this.authService.verifyAccountReactivationCode(dto.identifier, dto.code);
+  }
+
+  @Post('account-reactivation/confirm')
+  @ApiOperation({ summary: 'Explicitly confirm reactivation after email OTP verification' })
+  async confirmAccountReactivation(@Body() dto: ConfirmAccountReactivationDto, @Res({ passthrough: true }) response: Response) {
+    const result = await this.authService.confirmAccountReactivation(dto.confirmationToken);
     this.setSessionCookies(response, result.accessToken);
     return { user: result.user };
   }
