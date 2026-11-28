@@ -178,6 +178,11 @@ export class User {
   @Column({ type: 'varchar', length: 24, default: 'active' })
   accountStatus!: 'active' | 'deactivated' | 'pending_deletion';
 
+  // Incremented on lifecycle/security transitions so previously issued JWTs
+  // cannot become valid again after reactivation or deletion cancellation.
+  @Column({ type: 'integer', default: 0 })
+  tokenVersion!: number;
+
   @Column({ type: 'timestamptz', nullable: true })
   deletionRequestedAt?: Date;
 
