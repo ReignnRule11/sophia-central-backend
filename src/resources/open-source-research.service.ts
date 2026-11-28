@@ -154,6 +154,7 @@ export class OpenSourceResearchService {
     ];
     const unique = new Map<string, typeof results[number]>();
     for (const item of results) {
+      if (!item) continue;
       const key = item.doi?.toLowerCase().replace('https://doi.org/', '').replace('http://doi.org/', '') || item.id;
       if (!unique.has(key)) unique.set(key, item);
     }
