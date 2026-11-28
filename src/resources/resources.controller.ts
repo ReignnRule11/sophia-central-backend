@@ -62,8 +62,9 @@ export class ResourcesController {
   importOpenSourceResearch(@Body() dto: ImportOpenSourceResearchDto) { return this.openSourceResearch.import(dto.identifier); }
 
   @Get('public')
-  @ApiOperation({ summary: 'Browse approved public academic resources without an account' })
-  findPublic(@Query() query: Record<string, string>) { return this.communityResources.findPublic(query); }
+  @UseGuards(JwtAuthGuard) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Browse approved academic resources scoped to the authenticated user\'s own department' })
+  findPublic(@Query() query: Record<string, string>, @CurrentUser() user: User) { return this.communityResources.findPublic(query, user); }
 
   @Get('public/:id/file-url')
   @UseGuards(JwtAuthGuard) @ApiBearerAuth()
