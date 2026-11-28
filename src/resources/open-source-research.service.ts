@@ -246,7 +246,7 @@ export class OpenSourceResearchService {
     try {
       const searchUrl = new URL('https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi');
       searchUrl.searchParams.set('db', 'pubmed');
-      searchUrl.searchParams.set('term', `(${term}) AND free full text[sb]`);
+      searchUrl.searchParams.set('term', `(${term}) AND "pmc open access subset"[filter]`);
       searchUrl.searchParams.set('retmode', 'json');
       searchUrl.searchParams.set('retmax', String(limit));
       const searchResponse = await fetch(searchUrl, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
