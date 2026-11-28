@@ -97,6 +97,7 @@ The following planning documents establish the commercial and operational framew
 - [Business, Financial Sustainability and Funding Strategy](docs/BUSINESS_PLAN_FINANCIAL_STRATEGY.md)
 - [12-Month Financial Model Framework](docs/12_MONTH_FINANCIAL_MODEL.md)
 - [Technical Scaling and Cost Assessment](docs/TECHNICAL_SCALING_COST_ASSESSMENT.md)
+- [Technical and Operating-Cost Due Diligence Research](docs/TECHNICAL_DUE_DILIGENCE_RESEARCH.md)
 - [Monetization and Growth Roadmap](docs/MONETIZATION_AND_GROWTH_ROADMAP.md)
 
 NGN is the operating currency; USD equivalents should include a dated exchange-rate source. The financial model deliberately avoids invented prices, user counts, operating costs and revenue projections. The engineering team should complete the technical assessment using current invoices, provider dashboards and evidence-based scale estimates before the funding ask is finalized.
