@@ -4,7 +4,7 @@ import { createCipheriv, createDecipheriv, createHash, randomBytes } from 'node:
 import { createClient, type RedisClientType } from 'redis';
 
 export type RegistrationTokenPayload = {
-  stage: 'verify' | 'pre-account' | 'pre-account-draft' | 'admin-bootstrap' | 'support-bootstrap' | 'admin-mfa-login' | 'admin-mfa-enroll';
+  stage: 'verify' | 'pre-account' | 'pre-account-draft' | 'admin-bootstrap' | 'support-bootstrap' | 'admin-mfa-login' | 'admin-mfa-enroll' | 'account-reactivation-confirm';
   expiresAt: number;
   jti?: string;
   [key: string]: unknown;
