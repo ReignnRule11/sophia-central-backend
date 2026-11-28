@@ -761,6 +761,7 @@ export class UsersService {
     }
     const requestedAt = new Date();
     user.accountStatus = 'pending_deletion';
+    user.tokenVersion = (user.tokenVersion ?? 0) + 1;
     user.deletionRequestedAt = requestedAt;
     user.deletionScheduledAt = new Date(requestedAt.getTime() + 30 * 24 * 60 * 60 * 1000);
     await this.usersRepository.save(user);
