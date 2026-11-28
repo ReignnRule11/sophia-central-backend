@@ -50,32 +50,23 @@ export class CommunityResourcesService {
     });
   }
 
-  async findPublic(query: Record<string, string>) {
+  async findPublic(query: Record<string, string>, viewer: User) {
+    const emptyPage = { items: [], page: 1, limit: 18, total: 0, totalPages: 0 };
+    // Scope is derived exclusively from the authenticated viewer, never query parameters.
+    if (!viewer.institutionId || !viewer.faculty?.trim() || !viewer.department?.trim()) return emptyPage;
     const qb = this.resources.createQueryBuilder('resource')
       .leftJoin('resource.uploader', 'uploader')
       .addSelect(['uploader.id', 'uploader.firstName', 'uploader.lastName', 'uploader.academicHandle'])
       .where('resource.origin = :origin AND resource.moderationStatus = :status', { origin: ResourceOrigin.COMMUNITY_UPLOAD, status: ResourceModerationStatus.APPROVED })
-      .andWhere('resource.rightsConfirmed = true');
-    const departmentOnly = query.departmentOnly === '1' || query.departmentOnly === 'true';
-    const filters: Array<[string, string]> = [
-      ['course', 'course'], ['topic', 'topic'], ['institution', 'institution'],
-      ['faculty', 'faculty'], ['department', 'department'], ['level', 'level'],
-    ];
-    if (departmentOnly && !['institution', 'faculty', 'department'].every((key) => query[key]?.trim())) {
-      throw new BadRequestException('Institution, faculty and department are required for department-scoped browsing.');
-    }
+      .andWhere('resource.rightsConfirmed = true')
+      .andWhere('resource.uploaderInstitutionId = :viewerInstitutionId', { viewerInstitutionId: viewer.institutionId })
+      .andWhere('LOWER(COALESCE(resource.faculty, uploader.faculty)) = LOWER(:viewerFaculty)', { viewerFaculty: viewer.faculty.trim() })
+      .andWhere('LOWER(COALESCE(resource.department, uploader.department)) = LOWER(:viewerDepartment)', { viewerDepartment: viewer.department.trim() });
+    const filters: Array<[string, string]> = [['course', 'course'], ['topic', 'topic'], ['level', 'level']];
     for (const [parameter, column] of filters) {
       const value = query[parameter]?.trim();
       if (!value) continue;
-      if (departmentOnly && ['institution', 'faculty', 'department'].includes(parameter)) {
-        const uploaderColumn = parameter;
-        qb.andWhere(
-          `(LOWER(resource.${column}) = LOWER(:${parameter}) OR (resource.${column} IS NULL AND LOWER(uploader.${uploaderColumn}) = LOWER(:${parameter})))`,
-          { [parameter]: value },
-        );
-      } else {
-        qb.andWhere(parameter === 'topic' ? `(LOWER(resource.${column}) LIKE LOWER(:${parameter}) OR resource.tags::text ILIKE :${parameter})` : `LOWER(resource.${column}) LIKE LOWER(:${parameter})`, { [parameter]: `%${value}%` });
-      }
+      qb.andWhere(parameter === 'topic' ? `(LOWER(resource.${column}) LIKE LOWER(:${parameter}) OR resource.tags::text ILIKE :${parameter})` : `LOWER(resource.${column}) LIKE LOWER(:${parameter})`, { [parameter]: `%${value}%` });
     }
     if (query.q?.trim()) {
       qb.andWhere('(resource.title ILIKE :q OR resource.description ILIKE :q OR resource.course ILIKE :q OR resource.topic ILIKE :q OR resource.tags::text ILIKE :q)', { q: `%${query.q.trim()}%` });
