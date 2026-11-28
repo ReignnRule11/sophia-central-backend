@@ -135,14 +135,91 @@ export class OpenSourceResearchService {
     url.searchParams.set('per-page', String(perPage));
     url.searchParams.set('filter', 'open_access.is_oa:true');
     url.searchParams.set('select', 'id,doi,title,publication_year,type,authorships,best_oa_location,primary_location,open_access');
-    const [response, importedResults] = await Promise.all([
+    const [openAlex, crossref, europePmc, importedResults] = await Promise.all([
       this.openAlexGet<OpenAlexSearchResponse>(url.toString()),
+      this.searchCrossref(term, perPage),
+      this.searchEuropePmc(term, perPage),
       this.searchImportedMatches(query, filters, perPage),
     ]);
-    const results = (response.results ?? []).map((work) => this.toSearchResult(work));
-    return { results, importedResults, page, perPage, hasMore: results.length === perPage };
+    const results = [
+      ...(openAlex.results ?? []).map((work) => ({ ...this.toSearchResult(work), index: 'OpenAlex' })),
+      ...crossref,
+      ...europePmc,
+    ];
+    const unique = new Map<string, typeof results[number]>();
+    for (const item of results) {
+      const key = item.doi?.toLowerCase().replace(/^https?:\\/\\/doi.org\\//, '') || item.id;
+      if (!unique.has(key)) unique.set(key, item);
+    }
+    const mergedResults = Array.from(unique.values()).slice(0, perPage * 3);
+    return { results: mergedResults, importedResults, page, perPage, hasMore: mergedResults.length >= perPage };
   }
 
+
+  private async searchCrossref(term: string, limit: number) {
+    try {
+      const url = new URL('https://api.crossref.org/works');
+      url.searchParams.set('query.bibliographic', term);
+      url.searchParams.set('filter', 'has-license:true');
+      url.searchParams.set('rows', String(limit));
+      url.searchParams.set('select', 'DOI,title,author,published,container-title,URL,license');
+      const response = await fetch(url, { headers: { Accept: 'application/json', 'User-Agent': 'SophisCentral/1.0 (mailto:support@sophiscentral.com)' }, signal: AbortSignal.timeout(10000) });
+      if (!response.ok) return [];
+      const payload = await response.json() as { message?: { items?: Array<Record<string, any>> } };
+      return (payload.message?.items ?? []).map((work) => {
+        const doi = typeof work.DOI === 'string' ? work.DOI : null;
+        const license = Array.isArray(work.license) ? work.license[0]?.URL ?? null : null;
+        const authors = Array.isArray(work.author) ? work.author.map((a: any) => [a.given, a.family].filter(Boolean).join(' ')).filter(Boolean).slice(0, 5) : [];
+        const dateParts = work.published?.['date-parts']?.[0];
+        return {
+          id: doi ? `https://doi.org/${doi}` : String(work.URL ?? ''),
+          doi: doi ? `https://doi.org/${doi}` : null,
+          title: Array.isArray(work.title) ? work.title[0] ?? 'Untitled research work' : 'Untitled research work',
+          publicationYear: Array.isArray(dateParts) ? dateParts[0] ?? null : null,
+          authors,
+          source: Array.isArray(work['container-title']) ? work['container-title'][0] ?? 'Crossref' : 'Crossref',
+          landingPageUrl: typeof work.URL === 'string' ? work.URL : (doi ? `https://doi.org/${doi}` : null),
+          pdfAvailable: false,
+          openAccess: true,
+          licence: license,
+          redistributionAllowedByLicence: Boolean(license && /creativecommons.org\\/(licenses\\/by|publicdomain\\/zero)/i.test(license)),
+          index: 'Crossref',
+        };
+      }).filter((item) => item.title !== 'Untitled research work' && item.landingPageUrl);
+    } catch { return []; }
+  }
+
+  private async searchEuropePmc(term: string, limit: number) {
+    try {
+      const url = new URL('https://www.ebi.ac.uk/europepmc/webservices/rest/search');
+      url.searchParams.set('query', `(${term}) AND OPEN_ACCESS:Y`);
+      url.searchParams.set('format', 'json');
+      url.searchParams.set('pageSize', String(limit));
+      url.searchParams.set('resultType', 'core');
+      const response = await fetch(url, { headers: { Accept: 'application/json' }, signal: AbortSignal.timeout(10000) });
+      if (!response.ok) return [];
+      const payload = await response.json() as { resultList?: { result?: Array<Record<string, any>> } };
+      return (payload.resultList?.result ?? []).map((work) => {
+        const doi = typeof work.doi === 'string' ? work.doi : null;
+        const authors = typeof work.authorString === 'string' ? work.authorString.split(',').map((a: string) => a.trim()).filter(Boolean).slice(0, 5) : [];
+        const landingPageUrl = doi ? `https://doi.org/${doi}` : (work.id ? `https://europepmc.org/article/MED/${work.id}` : null);
+        return {
+          id: doi ? `https://doi.org/${doi}` : `europepmc:${work.id}`,
+          doi: doi ? `https://doi.org/${doi}` : null,
+          title: work.title ?? 'Untitled research work',
+          publicationYear: Number(work.pubYear) || null,
+          authors,
+          source: work.journalTitle ?? 'Europe PMC',
+          landingPageUrl,
+          pdfAvailable: Boolean(work.fullTextUrlList?.fullTextUrl?.length),
+          openAccess: true,
+          licence: work.license ?? null,
+          redistributionAllowedByLicence: Boolean(work.license && /cc[- ]?by|cc0|creativecommons/i.test(work.license)),
+          index: 'Europe PMC',
+        };
+      }).filter((item) => item.title !== 'Untitled research work' && item.landingPageUrl);
+    } catch { return []; }
+  }
 
   private async searchImportedMatches(query: string, filters: { author?: string; course?: string; topic?: string }, limit: number) {
     const qb = this.resources.createQueryBuilder('resource')
