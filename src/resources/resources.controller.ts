@@ -38,13 +38,16 @@ export class ResourcesController {
   findOpenSourceOne(@Param('id') id: string) { return this.openSourceResearch.findPublicOne(id); }
 
   @Get('open-source/search')
-  @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN, UserRole.MODERATOR) @ApiBearerAuth()
-  @ApiOperation({ summary: 'Search OpenAlex for open-access research to add to the General Library' })
+  @UseGuards(JwtAuthGuard) @ApiBearerAuth()
+  @ApiOperation({ summary: 'Search external open-access research and matching imported records for every authenticated role' })
   searchOpenSourceResearch(
     @Query('q') query: string,
+    @Query('author') author = '',
+    @Query('course') course = '',
+    @Query('topic') topic = '',
     @Query('page') page = '1',
     @Query('perPage') perPage = '12',
-  ) { return this.openSourceResearch.search(query, page, perPage); }
+  ) { return this.openSourceResearch.search(query, page, perPage, { author, course, topic }); }
 
   @Post('open-source/import/bulk')
   @UseGuards(JwtAuthGuard, RolesGuard) @Roles(UserRole.ADMIN, UserRole.MODERATOR) @ApiBearerAuth()
