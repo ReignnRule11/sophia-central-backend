@@ -136,7 +136,7 @@ export class OpenSourceResearchService {
     url.searchParams.set('filter', 'open_access.is_oa:true');
     url.searchParams.set('select', 'id,doi,title,publication_year,type,authorships,best_oa_location,primary_location,open_access');
     const [openAlex, crossref, europePmc, importedResults] = await Promise.all([
-      this.openAlexGet<OpenAlexSearchResponse>(url.toString()),
+      this.openAlexGet<OpenAlexSearchResponse>(url.toString()).catch(() => ({ results: [] })),
       this.searchCrossref(term, perPage),
       this.searchEuropePmc(term, perPage),
       this.searchImportedMatches(query, filters, perPage),
@@ -158,11 +158,15 @@ export class OpenSourceResearchService {
 
   private isRedistributableSourceLicense(value: unknown): boolean {
     if (typeof value !== 'string') return false;
-    const license = value.toLowerCase().trim();
-    return /^cc[- ]?by(?:-sa)?(?:[- ]4\\.0)?$/.test(license) ||
-      /^cc0(?:[- ]1\\.0)?$/.test(license) ||
-      /creativecommons\\.org\\/licenses\\/by(?:-sa)?\\/4\\.0\\/?$/.test(license) ||
-      /creativecommons\\.org\\/publicdomain\\/zero\\/1\\.0\\/?$/.test(license);
+    const license = value.toLowerCase().trim().replace(/^https?:\\/\\//, '').replace(/\\/+$/, '');
+    return [
+      'cc-by', 'cc-by-4.0', 'cc by', 'cc by 4.0',
+      'cc-by-sa', 'cc-by-sa-4.0', 'cc by-sa', 'cc by-sa 4.0',
+      'cc0', 'cc0-1.0',
+      'creativecommons.org/licenses/by/4.0',
+      'creativecommons.org/licenses/by-sa/4.0',
+      'creativecommons.org/publicdomain/zero/1.0',
+    ].includes(license);
   }
 
   private async searchCrossref(term: string, limit: number) {
