@@ -51,7 +51,9 @@ export class CommunityResourcesService {
   }
 
   async findPublic(query: Record<string, string>, viewer: User) {
-    const emptyPage = { items: [], page: 1, limit: 18, total: 0, totalPages: 0 };
+    const page = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
+    const limit = Math.min(50, Math.max(1, Number.parseInt(query.limit || '20', 10) || 20));
+    const emptyPage = { items: [], page, limit, total: 0, totalPages: 0 };
     // Scope is derived exclusively from the authenticated viewer, never query parameters.
     if (!viewer.institutionId || !viewer.faculty?.trim() || !viewer.department?.trim()) return emptyPage;
     const qb = this.resources.createQueryBuilder('resource')
@@ -59,7 +61,13 @@ export class CommunityResourcesService {
       .addSelect(['uploader.id', 'uploader.firstName', 'uploader.lastName', 'uploader.academicHandle'])
       .where('resource.origin = :origin AND resource.moderationStatus = :status', { origin: ResourceOrigin.COMMUNITY_UPLOAD, status: ResourceModerationStatus.APPROVED })
       .andWhere('resource.rightsConfirmed = true')
-      .andWhere('resource.uploaderInstitutionId = :viewerInstitutionId', { viewerInstitutionId: viewer.institutionId })
+      // New uploads snapshot uploaderInstitutionId. For legacy uploads, fall back to
+      // the uploader's institutionId, then to the resource's institution name only
+      // when the uploader has no institutionId recorded.
+      .andWhere(
+        '(resource.uploaderInstitutionId = :viewerInstitutionId OR (resource.uploaderInstitutionId IS NULL AND (uploader.institutionId = :viewerInstitutionId OR (uploader.institutionId IS NULL AND LOWER(resource.institution) = LOWER(:viewerInstitution)))))',
+        { viewerInstitutionId: viewer.institutionId, viewerInstitution: viewer.institution?.trim() ?? '' },
+      )
       .andWhere('LOWER(COALESCE(resource.faculty, uploader.faculty)) = LOWER(:viewerFaculty)', { viewerFaculty: viewer.faculty.trim() })
       .andWhere('LOWER(COALESCE(resource.department, uploader.department)) = LOWER(:viewerDepartment)', { viewerDepartment: viewer.department.trim() });
     const filters: Array<[string, string]> = [['course', 'course'], ['topic', 'topic'], ['level', 'level']];
@@ -76,8 +84,6 @@ export class CommunityResourcesService {
     }
     if (query.type) qb.andWhere('resource.type = :type', { type: query.type });
     if (query.license) qb.andWhere('resource.license = :license', { license: query.license });
-    const page = Math.max(1, Number.parseInt(query.page || '1', 10) || 1);
-    const limit = Math.min(50, Math.max(1, Number.parseInt(query.limit || '20', 10) || 20));
     const [items, total] = await qb.orderBy('resource.createdAt', 'DESC')
       .skip((page - 1) * limit).take(limit).getManyAndCount();
     return {
