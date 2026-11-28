@@ -158,7 +158,8 @@ export class OpenSourceResearchService {
 
   private isRedistributableSourceLicense(value: unknown): boolean {
     if (typeof value !== 'string') return false;
-    const license = value.toLowerCase().trim().replace(/^https?:\\/\\//, '').replace(/\\/+$/, '');
+    let license = value.toLowerCase().trim().replace('https://', '').replace('http://', '');
+    if (license.endsWith('/')) license = license.slice(0, -1);
     return [
       'cc-by', 'cc-by-4.0', 'cc by', 'cc by 4.0',
       'cc-by-sa', 'cc-by-sa-4.0', 'cc by-sa', 'cc by-sa 4.0',
