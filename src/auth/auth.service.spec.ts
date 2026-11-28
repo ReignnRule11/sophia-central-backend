@@ -111,7 +111,7 @@ describe('AuthService', () => {
     expect(result).toMatchObject({ reactivationRequired: true });
     expect(users.update).not.toHaveBeenCalledWith(deactivated.id, { accountStatus: 'active' });
     expect(jwt.signAsync).not.toHaveBeenCalled();
-    expect(lifecycleEmail.sendOtp).toHaveBeenCalledWith(deactivated.email, deactivated.firstName, expect.stringMatching(/^\\d{6}$/), 'reactivation');
+    expect(lifecycleEmail.sendOtp).toHaveBeenCalledWith(deactivated.email, deactivated.firstName, expect.stringMatching(/^\d{6}$/), 'reactivation');
   });
 
   it('returns an enrollment challenge instead of a JWT for an Admin without MFA', async () => {
