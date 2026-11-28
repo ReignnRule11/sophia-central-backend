@@ -121,10 +121,11 @@ export class OpenSourceResearchService {
     return { url, filename, contentType: metadata?.contentType, license: resource.license, attribution: resource.attribution };
   }
 
-  async search(query: string, pageInput = '1', perPageInput = '12') {
-    const term = query?.trim();
-    if (!term || term.length < 2 || term.length > 160) {
-      throw new BadRequestException('Enter a research title, topic, author or DOI (2–160 characters).');
+  async search(query: string, pageInput = '1', perPageInput = '12', filters: { author?: string; course?: string; topic?: string } = {}) {
+    const terms = [query, filters.author, filters.course, filters.topic].map((value) => value?.trim()).filter((value): value is string => Boolean(value));
+    const term = terms.join(' ').slice(0, 160);
+    if (!term || term.length < 2) {
+      throw new BadRequestException('Enter a research title, DOI, author, course or topic (at least 2 characters).');
     }
     const page = Math.min(100, Math.max(1, Number.parseInt(pageInput, 10) || 1));
     const perPage = Math.min(50, Math.max(1, Number.parseInt(perPageInput, 10) || 12));
@@ -134,9 +135,29 @@ export class OpenSourceResearchService {
     url.searchParams.set('per-page', String(perPage));
     url.searchParams.set('filter', 'open_access.is_oa:true');
     url.searchParams.set('select', 'id,doi,title,publication_year,type,authorships,best_oa_location,primary_location,open_access');
-    const response = await this.openAlexGet<OpenAlexSearchResponse>(url.toString());
+    const [response, importedResults] = await Promise.all([
+      this.openAlexGet<OpenAlexSearchResponse>(url.toString()),
+      this.searchImportedMatches(query, filters, perPage),
+    ]);
     const results = (response.results ?? []).map((work) => this.toSearchResult(work));
-    return { results, page, perPage, hasMore: results.length === perPage };
+    return { results, importedResults, page, perPage, hasMore: results.length === perPage };
+  }
+
+
+  private async searchImportedMatches(query: string, filters: { author?: string; course?: string; topic?: string }, limit: number) {
+    const qb = this.resources.createQueryBuilder('resource')
+      .where('resource.origin = :origin AND resource.rightsConfirmed = true', { origin: ResourceOrigin.OPEN_SOURCE });
+    const terms = [query, filters.author, filters.course, filters.topic].map((value) => value?.trim()).filter((value): value is string => Boolean(value));
+    if (terms.length) {
+      const clauses = terms.map((term, index) => {
+        const key = `term${index}`;
+        qb.setParameter(key, `%${term}%`);
+        return `(resource.title ILIKE :${key} OR resource.description ILIKE :${key} OR resource.attribution ILIKE :${key} OR resource.course ILIKE :${key} OR resource.topic ILIKE :${key} OR resource.sourceUrl ILIKE :${key} OR resource.tags::text ILIKE :${key})`;
+      });
+      qb.andWhere(`(${clauses.join(' OR ')})`);
+    }
+    const items = await qb.orderBy('resource.createdAt', 'DESC').take(Math.min(limit, 50)).getMany();
+    return items.map((item) => this.publicShape(item));
   }
 
   async importMany(identifiers: string[]) {
